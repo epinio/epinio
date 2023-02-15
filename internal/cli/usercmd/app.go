@@ -442,7 +442,7 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) er
 		TryDev: true,
 	}
 
-	return c.API.AppExec(c.Settings.Namespace, appName, instance, tty)
+	return c.API.AppExec(ctx, c.Settings.Namespace, appName, instance, tty)
 }
 
 func (c *EpinioClient) AppPortForward(ctx context.Context, appName, instance string, address, ports []string) error {

@@ -56,7 +56,7 @@ type APIClient interface {
 	AppLogs(namespace, appName, stageID string, follow bool, callback func(tailer.ContainerLogLine)) error
 	StagingComplete(namespace string, id string) (models.Response, error)
 	AppRunning(app models.AppRef) (models.Response, error)
-	AppExec(namespace string, appName, instance string, tty kubectlterm.TTY) error
+	AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error
 	AppPortForward(namespace string, appName, instance string, opts *epinioapi.PortForwardOpts) error
 	AppRestart(namespace string, appName string) error
 	AppGetPart(namespace, appName, part, destinationPath string) error

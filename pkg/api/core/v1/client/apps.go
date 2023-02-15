@@ -12,6 +12,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -566,7 +567,7 @@ func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 	return resp, nil
 }
 
-func (c *Client) AppExec(namespace string, appName, instance string, tty kubectlterm.TTY) error {
+func (c *Client) AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error {
 	endpoint := fmt.Sprintf("%s%s/%s",
 		c.Settings.API, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
@@ -605,7 +606,7 @@ func (c *Client) AppExec(namespace string, appName, instance string, tty kubectl
 			TerminalSizeQueue: tty.MonitorSize(tty.GetSize()),
 		}
 
-		return exec.Stream(options)
+		return exec.StreamWithContext(ctx, options)
 	}
 
 	return tty.Safe(fn)
