@@ -35,6 +35,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"gopkg.in/yaml.v2"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -146,18 +148,24 @@ var _ = Describe("Apps", LApplication, func() {
 					manifest, err := os.ReadFile(destinationPath)
 					Expect(err).ToNot(HaveOccurred(), destinationPath)
 
-					Expect(string(manifest)).To(MatchRegexp(fmt.Sprintf(`name: %s
-configuration:
-  instances: 2
-  configurations:
-  - %s
-  environment:
-    CREDO: up
-    DOGMA: "no"
-  routes:
-  - %s\..*
-  appchart: standard
-`, appName, configurationName, appName)))
+					theManifest := models.ApplicationManifest{}
+					err = yaml.Unmarshal(manifest, &theManifest)
+					Expect(err).ToNot(HaveOccurred(), string(manifest))
+
+					// Note: Cannot use MatchYaml because of the `HavePrefix` check on the route.
+					// The MatchYAML asserts equality and we do not have the full route name here to put in.
+					Expect(theManifest.Name).To(Equal(appName))
+					var i int32 = 2
+					Expect(theManifest.Configuration.Instances).To(Equal(&i))
+					Expect(theManifest.Configuration.Configurations).To(HaveLen(1))
+					Expect(theManifest.Configuration.Routes).To(HaveLen(1))
+					Expect(theManifest.Configuration.Configurations[0]).To(Equal(configurationName))
+					Expect(theManifest.Configuration.Routes[0]).To(HavePrefix(appName))
+					Expect(theManifest.Configuration.Environment).To(HaveLen(2))
+					Expect(theManifest.Configuration.Environment).To(HaveKeyWithValue("CREDO", "up"))
+					Expect(theManifest.Configuration.Environment).To(HaveKeyWithValue("DOGMA", "no"))
+					Expect(theManifest.Configuration.AppChart).To(Equal("standard"))
+					Expect(theManifest.Namespace).To(Equal(namespace))
 				})
 			})
 		})

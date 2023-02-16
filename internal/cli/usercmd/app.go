@@ -286,6 +286,7 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 	m.Name = appName
 	m.Configuration = app.Configuration
 	m.Origin = app.Origin
+	m.Namespace = c.Settings.Namespace
 
 	yaml, err := yaml.Marshal(m)
 	if err != nil {
