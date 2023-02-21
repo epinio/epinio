@@ -6,6 +6,7 @@ password
 .bash_history
 *.box
 *.vmdk
+*.tgz
 personal-setup
 .envrc
 /*values.yaml

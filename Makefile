@@ -173,6 +173,9 @@ check:
 patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
 
+appchart:
+	@./scripts/appchart.sh
+
 ########################################################################
 # Docs
 
