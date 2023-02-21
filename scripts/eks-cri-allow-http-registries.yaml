@@ -1,0 +1,51 @@
+# Enables pulling images from internal HTTP epinio registry on EKS nodes.
+# Configuration for containerd in /etc/containerd/certs.d is done on nodes.
+# Please set spec.completions and spec.parallelism values to the number of nodes.
+# This job needs to be retriggered once the nodes or their amount changes.
+# If needed it can be converted to a CronJob.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: setup-cri
+spec:
+  # Specify number of nodes for both values
+  completions: 2
+  parallelism: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: setup-cri
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - setup-cri
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - command:
+        - /bin/sh
+        - -c
+        - |
+          [ -f /tmp/containerd/certs.d/127.0.0.1:30500/hosts.toml ] && { echo 'Already configured'; exit 0; }
+          mkdir -p /tmp/containerd/certs.d/127.0.0.1:30500
+          cat > /tmp/containerd/certs.d/127.0.0.1:30500/hosts.toml <<EOF
+          server = "http://127.0.0.1:30500"
+          [host."http://127.0.0.1:30500"]
+            capabilities = ["pull"]
+          EOF
+        image: busybox
+        imagePullPolicy: IfNotPresent
+        name: setup-cri
+        volumeMounts:
+          - name: etc-node-mount
+            mountPath: /tmp
+      restartPolicy: OnFailure
+      volumes:
+        - name: etc-node-mount
+          hostPath:
+            path: /etc

@@ -143,6 +143,13 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
+		By("Allow internal HTTP registry on EKS 1.24+", func() {
+			out, err := proc.Run(testenv.Root(), true, "kubectl", "apply", "-f", "./scripts/eks-cri-allow-http-registries.yaml")
+			Expect(err).ToNot(HaveOccurred(), out)
+			out, err = proc.Kubectl("wait", "--for=condition=complete", "job/setup-cri")
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
 		By("Connecting to Epinio", func() {
 			Eventually(func() string {
 				out, _ := epinioHelper.Run("login", "-u", "admin", "-p", "password", "--trust-ca", "https://epinio."+domain)
