@@ -10,9 +10,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script can be used to package a development version of the epinio-application helm chart.
-# It will also run a local nginx container attached to the epinio-acceptance network,
-# and patch the standard epinio appchart with this version.
+# Use this script to package a development version of the epinio-application helm chart, and
+# then run a local nginx container attached to the epinio-acceptance network serving this chart,
+# and lastly patch the standard epinio appchart in the active Epinio installation to use this version.
 
 VERSION=0.0.0
 TARBALL=epinio-application-$VERSION.tgz
