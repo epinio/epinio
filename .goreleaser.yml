@@ -295,10 +295,6 @@ brews:
 release:
   # Do not auto-publish the release
   draft: true
-  # Replace the existing draft
-  replace_existing_draft: true
-  # Keep the release notes
-  mode: keep-existing
 
   extra_files:
     - glob: ./helm-charts/chart/epinio/crds/*
