@@ -1734,6 +1734,10 @@
           "type": "string",
           "x-go-name": "HelmChart"
         },
+        "chartVersion": {
+          "type": "string",
+          "x-go-name": "ChartVersion"
+        },
         "helm_repo": {
           "type": "string",
           "x-go-name": "HelmRepo"
