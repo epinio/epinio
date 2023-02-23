@@ -392,7 +392,7 @@ type AppChart struct {
 	Description      string                     `json:"description,omitempty"`
 	ShortDescription string                     `json:"short_description,omitempty"`
 	HelmChart        string                     `json:"helm_chart,omitempty"`
-	ChartVersion     string                     `json:"chartVersion,omitempty"`
+	ChartVersion     string                     `json:"chart_version,omitempty"`
 	HelmRepo         string                     `json:"helm_repo,omitempty"`
 	Settings         map[string]AppChartSetting `json:"settings,omitempty"`
 }
