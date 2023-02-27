@@ -1,0 +1,164 @@
+# Copyright © 2021 - 2023 SUSE LLC
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+name: RKE-NGINX-EXTS3-MLBDROP-CI
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ ready_for_review ]
+    paths:
+      - 'acceptance/install/scenario8_test.go'
+      - '.github/workflows/rke-nginx-exts3-mlbdrop.yml'
+  schedule:
+    - cron:  '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      aws_id:
+        description: "AWS_ACCESS_KEY_ID"
+        required: false
+        default: ""
+      aws_key:
+        description: "AWS_SECRET_ACCESS_KEY"
+        required: false
+        default: ""
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
+        required: false
+        default: ""
+
+env:
+  SETUP_GO_VERSION: '^1.19'
+  GINKGO_NODES: 1
+  FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
+
+jobs:
+  linter:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: Lint Epinio
+        run: make lint
+
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
+
+  acceptance-scenario3-nginx-ext-s3:
+    needs:
+      - linter
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: Clean runner
+        id: clean-runner
+        run: |
+          make acceptance-cluster-delete
+
+      - name: Create RKE cluster
+        id: create-cluster
+        run: |
+          curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_METHOD=tar sh -
+          # Allow non-root user to read KUBECONFIG file
+          sudo sh -c "echo RKE2_KUBECONFIG_MODE=0644 > /etc/sysconfig/rke2-server"
+          # Disable RKE integrated ingress-nginx controller
+          sudo sh -c "mkdir -p /etc/rancher/rke2/config.yaml.d"
+          sudo sh -c "echo 'disable: rke2-ingress-nginx' > /etc/rancher/rke2/config.yaml.d/00-epinio.yaml"
+          # Start RKE cluster
+          sudo systemctl enable --now rke2-server
+          # Wait a "little" to let enough time for RKE cluster to be up and running
+          sleep 120
+
+      - name: Installation Acceptance Tests
+        env:
+          REGEX: Scenario8
+          PUBLIC_CLOUD: 1
+          KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+          REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
+          INGRESS_CONTROLLER: nginx
+          AWS_ACCESS_KEY_ID: ${{ github.event.inputs.aws_id || secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
+          # EXTRAENV_NAME: SESSION_KEY
+          # EXTRAENV_VALUE: 12345
+        run: |
+          # Get a free IP address on server's network
+          export RANGE_IP="$(scripts/get-free-ip.sh)"
+          export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).omg.howdoi.website"
+          make test-acceptance-install
+
+      - name: Delete RKE cluster
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        run: |
+          sudo sh /usr/local/bin/rke2-uninstall.sh
+
+      # Only on RKE, as it uses a self-hosted runner
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
