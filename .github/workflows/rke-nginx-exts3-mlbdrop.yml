@@ -166,7 +166,7 @@ jobs:
           # EXTRAENV_VALUE: 12345
         run: |
           # Using a random host name to prevent collisions with our other workflows on EKS
-          EPINIO_SYSTEM_DOMAIN=id${RANDOM}-${AWS_BASE_DOMAIN}
+          export EPINIO_SYSTEM_DOMAIN=id${RANDOM}-${AWS_BASE_DOMAIN}
           echo "System Domain: $EPINIO_SYSTEM_DOMAIN"
           make test-acceptance-install
 
