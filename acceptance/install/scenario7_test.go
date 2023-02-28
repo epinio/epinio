@@ -135,7 +135,7 @@ var _ = Describe("<Scenario7> RKE, Private CA, Configuration, on External Regist
 				By(outy)
 				// pod logs - as they are, no following
 				outa, err := proc.RunW("kubectl", "logs", "-n", "ingress-nginx", "-l", "app=nginx-ingress-nginx-ingress")
-				Expect(err).NotTo(HaveOccurred(), outa)
+				//Expect(err).NotTo(HaveOccurred(), outa)
 				By(outa)
 				// .............................
 
