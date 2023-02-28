@@ -25,7 +25,7 @@ Add any other context about the epic here.
 - [ ] Specify a new feature, or investigate an undesired behaviour
 - [ ] Implement the specification, or bug fix coming out of the investigation
 - [ ] Write and/or update tests covering the new or changed behaviour to be run by CI
-- [ ] For larger changes QA should test/verify the changes as well, outside of CI.
+- [ ] For larger changes request QA to test/verify the changes as well, outside of CI.
 - [ ] Update the documentation
         - [ ] Reference description (maybe just update CLI manpages)
         - [ ] Explanations for a new feature
