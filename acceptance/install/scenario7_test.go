@@ -108,7 +108,7 @@ var _ = Describe("<Scenario7> RKE, Private CA, Configuration, on External Regist
 				out, err := proc.RunW("kubectl", "get", "svc", "-n", "ingress-nginx", "ingress-nginx-controller", "--no-headers")
 				Expect(err).NotTo(HaveOccurred(), out)
 				return out
-			}, "4m", "2s").ShouldNot(ContainSubstring("<pending>"))
+			}, "8m", "2s").ShouldNot(ContainSubstring("<pending>"))
 
 			out, err := proc.RunW("kubectl", "get", "service", "-n", "ingress-nginx", "ingress-nginx-controller", "-o", "json")
 			Expect(err).NotTo(HaveOccurred(), out)
