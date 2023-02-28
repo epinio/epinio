@@ -31,6 +31,14 @@ on:
         description: "AWS_SECRET_ACCESS_KEY"
         required: false
         default: ""
+      aws_domain:
+        description: "AWS_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+        required: false
+        default: ""
+      aws_zone_id:
+        description: "AWS_ZONE_ID"
+        required: false
+        default: ""
       keep_cluster:
         description: "Keep the cluster afterwards? (empty/yes)"
         required: false
@@ -77,7 +85,7 @@ jobs:
         if: always()
         uses: colpal/actions-clean@v1
 
-  acceptance-scenario3-nginx-ext-s3:
+  acceptance-scenario3-nginx-ext-s3-route53:
     needs:
       - linter
     runs-on: self-hosted
@@ -121,6 +129,13 @@ jobs:
         run: |
           make acceptance-cluster-delete
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          aws-access-key-id: ${{ github.event.inputs.aws_id || secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Create RKE cluster
         id: create-cluster
         run: |
@@ -143,14 +158,16 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
           INGRESS_CONTROLLER: nginx
+          AWS_ZONE_ID: ${{ github.event.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
           AWS_ACCESS_KEY_ID: ${{ github.event.inputs.aws_id || secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
+	  AWS_BASE_DOMAIN: ${{ github.event.inputs.aws_domain || secrets.AWS_DOMAIN }}
           # EXTRAENV_NAME: SESSION_KEY
           # EXTRAENV_VALUE: 12345
         run: |
-          # Get a free IP address on server's network
-          export RANGE_IP="$(scripts/get-free-ip.sh)"
-          export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).omg.howdoi.website"
+          # Using a random host name to prevent collisions with our other workflows on EKS
+          EPINIO_SYSTEM_DOMAIN=id${RANDOM}-${AWS_BASE_DOMAIN}
+          echo "System Domain: $EPINIO_SYSTEM_DOMAIN"
           make test-acceptance-install
 
       - name: Delete RKE cluster

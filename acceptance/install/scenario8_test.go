@@ -12,7 +12,9 @@
 package install_test
 
 import (
+	"encoding/json"
 	"os"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -20,6 +22,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/epinio"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/helpers/route53"
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
@@ -29,17 +32,16 @@ var _ = Describe("<Scenario8> RKE, Private CA, Configuration, on External Regist
 		epinioHelper      epinio.Epinio
 		configurationName = catalog.NewConfigurationName()
 		appName           string
-		// loadbalancer      string
-		registryUsername string
-		registryPassword string
-		// rangeIP          string
-		domain string
-		// domainIP          string
-		extraEnvName  string
-		extraEnvValue string
-		name_exists   bool
-		value_exists  bool
-		localpathURL  = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
+		loadbalancer      string
+		registryUsername  string
+		registryPassword  string
+		domain            string
+		zoneID            string
+		extraEnvName      string
+		extraEnvValue     string
+		name_exists       bool
+		value_exists      bool
+		localpathURL      = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 	)
 
 	BeforeEach(func() {
@@ -100,45 +102,51 @@ var _ = Describe("<Scenario8> RKE, Private CA, Configuration, on External Regist
 	})
 
 	It("Installs with private CA and pushes an app with configuration", func() {
-		// By("Installing MetalLB", func() {
-		// 	rangeIP = os.Getenv("RANGE_IP")
-		// 	out, err := proc.RunW("sed", "-i", fmt.Sprintf("s/@IP_RANGE@/%s/", rangeIP),
-		// 		testenv.TestAssetPath("resources.yaml"))
-		// 	Expect(err).NotTo(HaveOccurred(), out)
-		//
-		// 	out, err = proc.RunW("helm", "repo", "add", "metallb", "https://metallb.github.io/metallb")
-		// 	Expect(err).NotTo(HaveOccurred(), out)
-		//
-		// 	out, err = proc.RunW("helm", "upgrade", "--install", "--wait", "-n", "metallb",
-		// 		"--create-namespace", "metallb", "metallb/metallb")
-		// 	Expect(err).NotTo(HaveOccurred(), out)
-		//
-		// 	out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("resources.yaml"))
-		// 	Expect(err).NotTo(HaveOccurred(), out)
-		// })
-		//
-		// By("Checking LoadBalancer IP", func() {
-		// 	// Ensure that Traefik LB is not in Pending state anymore, could take time
-		// 	Eventually(func() string {
-		// 		out, err := proc.RunW("kubectl", "get", "svc", "-n", "traefik", "traefik", "--no-headers")
-		// 		Expect(err).NotTo(HaveOccurred(), out)
-		// 		return out
-		// 	}, "4m", "2s").ShouldNot(ContainSubstring("<pending>"))
-		//
-		// 	out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
-		// 	Expect(err).NotTo(HaveOccurred(), out)
-		//
-		// 	// Check that an IP address for LB is configured
-		// 	status := &testenv.LoadBalancerHostname{}
-		// 	err = json.Unmarshal([]byte(out), status)
-		// 	Expect(err).NotTo(HaveOccurred(), out)
-		// 	Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
-		// 	loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
-		// 	Expect(loadbalancer).ToNot(BeEmpty())
-		//
-		// 	// We need to be sure that the specified IP is really used
-		// 	Expect(loadbalancer).To(Equal(domainIP))
-		// })
+		By("Checking LoadBalancer IP", func() {
+			// Ensure that Nginx LB is not in Pending state anymore, could take time
+			Eventually(func() string {
+				out, err := proc.RunW("kubectl", "get", "svc", "-n", "ingress-nginx", "ingress-nginx-controller", "--no-headers")
+				Expect(err).NotTo(HaveOccurred(), out)
+				return out
+			}, "4m", "2s").ShouldNot(ContainSubstring("<pending>"))
+
+			out, err := proc.RunW("kubectl", "get", "service", "-n", "ingress-nginx", "ingress-nginx-controller", "-o", "json")
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			// Check that an IP address for LB is configured
+			status := &testenv.LoadBalancerHostname{}
+			err = json.Unmarshal([]byte(out), status)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
+			loadbalancer = status.Status.LoadBalancer.Ingress[0].Hostname
+			Expect(loadbalancer).ToNot(BeEmpty())
+		})
+
+		By("Updating DNS Entries", func() {
+			change := route53.CNAME(domain, loadbalancer, "UPSERT")
+			out, err := route53.Update(zoneID, change, nodeTmpDir)
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			change = route53.CNAME("*."+domain, loadbalancer, "UPSERT")
+			out, err = route53.Update(zoneID, change, nodeTmpDir)
+			Expect(err).NotTo(HaveOccurred(), out)
+		})
+
+		// Check that DNS entry is correctly propagated
+		By("Checking that DNS entry is correctly propagated", func() {
+			Eventually(func() string {
+				out, err := route53.TestDnsAnswer(zoneID, domain, "CNAME")
+				Expect(err).NotTo(HaveOccurred(), out)
+
+				answer := &route53.DNSAnswer{}
+				err = json.Unmarshal([]byte(out), answer)
+				Expect(err).NotTo(HaveOccurred())
+				if len(answer.RecordData) == 0 {
+					return ""
+				}
+				return answer.RecordData[0]
+			}, "5m", "2s").Should(Equal(loadbalancer + ".")) // CNAME ends with a '.'
+		})
 
 		By("Configuring local-path storage", func() {
 			out, err := proc.RunW("kubectl", "apply", "-f", localpathURL)
@@ -154,6 +162,9 @@ var _ = Describe("<Scenario8> RKE, Private CA, Configuration, on External Regist
 			out, err := proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("cluster-issuer-private-ca.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
+
+		// Workaround to (try to!) ensure that the DNS is really propagated!
+		time.Sleep(3 * time.Minute)
 
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
