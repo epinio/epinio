@@ -59,6 +59,7 @@ var _ = Describe("<Scenario6> Azure, epinio-ca, External Registry", func() {
 		registryPassword = os.Getenv("REGISTRY_PASSWORD")
 		Expect(registryPassword).ToNot(BeEmpty())
 		flags = []string{
+			"--set", "server.disableTracking=true", // disable tracking during tests
 			"--set", "global.domain=" + domain,
 			"--set", "containerregistry.enabled=false",
 			"--set", "global.registryURL=registry.hub.docker.com",

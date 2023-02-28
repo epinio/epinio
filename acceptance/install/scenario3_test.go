@@ -65,6 +65,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 		registryPassword = os.Getenv("REGISTRY_PASSWORD")
 		Expect(registryPassword).ToNot(BeEmpty())
 		flags = []string{
+			"--set", "server.disableTracking=true", // disable tracking during tests
 			"--set", "global.domain=" + domain,
 			"--set", "global.tlsIssuer=private-ca",
 			"--set", "containerregistry.enabled=false",

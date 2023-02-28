@@ -59,6 +59,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", fu
 		registryPassword = os.Getenv("REGISTRY_PASSWORD")
 		Expect(registryPassword).ToNot(BeEmpty())
 		flags = []string{
+			"--set", "server.disableTracking=true", // disable tracking during tests
 			"--set", "global.domain=" + domain,
 			"--set", "global.tlsIssuer=letsencrypt-staging",
 			"--set", "containerregistry.enabled=false",
