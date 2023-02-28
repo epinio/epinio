@@ -54,7 +54,15 @@ var _ = Describe("<Scenario7> RKE, Private CA, Configuration, on External Regist
 
 		domain = os.Getenv("EPINIO_SYSTEM_DOMAIN")
 		Expect(domain).ToNot(BeEmpty())
-		// domainIP = strings.TrimSuffix(domain, ".omg.howdoi.website")
+
+		zoneID = os.Getenv("AWS_ZONE_ID")
+		Expect(zoneID).ToNot(BeEmpty())
+
+		accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+		Expect(accessKeyID).ToNot(BeEmpty())
+
+		secretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+		Expect(secretAccessKey).ToNot(BeEmpty())
 
 		appName = "external-reg-test-rke"
 
@@ -63,12 +71,6 @@ var _ = Describe("<Scenario7> RKE, Private CA, Configuration, on External Regist
 
 		registryPassword = os.Getenv("REGISTRY_PASSWORD")
 		Expect(registryPassword).ToNot(BeEmpty())
-
-		accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
-		Expect(accessKeyID).ToNot(BeEmpty())
-
-		secretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-		Expect(secretAccessKey).ToNot(BeEmpty())
 
 		flags = []string{
 			"--set", "server.disableTracking=true", // disable tracking during tests
