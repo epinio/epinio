@@ -26,7 +26,7 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
-var _ = Describe("<Scenario8> RKE, Private CA, Configuration, on External Registry, S3 storage", func() {
+var _ = Describe("<Scenario7> RKE, Private CA, Configuration, on External Registry, S3 storage", func() {
 	var (
 		flags             []string
 		epinioHelper      epinio.Epinio
