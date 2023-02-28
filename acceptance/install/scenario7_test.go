@@ -118,14 +118,16 @@ var _ = Describe("<Scenario7> RKE, Private CA, Configuration, on External Regist
 				Expect(err).NotTo(HaveOccurred(), outx)
 				By(outx)
 				// pod listing
-				outy, err := proc.RunW("kubectl", "get", "pod", "-n", "ingress-nginx")
-				Expect(err).NotTo(HaveOccurred(), outy)
-				By(outy)
+				// outy, err := proc.RunW("kubectl", "get", "pod", "-n", "ingress-nginx")
+				// Expect(err).NotTo(HaveOccurred(), outy)
+				// By(outy)
 				// pod details (labels and such - for better adressing, and logs)
-				outz, err := proc.RunW("kubectl", "get", "pod", "-n", "ingress-nginx")
+				outz, err := proc.RunW("kubectl", "get", "pod", "-n", "ingress-nginx", "-o", "json")
 				Expect(err).NotTo(HaveOccurred(), outz)
 				By(outz)
 				// .............................
+
+				//  svc label // "app.kubernetes.io/instance": "nginx-ingress",
 
 				return out
 			}, "8m", "1m").ShouldNot(ContainSubstring("<pending>"))
