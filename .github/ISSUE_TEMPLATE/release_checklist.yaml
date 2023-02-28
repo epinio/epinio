@@ -12,7 +12,8 @@
 name: Release Checklist
 description: Checklist for a new Epinio release
 title: 'Release vX.Y.Z'
-labels: ["release"]
+labels:
+  - kind/release
 body:
   - type: markdown
     attributes:
