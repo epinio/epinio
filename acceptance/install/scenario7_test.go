@@ -107,10 +107,28 @@ var _ = Describe("<Scenario7> RKE, Private CA, Configuration, on External Regist
 		By("Checking LoadBalancer IP", func() {
 			// Ensure that Nginx LB is not in Pending state anymore, could take time
 			Eventually(func() string {
+				By("XXX XXX XXX XXX XXX XXX XXX XXX XXX ")
 				out, err := proc.RunW("kubectl", "get", "svc", "-n", "ingress-nginx", "ingress-nginx-controller", "--no-headers")
 				Expect(err).NotTo(HaveOccurred(), out)
+
+				// DEBUG .......................
+				By(out) // DEBUG
+				// controller detailed config and state
+				outx, err := proc.RunW("kubectl", "get", "service", "-n", "ingress-nginx", "ingress-nginx-controller", "-o", "json")
+				Expect(err).NotTo(HaveOccurred(), outx)
+				By(outx)
+				// pod listing
+				outy, err := proc.RunW("kubectl", "get", "pod", "-n", "ingress-nginx")
+				Expect(err).NotTo(HaveOccurred(), outy)
+				By(outy)
+				// pod details (labels and such - for better adressing, and logs)
+				outz, err := proc.RunW("kubectl", "get", "pod", "-n", "ingress-nginx")
+				Expect(err).NotTo(HaveOccurred(), outz)
+				By(outz)
+				// .............................
+
 				return out
-			}, "8m", "2s").ShouldNot(ContainSubstring("<pending>"))
+			}, "8m", "1m").ShouldNot(ContainSubstring("<pending>"))
 
 			out, err := proc.RunW("kubectl", "get", "service", "-n", "ingress-nginx", "ingress-nginx-controller", "-o", "json")
 			Expect(err).NotTo(HaveOccurred(), out)
