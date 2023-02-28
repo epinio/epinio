@@ -113,6 +113,10 @@ var _ = Describe("<Scenario7> RKE, Private CA, Configuration, on External Regist
 
 				// DEBUG .......................
 				By(out) // DEBUG
+
+				outb, err := proc.RunW("kubectl", "get", "svc", "-n", "ingress-nginx", "ingress-nginx-controller")
+				Expect(err).NotTo(HaveOccurred(), outb)
+				By(outb)
 				// controller detailed config and state
 				outx, err := proc.RunW("kubectl", "get", "service", "-n", "ingress-nginx", "ingress-nginx-controller", "-o", "json")
 				Expect(err).NotTo(HaveOccurred(), outx)
@@ -121,13 +125,22 @@ var _ = Describe("<Scenario7> RKE, Private CA, Configuration, on External Regist
 				// outy, err := proc.RunW("kubectl", "get", "pod", "-n", "ingress-nginx")
 				// Expect(err).NotTo(HaveOccurred(), outy)
 				// By(outy)
-				// pod details (labels and such - for better adressing, and logs)
+				// pod details (labels and such - for better addressing, and logs)
 				outz, err := proc.RunW("kubectl", "get", "pod", "-n", "ingress-nginx", "-o", "json")
 				Expect(err).NotTo(HaveOccurred(), outz)
 				By(outz)
+				// pod description
+				outy, err := proc.RunW("kubectl", "describe", "pod", "-n", "ingress-nginx", "-l", "app=nginx-ingress-nginx-ingress")
+				Expect(err).NotTo(HaveOccurred(), outy)
+				By(outy)
+				// pod logs - as they are, no following
+				outa, err := proc.RunW("kubectl", "logs", "-n", "ingress-nginx", "-l", "app=nginx-ingress-nginx-ingress", "--all-containers", "true")
+				Expect(err).NotTo(HaveOccurred(), outa)
+				By(outa)
 				// .............................
 
 				//  svc label // "app.kubernetes.io/instance": "nginx-ingress",
+				// pod label // "app=nginx-ingress-nginx-ingress",
 
 				return out
 			}, "8m", "1m").ShouldNot(ContainSubstring("<pending>"))
