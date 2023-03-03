@@ -118,6 +118,7 @@ func (e *Epinio) Upgrade() {
 
 	out, err = proc.RunW("helm", "get", "values", "epinio", "-n", "epinio", "-o", "yaml")
 	Expect(err).NotTo(HaveOccurred(), out)
+	By("Old values = ((" + out + "))")
 	err = os.WriteFile(prevValuesFile, []byte(out), 0600)
 	Expect(err).NotTo(HaveOccurred(), out)
 
