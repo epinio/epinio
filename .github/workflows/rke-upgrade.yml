@@ -150,6 +150,8 @@ jobs:
           # EXTRAENV_NAME: SESSION_KEY
           # EXTRAENV_VALUE: 12345
         run: |
+          export KUBECONFIG=$(pwd)/rke2.yaml
+          echo kubeconfig=$KUBECONFIG
           # EPINIO_UPGRADED triggers starting with a released epinio in suite setup, and the upgrade sequence
           # Get a free IP address on server's network
           export RANGE_IP="$(scripts/get-free-ip.sh)"
