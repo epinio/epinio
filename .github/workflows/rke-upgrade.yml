@@ -130,11 +130,11 @@ jobs:
           sudo sh -c "echo 'disable: rke2-ingress-nginx' > /etc/rancher/rke2/config.yaml.d/00-epinio.yaml"
           # Start RKE cluster
           sudo systemctl enable --now rke2-server
-	  # Save kubeconfig locally and set permissions to prevent kubectl/helm warnings
-	  cp /etc/rancher/rke2/rke2.yaml rke2.yaml
-	  chmod u+rw,go-rwx rke2.yaml
-	  pwd
-	  ls -l rke2.yaml
+          # Save kubeconfig locally and set permissions to prevent kubectl/helm warnings
+          cp /etc/rancher/rke2/rke2.yaml rke2.yaml
+          chmod u+rw,go-rwx rke2.yaml
+          pwd
+          ls -l rke2.yaml
           # Wait a "little" to let enough time for RKE cluster to be up and running
           sleep 120
 
@@ -155,7 +155,7 @@ jobs:
           export RANGE_IP="$(scripts/get-free-ip.sh)"
           export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).omg.howdoi.website"
           export EPINIO_CURRENT_TAG="$(git describe --tags)"
-	  pwd
+          pwd
           # Run RKE integrated install + upgrade test using latest epinio release
           mkdir dist
           scripts/get-latest-epinio.sh
