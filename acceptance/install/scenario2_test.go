@@ -55,6 +55,7 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 		instancesNum = "0"
 
 		flags = []string{
+			"--set", "server.disableTracking=true", // disable tracking during tests
 			"--set", "global.domain=" + domain,
 			"--set", "global.tlsIssuer=letsencrypt-staging",
 		}

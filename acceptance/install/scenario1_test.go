@@ -53,6 +53,7 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 		Expect(zoneID).ToNot(BeEmpty())
 
 		flags = []string{
+			"--set", "server.disableTracking=true", // disable tracking during tests
 			"--set", "global.domain=" + domain,
 		}
 

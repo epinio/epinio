@@ -62,6 +62,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 		Expect(secretAccessKey).ToNot(BeEmpty())
 
 		flags = []string{
+			"--set", "server.disableTracking=true", // disable tracking during tests
 			"--set", "global.domain=" + domain,
 			"--set", "minio.enabled=false",
 			"--set", "s3.useSSL=true",
