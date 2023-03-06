@@ -54,7 +54,7 @@ require (
 	golang.org/x/term v0.5.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
-	helm.sh/helm/v3 v3.11.0
+	helm.sh/helm/v3 v3.11.1
 	k8s.io/api v0.26.2
 	k8s.io/apiextensions-apiserver v0.26.1
 	k8s.io/apimachinery v0.26.2
