@@ -23,7 +23,7 @@ permissions:
   packages: write
 
 env:
-  SETUP_GO_VERSION: '^1.19'
+  SETUP_GO_VERSION: '~1.19'
 
 jobs:
   release:
