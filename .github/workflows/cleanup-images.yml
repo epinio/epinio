@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete dev containers older than a week
-        uses: snok/container-retention-policy@v1.5.1
+        uses: snok/container-retention-policy@v2.0.0
         with:
           image-names: epinio-server, epinio-unpacker
           cut-off: A week ago UTC
@@ -33,7 +33,7 @@ jobs:
           filter-include-untagged: true
           token: ${{ secrets.IMG_CLEANUP_TOKEN }}
       - name: Delete untagged containers older than a week
-        uses: snok/container-retention-policy@v1.5.1
+        uses: snok/container-retention-policy@v2.0.0
         with:
           image-names: epinio-server, epinio-unpacker
           cut-off: A week ago UTC
