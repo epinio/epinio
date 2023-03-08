@@ -42,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
+	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 )
 
 const EpinioApplicationAreaLabel = "epinio.io/area"
@@ -247,19 +248,92 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 		}
 	}
 
-	// Get references for all apps, deployed or not
+	// Fast batch queries to load all relevant resources in as few kube calls as possible.
 
-	appRefs, err := ListAppRefs(ctx, cluster, namespace)
+	// I. Get the application resources for all apps, deployed or not
+
+	client, err := cluster.ClientApp()
 	if err != nil {
-		return models.AppList{}, err
+		return nil, err
+	}
+	appCRList, err := client.Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
 	}
 
-	// Convert references to full application structures
+	// II. Load the auxiliary application data found in adjacent kube Secret resources
+	//     (environment, scaling, bound configs).
+
+	secrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/managed-by=epinio",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// III. The pods for the deployed apps.
+
+	pods, err := ListApplicationPods(ctx, cluster, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	// IV. Actual application routes from the ingresses
+
+	routes, err := ListActualApplicationRoutes(ctx, cluster, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	// V. Pod metrics and replica information
+
+	metrics, err := GetPodMetrics(ctx, cluster, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fuse the loaded resources into full application structures.
+	//
+	// Note: The returned secrets are a mix of scaling instructions, bound configurations, and
+	// environment assignments. Split them into separate maps as per their area (*). Key the
+	// maps by namespace and name of their controlling application for quick access in the
+	// aggregation step.
+	//
+	// (*) Label "epinio.io/area": "environment"|"scaling"|"configuration"
+
+	scales := make(map[string]v1.Secret)
+	bounds := make(map[string]v1.Secret)
+	environs := make(map[string]v1.Secret)
+
+	for _, s := range secrets.Items {
+		area, found := s.Labels["epinio.io/area"]
+		if !found {
+			continue
+		}
+		app, found := s.Labels["app.kubernetes.io/name"]
+		if !found {
+			continue
+		}
+
+		key := ConfigurationKey(app, s.ObjectMeta.Namespace)
+
+		switch area {
+		case "scaling":
+			scales[key] = s
+		case "configuration":
+			bounds[key] = s
+		case "environment":
+			environs[key] = s
+		default:
+			// ignore secret
+		}
+	}
 
 	result := models.AppList{}
 
-	for _, ref := range appRefs {
-		app, err := Lookup(ctx, cluster, ref.Namespace, ref.Name)
+	for _, appCR := range appCRList.Items {
+		app, err := aggregate(ctx, cluster,
+			appCR, scales, bounds, environs, pods, routes, metrics)
 		if err != nil {
 			return result, err
 		}
@@ -494,8 +568,127 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	return tailer.FetchLogs(ctx, logChan, wg, config, cluster)
 }
 
-// fetch is a common helper for Lookup and List. It fetches all information about an
-// application from the cluster.
+// aggregate is an internal helper for List. It merges the information from an application resource
+// and adjacent secrets, pods, metrics, etc. into a proper application structure.
+
+func aggregate(ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appCR unstructured.Unstructured,
+	scales map[string]v1.Secret,
+	bounds map[string]v1.Secret,
+	envs map[string]v1.Secret,
+	pods map[string][]v1.Pod,
+	routes map[string][]string,
+	metrics map[string]metricsv1beta1.PodMetrics,
+) (*models.App, error) {
+	key := ConfigurationKey(appCR.GetName(), appCR.GetNamespace())
+
+	appPods := pods[key]
+	appRoutes := routes[key]
+
+	appName := appCR.GetName()
+	namespace := appCR.GetNamespace()
+	meta := models.NewAppRef(appName, namespace)
+	app := meta.App()
+
+	// I. Unpack the auxiliary data in the various secrets
+
+	env, found := envs[key]
+	if !found {
+		return nil, errors.New("finding env")
+	}
+	environment := EnvironmentFromSecret(&env)
+
+	scale, found := scales[key]
+	if !found {
+		return nil, errors.New("finding scaling")
+	}
+	instances, err := ScalingFromSecret(&scale)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding scaling")
+	}
+
+	config, found := bounds[key]
+	if !found {
+		return nil, errors.New("finding configurations")
+	}
+	configurations := BoundConfigurationNamesFromSecret(&config)
+
+	// II. Unpack the core application resource
+
+	origin, err := Origin(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding origin")
+	}
+
+	chartName, err := AppChart(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding app chart")
+	}
+
+	stageID, err := StageID(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the stage id")
+	}
+
+	imageURL, err := ImageURL(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the image url")
+	}
+
+	settings, err := Settings(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding settings")
+	}
+
+	desiredRoutes, err := DesiredRoutes(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding desired routes")
+	}
+
+	// III. Assemble the main structure
+
+	app.Meta.CreatedAt = appCR.GetCreationTimestamp()
+
+	app.Configuration.Instances = &instances
+	app.Configuration.Configurations = configurations
+	app.Configuration.Environment = environment
+	app.Configuration.Routes = desiredRoutes
+	app.Configuration.AppChart = chartName
+	app.Configuration.Settings = settings
+	app.Origin = origin
+	app.StageID = stageID
+	app.ImageURL = imageURL
+
+	// IV. Assemble the deployment structure for active applications.
+
+	var status string
+	podMetrics := []metricsv1beta1.PodMetrics{}
+
+	if metrics == nil {
+		status = "failed to get replica details"
+	} else {
+		// extract the metrics for the app, based on the app pods
+		for _, pod := range appPods {
+			m, found := metrics[pod.Name]
+			if found {
+				podMetrics = append(podMetrics, m)
+			}
+		}
+	}
+
+	app.Workload, err = NewWorkload(cluster, app.Meta, instances).
+		AssembleFromParts(ctx, appPods, podMetrics, appRoutes, status)
+	if err != nil {
+		return nil, err
+	}
+
+	// And done ...
+
+	return app, nil
+}
+
+// fetch is a helper for Lookup. It fetches all information about an application from the cluster.
 func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
 	// Consider delayed loading, i.e. on first access, or for transfer (API response).
 	// Consider objects for the information which hide the defered loading.  These
@@ -513,7 +706,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
-	desiredRoutes, err := DesiredRoutes(ctx, cluster, app.Meta)
+	desiredRoutes, err := DesiredRoutes(applicationCR)
 	if err != nil {
 		return errors.Wrap(err, "finding desired routes")
 	}
