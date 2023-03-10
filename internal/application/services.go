@@ -143,7 +143,7 @@ func ServiceKey(name, namespace string) string {
 // DecodeServiceKey splits the given key back into name and namespace.  The name is the first
 // result, the namespace the second.
 func DecodeServiceKey(key string) (string, string) {
-	parts := strings.Split(key, "\0000")
+	parts := strings.Split(key, "\000")
 	return parts[0], parts[1]
 }
 
