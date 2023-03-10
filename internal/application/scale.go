@@ -27,7 +27,6 @@ const (
 )
 
 // Scaling returns the number of desired instances set by a user for the application
-
 func Scaling(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (int32, error) {
 	scaleSecret, err := scaleLoad(ctx, cluster, appRef)
 	if err != nil {
@@ -39,7 +38,6 @@ func Scaling(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 
 // ScalingFromSecret is the core of Scaling, extracting the desired number of instances from the
 // secret containing them.
-
 func ScalingFromSecret(scaleSecret *v1.Secret) (int32, error) {
 	i, err := strconv.ParseInt(string(scaleSecret.Data[instanceKey]), 10, 32)
 	if err != nil {

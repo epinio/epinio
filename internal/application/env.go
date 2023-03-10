@@ -23,7 +23,6 @@ import (
 
 // EnvironmentNames returns the names of all environment variables which are set on the named
 // application by users.  It does not return values.
-
 func EnvironmentNames(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
 	evSecret, err := envLoad(ctx, cluster, appRef)
 	if err != nil {
@@ -40,7 +39,6 @@ func EnvironmentNames(ctx context.Context, cluster *kubernetes.Cluster, appRef m
 
 // Environment returns the environment variables and their values which are set on the named
 // application by users
-
 func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.EnvVariableMap, error) {
 	evSecret, err := envLoad(ctx, cluster, appRef)
 	if err != nil {
@@ -52,7 +50,6 @@ func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models
 
 // EnvironmentFromSecret is the core of Environment, extracting the set of environment variable
 // assignments from the secret containing them.
-
 func EnvironmentFromSecret(evSecret *v1.Secret) models.EnvVariableMap {
 	result := models.EnvVariableMap{}
 	for name, value := range evSecret.Data {

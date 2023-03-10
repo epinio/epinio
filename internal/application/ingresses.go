@@ -44,7 +44,6 @@ func DesiredRoutes(appCR *unstructured.Unstructured) ([]string, error) {
 // the namespace into memory, indexes their routes by namespace and application, and returns the
 // resulting map of route lists.  ATTENTION: Using an empty string for the namespace loads the
 // information from all namespaces.
-
 func ListActualApplicationRoutes(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string][]string, error) {
 	ingressList, err := cluster.Kubectl.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labels.Set(map[string]string{

@@ -114,7 +114,6 @@ func (b AppConfigurationBindList) ToNames() []string {
 // namespace into memory, indexes them by namespace and application, and returns the resulting map
 // of pod lists.
 // ATTENTION: Using an empty string for the namespace loads the information from all namespaces.
-
 func ListApplicationPods(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string][]corev1.Pod, error) {
 	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
 		ctx, metav1.ListOptions{
@@ -212,7 +211,6 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 
 // AssembleFromParts is the core of Get constructing the deployment structure from the pods and
 // auxiliary information explicitly given to it.
-
 func (a *Workload) AssembleFromParts(
 	ctx context.Context,
 	podList []corev1.Pod,
@@ -291,7 +289,6 @@ func (a *Workload) AssembleFromParts(
 // lists. The user, List, selects the metrics it needs for an application based on the application's
 // pods.
 // ATTENTION: Using an empty string for the namespace loads the information from all namespaces.
-
 func GetPodMetrics(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]metricsv1beta1.PodMetrics, error) {
 	result := make(map[string]metricsv1beta1.PodMetrics)
 
@@ -317,7 +314,6 @@ func GetPodMetrics(ctx context.Context, cluster *kubernetes.Cluster, namespace s
 
 // getPodMetrics loads the pod metrics for the specific application into memory and returns the
 // resulting slice.
-
 func (a *Workload) getPodMetrics(ctx context.Context) ([]metricsv1beta1.PodMetrics, error) {
 	result := []metricsv1beta1.PodMetrics{}
 
