@@ -33,6 +33,12 @@ func Scaling(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		return 0, err
 	}
 
+	return ScalingFromSecret(scaleSecret)
+}
+
+// ScalingFromSecret is the core of Scaling, extracting the desired number of instances from the
+// secret containing them.
+func ScalingFromSecret(scaleSecret *v1.Secret) (int32, error) {
 	i, err := strconv.ParseInt(string(scaleSecret.Data[instanceKey]), 10, 32)
 	if err != nil {
 		return 0, err

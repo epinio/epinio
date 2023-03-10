@@ -110,6 +110,40 @@ func (b AppConfigurationBindList) ToNames() []string {
 	return names
 }
 
+// AddApplicationPods is a helper for List. It loads all the epinio controlled pods in the
+// namespace into memory, indexes them by namespace and application, and returns the resulting map
+// of pod lists.
+// ATTENTION: Using an empty string for the namespace loads the information from all namespaces.
+func AddApplicationPods(auxiliary map[string]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]AppData, error) {
+	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
+		ctx, metav1.ListOptions{
+			LabelSelector: labels.Set(map[string]string{
+				"app.kubernetes.io/component": "application",
+			}).String(),
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pod := range podList.Items {
+		appName := pod.Labels["app.kubernetes.io/name"]
+		appNamespace := pod.Labels["app.kubernetes.io/part-of"]
+		key := ConfigurationKey(appName, appNamespace)
+
+		if _, found := auxiliary[key]; !found {
+			auxiliary[key] = AppData{}
+		}
+
+		data := auxiliary[key]
+
+		data.pods = append(data.pods, pod)
+
+		auxiliary[key] = data
+	}
+
+	return auxiliary, nil
+}
+
 // Pods is a helper, it returns the Pods belonging to the Deployment of the workload.
 func (a *Workload) Pods(ctx context.Context) ([]corev1.Pod, error) {
 	podList, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Namespace).List(
@@ -141,23 +175,12 @@ func (a *Workload) PodNames(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
-// Replicas returns a slice of models.PodInfo. Each PodInfo matches a Pod belonging to
+// Replicas returns a map of models.PodInfo. Each PodInfo matches a Pod belonging to
 // the application Deployment (workload).
-func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, error) {
-	result := map[string]*models.PodInfo{}
+func (a *Workload) replicas(pods []corev1.Pod, podMetrics []metricsv1beta1.PodMetrics) (map[string]*models.PodInfo, error) {
+	result := a.generatePodInfo(pods)
 
-	pods, err := a.Pods(ctx)
-	if err != nil {
-		return result, err
-	}
-	podMetrics, err := a.getPodMetrics(ctx)
-	if err != nil {
-		return result, err
-	}
-
-	result = a.generatePodInfo(pods)
-
-	if err = a.populatePodMetrics(result, podMetrics); err != nil {
+	if err := a.populatePodMetrics(result, podMetrics); err != nil {
 		return result, err
 	}
 
@@ -167,26 +190,52 @@ func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, er
 // Get returns the state of the app deployment encoded in the workload.
 func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 
-	// Information about the active workload.
-	// The data is pulled out of the list of Pods associated with the application.
-	// The originally asked the app's Deployment resource. With app charts the existence
-	// of such a resource cannot be guarantueed any longer.
+	// Information about the active workload.  The data is pulled out of the list of Pods
+	// associated with the application.  It originally directly asked the app's Deployment
+	// resource. With app charts the existence of such a resource cannot be guarantueed any
+	// longer.
 
 	podList, err := a.Pods(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	routes, err := ListRoutes(ctx, a.cluster, a.app)
+	if err != nil {
+		routes = []string{err.Error()}
+	}
+
+	var status string
+
+	podMetrics, err := a.getPodMetrics(ctx)
+	if err != nil {
+		status = pkgerrors.Wrap(err, "failed to get replica details").Error()
+	}
+
+	return a.AssembleFromParts(ctx, podList, podMetrics, routes, status)
+}
+
+// AssembleFromParts is the core of Get constructing the deployment structure from the pods and
+// auxiliary information explicitly given to it.
+func (a *Workload) AssembleFromParts(
+	ctx context.Context,
+	podList []corev1.Pod,
+	podMetrics []metricsv1beta1.PodMetrics,
+	routes []string,
+	status string,
+) (*models.AppDeployment, error) {
 	// No pods => no workload
 	if len(podList) == 0 {
 		return nil, nil
 	}
 
-	var readyReplicas int32
-	var createdAt time.Time
-	var stageID string
-	var username string
-	var controllerName string
+	var (
+		readyReplicas  int32
+		createdAt      time.Time
+		stageID        string
+		username       string
+		controllerName string
+	)
 
 	if len(podList) > 0 {
 		// Pods found. replace defaults with actual information.
@@ -211,18 +260,20 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		}
 	}
 
+	// Order is important. Required before replicas is called.
 	a.name = controllerName
 
-	status := fmt.Sprintf("%d/%d", readyReplicas, a.desiredReplicas)
-
-	routes, err := ListRoutes(ctx, a.cluster, a.app)
-	if err != nil {
-		routes = []string{err.Error()}
+	var replicas map[string]*models.PodInfo
+	var err error
+	if podMetrics != nil {
+		replicas, err = a.replicas(podList, podMetrics)
+		if err != nil {
+			status = pkgerrors.Wrap(err, "failed to get replica details").Error()
+		}
 	}
 
-	replicas, err := a.Replicas(ctx)
-	if err != nil {
-		status = pkgerrors.Wrap(err, "failed to get replica details").Error()
+	if status == "" {
+		status = fmt.Sprintf("%d/%d", readyReplicas, a.desiredReplicas)
 	}
 
 	return &models.AppDeployment{
@@ -239,6 +290,36 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 	}, nil
 }
 
+// GetPodMetrics is a helper for List. It loads all the pot metrics for epinio controlled pods in
+// the namespace into memory, indexes them by pod name, and returns the resulting map of metrics
+// lists. The user, List, selects the metrics it needs for an application based on the application's
+// pods.
+// ATTENTION: Using an empty string for the namespace loads the information from all namespaces.
+func GetPodMetrics(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]metricsv1beta1.PodMetrics, error) {
+	result := make(map[string]metricsv1beta1.PodMetrics)
+
+	metricsClient, err := metrics.NewForConfig(cluster.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(namespace).
+		List(ctx, metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/managed-by=epinio",
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, metric := range podMetrics.Items {
+		result[metric.ObjectMeta.Name] = metric
+	}
+
+	return result, nil
+}
+
+// getPodMetrics loads the pod metrics for the specific application into memory and returns the
+// resulting slice.
 func (a *Workload) getPodMetrics(ctx context.Context) ([]metricsv1beta1.PodMetrics, error) {
 	result := []metricsv1beta1.PodMetrics{}
 

@@ -16,10 +16,8 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/routes"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	networkingv1 "k8s.io/api/networking/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -28,16 +26,8 @@ import (
 // DesiredRoutes lists all desired routes for the given application
 // The list is constructed from the stored information on the
 // Application Custom Resource.
-func DesiredRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
-	applicationCR, err := Get(ctx, cluster, appRef)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return []string{}, apierror.AppIsNotKnown("application resource is missing")
-		}
-		return []string{}, apierror.InternalError(err, "failed to get the application resource")
-	}
-
-	desiredRoutes, found, err := unstructured.NestedStringSlice(applicationCR.Object, "spec", "routes")
+func DesiredRoutes(appCR *unstructured.Unstructured) ([]string, error) {
+	desiredRoutes, found, err := unstructured.NestedStringSlice(appCR.Object, "spec", "routes")
 	if !found {
 		// [NO-ROUTES] Not an error. Signal that there are no desired routes.  See `Create`
 		// for the converse. An empty slice becomes an omitted field. Same marker as here.
@@ -48,6 +38,46 @@ func DesiredRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 	}
 
 	return desiredRoutes, nil
+}
+
+// AddActualApplicationRoutes is a helper for List. It loads all the epinio controlled ingresses in
+// the namespace into memory, indexes their routes by namespace and application, and returns the
+// resulting map of route lists.  ATTENTION: Using an empty string for the namespace loads the
+// information from all namespaces.
+func AddActualApplicationRoutes(auxiliary map[string]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]AppData, error) {
+	ingressList, err := cluster.Kubectl.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labels.Set(map[string]string{
+			"app.kubernetes.io/component": "application",
+		}).AsSelector().String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ingress := range ingressList.Items {
+		routes, err := routes.FromIngress(ingress)
+		if err != nil {
+			return nil, err
+		}
+
+		appName := ingress.Labels["app.kubernetes.io/name"]
+		appNamespace := ingress.Labels["app.kubernetes.io/part-of"]
+		key := ConfigurationKey(appName, appNamespace)
+
+		if _, found := auxiliary[key]; !found {
+			auxiliary[key] = AppData{}
+		}
+
+		data := auxiliary[key]
+
+		for _, r := range routes {
+			data.routes = append(data.routes, r.String())
+		}
+
+		auxiliary[key] = data
+	}
+
+	return auxiliary, nil
 }
 
 // ListRoutes lists all (currently active) routes for the given application

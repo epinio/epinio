@@ -42,7 +42,7 @@ func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
 
 	log.Info("list applications")
 
-	apps, err := application.List(ctx, cluster, namespace)
+	apps, err := application.ListAppRefs(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
