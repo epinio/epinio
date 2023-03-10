@@ -110,11 +110,11 @@ func (b AppConfigurationBindList) ToNames() []string {
 	return names
 }
 
-// ListApplicationPods is a helper for List. It loads all the epinio controlled pods in the
+// AddApplicationPods is a helper for List. It loads all the epinio controlled pods in the
 // namespace into memory, indexes them by namespace and application, and returns the resulting map
 // of pod lists.
 // ATTENTION: Using an empty string for the namespace loads the information from all namespaces.
-func ListApplicationPods(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string][]corev1.Pod, error) {
+func AddApplicationPods(auxiliary map[string]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]AppData, error) {
 	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
 		ctx, metav1.ListOptions{
 			LabelSelector: labels.Set(map[string]string{
@@ -125,17 +125,23 @@ func ListApplicationPods(ctx context.Context, cluster *kubernetes.Cluster, names
 		return nil, err
 	}
 
-	appPods := make(map[string][]corev1.Pod)
-
 	for _, pod := range podList.Items {
 		appName := pod.Labels["app.kubernetes.io/name"]
 		appNamespace := pod.Labels["app.kubernetes.io/part-of"]
 		key := ConfigurationKey(appName, appNamespace)
 
-		appPods[key] = append(appPods[key], pod)
+		if _, found := auxiliary[key]; !found {
+			auxiliary[key] = AppData{}
+		}
+
+		data := auxiliary[key]
+
+		data.pods = append(data.pods, pod)
+
+		auxiliary[key] = data
 	}
 
-	return appPods, nil
+	return auxiliary, nil
 }
 
 // Pods is a helper, it returns the Pods belonging to the Deployment of the workload.

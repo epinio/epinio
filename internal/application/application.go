@@ -232,6 +232,14 @@ func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace str
 	return apps, nil
 }
 
+type AppData struct {
+	scaling *v1.Secret
+	bound   *v1.Secret
+	env     *v1.Secret
+	routes  []string
+	pods    []v1.Pod
+}
+
 // List returns a list of all available apps in the specified namespace. If no namespace
 // is specified (empty string) then apps across all namespaces are returned.
 func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (models.AppList, error) {
@@ -271,16 +279,18 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 		return nil, err
 	}
 
+	appAuxiliary := makeAuxiliaryMap(secrets.Items)
+
 	// III. The pods for the deployed apps.
 
-	pods, err := ListApplicationPods(ctx, cluster, namespace)
+	appAuxiliary, err = AddApplicationPods(appAuxiliary, ctx, cluster, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	// IV. Actual application routes from the ingresses
 
-	routes, err := ListActualApplicationRoutes(ctx, cluster, namespace)
+	appAuxiliary, err = AddActualApplicationRoutes(appAuxiliary, ctx, cluster, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -301,39 +311,11 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 	//
 	// (*) Label "epinio.io/area": "environment"|"scaling"|"configuration"
 
-	scales := make(map[string]v1.Secret)
-	bounds := make(map[string]v1.Secret)
-	environs := make(map[string]v1.Secret)
-
-	for _, s := range secrets.Items {
-		area, found := s.Labels["epinio.io/area"]
-		if !found {
-			continue
-		}
-		app, found := s.Labels["app.kubernetes.io/name"]
-		if !found {
-			continue
-		}
-
-		key := ConfigurationKey(app, s.ObjectMeta.Namespace)
-
-		switch area {
-		case "scaling":
-			scales[key] = s
-		case "configuration":
-			bounds[key] = s
-		case "environment":
-			environs[key] = s
-		default:
-			// ignore secret
-		}
-	}
-
 	result := models.AppList{}
 
 	for _, appCR := range appCRList.Items {
 		app, err := aggregate(ctx, cluster,
-			appCR, scales, bounds, environs, pods, routes, metrics)
+			appCR, appAuxiliary, metrics)
 		if err != nil {
 			return result, err
 		}
@@ -568,51 +550,86 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	return tailer.FetchLogs(ctx, logChan, wg, config, cluster)
 }
 
+// makeAuxiliaryMap restructures the data from the auxiliary secrets into a map for quick access during the
+// following data fusion
+func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
+
+	result := map[string]AppData{}
+
+	for _, s := range secrets {
+		area, found := s.Labels["epinio.io/area"]
+		if !found {
+			continue
+		}
+		app, found := s.Labels["app.kubernetes.io/name"]
+		if !found {
+			continue
+		}
+
+		key := ConfigurationKey(app, s.ObjectMeta.Namespace)
+
+		if _, found := result[key]; !found {
+			result[key] = AppData{}
+		}
+
+		data := result[key]
+		secretToAssign := s // avoid loop alias warning
+
+		switch area {
+		case "scaling":
+			data.scaling = &secretToAssign
+		case "configuration":
+			data.bound = &secretToAssign
+		case "environment":
+			data.env = &secretToAssign
+		default:
+			// ignore secret
+		}
+
+		result[key] = data
+	}
+
+	return result
+}
+
 // aggregate is an internal helper for List. It merges the information from an application resource
 // and adjacent secrets, pods, metrics, etc. into a proper application structure.
-
 func aggregate(ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appCR unstructured.Unstructured,
-	scales map[string]v1.Secret,
-	bounds map[string]v1.Secret,
-	envs map[string]v1.Secret,
-	pods map[string][]v1.Pod,
-	routes map[string][]string,
+	auxiliary map[string]AppData,
 	metrics map[string]metricsv1beta1.PodMetrics,
 ) (*models.App, error) {
-	key := ConfigurationKey(appCR.GetName(), appCR.GetNamespace())
-
-	appPods := pods[key]
-	appRoutes := routes[key]
-
 	appName := appCR.GetName()
 	namespace := appCR.GetNamespace()
-	meta := models.NewAppRef(appName, namespace)
-	app := meta.App()
+
+	key := ConfigurationKey(appName, namespace)
 
 	// I. Unpack the auxiliary data in the various secrets
 
-	env, found := envs[key]
+	aux, found := auxiliary[key]
 	if !found {
+		return nil, errors.New("missing auxiliary data")
+	}
+	if aux.env == nil {
 		return nil, errors.New("finding env")
 	}
-	environment := EnvironmentFromSecret(&env)
-
-	scale, found := scales[key]
-	if !found {
+	if aux.bound == nil {
+		return nil, errors.New("finding configurations")
+	}
+	if aux.scaling == nil {
 		return nil, errors.New("finding scaling")
 	}
-	instances, err := ScalingFromSecret(&scale)
+
+	instances, err := ScalingFromSecret(aux.scaling)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding scaling")
 	}
 
-	config, found := bounds[key]
-	if !found {
-		return nil, errors.New("finding configurations")
-	}
-	configurations := BoundConfigurationNamesFromSecret(&config)
+	configurations := BoundConfigurationNamesFromSecret(aux.bound)
+	environment := EnvironmentFromSecret(aux.env)
+	appPods := aux.pods
+	appRoutes := aux.routes
 
 	// II. Unpack the core application resource
 
@@ -647,6 +664,9 @@ func aggregate(ctx context.Context,
 	}
 
 	// III. Assemble the main structure
+
+	meta := models.NewAppRef(appName, namespace)
+	app := meta.App()
 
 	app.Meta.CreatedAt = appCR.GetCreationTimestamp()
 

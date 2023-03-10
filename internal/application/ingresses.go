@@ -40,11 +40,11 @@ func DesiredRoutes(appCR *unstructured.Unstructured) ([]string, error) {
 	return desiredRoutes, nil
 }
 
-// ListActualApplicationRoutes is a helper for List. It loads all the epinio controlled ingresses in
+// AddActualApplicationRoutes is a helper for List. It loads all the epinio controlled ingresses in
 // the namespace into memory, indexes their routes by namespace and application, and returns the
 // resulting map of route lists.  ATTENTION: Using an empty string for the namespace loads the
 // information from all namespaces.
-func ListActualApplicationRoutes(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string][]string, error) {
+func AddActualApplicationRoutes(auxiliary map[string]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]AppData, error) {
 	ingressList, err := cluster.Kubectl.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labels.Set(map[string]string{
 			"app.kubernetes.io/component": "application",
@@ -54,24 +54,30 @@ func ListActualApplicationRoutes(ctx context.Context, cluster *kubernetes.Cluste
 		return nil, err
 	}
 
-	appRoutes := make(map[string][]string)
-
 	for _, ingress := range ingressList.Items {
-		appName := ingress.Labels["app.kubernetes.io/name"]
-		appNamespace := ingress.Labels["app.kubernetes.io/part-of"]
-		key := ConfigurationKey(appName, appNamespace)
-
 		routes, err := routes.FromIngress(ingress)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, r := range routes {
-			appRoutes[key] = append(appRoutes[key], r.String())
+		appName := ingress.Labels["app.kubernetes.io/name"]
+		appNamespace := ingress.Labels["app.kubernetes.io/part-of"]
+		key := ConfigurationKey(appName, appNamespace)
+
+		if _, found := auxiliary[key]; !found {
+			auxiliary[key] = AppData{}
 		}
+
+		data := auxiliary[key]
+
+		for _, r := range routes {
+			data.routes = append(data.routes, r.String())
+		}
+
+		auxiliary[key] = data
 	}
 
-	return appRoutes, nil
+	return auxiliary, nil
 }
 
 // ListRoutes lists all (currently active) routes for the given application
