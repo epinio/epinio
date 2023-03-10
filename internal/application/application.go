@@ -303,13 +303,6 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 	}
 
 	// Fuse the loaded resources into full application structures.
-	//
-	// Note: The returned secrets are a mix of scaling instructions, bound configurations, and
-	// environment assignments. Split them into separate maps as per their area (*). Key the
-	// maps by namespace and name of their controlling application for quick access in the
-	// aggregation step.
-	//
-	// (*) Label "epinio.io/area": "environment"|"scaling"|"configuration"
 
 	result := models.AppList{}
 
@@ -553,6 +546,12 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 // makeAuxiliaryMap restructures the data from the auxiliary secrets into a map for quick access during the
 // following data fusion
 func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
+	// Note: The returned secrets are a mix of scaling instructions, bound configurations, and
+	// environment assignments. Split them into separate maps as per their area (*). Key the
+	// maps by namespace and name of their controlling application for quick access in the
+	// aggregation step.
+	//
+	// (*) Label "epinio.io/area": "environment"|"scaling"|"configuration"
 
 	result := map[string]AppData{}
 
@@ -606,23 +605,26 @@ func aggregate(ctx context.Context,
 	key := ConfigurationKey(appName, namespace)
 
 	// I. Unpack the auxiliary data in the various secrets
+	//    Note: missing aux data, all or parts indicates an app in deletion and not fully gone.
+	//    We signal them as not existing, instead of erroring out
 
 	aux, found := auxiliary[key]
 	if !found {
-		return nil, errors.New("missing auxiliary data")
+		return nil, nil
 	}
 	if aux.env == nil {
-		return nil, errors.New("finding env")
+		return nil, nil
 	}
 	if aux.bound == nil {
-		return nil, errors.New("finding configurations")
+		return nil, nil
 	}
 	if aux.scaling == nil {
-		return nil, errors.New("finding scaling")
+		return nil, nil
 	}
 
 	instances, err := ScalingFromSecret(aux.scaling)
 	if err != nil {
+		// parse errors only, i.e. bad data.
 		return nil, errors.Wrap(err, "finding scaling")
 	}
 
