@@ -56,54 +56,40 @@ func (e *Epinio) Upgrade() {
 	By("Tag: " + tag)
 
 	By("Building server image ...")
-	out, err := proc.Run("../..", false, "docker", "build", "-t", "epinio/epinio-server",
-		"-f", "images/Dockerfile", ".")
+	serverTag := fmt.Sprintf("ghcr.io/epinio/epinio-server:%s", tag)
+	out, err := proc.Run("../..", false, "docker", "build", "-t", serverTag, "-f", "images/Dockerfile", ".")
 	Expect(err).NotTo(HaveOccurred(), out)
 	By(out)
 
 	By("Building unpacker image ...")
-	out, err = proc.Run("../..", false, "docker", "build", "-t", "epinio/epinio-unpacker",
-		"-f", "images/unpacker-Dockerfile", ".")
+	unpackerTag := fmt.Sprintf("ghcr.io/epinio/epinio-unpacker:%s", tag)
+	out, err = proc.Run("../..", false, "docker", "build", "-t", unpackerTag, "-f", "images/unpacker-Dockerfile", ".")
 	Expect(err).NotTo(HaveOccurred(), out)
 	By(out)
 
-	local := "epinio/epinio-server"
-	remote := fmt.Sprintf("ghcr.io/%s:%s", local, tag)
-
-	localPacker := "epinio/epinio-unpacker"
-	remotePacker := fmt.Sprintf("ghcr.io/%s:%s", localPacker, tag)
-
-	By("Image: " + remote)
-	By("Image: " + remotePacker)
+	By("Image: " + serverTag)
+	By("Image: " + unpackerTag)
 
 	if os.Getenv("PUBLIC_CLOUD") == "" {
 		// Local k3ds/k3d-based cluster. Talk directly to it. Import the new images into k3d
 		By("Importing server image ...")
-		out, err = proc.RunW("k3d", "image", "import", "-c", "epinio-acceptance", remote)
+		out, err = proc.RunW("k3d", "image", "import", "-c", "epinio-acceptance", serverTag)
 		Expect(err).NotTo(HaveOccurred(), out)
 		By(out)
 
 		By("Importing unpacker image ...")
-		out, err = proc.RunW("k3d", "image", "import", "-c", "epinio-acceptance", remotePacker)
+		out, err = proc.RunW("k3d", "image", "import", "-c", "epinio-acceptance", unpackerTag)
 		Expect(err).NotTo(HaveOccurred(), out)
 		By(out)
 	} else {
 		By("Pushing server image to GHCR ...")
 		// PUBLIC_CLOUD is present
 		// Pushing new images into ghcr for the public cluster to pull from
-		out, err = proc.RunW("docker", "tag", local+":latest", remote)
+		out, err = proc.RunW("docker", "push", serverTag)
 		Expect(err).NotTo(HaveOccurred(), out)
 		By(out)
 
-		out, err = proc.RunW("docker", "push", remote)
-		Expect(err).NotTo(HaveOccurred(), out)
-		By(out)
-
-		out, err = proc.RunW("docker", "tag", localPacker+":latest", remotePacker)
-		Expect(err).NotTo(HaveOccurred(), out)
-		By(out)
-
-		out, err = proc.RunW("docker", "push", remotePacker)
+		out, err = proc.RunW("docker", "push", unpackerTag)
 		Expect(err).NotTo(HaveOccurred(), out)
 		By(out)
 	}
