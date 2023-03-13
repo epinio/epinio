@@ -2596,6 +2596,10 @@
         "name": {
           "type": "string",
           "x-go-name": "Name"
+        },
+        "wait": {
+          "type": "boolean",
+          "x-go-name": "Wait"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
