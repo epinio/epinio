@@ -80,7 +80,7 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 }
 
 // ServiceCreate creates a service
-func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string) error {
+func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wait bool) error {
 	log := c.Log.WithName("ServiceCreate")
 	log.Info("start")
 	defer log.Info("return")
@@ -88,11 +88,13 @@ func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string) err
 	c.ui.Note().
 		WithStringValue("Catalog", catalogServiceName).
 		WithStringValue("Service", serviceName).
+		WithBoolValue("Wait For Completion", wait).
 		Msg("Creating Service...")
 
 	request := &models.ServiceCreateRequest{
 		CatalogService: catalogServiceName,
 		Name:           serviceName,
+		Wait:           wait,
 	}
 
 	err := c.API.ServiceCreate(request, c.Settings.Namespace)

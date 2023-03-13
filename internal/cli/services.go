@@ -30,7 +30,11 @@ var CmdServices = &cobra.Command{
 }
 
 func init() {
+	CmdServiceCreate.Flags().Bool("wait", false, "Wait for deployment to complete")
 	CmdServiceDelete.Flags().Bool("unbind", false, "Unbind from applications before deleting")
+	CmdServiceList.Flags().Bool("all", false, "List all services")
+	CmdServiceDelete.Flags().Bool("all", false, "delete all services")
+
 	CmdServices.AddCommand(CmdServiceCatalog)
 	CmdServices.AddCommand(CmdServiceCreate)
 	CmdServices.AddCommand(CmdServiceBind)
@@ -38,9 +42,6 @@ func init() {
 	CmdServices.AddCommand(CmdServiceShow)
 	CmdServices.AddCommand(CmdServiceDelete)
 	CmdServices.AddCommand(CmdServiceList)
-
-	CmdServiceList.Flags().Bool("all", false, "list all services")
-	CmdServiceDelete.Flags().Bool("all", false, "delete all services")
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -79,6 +80,11 @@ var CmdServiceCreate = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
+		wait, err := cmd.Flags().GetBool("wait")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --wait")
+		}
+
 		client, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -87,7 +93,7 @@ var CmdServiceCreate = &cobra.Command{
 		catalogServiceName := args[0]
 		serviceName := args[1]
 
-		err = client.ServiceCreate(catalogServiceName, serviceName)
+		err = client.ServiceCreate(catalogServiceName, serviceName, wait)
 		return errors.Wrap(err, "error creating service")
 	},
 }
