@@ -40,6 +40,7 @@ func init() {
 	CmdServices.AddCommand(CmdServiceList)
 
 	CmdServiceList.Flags().Bool("all", false, "list all services")
+	CmdServiceDelete.Flags().Bool("all", false, "delete all services")
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -114,7 +115,7 @@ var CmdServiceShow = &cobra.Command{
 var CmdServiceDelete = &cobra.Command{
 	Use:   "delete SERVICENAME1 [SERVICENAME2 ...]",
 	Short: "Delete one or more services",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(0),
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		app, err := usercmd.New(cmd.Context())
 		if err != nil {
@@ -134,12 +135,24 @@ var CmdServiceDelete = &cobra.Command{
 			return errors.Wrap(err, "error reading option --unbind")
 		}
 
+		all, err := cmd.Flags().GetBool("all")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --all")
+		}
+
+		if all && len(args) > 0 {
+			return errors.New("Conflict between --all and named services")
+		}
+		if !all && len(args) == 0 {
+			return errors.New("No services specified for deletion")
+		}
+
 		client, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.ServiceDelete(args, unbind)
+		err = client.ServiceDelete(args, unbind, all)
 		return errors.Wrap(err, "error deleting service")
 	},
 }

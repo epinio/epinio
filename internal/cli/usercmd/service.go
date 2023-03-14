@@ -151,7 +151,27 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 }
 
 // ServiceDelete deletes one or more services, specified by name
-func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind bool) error {
+func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind, all bool) error {
+	if all {
+		c.ui.Note().
+			WithStringValue("Namespace", c.Settings.Namespace).
+			Msg("Querying Services for Deletion...")
+
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
+
+		// Using the match API with a query matching everything. Avoids transmission
+		// of full configuration data and having to filter client-side.
+		match, err := c.API.ServiceMatch(c.Settings.Namespace, "")
+		if err != nil {
+			return err
+		}
+
+		serviceNames = match.Names
+		sort.Strings(serviceNames)
+	}
+
 	namesCSV := strings.Join(serviceNames, ", ")
 	log := c.Log.WithName("DeleteService").
 		WithValues("Services", namesCSV, "Namespace", c.Settings.Namespace)
@@ -163,8 +183,10 @@ func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind bool) error {
 		WithStringValue("Namespace", c.Settings.Namespace).
 		Msg("Deleting Services...")
 
-	if err := c.TargetOk(); err != nil {
-		return err
+	if !all {
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
 	}
 
 	request := models.ServiceDeleteRequest{
