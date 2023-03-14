@@ -13,6 +13,8 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/url"
 
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -42,10 +44,12 @@ func (c *Client) NamespaceCreate(req models.NamespaceCreateRequest) (models.Resp
 }
 
 // NamespaceDelete deletes a namespace
-func (c *Client) NamespaceDelete(namespace string) (models.Response, error) {
+func (c *Client) NamespaceDelete(namespaces []string) (models.Response, error) {
 	resp := models.Response{}
 
-	data, err := c.delete(api.Routes.Path("NamespaceDelete", namespace))
+	URL := constructNamespaceBatchDeleteURL(namespaces)
+
+	data, err := c.delete(URL)
 	if err != nil {
 		return resp, err
 	}
@@ -111,4 +115,16 @@ func (c *Client) Namespaces() (models.NamespaceList, error) {
 	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
+}
+
+func constructNamespaceBatchDeleteURL(namespaces []string) string {
+	q := url.Values{}
+	for _, c := range namespaces {
+		q.Add("namespaces[]", c)
+	}
+	URLParams := q.Encode()
+
+	URL := api.Routes.Path("NamespaceBatchDelete")
+
+	return fmt.Sprintf("%s?%s", URL, URLParams)
 }

@@ -43,6 +43,11 @@ type NamespaceCreateResponse struct {
 	Body models.Response
 }
 
+// swagger:route DELETE /namespaces NamespaceBatchDelete
+// Delete the named namespaces.
+// responses:
+//   200: NamespaceDeleteResponse
+
 // swagger:route DELETE /namespaces/{Namespace} namespace NamespaceDelete
 // Delete the named `Namespace`.
 // responses:
@@ -52,6 +57,12 @@ type NamespaceCreateResponse struct {
 type NamespaceDeleteParam struct {
 	// in: path
 	Namespace string
+}
+
+// swagger:parameters NamespaceBatchDelete
+type NamespaceBatchDeleteParam struct {
+	// in: url
+	Namespaces []string
 }
 
 // swagger:response NamespaceDeleteResponse

@@ -579,10 +579,10 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
-	NamespaceDeleteStub        func(string) (models.Response, error)
+	NamespaceDeleteStub        func([]string) (models.Response, error)
 	namespaceDeleteMutex       sync.RWMutex
 	namespaceDeleteArgsForCall []struct {
-		arg1 string
+		arg1 []string
 	}
 	namespaceDeleteReturns struct {
 		result1 models.Response
@@ -3368,15 +3368,20 @@ func (fake *FakeAPIClient) NamespaceCreateReturnsOnCall(i int, result1 models.Re
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) NamespaceDelete(arg1 string) (models.Response, error) {
+func (fake *FakeAPIClient) NamespaceDelete(arg1 []string) (models.Response, error) {
+	var arg1Copy []string
+	if arg1 != nil {
+		arg1Copy = make([]string, len(arg1))
+		copy(arg1Copy, arg1)
+	}
 	fake.namespaceDeleteMutex.Lock()
 	ret, specificReturn := fake.namespaceDeleteReturnsOnCall[len(fake.namespaceDeleteArgsForCall)]
 	fake.namespaceDeleteArgsForCall = append(fake.namespaceDeleteArgsForCall, struct {
-		arg1 string
-	}{arg1})
+		arg1 []string
+	}{arg1Copy})
 	stub := fake.NamespaceDeleteStub
 	fakeReturns := fake.namespaceDeleteReturns
-	fake.recordInvocation("NamespaceDelete", []interface{}{arg1})
+	fake.recordInvocation("NamespaceDelete", []interface{}{arg1Copy})
 	fake.namespaceDeleteMutex.Unlock()
 	if stub != nil {
 		return stub(arg1)
@@ -3393,13 +3398,13 @@ func (fake *FakeAPIClient) NamespaceDeleteCallCount() int {
 	return len(fake.namespaceDeleteArgsForCall)
 }
 
-func (fake *FakeAPIClient) NamespaceDeleteCalls(stub func(string) (models.Response, error)) {
+func (fake *FakeAPIClient) NamespaceDeleteCalls(stub func([]string) (models.Response, error)) {
 	fake.namespaceDeleteMutex.Lock()
 	defer fake.namespaceDeleteMutex.Unlock()
 	fake.NamespaceDeleteStub = stub
 }
 
-func (fake *FakeAPIClient) NamespaceDeleteArgsForCall(i int) string {
+func (fake *FakeAPIClient) NamespaceDeleteArgsForCall(i int) []string {
 	fake.namespaceDeleteMutex.RLock()
 	defer fake.namespaceDeleteMutex.RUnlock()
 	argsForCall := fake.namespaceDeleteArgsForCall[i]

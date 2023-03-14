@@ -144,16 +144,38 @@ func (c *EpinioClient) TargetOk() error {
 }
 
 // DeleteNamespace deletes a Namespace
-func (c *EpinioClient) DeleteNamespace(namespace string) error {
-	log := c.Log.WithName("DeleteNamespace").WithValues("Namespace", namespace)
+func (c *EpinioClient) DeleteNamespace(namespaces []string, all bool) error {
+
+	if all {
+		c.ui.Note().
+			WithStringValue("Namespace", c.Settings.Namespace).
+			Msg("Querying Namespaces for Deletion...")
+
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
+
+		// Using the match API with a query matching everything. Avoids transmission
+		// of full configuration data and having to filter client-side.
+		match, err := c.API.NamespacesMatch("")
+		if err != nil {
+			return err
+		}
+
+		namespaces = match.Names
+		sort.Strings(namespaces)
+	}
+
+	namesCSV := strings.Join(namespaces, ", ")
+	log := c.Log.WithName("DeleteNamespace").WithValues("Namespaces", namesCSV)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Name", namespace).
-		Msg("Deleting namespace...")
+		WithStringValue("Namespaces", namesCSV).
+		Msg("Deleting namespaces...")
 
-	_, err := c.API.NamespaceDelete(namespace)
+	_, err := c.API.NamespaceDelete(namespaces)
 	if err != nil {
 		return err
 	}

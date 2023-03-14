@@ -47,6 +47,7 @@ func init() {
 
 	flags := CmdNamespaceDelete.Flags()
 	flags.BoolVarP(&force, "force", "f", false, "force namespace deletion")
+	flags.Bool("all", false, "delete all namespaces")
 
 	CmdNamespace.AddCommand(CmdNamespaceCreate)
 	CmdNamespace.AddCommand(CmdNamespaceList)
@@ -101,31 +102,58 @@ var CmdNamespaceCreate = &cobra.Command{
 var CmdNamespaceDelete = &cobra.Command{
 	Use:               "delete NAME",
 	Short:             "Deletes an epinio-controlled namespace",
-	Args:              cobra.ExactArgs(1),
+	Args:              cobra.MinimumNArgs(0),
 	ValidArgsFunction: matchingNamespaceFinder,
-	PreRunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		all, err := cmd.Flags().GetBool("all")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --all")
+		}
+
+		if all && len(args) > 0 {
+			return errors.New("Conflict between --all and given namespaces")
+		}
+		if !all && len(args) == 0 {
+			return errors.New("No namespaces specified for deletion")
+		}
+
 		force, err := cmd.Flags().GetBool("force")
 		if err != nil {
 			return err
 		}
-		if !force {
-			cmd.Printf("You are about to delete namespace %s and everything it includes, i.e. applications, configurations, etc. Are you sure? (y/n): ", args[0])
-			if !askConfirmation(cmd) {
-				return errors.New("Cancelled by user")
-			}
-		}
-
-		return nil
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.SilenceUsage = true
 
 		client, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.DeleteNamespace(args[0])
+		if !force {
+			if all {
+				resp, err := client.API.NamespacesMatch("")
+				if err != nil {
+					return err
+				}
+
+				args = resp.Names
+			}
+
+			if len(args) == 1 {
+				cmd.Printf("You are about to delete the namespace '%s' and everything\nit includes, i.e. applications, configurations, etc.\nAre you sure? (y/n): ",
+					args[0])
+			} else {
+				names := strings.Join(args, ", ")
+				cmd.Printf("You are about to delete %d namespaces (%s)\nand everything they include,i.e. applications, configurations, etc.\nAre you sure? (y/n): ",
+					len(args), names)
+			}
+
+			if !askConfirmation(cmd) {
+				return errors.New("Cancelled by user")
+			}
+		}
+
+		err = client.DeleteNamespace(args, all)
 		if err != nil {
 			return errors.Wrap(err, "error deleting epinio-controlled namespace")
 		}
