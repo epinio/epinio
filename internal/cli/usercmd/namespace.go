@@ -145,7 +145,6 @@ func (c *EpinioClient) TargetOk() error {
 
 // DeleteNamespace deletes a Namespace
 func (c *EpinioClient) DeleteNamespace(namespaces []string, all bool) error {
-
 	if all {
 		c.ui.Note().
 			WithStringValue("Namespace", c.Settings.Namespace).
@@ -174,6 +173,9 @@ func (c *EpinioClient) DeleteNamespace(namespaces []string, all bool) error {
 	c.ui.Note().
 		WithStringValue("Namespaces", namesCSV).
 		Msg("Deleting namespaces...")
+
+	s := c.ui.Progressf("Deleting %s", namespaces)
+	defer s.Stop()
 
 	_, err := c.API.NamespaceDelete(namespaces)
 	if err != nil {

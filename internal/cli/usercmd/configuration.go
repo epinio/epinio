@@ -251,6 +251,9 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) err
 
 	var bound []string
 
+	s := c.ui.Progressf("Deleting %s in %s", names, c.Settings.Namespace)
+	defer s.Stop()
+
 	_, err := c.API.ConfigurationDelete(request, c.Settings.Namespace, names,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like

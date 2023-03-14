@@ -195,6 +195,9 @@ func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind, all bool) er
 
 	var bound []string
 
+	s := c.ui.Progressf("Deleting %s in %s", serviceNames, c.Settings.Namespace)
+	defer s.Stop()
+
 	_, err := c.API.ServiceDelete(request, c.Settings.Namespace, serviceNames,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like

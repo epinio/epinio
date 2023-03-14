@@ -471,7 +471,6 @@ func (c *EpinioClient) AppPortForward(ctx context.Context, appName, instance str
 
 // Delete removes one or more applications, specified by name
 func (c *EpinioClient) Delete(ctx context.Context, appNames []string, all bool) error {
-
 	if all {
 		c.ui.Note().
 			WithStringValue("Namespace", c.Settings.Namespace).
