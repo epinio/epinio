@@ -207,7 +207,27 @@ func (c *EpinioClient) UnbindConfiguration(configurationName, appName string) er
 }
 
 // DeleteConfiguration deletes one or more configurations, specified by name
-func (c *EpinioClient) DeleteConfiguration(names []string, unbind bool) error {
+func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) error {
+	if all {
+		c.ui.Note().
+			WithStringValue("Namespace", c.Settings.Namespace).
+			Msg("Querying Configurations for Deletion...")
+
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
+
+		// Using the match API with a query matching everything. Avoids transmission
+		// of full configuration data and having to filter client-side.
+		match, err := c.API.ConfigurationMatch(c.Settings.Namespace, "")
+		if err != nil {
+			return err
+		}
+
+		names = match.Names
+		sort.Strings(names)
+	}
+
 	namesCSV := strings.Join(names, ", ")
 	log := c.Log.WithName("DeleteConfiguration").
 		WithValues("Names", namesCSV, "Namespace", c.Settings.Namespace)
@@ -219,8 +239,10 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind bool) error {
 		WithStringValue("Namespace", c.Settings.Namespace).
 		Msg("Deleting Configurations...")
 
-	if err := c.TargetOk(); err != nil {
-		return err
+	if !all {
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
 	}
 
 	request := models.ConfigurationDeleteRequest{
