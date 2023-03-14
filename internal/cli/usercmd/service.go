@@ -198,6 +198,14 @@ func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind, all bool) er
 	s := c.ui.Progressf("Deleting %s in %s", serviceNames, c.Settings.Namespace)
 	defer s.Stop()
 
+	go c.trackDeletion(serviceNames, func() []string {
+		match, err := c.API.ServiceMatch(c.Settings.Namespace, "")
+		if err != nil {
+			return []string{}
+		}
+		return match.Names
+	})
+
 	_, err := c.API.ServiceDelete(request, c.Settings.Namespace, serviceNames,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like

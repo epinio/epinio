@@ -177,12 +177,20 @@ func (c *EpinioClient) DeleteNamespace(namespaces []string, all bool) error {
 	s := c.ui.Progressf("Deleting %s", namespaces)
 	defer s.Stop()
 
+	go c.trackDeletion(namespaces, func() []string {
+		match, err := c.API.NamespacesMatch("")
+		if err != nil {
+			return []string{}
+		}
+		return match.Names
+	})
+
 	_, err := c.API.NamespaceDelete(namespaces)
 	if err != nil {
 		return err
 	}
 
-	c.ui.Success().Msg("Namespace deleted.")
+	c.ui.Success().Msg("Namespaces deleted.")
 
 	return nil
 }

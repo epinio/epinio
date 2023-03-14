@@ -254,6 +254,14 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) err
 	s := c.ui.Progressf("Deleting %s in %s", names, c.Settings.Namespace)
 	defer s.Stop()
 
+	go c.trackDeletion(names, func() []string {
+		match, err := c.API.ConfigurationMatch(c.Settings.Namespace, "")
+		if err != nil {
+			return []string{}
+		}
+		return match.Names
+	})
+
 	_, err := c.API.ConfigurationDelete(request, c.Settings.Namespace, names,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like

@@ -511,6 +511,14 @@ func (c *EpinioClient) Delete(ctx context.Context, appNames []string, all bool) 
 	s := c.ui.Progressf("Deleting %s in %s", appNames, c.Settings.Namespace)
 	defer s.Stop()
 
+	go c.trackDeletion(appNames, func() []string {
+		match, err := c.API.AppMatch(c.Settings.Namespace, "")
+		if err != nil {
+			return []string{}
+		}
+		return match.Names
+	})
+
 	response, err := c.API.AppDelete(c.Settings.Namespace, appNames)
 	if err != nil {
 		return err
