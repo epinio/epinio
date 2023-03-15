@@ -94,7 +94,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install kubernetes-cli coreutils
+          brew install kubernetes-cli helm coreutils
 
       - name: Install EKSCTL
         run: |
@@ -127,7 +127,7 @@ jobs:
       - name: Configure EKS EBS CSI storage
         id: configure-storage
         run: |
-          id="${{ steps.create-cluster.outputs.ID }}"
+          id=${{ steps.create-cluster.outputs.ID }}
           # Get AWS Account ID
           AWS_ACCOUNT_ID=$(aws sts get-caller-identity | jq -r '.Account')
           # Assign OIDC provider to the cluster
@@ -174,6 +174,10 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_NAME }}
         run: |
-          export RUN_ID=${{ github.event.inputs.run_id }}
+          export RUN_ID=${{ steps.create-cluster.outputs.ID }}
           export RUN_PCP="EKS"
+          export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
+          export EKS_DOMAIN=${{ secrets.EKS_DOMAIN }}
+          export EKS_REGION=${{ env.EKS_REGION }}
+          export KUBECONFIG_NAME=${{ env.KUBECONFIG_NAME }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go
