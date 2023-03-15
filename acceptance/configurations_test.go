@@ -403,13 +403,13 @@ var _ = Describe("Configurations", LConfiguration, func() {
 		It("doesn't unbind a service-owned configuration", func() {
 			out, err := env.Epinio("", "configuration", "unbind", config, appName)
 			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Bad Request: Configuration belongs to service"))
+			Expect(out).To(ContainSubstring("Bad Request: Configuration '" + config + "' belongs to service"))
 		})
 
 		It("doesn't delete a bound service-owned configuration", func() {
 			out, err := env.Epinio("", "configuration", "delete", config)
 			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Configuration belongs to service"))
+			Expect(out).To(ContainSubstring("Configuration '" + config + "' belongs to service"))
 		})
 
 		It("doesn't delete any service-owned configuration", func() {
@@ -427,7 +427,7 @@ var _ = Describe("Configurations", LConfiguration, func() {
 
 			out, err = env.Epinio("", "configuration", "delete", config)
 			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Configuration belongs to service"))
+			Expect(out).To(ContainSubstring("Configuration '" + config + "' belongs to service"))
 		})
 	})
 

@@ -281,8 +281,8 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) err
 				return err
 			}
 
-			// [BELONG] keep in sync with same marker in the server
-			if strings.Contains(apiError.Errors[0].Title, "Configuration belongs to service") {
+			// [BELONG] keep in sync with same markers in the server
+			if strings.Contains(apiError.Errors[0].Title, "belongs to service") {
 				// (2.)
 				return apiError.Errors[0]
 			}

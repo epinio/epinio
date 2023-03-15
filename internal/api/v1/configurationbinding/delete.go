@@ -43,7 +43,9 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	if config.Origin != "" {
-		return apierror.NewBadRequestErrorf("Configuration belongs to service '%s', use service requests",
+		// [BELONG] keep in sync with same marker in the client
+		return apierror.NewBadRequestErrorf("Configuration '%s' belongs to service '%s', use service requests",
+			config.Name,
 			config.Origin)
 	}
 
