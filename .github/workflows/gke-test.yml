@@ -25,10 +25,11 @@ on:
         default: ""
 
 env:
-  SETUP_GO_VERSION: '~1.19'
+  SETUP_GO_VERSION: '^1.19'
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
+  KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
   GKE_ZONE: ${{ secrets.GKE_ZONE }}
   GKE_MACHINE_TYPE: 'n2-standard-4'
   GKE_NETWORK: 'epinio-ci'
@@ -151,6 +152,11 @@ jobs:
       - name: Delete GKE cluster
         if: ${{ always() && !github.event.inputs.keep_cluster }}
         run: |
-          export RUN_ID=${{ github.event.inputs.run_id }}
+          export RUN_ID=${{ steps.create-cluster.outputs.ID }}
           export RUN_PCP="GKE"
+          export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
+          export GKE_DOMAIN=${{ secrets.GKE_DOMAIN }}
+          export GKE_ZONE=${{ secrets.GKE_ZONE }}
+          export EPCI_GKE_PROJECT=${{ secrets.EPCI_GKE_PROJECT }}
+          export KUBECONFIG_NAME=${{ env.KUBECONFIG_NAME }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go
