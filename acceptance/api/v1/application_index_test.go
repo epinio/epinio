@@ -71,6 +71,9 @@ var _ = Describe("Apps Endpoint", LApplication, func() {
 		// Applications are deployed. Must have workload.
 		statuses := []string{apps[0].Workload.Status, apps[1].Workload.Status}
 		Expect(statuses).To(ContainElements("1/1", "1/1"))
+
+		// App is in "running" status
+		Expect(apps[0].Status).To(BeEquivalentTo("running"))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {
