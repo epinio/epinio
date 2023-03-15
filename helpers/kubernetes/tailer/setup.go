@@ -215,6 +215,9 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 				logger.Info("tailer done", "id", id)
 				wg.Done()
 			}(id)
+
+			logger.Info("tailer added", "id", id)
+
 		case p := <-removed:
 			id := p.GetID()
 			if tails[id] == nil {
@@ -224,6 +227,8 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 			logger.Info("tailer remove", "id", id)
 
 			delete(tails, id)
+
+			logger.Info("tailer removed", "id", id)
 		case <-ctx.Done():
 			logger.Info("received stop request")
 			return nil
