@@ -10,17 +10,25 @@
 # limitations under the License.
 
 
-name: TEST-GKE-CI
+name: TEST-AKS-LETSENCRYPT-CI
 
 on:
   workflow_dispatch:
     inputs:
-      keep_cluster:
-        description: "Keep the cluster afterwards? (empty/yes)"
+      azure_credentials:
+        description: "AZURE_CREDENTIALS"
         required: false
         default: ""
-      gke_domain:
-        description: "GKE_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+      aks_domain:
+        description: "AKS_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+        required: false
+        default: ""
+      aws_zone_id:
+        description: "AWS_ZONE_ID"
+        required: false
+        default: ""
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
         required: false
         default: ""
 
@@ -30,9 +38,8 @@ env:
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
   KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
-  GKE_ZONE: ${{ secrets.GKE_ZONE }}
-  GKE_MACHINE_TYPE: 'n2-standard-4'
-  GKE_NETWORK: 'epinio-ci'
+  AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
+  AKS_MACHINE_TYPE: 'Standard_D3_v2'
 
 jobs:
   linter:
@@ -69,10 +76,10 @@ jobs:
         if: always()
         uses: colpal/actions-clean@v1
 
-  acceptance-scenario1:
+  acceptance-scenario5:
     needs:
       - linter
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -86,6 +93,9 @@ jobs:
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
+
       # The system domain is managed by route53, we need credentials to update
       # it to the loadbalancer's IP
       - name: Configure AWS credentials for Route53
@@ -95,68 +105,65 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.EKS_REGION }}
 
-      - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
-
-      - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v1'
+      # Follow https://github.com/marketplace/actions/azure-login#configure-deployment-credentials
+      # az group create --name epinioCI --location eastus2
+      # az ad sp create-for-rbac --name "epinioCI" --sdk-auth --role contributor \
+      #   --scopes /subscriptions/{id}/resourceGroups/epinioCI
+      - name: Login to Azure
+        uses: azure/login@v1
         with:
-          credentials_json: '${{ secrets.EPCI_GCP_CREDENTIALS }}'
+          creds: ${{ github.event.inputs.azure_credentials || secrets.AZURE_CREDENTIALS }}
 
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v1
-      
-      - name: Install gcloud kubectl version
-        run: gcloud components install kubectl
-
-      - name: Create GKE cluster
+      - name: Create AKS cluster
         id: create-cluster
+        # We need to specify bash as a shell when a job is running on windows runner
+        shell: bash
         run: |
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
-          gcloud container clusters create epinioci$id \
-          --disk-size 100 \
-          --num-nodes=1 \
-          --machine-type ${{ env.GKE_MACHINE_TYPE }} \
-          --no-enable-cloud-logging \
-          --no-enable-cloud-monitoring  \
-          --network ${{ env.GKE_NETWORK }} \
-          --zone ${{ env.GKE_ZONE }}
+          az aks create --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
+          --node-vm-size ${{ env.AKS_MACHINE_TYPE }} \
+          --name ${{ env.AKS_RESOURCE_GROUP }}$id \
+          --node-count 2 \
+          --generate-ssh-keys
 
-      - name: Get kubeconfig file from GKE
-        env:
-          # Prevents using deprecated auth method in generated kubeconfig
-          USE_GKE_GCLOUD_AUTH_PLUGIN: True
-        run: |
-          id=${{ steps.create-cluster.outputs.ID }}
-          gcloud container clusters get-credentials epinioci$id --zone ${{ env.GKE_ZONE }} --project ${{ secrets.EPCI_GKE_PROJECT }}
+          az aks get-credentials --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
+          --name ${{ env.AKS_RESOURCE_GROUP }}$id \
+          --file ${{ env.KUBECONFIG_NAME }}
+
+          # List existing clusters
+          az aks list | jq '.[] | .name + " " + (.powerState|tostring)'
 
       - name: Installation Acceptance Tests
         env:
-          REGEX: Scenario1
-          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
-          # Use a random host name, so we don't collide with our workflows on GKE
-          GKE_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.gke_domain || secrets.GKE_DOMAIN }}
-          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.gke_domain || secrets.GKE_DOMAIN }}
+          REGEX: Scenario5
+          REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
+          AWS_ZONE_ID: ${{ github.event.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
+          # Use a random host name, so we don't collide with our workflows on AKS
+          AKS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aks_domain || secrets.AKS_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aks_domain || secrets.AKS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
           INGRESS_CONTROLLER: traefik
           # EXTRAENV_NAME: SESSION_KEY
           # EXTRAENV_VALUE: 12345
+        shell: bash
         run: |
-          echo "System Domain: $GKE_DOMAIN"
-          export KUBECONFIG=$HOME/.kube/config
+          echo "System Domain: $AKS_DOMAIN"
+          export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
           make test-acceptance-install
 
-      - name: Delete GKE cluster
+      - name: Delete AKS cluster
+        # We always tear down the cluster, to avoid costs. Except when running
+        # manually and keep_cluster was set to a non-empty string, like "yes"
+        # TODO this was not called, when scheduled and tests failed
         if: ${{ always() && !github.event.inputs.keep_cluster }}
+        shell: bash
         run: |
           export RUN_ID=${{ steps.create-cluster.outputs.ID }}
-          export RUN_PCP="GKE"
+          export RUN_PCP="AKS"
           export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
-          export GKE_DOMAIN=${{ secrets.GKE_DOMAIN }}
-          export GKE_ZONE=${{ secrets.GKE_ZONE }}
-          export EPCI_GKE_PROJECT=${{ secrets.EPCI_GKE_PROJECT }}
+          export AKS_DOMAIN=${{ secrets.AKS_DOMAIN }}
+          export AKS_RESOURCE_GROUP=${{ env.AKS_RESOURCE_GROUP }}
           export KUBECONFIG_NAME=${{ env.KUBECONFIG_NAME }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go
