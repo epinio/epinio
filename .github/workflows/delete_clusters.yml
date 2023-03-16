@@ -59,20 +59,20 @@ jobs:
 
       # Login to Azure for the AKS deletion case
       - name: Login to Azure
-        if: ${{ github.event.inputs.run_pcp == "AKS" }}
+        if: ${{ github.event.inputs.pcp == 'AKS' }}
         uses: azure/login@v1
         with:
           creds: ${{ github.events.inputs.azure_credentials || secrets.AZURE_CREDENTIALS }}
 
       # Login to gcloud for the GKE case
       - name: Authenticate to GCP
-        if: ${{ github.event.inputs.run_pcp == "GKE" }}
+        if: ${{ github.event.inputs.pcp == 'GKE' }}
         uses: 'google-github-actions/auth@v1'
         with:
           credentials_json: ${{ secrets.EPCI_GCP_CREDENTIALS }}
 
       - name: Install gcloud kubectl version
-        if: ${{ github.event.inputs.run_pcp == "GKE" }}
+        if: ${{ github.event.inputs.pcp == 'GKE' }}
         run: gcloud components install kubectl
 
       # Delete PVCs, DNS records and Public Cloud Providers cluster
