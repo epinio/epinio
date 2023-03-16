@@ -144,25 +144,26 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 // If you need this information for more than one app please use the CurrentlyStaging(ctx context.Context, cluster JobLister, namespace string)
 func IsCurrentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (bool, error) {
 	currentlyStagingApps, err := currentlyStaging(ctx, cluster, namespace, appName)
-	return currentlyStagingApps[appName], err
+	return currentlyStagingApps[EncodeConfigurationKey(appName, namespace)], err
 }
 
 // CurrentlyStaging returns a map of applications that are currently in a staging status
-func CurrentlyStaging(ctx context.Context, cluster JobLister, namespace string) (map[string]bool, error) {
+func CurrentlyStaging(ctx context.Context, cluster JobLister, namespace string) (map[ConfigurationKey]bool, error) {
 	return currentlyStaging(ctx, cluster, namespace, "")
 }
 
 // currentlyStaging is a utility func that will load a map of the status of the application's staging jobs
 // If no appName is specified it will load a complete map, otherwise the map will contain just the status of job of the specified app
-func currentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (map[string]bool, error) {
-	stagingJobsMap := make(map[string]bool)
+func currentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (map[ConfigurationKey]bool, error) {
+	stagingJobsMap := make(map[ConfigurationKey]bool)
 
 	// filter the jobs in the namespace
-	labelsMap := map[string]string{
-		"app.kubernetes.io/part-of": namespace,
+	labelsMap := make(map[string]string)
+
+	if namespace != "" {
+		labelsMap["app.kubernetes.io/part-of"] = namespace
 	}
 
-	// if the appName is specified add this additional filter
 	if appName != "" {
 		labelsMap["app.kubernetes.io/name"] = appName
 	}
@@ -198,13 +199,14 @@ func currentlyStaging(ctx context.Context, cluster JobLister, namespace, appName
 
 	for _, job := range jobList.Items {
 		appName := job.GetLabels()["app.kubernetes.io/name"]
-		stagingJobsMap[appName] = jobStaging(job)
+		namespace := job.GetLabels()["app.kubernetes.io/part-of"]
+		stagingJobsMap[EncodeConfigurationKey(appName, namespace)] = jobStaging(job)
 	}
 
 	return stagingJobsMap, nil
 }
 
-func updateAppDataMapWithStagingJobStatus(appDataMap map[string]AppData, stagingJobsMap map[string]bool) map[string]AppData {
+func updateAppDataMapWithStagingJobStatus(appDataMap map[ConfigurationKey]AppData, stagingJobsMap map[ConfigurationKey]bool) map[ConfigurationKey]AppData {
 	for appName, stagingStatus := range stagingJobsMap {
 		appData := appDataMap[appName]
 		appData.isStaging = stagingStatus
@@ -575,7 +577,7 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 
 // makeAuxiliaryMap restructures the data from the auxiliary secrets into a map for quick access during the
 // following data fusion
-func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
+func makeAuxiliaryMap(secrets []v1.Secret) map[ConfigurationKey]AppData {
 	// Note: The returned secrets are a mix of scaling instructions, bound configurations, and
 	// environment assignments. Split them into separate maps as per their area (*). Key the
 	// maps by namespace and name of their controlling application for quick access in the
@@ -583,7 +585,7 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
 	//
 	// (*) Label "epinio.io/area": "environment"|"scaling"|"configuration"
 
-	result := map[string]AppData{}
+	result := map[ConfigurationKey]AppData{}
 
 	for _, s := range secrets {
 		area, found := s.Labels["epinio.io/area"]
@@ -595,7 +597,7 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
 			continue
 		}
 
-		key := ConfigurationKey(app, s.ObjectMeta.Namespace)
+		key := EncodeConfigurationKey(app, s.ObjectMeta.Namespace)
 
 		if _, found := result[key]; !found {
 			result[key] = AppData{}
@@ -626,13 +628,13 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
 func aggregate(ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appCR unstructured.Unstructured,
-	auxiliary map[string]AppData,
+	auxiliary map[ConfigurationKey]AppData,
 	metrics map[string]metricsv1beta1.PodMetrics,
 ) (*models.App, error) {
 	appName := appCR.GetName()
 	namespace := appCR.GetNamespace()
 
-	key := ConfigurationKey(appName, namespace)
+	key := EncodeConfigurationKey(appName, namespace)
 
 	// I. Unpack the auxiliary data in the various secrets
 	//    Note: missing aux data, all or parts indicates an app in deletion and not fully gone.
@@ -735,19 +737,18 @@ func aggregate(ctx context.Context,
 		return nil, err
 	}
 
-	// set app status (default running)
-	app.Status = models.ApplicationRunning
-
+	// set app status and done ...
 	if aux.isStaging {
 		app.Status = models.ApplicationStaging
+		return app, nil
 	}
 
 	if app.Workload == nil {
 		app.Status = models.ApplicationCreated
+		return app, nil
 	}
 
-	// And done ...
-
+	app.Status = models.ApplicationRunning
 	return app, nil
 }
 
@@ -876,15 +877,16 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	app.Status = models.ApplicationRunning
-
 	if staging {
 		app.Status = models.ApplicationStaging
+		return nil
 	}
 
 	if app.Workload == nil {
 		app.Status = models.ApplicationCreated
+		return nil
 	}
 
+	app.Status = models.ApplicationRunning
 	return nil
 }

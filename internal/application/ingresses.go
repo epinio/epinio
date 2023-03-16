@@ -44,7 +44,7 @@ func DesiredRoutes(appCR *unstructured.Unstructured) ([]string, error) {
 // the namespace into memory, indexes their routes by namespace and application, and returns the
 // resulting map of route lists.  ATTENTION: Using an empty string for the namespace loads the
 // information from all namespaces.
-func AddActualApplicationRoutes(auxiliary map[string]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]AppData, error) {
+func AddActualApplicationRoutes(auxiliary map[ConfigurationKey]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[ConfigurationKey]AppData, error) {
 	ingressList, err := cluster.Kubectl.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labels.Set(map[string]string{
 			"app.kubernetes.io/component": "application",
@@ -62,7 +62,7 @@ func AddActualApplicationRoutes(auxiliary map[string]AppData, ctx context.Contex
 
 		appName := ingress.Labels["app.kubernetes.io/name"]
 		appNamespace := ingress.Labels["app.kubernetes.io/part-of"]
-		key := ConfigurationKey(appName, appNamespace)
+		key := EncodeConfigurationKey(appName, appNamespace)
 
 		if _, found := auxiliary[key]; !found {
 			auxiliary[key] = AppData{}

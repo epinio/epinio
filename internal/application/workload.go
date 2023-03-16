@@ -114,7 +114,7 @@ func (b AppConfigurationBindList) ToNames() []string {
 // namespace into memory, indexes them by namespace and application, and returns the resulting map
 // of pod lists.
 // ATTENTION: Using an empty string for the namespace loads the information from all namespaces.
-func AddApplicationPods(auxiliary map[string]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]AppData, error) {
+func AddApplicationPods(auxiliary map[ConfigurationKey]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[ConfigurationKey]AppData, error) {
 	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
 		ctx, metav1.ListOptions{
 			LabelSelector: labels.Set(map[string]string{
@@ -128,7 +128,7 @@ func AddApplicationPods(auxiliary map[string]AppData, ctx context.Context, clust
 	for _, pod := range podList.Items {
 		appName := pod.Labels["app.kubernetes.io/name"]
 		appNamespace := pod.Labels["app.kubernetes.io/part-of"]
-		key := ConfigurationKey(appName, appNamespace)
+		key := EncodeConfigurationKey(appName, appNamespace)
 
 		if _, found := auxiliary[key]; !found {
 			auxiliary[key] = AppData{}
