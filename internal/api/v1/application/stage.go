@@ -157,7 +157,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	log.Info("staging app", "namespace", namespace, "app", req)
 
-	staging, err := application.CurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
+	staging, err := application.IsCurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

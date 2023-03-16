@@ -103,9 +103,9 @@ func BoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster, namespa
 // namespace name and configuration name, to distinguish same-named configurations in different
 // namespaces (See `ConfigurationKey` below). The application names never contain namespace
 // information, as they are always in the same namespace as the configuration referencing them.
-func BoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string][]string, error) {
+func BoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[ConfigurationKey][]string, error) {
 
-	result := map[string][]string{}
+	result := map[ConfigurationKey][]string{}
 
 	// locate configuration bindings managed by epinio applications.
 	selector := EpinioApplicationAreaLabel + "=configuration"
@@ -125,7 +125,7 @@ func BoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, namespace 
 		namespace := binding.ObjectMeta.Labels["app.kubernetes.io/part-of"]
 
 		for configurationName := range binding.Data {
-			key := ConfigurationKey(configurationName, namespace)
+			key := EncodeConfigurationKey(configurationName, namespace)
 			result[key] = append(result[key], appName)
 		}
 	}
@@ -133,19 +133,22 @@ func BoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, namespace 
 	return result, nil
 }
 
-// ConfigurationKey constructs a single key string from configuration and namespace names, for the
+// ConfigurationKey is a type used to create a unique key for an app/namespace
+type ConfigurationKey string
+
+// EncodeConfigurationKey constructs a single key string from configuration and namespace names, for the
 // `configurationsToApps` map, when used for configurations and apps across all namespaces. It uses
 // ASCII NUL (\000) as the separator character. NUL is forbidden to occur in the names
 // themselves. This should make it impossible to construct two different pairs of
 // configuration/namespace names which map to the same key.
-func ConfigurationKey(name, namespace string) string {
-	return fmt.Sprintf("%s\000%s", name, namespace)
+func EncodeConfigurationKey(name, namespace string) ConfigurationKey {
+	return ConfigurationKey(fmt.Sprintf("%s\000%s", name, namespace))
 }
 
 // DecodeConfigurationKey splits the given key back into name and namespace.
 // The name is the first result, the namespace the second.
-func DecodeConfigurationKey(key string) (string, string) {
-	parts := strings.Split(key, "\0000")
+func DecodeConfigurationKey(key ConfigurationKey) (string, string) {
+	parts := strings.Split(string(key), "\000")
 	return parts[0], parts[1]
 }
 

@@ -47,6 +47,10 @@ import (
 
 const EpinioApplicationAreaLabel = "epinio.io/area"
 
+type JobLister interface {
+	ListJobs(ctx context.Context, namespace, selector string) (*apibatchv1.JobList, error)
+}
+
 // ValidateCV checks the custom values against the declarations. It reports as many issues as it can find.
 func ValidateCV(cv models.AppSettings, decl map[string]models.AppChartSetting) []error {
 	// See also internal/helm Deploy(). A last-minute check to catch any changes possibly
@@ -136,16 +140,38 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return true, nil
 }
 
-// CurrentlyStaging returns true if there is an active Job for this application.
-func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName string) (bool, error) {
+// IsCurrentlyStaging returns true if the app is staging (there is an active Job for this application).
+// If you need this information for more than one app please use the CurrentlyStaging(ctx context.Context, cluster JobLister, namespace string)
+func IsCurrentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (bool, error) {
+	currentlyStagingApps, err := currentlyStaging(ctx, cluster, namespace, appName)
+	return currentlyStagingApps[EncodeConfigurationKey(appName, namespace)], err
+}
 
-	// Check all jobs for the app for activity.
-	selector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
-		appName, namespace)
+// CurrentlyStaging returns a map of applications that are currently in a staging status
+func CurrentlyStaging(ctx context.Context, cluster JobLister, namespace string) (map[ConfigurationKey]bool, error) {
+	return currentlyStaging(ctx, cluster, namespace, "")
+}
 
+// currentlyStaging is a utility func that will load a map of the status of the application's staging jobs
+// If no appName is specified it will load a complete map, otherwise the map will contain just the status of job of the specified app
+func currentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (map[ConfigurationKey]bool, error) {
+	stagingJobsMap := make(map[ConfigurationKey]bool)
+
+	// filter the jobs in the namespace
+	labelsMap := make(map[string]string)
+
+	if namespace != "" {
+		labelsMap["app.kubernetes.io/part-of"] = namespace
+	}
+
+	if appName != "" {
+		labelsMap["app.kubernetes.io/name"] = appName
+	}
+
+	selector := labels.Set(labelsMap).AsSelector().String()
 	jobList, err := cluster.ListJobs(ctx, helmchart.Namespace(), selector)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	completed := func(condition apibatchv1.JobCondition) bool {
@@ -172,13 +198,21 @@ func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespac
 	}
 
 	for _, job := range jobList.Items {
-		if jobStaging(job) {
-			return true, nil
-		}
+		appName := job.GetLabels()["app.kubernetes.io/name"]
+		namespace := job.GetLabels()["app.kubernetes.io/part-of"]
+		stagingJobsMap[EncodeConfigurationKey(appName, namespace)] = jobStaging(job)
 	}
 
-	// No staging jobs found
-	return false, nil
+	return stagingJobsMap, nil
+}
+
+func updateAppDataMapWithStagingJobStatus(appDataMap map[ConfigurationKey]AppData, stagingJobsMap map[ConfigurationKey]bool) map[ConfigurationKey]AppData {
+	for appName, stagingStatus := range stagingJobsMap {
+		appData := appDataMap[appName]
+		appData.isStaging = stagingStatus
+		appDataMap[appName] = appData
+	}
+	return appDataMap
 }
 
 // Lookup locates the named application (and namespace).
@@ -196,17 +230,7 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName
 	app := meta.App()
 
 	err = fetch(ctx, cluster, app)
-	if err != nil {
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-	} else {
-		err = calculateStatus(ctx, cluster, app)
-		if err != nil {
-			return app, err
-		}
-	}
-
-	return app, nil
+	return app, err
 }
 
 // ListAppRefs returns an app reference for every application resource in the specified
@@ -233,11 +257,12 @@ func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace str
 }
 
 type AppData struct {
-	scaling *v1.Secret
-	bound   *v1.Secret
-	env     *v1.Secret
-	routes  []string
-	pods    []v1.Pod
+	scaling   *v1.Secret
+	bound     *v1.Secret
+	env       *v1.Secret
+	routes    []string
+	pods      []v1.Pod
+	isStaging bool
 }
 
 // List returns a list of all available apps in the specified namespace. If no namespace
@@ -302,13 +327,20 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 		return nil, err
 	}
 
+	// VI. load all the status of the staging jobs
+
+	currentlyStagingJobs, err := CurrentlyStaging(ctx, cluster, namespace)
+	if err != nil {
+		return nil, err
+	}
+	appAuxiliary = updateAppDataMapWithStagingJobStatus(appAuxiliary, currentlyStagingJobs)
+
 	// Fuse the loaded resources into full application structures.
 
 	result := models.AppList{}
 
 	for _, appCR := range appCRList.Items {
-		app, err := aggregate(ctx, cluster,
-			appCR, appAuxiliary, metrics)
+		app, err := aggregate(ctx, cluster, appCR, appAuxiliary, metrics)
 		if err != nil {
 			return result, err
 		}
@@ -545,7 +577,7 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 
 // makeAuxiliaryMap restructures the data from the auxiliary secrets into a map for quick access during the
 // following data fusion
-func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
+func makeAuxiliaryMap(secrets []v1.Secret) map[ConfigurationKey]AppData {
 	// Note: The returned secrets are a mix of scaling instructions, bound configurations, and
 	// environment assignments. Split them into separate maps as per their area (*). Key the
 	// maps by namespace and name of their controlling application for quick access in the
@@ -553,7 +585,7 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
 	//
 	// (*) Label "epinio.io/area": "environment"|"scaling"|"configuration"
 
-	result := map[string]AppData{}
+	result := map[ConfigurationKey]AppData{}
 
 	for _, s := range secrets {
 		area, found := s.Labels["epinio.io/area"]
@@ -565,7 +597,7 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
 			continue
 		}
 
-		key := ConfigurationKey(app, s.ObjectMeta.Namespace)
+		key := EncodeConfigurationKey(app, s.ObjectMeta.Namespace)
 
 		if _, found := result[key]; !found {
 			result[key] = AppData{}
@@ -596,13 +628,13 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[string]AppData {
 func aggregate(ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appCR unstructured.Unstructured,
-	auxiliary map[string]AppData,
+	auxiliary map[ConfigurationKey]AppData,
 	metrics map[string]metricsv1beta1.PodMetrics,
 ) (*models.App, error) {
 	appName := appCR.GetName()
 	namespace := appCR.GetNamespace()
 
-	key := ConfigurationKey(appName, namespace)
+	key := EncodeConfigurationKey(appName, namespace)
 
 	// I. Unpack the auxiliary data in the various secrets
 	//    Note: missing aux data, all or parts indicates an app in deletion and not fully gone.
@@ -705,8 +737,18 @@ func aggregate(ctx context.Context,
 		return nil, err
 	}
 
-	// And done ...
+	// set app status and done ...
+	if aux.isStaging {
+		app.Status = models.ApplicationStaging
+		return app, nil
+	}
 
+	if app.Workload == nil {
+		app.Status = models.ApplicationCreated
+		return app, nil
+	}
+
+	app.Status = models.ApplicationRunning
 	return app, nil
 }
 
@@ -725,52 +767,83 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		if apierrors.IsNotFound(err) {
 			return apierror.AppIsNotKnown("application resource is missing")
 		}
-		return apierror.InternalError(err, "failed to get the application resource")
+
+		err = apierror.InternalError(err, "failed to get the application resource")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	desiredRoutes, err := DesiredRoutes(applicationCR)
 	if err != nil {
-		return errors.Wrap(err, "finding desired routes")
+		err = errors.Wrap(err, "finding desired routes")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	origin, err := Origin(applicationCR)
 	if err != nil {
-		return errors.Wrap(err, "finding origin")
+		err = errors.Wrap(err, "finding origin")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	environment, err := Environment(ctx, cluster, app.Meta)
 	if err != nil {
-		return errors.Wrap(err, "finding env")
+		err = errors.Wrap(err, "finding env")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	instances, err := Scaling(ctx, cluster, app.Meta)
 	if err != nil {
-		return errors.Wrap(err, "finding scaling")
+		err = errors.Wrap(err, "finding scaling")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	configurations, err := BoundConfigurationNames(ctx, cluster, app.Meta)
 	if err != nil {
-		return errors.Wrap(err, "finding configurations")
+		err = errors.Wrap(err, "finding configurations")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	chartName, err := AppChart(applicationCR)
 	if err != nil {
-		return errors.Wrap(err, "finding app chart")
+		err = errors.Wrap(err, "finding app chart")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	stageID, err := StageID(applicationCR)
 	if err != nil {
-		return errors.Wrap(err, "finding the stage id")
+		err = errors.Wrap(err, "finding the stage id")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	imageURL, err := ImageURL(applicationCR)
 	if err != nil {
-		return errors.Wrap(err, "finding the image url")
+		err = errors.Wrap(err, "finding the image url")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	settings, err := Settings(applicationCR)
 	if err != nil {
-		return errors.Wrap(err, "finding settings")
+		err = errors.Wrap(err, "finding settings")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
 	}
 
 	app.Meta.CreatedAt = applicationCR.GetCreationTimestamp()
@@ -789,34 +862,31 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	// straighten the workload structure a bit further.
 
 	app.Workload, err = NewWorkload(cluster, app.Meta, instances).Get(ctx)
-	return err
-}
-
-// calculateStatus sets the Status field of the App object.  To decide what the status
-// value should be, it combines various pieces of information, i.e. status of possible
-// staging, presence of a workload, etc.
-// - If Status is ApplicationError, leave it as it (it was set by "Lookup")
-// - If there is an active staging job, app is: ApplicationStaging
-// - If there is no active staging job and no workload, app is: ApplicationCreated
-// - If there is no active staging job and a workload, app is: ApplicationRunning
-func calculateStatus(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
-	if app.Status == models.ApplicationError {
-		return nil
-	}
-	staging, err := CurrentlyStaging(ctx, cluster, app.Meta.Namespace, app.Meta.Name)
 	if err != nil {
+		err = errors.Wrap(err, "workload loading")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
 		return err
 	}
+
+	staging, err := IsCurrentlyStaging(ctx, cluster, app.Meta.Namespace, app.Meta.Name)
+	if err != nil {
+		err = errors.Wrap(err, "staging app")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
+	}
+
 	if staging {
 		app.Status = models.ApplicationStaging
 		return nil
 	}
+
 	if app.Workload == nil {
 		app.Status = models.ApplicationCreated
 		return nil
 	}
 
 	app.Status = models.ApplicationRunning
-
 	return nil
 }

@@ -55,7 +55,7 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func makeResponse(ctx context.Context, appsOf map[string][]string, configurations configurations.ConfigurationList) (models.ConfigurationResponseList, error) {
+func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][]string, configurations configurations.ConfigurationList) (models.ConfigurationResponseList, error) {
 
 	response := models.ConfigurationResponseList{}
 
@@ -82,7 +82,7 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, configuration
 			}
 		}
 
-		key := application.ConfigurationKey(configuration.Name, configuration.Namespace())
+		key := application.EncodeConfigurationKey(configuration.Name, configuration.Namespace())
 		appNames := appsOf[key]
 
 		// For service-based configuration, pull siblings out of the map. Itself excluded, of course.
