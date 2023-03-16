@@ -217,15 +217,5 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Or(ContainSubstring("Applications Removed")))
 		})
-
-		By("Cleaning DNS Entries", func() {
-			change := route53.CNAME(domain, loadbalancer, "DELETE")
-			out, err := route53.Update(zoneID, change, nodeTmpDir)
-			Expect(err).NotTo(HaveOccurred(), out)
-
-			change = route53.CNAME("*."+domain, loadbalancer, "DELETE")
-			out, err = route53.Update(zoneID, change, nodeTmpDir)
-			Expect(err).NotTo(HaveOccurred(), out)
-		})
 	})
 })
