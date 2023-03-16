@@ -47,6 +47,10 @@ import (
 
 const EpinioApplicationAreaLabel = "epinio.io/area"
 
+type JobLister interface {
+	ListJobs(ctx context.Context, namespace, selector string) (*apibatchv1.JobList, error)
+}
+
 // ValidateCV checks the custom values against the declarations. It reports as many issues as it can find.
 func ValidateCV(cv models.AppSettings, decl map[string]models.AppChartSetting) []error {
 	// See also internal/helm Deploy(). A last-minute check to catch any changes possibly
@@ -136,16 +140,37 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return true, nil
 }
 
-// CurrentlyStaging returns true if there is an active Job for this application.
-func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName string) (bool, error) {
+// IsCurrentlyStaging returns true if the app is staging (there is an active Job for this application).
+// If you need this information for more than one app please use the CurrentlyStaging(ctx context.Context, cluster JobLister, namespace string)
+func IsCurrentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (bool, error) {
+	currentlyStagingApps, err := currentlyStaging(ctx, cluster, namespace, appName)
+	return currentlyStagingApps[appName], err
+}
 
-	// Check all jobs for the app for activity.
-	selector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
-		appName, namespace)
+// CurrentlyStaging returns a map of applications that are currently in a staging status
+func CurrentlyStaging(ctx context.Context, cluster JobLister, namespace string) (map[string]bool, error) {
+	return currentlyStaging(ctx, cluster, namespace, "")
+}
 
+// currentlyStaging is a utility func that will load a map of the status of the application's staging jobs
+// If no appName is specified it will load a complete map, otherwise the map will contain just the status of job of the specified app
+func currentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (map[string]bool, error) {
+	stagingJobsMap := make(map[string]bool)
+
+	// filter the jobs in the namespace
+	labelsMap := map[string]string{
+		"app.kubernetes.io/part-of": namespace,
+	}
+
+	// if the appName is specified add this additional filter
+	if appName != "" {
+		labelsMap["app.kubernetes.io/name"] = appName
+	}
+
+	selector := labels.Set(labelsMap).AsSelector().String()
 	jobList, err := cluster.ListJobs(ctx, helmchart.Namespace(), selector)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	completed := func(condition apibatchv1.JobCondition) bool {
@@ -172,13 +197,20 @@ func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespac
 	}
 
 	for _, job := range jobList.Items {
-		if jobStaging(job) {
-			return true, nil
-		}
+		appName := job.GetLabels()["app.kubernetes.io/name"]
+		stagingJobsMap[appName] = jobStaging(job)
 	}
 
-	// No staging jobs found
-	return false, nil
+	return stagingJobsMap, nil
+}
+
+func updateAppDataMapWithStagingJobStatus(appDataMap map[string]AppData, stagingJobsMap map[string]bool) map[string]AppData {
+	for appName, stagingStatus := range stagingJobsMap {
+		appData := appDataMap[appName]
+		appData.isStaging = stagingStatus
+		appDataMap[appName] = appData
+	}
+	return appDataMap
 }
 
 // Lookup locates the named application (and namespace).
@@ -223,11 +255,12 @@ func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace str
 }
 
 type AppData struct {
-	scaling *v1.Secret
-	bound   *v1.Secret
-	env     *v1.Secret
-	routes  []string
-	pods    []v1.Pod
+	scaling   *v1.Secret
+	bound     *v1.Secret
+	env       *v1.Secret
+	routes    []string
+	pods      []v1.Pod
+	isStaging bool
 }
 
 // List returns a list of all available apps in the specified namespace. If no namespace
@@ -292,13 +325,20 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 		return nil, err
 	}
 
+	// VI. load all the status of the staging jobs
+
+	currentlyStagingJobs, err := CurrentlyStaging(ctx, cluster, namespace)
+	if err != nil {
+		return nil, err
+	}
+	appAuxiliary = updateAppDataMapWithStagingJobStatus(appAuxiliary, currentlyStagingJobs)
+
 	// Fuse the loaded resources into full application structures.
 
 	result := models.AppList{}
 
 	for _, appCR := range appCRList.Items {
-		app, err := aggregate(ctx, cluster,
-			appCR, appAuxiliary, metrics)
+		app, err := aggregate(ctx, cluster, appCR, appAuxiliary, metrics)
 		if err != nil {
 			return result, err
 		}
@@ -695,23 +735,16 @@ func aggregate(ctx context.Context,
 		return nil, err
 	}
 
-	// calculate app status
-	staging, err := CurrentlyStaging(ctx, cluster, app.Meta.Namespace, app.Meta.Name)
-	if err != nil {
-		err = errors.Wrap(err, "staging app")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return app, err
-	}
+	// set app status (default running)
+	app.Status = models.ApplicationRunning
 
-	if staging {
+	if aux.isStaging {
 		app.Status = models.ApplicationStaging
 	}
+
 	if app.Workload == nil {
 		app.Status = models.ApplicationCreated
 	}
-
-	app.Status = models.ApplicationRunning
 
 	// And done ...
 
@@ -835,21 +868,23 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	staging, err := CurrentlyStaging(ctx, cluster, app.Meta.Namespace, app.Meta.Name)
+	staging, err := IsCurrentlyStaging(ctx, cluster, app.Meta.Namespace, app.Meta.Name)
 	if err != nil {
 		err = errors.Wrap(err, "staging app")
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
 		return err
 	}
+
+	app.Status = models.ApplicationRunning
+
 	if staging {
 		app.Status = models.ApplicationStaging
 	}
+
 	if app.Workload == nil {
 		app.Status = models.ApplicationCreated
 	}
-
-	app.Status = models.ApplicationRunning
 
 	return nil
 }
