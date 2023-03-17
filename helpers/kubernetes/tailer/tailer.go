@@ -60,14 +60,17 @@ func NewTail(namespace, podName, containerName string, logger logr.Logger, clien
 // It's the caller's responsibility to close the logChan (because there may be more
 // instances of this method (go routines) writing to the same channel.
 func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow bool) error {
-	t.logger.Info("starting the tail for pod " + t.PodName)
-	var m string
+	var ident string
+	var mode string
 	if t.Options.Namespace {
-		m = fmt.Sprintf("now tracking %s %s › %s ", t.Namespace, t.PodName, t.ContainerName)
+		ident = fmt.Sprintf("%s %s › %s", t.Namespace, t.PodName, t.ContainerName)
+		mode = "global"
 	} else {
-		m = fmt.Sprintf("now tracking %s › %s ", t.PodName, t.ContainerName)
+		ident = fmt.Sprintf("%s › %s", t.PodName, t.ContainerName)
+		mode = "local"
 	}
-	t.logger.Info(m)
+
+	t.logger.Info("starting the tail for pod " + t.PodName)
 
 	req := t.clientSet.CoreV1().Pods(t.Namespace).GetLogs(t.PodName, &corev1.PodLogOptions{
 		Follow:       follow,
@@ -85,12 +88,13 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 
 	reader := bufio.NewReader(stream)
 
+	t.logger.Info(fmt.Sprintf("now tracking %s %s", mode, ident))
 OUTER:
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
-				t.logger.Info("reached end of file while tailing container logs")
+				t.logger.Info("tailer reached end of logs", "container", ident)
 			} else {
 				t.logger.Error(err, "reading failed")
 			}
@@ -118,6 +122,7 @@ OUTER:
 			}
 		}
 
+		t.logger.Info("passing", "container", ident, "", str)
 		logChan <- ContainerLogLine{
 			Message:       str,
 			ContainerName: t.ContainerName,

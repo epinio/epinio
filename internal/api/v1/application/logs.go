@@ -155,6 +155,8 @@ func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, na
 	// Send logs received on logChan to the websockets connection until either
 	// logChan is closed or websocket connection is closed.
 	for logLine := range logChan {
+		logger.Info("streaming", "log line", logLine)
+
 		msg, err := json.Marshal(logLine)
 		if err != nil {
 			return err
