@@ -153,7 +153,7 @@ func DeployService(logger logr.Logger, parameters ServiceParameters) error {
 		ChartName:   helmChart,
 		Version:     helmVersion,
 		Namespace:   parameters.Namespace,
-		Atomic:      parameters.Wait, // implies `Wait true`
+		Wait:        parameters.Wait,
 		ValuesYaml:  string(parameters.Values),
 		Timeout:     duration.ToDeployment(),
 		ReuseValues: true,
