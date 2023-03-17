@@ -16,18 +16,18 @@ import "time"
 func (c *EpinioClient) trackDeletion(names []string, poller func() []string) {
 
 	// set of tracked names
-	tracked := map[string]bool{}
+	tracked := map[string]struct{}{}
 	for _, name := range names {
-		tracked[name] = true
+		tracked[name] = struct{}{}
 	}
 
 	for {
 		// poll to see the existing names
 		time.Sleep(2 * time.Second)
 
-		current := map[string]bool{}
+		current := map[string]struct{}{}
 		for _, name := range poller() {
-			current[name] = true
+			current[name] = struct{}{}
 		}
 
 		// check which of the tracked names do not exist any longer, and report them.
