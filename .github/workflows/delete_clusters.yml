@@ -64,12 +64,25 @@ jobs:
         with:
           creds: ${{ github.events.inputs.azure_credentials || secrets.AZURE_CREDENTIALS }}
 
+      # Install EKSCTL for EKS deletion case
+      - name: Install EKSCTL
+        if: ${{ github.event.inputs.pcp == 'EKS' }}
+        run: |
+          EKSCTL_GH=https://github.com/weaveworks/eksctl/releases/latest/download
+          curl --location ${EKSCTL_GH}/eksctl_$(uname -s)_amd64.tar.gz | tar xz -C .
+          chmod +x eksctl
+          sudo mv eksctl /usr/local/bin
+
       # Login to gcloud for the GKE case
       - name: Authenticate to GCP
         if: ${{ github.event.inputs.pcp == 'GKE' }}
         uses: 'google-github-actions/auth@v1'
         with:
           credentials_json: ${{ secrets.EPCI_GCP_CREDENTIALS }}
+
+      - name: Setup gcloud
+        if: ${{ github.event.inputs.pcp == 'GKE' }}
+        uses: google-github-actions/setup-gcloud@v1
 
       - name: Install gcloud kubectl version
         if: ${{ github.event.inputs.pcp == 'GKE' }}
