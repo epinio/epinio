@@ -129,7 +129,7 @@ func GetInternalRoutes(ctx context.Context, servicesGetter v1.ServiceInterface, 
 	return internalRoutes, nil
 }
 
-func (s *ServiceClient) Create(ctx context.Context, namespace, name string, catalogService models.CatalogService) error {
+func (s *ServiceClient) Create(ctx context.Context, namespace, name string, wait bool, catalogService models.CatalogService) error {
 	// Resources, and names
 	//
 	// |Kind	|Name		|Notes			|
@@ -166,6 +166,7 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 			Version:    catalogService.ChartVersion,
 			Repository: catalogService.HelmRepo.URL,
 			Values:     catalogService.Values,
+			Wait:       wait,
 		})
 
 	if err != nil {

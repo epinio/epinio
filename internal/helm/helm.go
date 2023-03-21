@@ -47,6 +47,7 @@ type ServiceParameters struct {
 	Version       string              // Version of helm chart to deploy
 	Repository    string              // Helm repository holding the chart to deploy
 	Values        string              // Chart customization (YAML-formatted string)
+	Wait          bool                // Wait for service to deploy
 }
 
 type ConfigParameter struct {
@@ -152,7 +153,7 @@ func DeployService(logger logr.Logger, parameters ServiceParameters) error {
 		ChartName:   helmChart,
 		Version:     helmVersion,
 		Namespace:   parameters.Namespace,
-		Atomic:      true,
+		Wait:        parameters.Wait,
 		ValuesYaml:  string(parameters.Values),
 		Timeout:     duration.ToDeployment(),
 		ReuseValues: true,
@@ -355,7 +356,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		Version:     helmVersion,
 		Namespace:   parameters.Namespace,
 		Wait:        true,
-		Atomic:      true,
+		Atomic:      true, // implies `Wait true`
 		ValuesYaml:  string(yamlParameters),
 		Timeout:     duration.ToDeployment(),
 		ReuseValues: true,
