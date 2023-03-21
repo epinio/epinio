@@ -37,7 +37,7 @@ env:
 
 jobs:
   client-sync-test:
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
     steps:
       - name: Checkout
         uses: actions/checkout@v3

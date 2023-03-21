@@ -35,7 +35,7 @@ env:
 
 jobs:
   linter:
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     steps:
       - name: Checkout
@@ -73,7 +73,7 @@ jobs:
   acceptance-cli:
     needs:
       - linter
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     env:
       EPINIO_COVERAGE: true
@@ -145,7 +145,7 @@ jobs:
   acceptance-cli-apps:
     needs:
       - linter
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     env:
       EPINIO_COVERAGE: true
@@ -217,7 +217,7 @@ jobs:
   acceptance-cli-services:
     needs:
       - linter
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     env:
       EPINIO_COVERAGE: true
@@ -290,7 +290,7 @@ jobs:
     needs:
       - linter
       - acceptance-api-services
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     env:
       EPINIO_COVERAGE: true
@@ -363,7 +363,7 @@ jobs:
     needs:
       - linter
       - acceptance-cli-services
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     env:
       EPINIO_COVERAGE: true
@@ -435,7 +435,7 @@ jobs:
   acceptance-api-services:
     needs:
       - linter
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     env:
       EPINIO_COVERAGE: true
@@ -508,7 +508,7 @@ jobs:
     needs:
       - linter
       - acceptance-cli
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     env:
       EPINIO_COVERAGE: true

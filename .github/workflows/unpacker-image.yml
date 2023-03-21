@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 jobs:
   build-and-publish:
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
     steps:
       - name: Checkout Epinio
         uses: actions/checkout@v3

@@ -19,7 +19,7 @@ on:
 
 jobs:
   release:
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     steps:
       - name: Checkout
