@@ -27,7 +27,7 @@ env:
 
 jobs:
   release:
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
     permissions:
       id-token: write   # This is the key for OIDC!
       contents: write

@@ -36,7 +36,7 @@ env:
 
 jobs:
   linter:
-    runs-on: self-hosted
+    runs-on: [self-hosted, epinio]
 
     steps:
       - name: Checkout
