@@ -95,7 +95,6 @@ var CmdConfigurationDelete = &cobra.Command{
 	Use:   "delete NAME1 [NAME2 ...]",
 	Short: "Delete one or more configurations",
 	Long:  `Delete configurations by name.`,
-	Args:  cobra.MinimumNArgs(0),
 	RunE:  ConfigurationDelete,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		epinioClient, err := usercmd.New(cmd.Context())

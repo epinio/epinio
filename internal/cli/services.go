@@ -115,7 +115,6 @@ var CmdServiceShow = &cobra.Command{
 var CmdServiceDelete = &cobra.Command{
 	Use:   "delete SERVICENAME1 [SERVICENAME2 ...]",
 	Short: "Delete one or more services",
-	Args:  cobra.MinimumNArgs(0),
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		app, err := usercmd.New(cmd.Context())
 		if err != nil {

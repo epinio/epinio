@@ -23,7 +23,6 @@ var ()
 var CmdAppDelete = &cobra.Command{
 	Use:   "delete NAME1 [NAME2 ...]",
 	Short: "Deletes one or more applications",
-	Args:  cobra.MinimumNArgs(0),
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		epinioClient, err := usercmd.New(cmd.Context())
 		if err != nil {
