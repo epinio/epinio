@@ -1825,4 +1825,108 @@ userConfig:
 			Expect(err).ToNot(HaveOccurred(), pushOutput)
 		})
 	})
+
+	var _ = Describe("Custom chart-value", func() {
+		var (
+			namespace string
+			appName   string
+		)
+
+		BeforeEach(func() {
+			namespace = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace)
+
+			appName = catalog.NewAppName()
+		})
+
+		AfterEach(func() {
+			env.DeleteNamespace(namespace)
+		})
+
+		Context("with chart-value:", func() {
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
+
+			It("appListeningPort, pushes an app", func() {
+				currentDir, err := os.Getwd()
+				Expect(err).ToNot(HaveOccurred())
+
+				appListeningPort := ""
+
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
+				if port := r.Intn(65536); port <= 1023 {
+					appListeningPort = fmt.Sprintf("%d", 80)
+				} else {
+					appListeningPort = fmt.Sprintf("%d", port)
+				}
+
+				pushOutput, err := env.EpinioPush(path.Join(currentDir, "../assets/sample-app"),
+					appName,
+					"--name", appName,
+					"--chart-value", "appListeningPort="+appListeningPort)
+				Expect(err).ToNot(HaveOccurred(), pushOutput)
+
+				out, err := proc.Kubectl("get", "app",
+					"--namespace", namespace, appName,
+					"-o", "jsonpath={.spec.settings.appListeningPort}")
+				Expect(err).NotTo(HaveOccurred(), out)
+				Expect(out).To(Equal(appListeningPort))
+
+				out, err = proc.Kubectl("get", "pod",
+					"--namespace", namespace,
+					"-o", "jsonpath={.items[0].spec.containers[0].env[0].value}")
+				Expect(err).NotTo(HaveOccurred(), out)
+				Expect(out).To(Equal(appListeningPort))
+
+				out, err = proc.Kubectl("get", "pod",
+					"--namespace", namespace,
+					"-o", "jsonpath={.items[0].spec.containers[0].ports[0].containerPort}")
+				Expect(err).NotTo(HaveOccurred(), out)
+				Expect(out).To(Equal(appListeningPort))
+
+				out, err = proc.Kubectl("get", "svc",
+					"--namespace", namespace,
+					"-o", "jsonpath={.items[0].spec.ports[0].targetPort}")
+				Expect(err).NotTo(HaveOccurred(), out)
+				Expect(out).To(Equal(appListeningPort))
+			})
+		})
+
+		Context("without chart-value:", func() {
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
+
+			It("appListeningPort, pushes an app", func() {
+				currentDir, err := os.Getwd()
+				Expect(err).ToNot(HaveOccurred())
+
+				appListeningPort := "8080"
+
+				pushOutput, err := env.EpinioPush(path.Join(currentDir, "../assets/sample-app"),
+					appName,
+					"--name", appName)
+				Expect(err).ToNot(HaveOccurred(), pushOutput)
+
+				out, err := proc.Kubectl("get", "pod",
+					"--namespace", namespace,
+					"-o", "jsonpath={.items[0].spec.containers[0].env[0].value}")
+				Expect(err).NotTo(HaveOccurred(), out)
+				Expect(out).To(Equal(appListeningPort))
+
+				out, err = proc.Kubectl("get", "pod",
+					"--namespace", namespace,
+					"-o", "jsonpath={.items[0].spec.containers[0].ports[0].containerPort}")
+				Expect(err).NotTo(HaveOccurred(), out)
+				Expect(out).To(Equal(appListeningPort))
+
+				out, err = proc.Kubectl("get", "svc",
+					"--namespace", namespace,
+					"-o", "jsonpath={.items[0].spec.ports[0].targetPort}")
+				Expect(err).NotTo(HaveOccurred(), out)
+				Expect(out).To(Equal(appListeningPort))
+			})
+		})
+	})
 })

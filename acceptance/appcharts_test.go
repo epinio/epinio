@@ -41,7 +41,7 @@ var _ = Describe("apps chart", LAppchart, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("DEFAULT", "NAME", "CREATED", "DESCRIPTION", "#SETTINGS"),
-					WithRow("standard", WithDate(), "Epinio standard deployment", "0"),
+					WithRow("standard", WithDate(), "Epinio standard deployment", "1"),
 					WithRow(chartName, WithDate(), "", "9"),
 				),
 			)
@@ -66,7 +66,7 @@ var _ = Describe("apps chart", LAppchart, func() {
 					WithRow("Helm Chart", "https.*epinio-application.*tgz"),
 				),
 			)
-			Expect(out).To(ContainSubstring("No settings"))
+			Expect(out).To(ContainSubstring("Settings"))
 		})
 
 		It("shows the details of the custom chart", func() {
