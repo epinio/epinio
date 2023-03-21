@@ -187,7 +187,7 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(ContainSubstring("Listing Services"))
-			Expect(out).To(ContainSubstring("Namespace: " + namespace))
+			Expect(out).To(ContainSubstring("Namespace: %s", namespace))
 
 			Expect(out).To(
 				HaveATable(

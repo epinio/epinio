@@ -885,7 +885,7 @@ configuration:
 
 				out, err := env.EpinioPush("", appName, manifestPath)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring(`Manifest: ` + absManifestPath))
+				Expect(out).To(ContainSubstring("Manifest: %s", absManifestPath))
 
 				// TODO : Match push output lines ?
 
@@ -1323,7 +1323,7 @@ configuration:
 			By(out)
 
 			Expect(out).To(ContainSubstring("Show application details"))
-			Expect(out).To(ContainSubstring("Application: " + appName))
+			Expect(out).To(ContainSubstring("Application: %s", appName))
 
 			Expect(out).To(
 				HaveATable(
@@ -1377,7 +1377,7 @@ configuration:
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(out).To(ContainSubstring("Show application details"))
-				Expect(out).To(ContainSubstring("Application: " + appName))
+				Expect(out).To(ContainSubstring("Application: %s", appName))
 
 				Expect(out).To(
 					HaveATable(

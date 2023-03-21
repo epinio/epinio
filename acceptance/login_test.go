@@ -266,10 +266,10 @@ var _ = Describe("Login", LMisc, func() {
 			}
 		}
 
-		Expect(outLines[0]).To(ContainSubstring(`Login to your Epinio cluster`))
+		Expect(outLines[0]).To(ContainSubstring("Login to your Epinio cluster"))
 		Expect(outLines[0]).To(ContainSubstring(randomPort))
 
-		Expect(outLines[1]).To(ContainSubstring(`error while checking CA`))
-		Expect(outLines[1]).To(ContainSubstring(randomPort + `: connect: connection refused`))
+		Expect(outLines[1]).To(ContainSubstring("error while checking CA"))
+		Expect(outLines[1]).To(ContainSubstring("%s: connect: connection refused", randomPort))
 	})
 })
