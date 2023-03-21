@@ -39,44 +39,52 @@ import (
 // This includes all the applications and configurations in it.
 func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	namespace := c.Param("namespace")
+	namespaceName := c.Param("namespace")
+
+	var namespaceNames []string
+	namespaceNames, found := c.GetQueryArray("namespaces[]")
+	if !found {
+		namespaceNames = append(namespaceNames, namespaceName)
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	err = deleteApps(ctx, cluster, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	err = deleteServices(ctx, cluster, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	err = deleteNamespaceFromUsers(ctx, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	configurationList, err := configurations.List(ctx, cluster, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	for _, configuration := range configurationList {
-		err = configuration.Delete(ctx)
-		if err != nil && !apierrors.IsNotFound(err) {
+	for _, namespace := range namespaceNames {
+		err = deleteApps(ctx, cluster, namespace)
+		if err != nil {
 			return apierror.InternalError(err)
 		}
-	}
 
-	// Deleting the namespace here. That will automatically delete the application resources.
-	err = namespaces.Delete(ctx, cluster, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
+		err = deleteServices(ctx, cluster, namespace)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		err = deleteNamespaceFromUsers(ctx, namespace)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		configurationList, err := configurations.List(ctx, cluster, namespace)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		for _, configuration := range configurationList {
+			err = configuration.Delete(ctx)
+			if err != nil && !apierrors.IsNotFound(err) {
+				return apierror.InternalError(err)
+			}
+		}
+
+		// Deleting the namespace here. That will automatically delete the application resources.
+		err = namespaces.Delete(ctx, cluster, namespace)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
 	}
 
 	response.OK(c)

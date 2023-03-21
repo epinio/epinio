@@ -148,8 +148,8 @@ var _ = Describe("Namespaces", LNamespace, func() {
 			By("deleting namespace")
 			out, err := env.Epinio("", "namespace", "delete", "-f", namespaceName)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Name: %s", namespaceName))
-			Expect(out).To(ContainSubstring("Namespace deleted."))
+			Expect(out).To(ContainSubstring("Namespaces: %s", namespaceName))
+			Expect(out).To(ContainSubstring("Namespaces deleted."))
 		})
 	})
 

@@ -470,7 +470,27 @@ func (c *EpinioClient) AppPortForward(ctx context.Context, appName, instance str
 }
 
 // Delete removes one or more applications, specified by name
-func (c *EpinioClient) Delete(ctx context.Context, appNames []string) error {
+func (c *EpinioClient) Delete(ctx context.Context, appNames []string, all bool) error {
+	if all {
+		c.ui.Note().
+			WithStringValue("Namespace", c.Settings.Namespace).
+			Msg("Querying Applications for Deletion...")
+
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
+
+		// Using the match API with a query matching everything. Avoids transmission
+		// of full configuration data and having to filter client-side.
+		match, err := c.API.AppMatch(c.Settings.Namespace, "")
+		if err != nil {
+			return err
+		}
+
+		appNames = match.Names
+		sort.Strings(appNames)
+	}
+
 	namesCSV := strings.Join(appNames, ", ")
 	log := c.Log.WithName("DeleteApplication").
 		WithValues("Applications", namesCSV, "Namespace", c.Settings.Namespace)
@@ -482,12 +502,22 @@ func (c *EpinioClient) Delete(ctx context.Context, appNames []string) error {
 		WithStringValue("Namespace", c.Settings.Namespace).
 		Msg("Deleting Applications...")
 
-	if err := c.TargetOk(); err != nil {
-		return err
+	if !all {
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
 	}
 
 	s := c.ui.Progressf("Deleting %s in %s", appNames, c.Settings.Namespace)
 	defer s.Stop()
+
+	go c.trackDeletion(appNames, func() []string {
+		match, err := c.API.AppMatch(c.Settings.Namespace, "")
+		if err != nil {
+			return []string{}
+		}
+		return match.Names
+	})
 
 	response, err := c.API.AppDelete(c.Settings.Namespace, appNames)
 	if err != nil {

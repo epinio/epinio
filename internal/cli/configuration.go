@@ -32,6 +32,7 @@ func init() {
 	CmdConfiguration.AddCommand(CmdConfigurationList)
 
 	CmdConfigurationList.Flags().Bool("all", false, "list all configurations")
+	CmdConfigurationDelete.Flags().Bool("all", false, "delete all configurations")
 
 	changeOptions(CmdConfigurationUpdate)
 }
@@ -94,7 +95,6 @@ var CmdConfigurationDelete = &cobra.Command{
 	Use:   "delete NAME1 [NAME2 ...]",
 	Short: "Delete one or more configurations",
 	Long:  `Delete configurations by name.`,
-	Args:  cobra.MinimumNArgs(1),
 	RunE:  ConfigurationDelete,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		epinioClient, err := usercmd.New(cmd.Context())
@@ -240,12 +240,24 @@ func ConfigurationDelete(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error reading option --unbind")
 	}
 
+	all, err := cmd.Flags().GetBool("all")
+	if err != nil {
+		return errors.Wrap(err, "error reading option --all")
+	}
+
+	if all && len(args) > 0 {
+		return errors.New("Conflict between --all and named configurations")
+	}
+	if !all && len(args) == 0 {
+		return errors.New("No configurations specified for deletion")
+	}
+
 	client, err := usercmd.New(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = client.DeleteConfiguration(args, unbind)
+	err = client.DeleteConfiguration(args, unbind, all)
 	if err != nil {
 		return errors.Wrap(err, "error deleting configuration")
 	}

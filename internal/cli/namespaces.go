@@ -12,9 +12,7 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
@@ -23,7 +21,8 @@ import (
 )
 
 var (
-	force bool
+	gForceFlag bool
+	gAllFlag   bool
 )
 
 // CmdNamespace implements the command: epinio namespace
@@ -46,7 +45,8 @@ var CmdNamespace = &cobra.Command{
 func init() {
 
 	flags := CmdNamespaceDelete.Flags()
-	flags.BoolVarP(&force, "force", "f", false, "force namespace deletion")
+	flags.BoolVarP(&gForceFlag, "force", "f", false, "force namespace deletion")
+	flags.BoolVar(&gAllFlag, "all", false, "delete all namespaces")
 
 	CmdNamespace.AddCommand(CmdNamespaceCreate)
 	CmdNamespace.AddCommand(CmdNamespaceList)
@@ -101,22 +101,7 @@ var CmdNamespaceCreate = &cobra.Command{
 var CmdNamespaceDelete = &cobra.Command{
 	Use:               "delete NAME",
 	Short:             "Deletes an epinio-controlled namespace",
-	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: matchingNamespaceFinder,
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		force, err := cmd.Flags().GetBool("force")
-		if err != nil {
-			return err
-		}
-		if !force {
-			cmd.Printf("You are about to delete namespace %s and everything it includes, i.e. applications, configurations, etc. Are you sure? (y/n): ", args[0])
-			if !askConfirmation(cmd) {
-				return errors.New("Cancelled by user")
-			}
-		}
-
-		return nil
-	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -125,9 +110,13 @@ var CmdNamespaceDelete = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.DeleteNamespace(args[0])
+		err = client.DeleteNamespace(args, gForceFlag, gAllFlag)
 		if err != nil {
-			return errors.Wrap(err, "error deleting epinio-controlled namespace")
+			// Cancellation is not an "error" in deletion.
+			if !strings.Contains(err.Error(), "Cancelled") {
+				err = errors.Wrap(err, "error deleting epinio-controlled namespace")
+			}
+			return err
 		}
 
 		return nil
@@ -155,22 +144,4 @@ var CmdNamespaceShow = &cobra.Command{
 
 		return nil
 	},
-}
-
-// askConfirmation is a helper for CmdNamespaceDelete to confirm a deletion request
-func askConfirmation(cmd *cobra.Command) bool {
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		s, _ := reader.ReadString('\n')
-		s = strings.TrimSpace(strings.ToLower(s))
-		if strings.Compare(s, "n") == 0 {
-			return false
-		} else if strings.Compare(s, "y") == 0 {
-			break
-		} else {
-			cmd.Printf("Please enter y or n: ")
-			continue
-		}
-	}
-	return true
 }

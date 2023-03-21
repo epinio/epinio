@@ -75,7 +75,7 @@ type APIClient interface {
 
 	// namespaces
 	NamespaceCreate(req models.NamespaceCreateRequest) (models.Response, error)
-	NamespaceDelete(namespace string) (models.Response, error)
+	NamespaceDelete(namespaces []string) (models.Response, error)
 	NamespaceShow(namespace string) (models.Namespace, error)
 	NamespacesMatch(prefix string) (models.NamespacesMatchResponse, error)
 	Namespaces() (models.NamespaceList, error)

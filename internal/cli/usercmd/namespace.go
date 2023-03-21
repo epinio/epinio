@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/fatih/color"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -144,21 +145,77 @@ func (c *EpinioClient) TargetOk() error {
 }
 
 // DeleteNamespace deletes a Namespace
-func (c *EpinioClient) DeleteNamespace(namespace string) error {
-	log := c.Log.WithName("DeleteNamespace").WithValues("Namespace", namespace)
+func (c *EpinioClient) DeleteNamespace(namespaces []string, force, all bool) error {
+
+	if all && len(namespaces) > 0 {
+		return errors.New("Conflict between --all and given namespaces")
+	}
+	if !all && len(namespaces) == 0 {
+		return errors.New("No namespaces specified for deletion")
+	}
+
+	if all {
+		c.ui.Note().
+			WithStringValue("Namespace", c.Settings.Namespace).
+			Msg("Querying Namespaces for Deletion...")
+
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
+
+		// Using the match API with a query matching everything. Avoids transmission
+		// of full configuration data and having to filter client-side.
+		match, err := c.API.NamespacesMatch("")
+		if err != nil {
+			return err
+		}
+
+		namespaces = match.Names
+		sort.Strings(namespaces)
+	}
+
+	if !force {
+		var m string
+		if len(namespaces) == 1 {
+			m = fmt.Sprintf("You are about to delete the namespace '%s' and everything it includes, i.e. applications, configurations, etc.",
+				namespaces[0])
+		} else {
+			names := strings.Join(namespaces, ", ")
+			m = fmt.Sprintf("You are about to delete %d namespaces (%s) and everything they include, i.e. applications, configurations, etc.",
+				len(namespaces), names)
+		}
+
+		if !c.askConfirmation(m) {
+			return errors.New("Cancelled by user")
+		}
+	}
+
+	namesCSV := strings.Join(namespaces, ", ")
+	log := c.Log.WithName("DeleteNamespace").WithValues("Namespaces", namesCSV)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Name", namespace).
-		Msg("Deleting namespace...")
+		WithStringValue("Namespaces", namesCSV).
+		Msg("Deleting namespaces...")
 
-	_, err := c.API.NamespaceDelete(namespace)
+	s := c.ui.Progressf("Deleting %s", namespaces)
+	defer s.Stop()
+
+	go c.trackDeletion(namespaces, func() []string {
+		match, err := c.API.NamespacesMatch("")
+		if err != nil {
+			return []string{}
+		}
+		return match.Names
+	})
+
+	_, err := c.API.NamespaceDelete(namespaces)
 	if err != nil {
 		return err
 	}
 
-	c.ui.Success().Msg("Namespace deleted.")
+	c.ui.Success().Msg("Namespaces deleted.")
 
 	return nil
 }
@@ -192,4 +249,24 @@ func (c *EpinioClient) ShowNamespace(namespace string) error {
 	msg.Msg("Details:")
 
 	return nil
+}
+
+// askConfirmation is a helper for CmdNamespaceDelete to confirm a deletion request
+func (c *EpinioClient) askConfirmation(m string) bool {
+	c.ui.Note().Msg(m)
+	for {
+		var s string
+		c.ui.Question().WithAskString("", &s).Msg("Are you sure? (y/N): ")
+		s = strings.ToLower(s)
+
+		if s == "n" || s == "no" || s == "" {
+			return false
+		}
+		if s == "y" || s == "yes" {
+			return true
+		}
+
+		// Bad input, repeat question
+		c.ui.Raw(color.RedString("Expected one of `y`, `yes`, `n`, or `no`"))
+	}
 }

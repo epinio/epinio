@@ -16,6 +16,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -28,6 +29,7 @@ import (
 func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
+	user := requestctx.User(ctx)
 
 	log.Info("match namespaces")
 	defer log.Info("return")
@@ -42,6 +44,8 @@ func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err)
 	}
+
+	namespaces = auth.FilterResources(user, namespaces)
 
 	log.Info("get namespace prefix")
 	prefix := c.Param("pattern")

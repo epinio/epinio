@@ -15,6 +15,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -34,6 +35,7 @@ const (
 	note
 	success
 	progress
+	question
 )
 
 const (
@@ -91,6 +93,10 @@ func NewUI() *UI {
 	}
 }
 
+func (u *UI) Raw(message string) {
+	fmt.Fprintf(color.Output, "%s", message)
+}
+
 // Progress creates, configures, and returns an active progress
 // meter. It accepts a formatted message.
 func (u *UI) Progressf(message string, a ...interface{}) Progress {
@@ -119,6 +125,16 @@ func (u *UI) Exclamation() *Message {
 	return &Message{
 		ui:           u,
 		msgType:      exclamation,
+		interactions: []interaction{},
+		end:          -1,
+	}
+}
+
+// Question returns a UIMessage that prints a question. Best used with `WithAsk...` modifiers.
+func (u *UI) Question() *Message {
+	return &Message{
+		ui:           u,
+		msgType:      question,
 		interactions: []interaction{},
 		end:          -1,
 	}
@@ -188,6 +204,9 @@ func (u *Message) Msg(message string) {
 	}
 
 	switch u.msgType {
+	case question:
+		message = emoji.Sprintf(":question: %s", message)
+		message = color.RedString(message)
 	case normal:
 	case exclamation:
 		message = emoji.Sprintf(":warning: %s", message)
@@ -213,11 +232,14 @@ func (u *Message) Msg(message string) {
 			fmt.Printf("> ")
 			switch interaction.valueType {
 			case tBool:
-				interaction.value = readBool()
+				b, _ := interaction.value.(*bool)
+				*b = readBool()
 			case tInt:
-				interaction.value = readInt()
+				i, _ := interaction.value.(*int)
+				*i = readInt()
 			case tString:
-				interaction.value = readString()
+				s, _ := interaction.value.(*string)
+				*s = readString()
 			}
 		case show:
 			switch interaction.valueType {
@@ -335,7 +357,7 @@ func (u *Message) WithStringValue(name string, value string) *Message {
 func (u *Message) WithIntValue(name string, value int) *Message {
 	u.interactions = append(u.interactions, interaction{
 		name:      name,
-		variant:   show,
+		variant:   ask,
 		valueType: tInt,
 		value:     value,
 	})
@@ -346,7 +368,7 @@ func (u *Message) WithIntValue(name string, value int) *Message {
 func (u *Message) WithAskBool(name string, result *bool) *Message {
 	u.interactions = append(u.interactions, interaction{
 		name:      name,
-		variant:   show,
+		variant:   ask,
 		valueType: tBool,
 		value:     result,
 	})
@@ -357,7 +379,7 @@ func (u *Message) WithAskBool(name string, result *bool) *Message {
 func (u *Message) WithAskString(name string, result *string) *Message {
 	u.interactions = append(u.interactions, interaction{
 		name:      name,
-		variant:   show,
+		variant:   ask,
 		valueType: tString,
 		value:     result,
 	})
@@ -385,6 +407,7 @@ func readBool() bool {
 func readString() string {
 	var value string
 	fmt.Scanf("%s", &value)
+	value = strings.TrimSpace(value)
 
 	return value
 }

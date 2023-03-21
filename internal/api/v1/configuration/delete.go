@@ -70,7 +70,8 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 		if configuration.Origin != "" {
 			// [BELONG] keep in sync with same marker in the client
-			return apierror.NewBadRequestErrorf("Configuration belongs to service '%s', use service requests",
+			return apierror.NewBadRequestErrorf("Configuration '%s' belongs to service '%s', use service requests",
+				configuration.Name,
 				configuration.Origin)
 		}
 		configurationObjects = append(configurationObjects, configuration)

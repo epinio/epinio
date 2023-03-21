@@ -51,6 +51,8 @@ func init() {
 	CmdAppCreate.Flags().String("app-chart", "", "App chart to use for deployment")
 	CmdAppUpdate.Flags().String("app-chart", "", "App chart to use for deployment")
 
+	CmdAppDelete.Flags().Bool("all", false, "Delete all applications")
+
 	CmdApp.AddCommand(CmdAppCreate)
 	CmdApp.AddCommand(CmdAppChart) // See chart.go for implementation
 	CmdApp.AddCommand(CmdAppEnv)   // See env.go for implementation
@@ -63,8 +65,8 @@ func init() {
 	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppExport)
 	CmdApp.AddCommand(CmdAppUpdate)
-	CmdApp.AddCommand(CmdAppDelete)
-	CmdApp.AddCommand(CmdAppPush) // See push.go for implementation
+	CmdApp.AddCommand(CmdAppDelete) // See delete.go for implementation
+	CmdApp.AddCommand(CmdAppPush)   // See push.go for implementation
 	CmdApp.AddCommand(CmdAppRestart)
 	CmdApp.AddCommand(CmdAppRestage)
 }
