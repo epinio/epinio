@@ -23,12 +23,12 @@ on:
     - cron:  '0 1 * * *'
   workflow_dispatch:
     inputs:
-      keep_cluster:
-        description: "Keep the cluster afterwards? (empty/yes)"
-        required: false
-        default: ""
       gke_domain:
         description: "GKE_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+        required: false
+        default: ""
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
         required: false
         default: ""
 
