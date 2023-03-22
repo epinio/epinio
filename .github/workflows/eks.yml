@@ -139,9 +139,6 @@ jobs:
           --node-volume-size=40 \
           --managed \
           --kubeconfig=kubeconfig-epinio-ci
-          # Workaround for https://github.com/aws/aws-cli/issues/6920
-          # https://stackoverflow.com/questions/71318743/kubectl-versions-error-exec-plugin-is-configured-to-use-api-version-client-auth
-          sed -i .bak -e 's/v1alpha1/v1beta1/' kubeconfig-epinio-ci
 
       - name: Configure EKS EBS CSI storage
         id: configure-storage
