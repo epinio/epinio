@@ -1596,7 +1596,7 @@ userConfig:
 				Expect(out).To(
 					HaveATable(
 						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-						WithRow(app, WithDate(), "n/a", "n/a", "", ""),
+						WithRow(app, WithDate(), "0/0", "n/a", "", ""),
 					),
 				)
 			})
@@ -1608,7 +1608,7 @@ userConfig:
 				Expect(out).To(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
-						WithRow("Status", "not deployed, staging failed"),
+						WithRow("Status", "deployed, scaled to zero"),
 					),
 				)
 			})

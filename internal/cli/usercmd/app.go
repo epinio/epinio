@@ -144,6 +144,9 @@ func (c *EpinioClient) Apps(all bool) error {
 		if app.Workload == nil {
 			status = "n/a"
 			routes = "n/a"
+			if *app.Configuration.Instances == 0 {
+				status = "0/0"
+			}
 		} else {
 			status = app.Workload.Status
 			routes = formatRoutes(app.Workload.Routes)
@@ -574,7 +577,11 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 		if app.StageID == "" {
 			msg = msg.WithTableRow("Status", "not deployed")
 		} else {
-			msg = msg.WithTableRow("Status", "not deployed, staging failed")
+			if *app.Configuration.Instances == 0 {
+				msg = msg.WithTableRow("Status", "deployed, scaled to zero")
+			} else {
+				msg = msg.WithTableRow("Status", "not deployed, staging failed")
+			}
 			msg = msg.WithTableRow("Last StageId", app.StageID)
 		}
 
