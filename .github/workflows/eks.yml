@@ -173,13 +173,14 @@ jobs:
       - name: Delete EKS cluster
         # We always tear down the cluster, to avoid costs. Except when running
         # manually and keep_cluster was set to a non-empty string, like "yes"
-        # TODO this was not called, when scheduled and tests failed
         if: ${{ always() && !github.event.inputs.keep_cluster }}
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_NAME }}
         run: |
-          # Deleting namespaces will also remove PVs from EC2/EBS
-          id="${{ steps.create-cluster.outputs.ID }}"
-          kubectl delete namespace epinio || true
-          kubectl delete namespace workspace || true
-          eksctl delete cluster --region=${{ env.AWS_REGION }} --name=epinio-ci$id
+          export RUN_ID=${{ steps.create-cluster.outputs.ID }}
+          export RUN_PCP="EKS"
+          export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
+          export EKS_DOMAIN=${{ secrets.EKS_DOMAIN }}
+          export EKS_REGION=${{ env.EKS_REGION }}
+          export KUBECONFIG_NAME=${{ env.KUBECONFIG_NAME }}
+          go run acceptance/helpers/delete_clusters/delete_clusters.go

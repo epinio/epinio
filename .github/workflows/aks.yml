@@ -156,9 +156,13 @@ jobs:
       - name: Delete AKS cluster
         # We always tear down the cluster, to avoid costs. Except when running
         # manually and keep_cluster was set to a non-empty string, like "yes"
-        # TODO this was not called, when scheduled and tests failed
         if: ${{ always() && !github.event.inputs.keep_cluster }}
         shell: bash
         run: |
-          id="${{ steps.create-cluster.outputs.ID }}"
-          az aks delete --resource-group epinioCI --name epinioCI$id --yes
+          export RUN_ID=${{ steps.create-cluster.outputs.ID }}
+          export RUN_PCP="AKS"
+          export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
+          export AKS_DOMAIN=${{ secrets.AKS_DOMAIN }}
+          export AKS_RESOURCE_GROUP=${{ env.AKS_RESOURCE_GROUP }}
+          export KUBECONFIG_NAME=${{ env.KUBECONFIG_NAME }}
+          go run acceptance/helpers/delete_clusters/delete_clusters.go

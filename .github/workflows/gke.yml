@@ -159,7 +159,15 @@ jobs:
           make test-acceptance-install
 
       - name: Delete GKE cluster
+        # We always tear down the cluster, to avoid costs. Except when running
+        # manually and keep_cluster was set to a non-empty string, like "yes"
         if: ${{ always() && !github.event.inputs.keep_cluster }}
         run: |
-          id="${{ steps.create-cluster.outputs.ID }}"
-          gcloud container clusters delete epinioci$id --zone ${{ env.GKE_ZONE }} --quiet
+          export RUN_ID=${{ steps.create-cluster.outputs.ID }}
+          export RUN_PCP="GKE"
+          export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
+          export GKE_DOMAIN=${{ secrets.GKE_DOMAIN }}
+          export GKE_ZONE=${{ secrets.GKE_ZONE }}
+          export EPCI_GKE_PROJECT=${{ secrets.EPCI_GKE_PROJECT }}
+          export KUBECONFIG_NAME=${{ env.KUBECONFIG_NAME }}
+          go run acceptance/helpers/delete_clusters/delete_clusters.go
