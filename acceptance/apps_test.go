@@ -610,7 +610,7 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 	})
 
-	When("re-pushing a failed application", func() {
+	When("pushing a failed application", func() {
 		var tmpDir string
 		var err error
 		BeforeEach(func() {
@@ -632,14 +632,7 @@ var _ = Describe("Apps", LApplication, func() {
 				// will be deleted by the other `push`.
 				_, _ = env.EpinioPush(tmpDir, appName, "--name", appName, "--builder-image", "paketobuildpacks/builder:full")
 			}()
-		})
 
-		AfterEach(func() {
-			env.DeleteApp(appName)
-			os.RemoveAll(tmpDir)
-		})
-
-		It("succeeds", func() {
 			// Wait until previous staging job is complete
 			By("waiting for the old staging job to complete")
 			Eventually(func() error {
@@ -663,6 +656,34 @@ var _ = Describe("Apps", LApplication, func() {
 				return nil
 			}, 3*time.Minute, 3*time.Second).ShouldNot(HaveOccurred())
 
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+			os.RemoveAll(tmpDir)
+		})
+
+		It("shows the proper status", func() {
+			out, err := env.Epinio("", "app", "show", appName)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "((0/1)|(not deployed, staging failed))"),
+				),
+			)
+
+			out, err = env.Epinio("", "app", "list")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "0/1", ".*", "", ""),
+				),
+			)
+		})
+
+		It("succeeds when re-pushing a fix", func() {
 			// Fix the problem (so that the app now deploys fine) and push again
 			By("fixing the problem and pushing the application again")
 			os.Remove(path.Join(tmpDir, "Procfile"))
