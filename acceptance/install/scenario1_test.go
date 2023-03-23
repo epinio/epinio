@@ -172,15 +172,5 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 		if os.Getenv("EPINIO_UPGRADED") == "true" {
 			UpgradeSequence(epinioHelper, domain)
 		}
-
-		By("Cleaning DNS Entries", func() {
-			change := route53.A(domain, loadbalancer, "DELETE")
-			out, err := route53.Update(zoneID, change, nodeTmpDir)
-			Expect(err).NotTo(HaveOccurred(), out)
-
-			change = route53.A("*."+domain, loadbalancer, "DELETE")
-			out, err = route53.Update(zoneID, change, nodeTmpDir)
-			Expect(err).NotTo(HaveOccurred(), out)
-		})
 	})
 })

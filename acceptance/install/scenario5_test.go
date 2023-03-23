@@ -180,15 +180,5 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", fu
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Or(ContainSubstring("Applications Removed")))
 		})
-
-		By("Cleaning DNS Entries", func() {
-			change := route53.A(domain, loadbalancer, "DELETE")
-			out, err := route53.Update(zoneID, change, nodeTmpDir)
-			Expect(err).NotTo(HaveOccurred(), out)
-
-			change = route53.A("*."+domain, loadbalancer, "DELETE")
-			out, err = route53.Update(zoneID, change, nodeTmpDir)
-			Expect(err).NotTo(HaveOccurred(), out)
-		})
 	})
 })
