@@ -37,9 +37,9 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
-  AWS_REGION: 'eu-central-1'
-  AWS_MACHINE_TYPE: 't3.xlarge'
   KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
+  EKS_REGION: ${{ secrets.EKS_REGION }}
+  AWS_MACHINE_TYPE: 't3.xlarge'
 
 jobs:
   linter:
@@ -113,7 +113,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ env.EKS_REGION }}
 
       - name: Create EKS cluster
         id: create-cluster
@@ -121,7 +121,7 @@ jobs:
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
           eksctl create cluster --name=epinio-ci$id \
-          --region=${{ env.AWS_REGION }} \
+          --region=${{ env.EKS_REGION }} \
           --nodes=2 \
           --node-type=${{ env.AWS_MACHINE_TYPE }} \
           --node-volume-size=40 \
@@ -131,7 +131,7 @@ jobs:
       - name: Configure EKS EBS CSI storage
         id: configure-storage
         run: |
-          id="${{ steps.create-cluster.outputs.ID }}"
+          id=${{ steps.create-cluster.outputs.ID }}
           # Get AWS Account ID
           AWS_ACCOUNT_ID=$(aws sts get-caller-identity | jq -r '.Account')
           # Assign OIDC provider to the cluster

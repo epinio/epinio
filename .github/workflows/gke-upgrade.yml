@@ -38,7 +38,8 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
-  GKE_ZONE: 'europe-west1-b'
+  KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
+  GKE_ZONE: ${{ secrets.GKE_ZONE }}
   GKE_MACHINE_TYPE: 'n2-standard-4'
   GKE_NETWORK: 'epinio-ci'
 
@@ -108,7 +109,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
+          aws-region: ${{ secrets.EKS_REGION }}
 
       - name: Setup Ginkgo Test Framework
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
@@ -143,7 +144,8 @@ jobs:
           # Prevents using deprecated auth method in generated kubeconfig
           USE_GKE_GCLOUD_AUTH_PLUGIN: True
         run: |
-          id="${{ steps.create-cluster.outputs.ID }}"
+          id=${{ steps.create-cluster.outputs.ID }}
+          export KUBECONFIG=${{ env.KUBECONFIG_NAME }}
           gcloud container clusters get-credentials epinioci$id --zone ${{ env.GKE_ZONE }} --project ${{ secrets.EPCI_GKE_PROJECT }}
 
       - name: Installation Acceptance Tests
@@ -163,7 +165,7 @@ jobs:
         run: |
           # EPINIO_UPGRADED triggers starting with a released epinio in suite setup, and the upgrade sequence
           echo "System Domain: $GKE_DOMAIN"
-          export KUBECONFIG=$HOME/.kube/config
+          export KUBECONFIG=${{ env.KUBECONFIG_NAME }}
           export EPINIO_CURRENT_TAG="$(git describe --tags)"
           # Run GKE integrated install + upgrade test
           mkdir dist

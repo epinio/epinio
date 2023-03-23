@@ -38,7 +38,7 @@ env:
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
   KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
-  AWS_REGION: 'us-east-2'
+  AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
   AKS_MACHINE_TYPE: 'Standard_D3_v2'
 
 jobs:
@@ -103,12 +103,12 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.EKS_REGION }}
 
       # Follow https://github.com/marketplace/actions/azure-login#configure-deployment-credentials
-      # az group create --name epinioCI --location eastus2
-      # az ad sp create-for-rbac --name "epinioCI" --sdk-auth --role contributor \
-      #   --scopes /subscriptions/{id}/resourceGroups/epinioCI
+      # az group create --name ${{ env.AKS_RESOURCE_GROUP }} --location eastus2
+      # az ad sp create-for-rbac --name ${{ env.AKS_RESOURCE_GROUP }} --sdk-auth --role contributor \
+      #   --scopes /subscriptions/{id}/resourceGroups/${{ env.AKS_RESOURCE_GROUP }}
       - name: Login to Azure
         uses: azure/login@v1
         with:
@@ -121,14 +121,14 @@ jobs:
         run: |
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
-          az aks create --resource-group epinioCI \
+          az aks create --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
           --node-vm-size ${{ env.AKS_MACHINE_TYPE }} \
-          --name epinioCI$id \
+          --name ${{ env.AKS_RESOURCE_GROUP }}$id \
           --node-count 2 \
           --generate-ssh-keys
 
-          az aks get-credentials --resource-group epinioCI \
-          --name epinioCI$id \
+          az aks get-credentials --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
+          --name ${{ env.AKS_RESOURCE_GROUP }}$id \
           --file ${{ env.KUBECONFIG_NAME }}
 
           # List existing clusters
@@ -139,7 +139,7 @@ jobs:
           REGEX: Scenario5
           REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
-          AWS_ZONE_ID: ${{ github.event.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
+          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
           # Use a random host name, so we don't collide with our workflows on AKS
           AKS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aks_domain || secrets.AKS_DOMAIN }}
           EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aks_domain || secrets.AKS_DOMAIN }}
