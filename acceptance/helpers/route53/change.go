@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 )
@@ -105,4 +106,23 @@ func Update(zoneID string, change ChangeResourceRecordSet, dir string) (string, 
 
 func TestDnsAnswer(zoneID string, recordName string, recordType string) (string, error) {
 	return proc.RunW("aws", "route53", "test-dns-answer", "--hosted-zone-id", zoneID, "--record-name", recordName, "--record-type", recordType, "--resolver-ip", resolverIP)
+}
+
+func GetRecord(zoneID string, domainname string) (string, string, string, error) {
+	b, err := proc.RunW("aws", "route53", "list-resource-record-sets", "--hosted-zone-id", zoneID, "--query", strings.Join([]string{"ResourceRecordSets[?Name == '", domainname, "']"}, ""))
+	if err != nil {
+		return "", "", "", err
+	}
+	v := []ResourceRecordSet{}
+	err = json.Unmarshal([]byte(b), &v)
+	if err != nil {
+		return "", "", "", err
+	}
+	if len(v) == 0 {
+		return "Clean", "", "", err
+	}
+	Name := v[0].Name
+	Type := v[0].Type
+	Record := v[0].ResourceRecords[0].Value
+	return Name, Type, Record, err
 }
