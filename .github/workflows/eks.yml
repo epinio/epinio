@@ -120,6 +120,7 @@ jobs:
         run: |
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
+          echo "RUN_ID: ${{ steps.create-cluster.outputs.ID }}"
           eksctl create cluster --name=epinio-ci$id \
           --region=${{ env.EKS_REGION }} \
           --nodes=2 \

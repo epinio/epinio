@@ -1,0 +1,106 @@
+# Copyright © 2021 - 2023 SUSE LLC
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+name: DELETE-KEPT-ACCEPTANCE-TEST-CLUSTER
+
+# This is a workflow_dispatch only, intended to be used to cleanup a PCP kubernetes cluster
+# after using keep_cluster, by just providing the acceptance test run-id and the PCP flavor.
+# It will cleanup DNS records, delete epinio namespaces and delete the public cloud kube cluster.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "id - The plain random number from CI cluster creation, found in the respective github action logs (lookub the scenario* logs, cluster creation step, e.g. RUN_ID: 1234)"
+        required: true
+        default: ""
+      pcp:
+        description: "Public Cloud Provider Kubernetes service (enter AKS, EKS or GKE)"
+        required: true
+        default: ""
+
+env:
+  SETUP_GO_VERSION: '~1.19'
+  EKS_REGION: ${{ secrets.EKS_REGION }}
+
+jobs:
+  delete-ci-acceptance-test-cluster:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      # The system domain is managed by route53, login to delete
+      # DNS records and for the EKS deletion case
+      - name: Configure AWS credentials for Route53
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.EKS_REGION }}
+
+      # Login to Azure for the AKS deletion case
+      - name: Login to Azure
+        if: ${{ github.event.inputs.pcp == 'AKS' }}
+        uses: azure/login@v1
+        with:
+          creds: ${{ github.events.inputs.azure_credentials || secrets.AZURE_CREDENTIALS }}
+
+      # Install EKSCTL for EKS deletion case
+      - name: Install EKSCTL
+        if: ${{ github.event.inputs.pcp == 'EKS' }}
+        run: |
+          EKSCTL_GH=https://github.com/weaveworks/eksctl/releases/latest/download
+          curl --location ${EKSCTL_GH}/eksctl_$(uname -s)_amd64.tar.gz | tar xz -C .
+          chmod +x eksctl
+          sudo mv eksctl /usr/local/bin
+
+      # Login to gcloud for the GKE case
+      - name: Authenticate to GCP
+        if: ${{ github.event.inputs.pcp == 'GKE' }}
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: ${{ secrets.EPCI_GCP_CREDENTIALS }}
+
+      - name: Setup gcloud
+        if: ${{ github.event.inputs.pcp == 'GKE' }}
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Install gcloud kubectl version
+        if: ${{ github.event.inputs.pcp == 'GKE' }}
+        run: gcloud components install kubectl
+
+      # Delete PVCs, DNS records and Public Cloud Providers cluster
+      - name: Delete PCP Clusters and Resources
+        shell: bash
+        run: |
+          export RUN_ID=${{ github.event.inputs.run_id }}
+          export RUN_PCP=${{ github.event.inputs.pcp }}
+          export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
+          export AKS_DOMAIN=${{ secrets.AKS_DOMAIN }}
+          export AKS_RESOURCE_GROUP=${{ secrets.AKS_RESOURCE_GROUP }}
+          export EKS_DOMAIN=${{ secrets.EKS_DOMAIN }}
+          export EKS_REGION=${{ env.EKS_REGION }}
+          export GKE_DOMAIN=${{ secrets.GKE_DOMAIN }}
+          export GKE_ZONE=${{ secrets.GKE_ZONE }}
+          export EPCI_GKE_PROJECT=${{ secrets.EPCI_GKE_PROJECT }}
+          export KUBECONFIG_NAME="kubeconfig-epinio-ci"
+          go run acceptance/helpers/delete_clusters/delete_clusters.go
