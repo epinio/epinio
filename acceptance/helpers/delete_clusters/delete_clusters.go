@@ -45,24 +45,19 @@ func CleanupDNS(zoneID string, domainname string) {
 			fmt.Println("Error: ", err)
 		}
 		if Name != "Clean" {
-			nodeTmpDir := ""
+			var change string
 			switch Type {
 			case "A":
-				change := route53.A(Name, Record, "DELETE")
-				out, err := route53.Update(zoneID, change, nodeTmpDir)
-				if err != nil {
-					fmt.Println("Error: ", err, out)
-				} else {
-					fmt.Println("Cleaned up AWS Route53 DNS record: ", dnsrecord)
-				}
+				change = route53.A(Name, Record, "DELETE")
 			case "CNAME":
-				change := route53.CNAME(Name, Record, "DELETE")
-				out, err := route53.Update(zoneID, change, nodeTmpDir)
-				if err != nil {
-					fmt.Println("Error: ", err, out)
-				} else {
-					fmt.Println("Cleaned up AWS Route53 DNS record: ", dnsrecord)
-				}
+				change = route53.CNAME(Name, Record, "DELETE")
+			}
+			
+			out, err := route53.Update(zoneID, change, "")
+			if err != nil {
+				fmt.Println("Error: ", err, out)
+			} else {
+				fmt.Println("Cleaned up AWS Route53 DNS record: ", dnsrecord)
 			}
 
 		} else {
