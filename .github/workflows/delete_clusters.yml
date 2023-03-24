@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: "id - The plain random number from CI cluster creation, found in the respective github action logs (lookub the scenario* logs, cluster creation step, e.g. RUN_ID: 1234)"
+        description: "id - The plain random number from CI cluster creation, found in the respective github action logs (lookup the scenario* logs, cluster creation step, e.g. RUN_ID: 1234)"
         required: true
         default: ""
       pcp:
