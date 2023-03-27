@@ -207,10 +207,11 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 
 	var status string
 
-	podMetrics, err := a.getPodMetrics(ctx)
-	if err != nil {
-		status = pkgerrors.Wrap(err, "failed to get replica details").Error()
-	}
+	// -- errors retrieving the pod metrics are ignored.
+	// -- this will be reported later as `not available`.
+	// note: The pod metrics are not nil in that cases, just an empty slice.
+	// that is good, as that allows AFP below to still generate the basic pod info.
+	podMetrics, _ := a.getPodMetrics(ctx)
 
 	return a.AssembleFromParts(ctx, podList, podMetrics, routes, status)
 }
@@ -384,6 +385,7 @@ func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMe
 			return pkgerrors.Errorf("couldn't get memory usage as an integer, memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
 		}
 
+		podInfos[podMetric.Name].MetricsOk = true
 		podInfos[podMetric.Name].MemoryBytes = mem
 		podInfos[podMetric.Name].MilliCPUs = milliCPUs
 	}

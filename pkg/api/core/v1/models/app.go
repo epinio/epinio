@@ -53,6 +53,7 @@ type App struct {
 
 type PodInfo struct {
 	Name        string `json:"name"`
+	MetricsOk   bool   `json:"metricsOk"`
 	MemoryBytes int64  `json:"memoryBytes"`
 	MilliCPUs   int64  `json:"millicpus"`
 	CreatedAt   string `json:"createdAt,omitempty"`

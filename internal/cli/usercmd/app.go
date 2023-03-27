@@ -627,11 +627,19 @@ func (c *EpinioClient) printReplicaDetails(app models.App) error {
 			if err != nil {
 				return err
 			}
+
+			millis := "not available"
+			memory := "not available"
+			if r.MetricsOk {
+				millis = strconv.Itoa(int(r.MilliCPUs))
+				memory = bytes.ByteCountIEC(r.MemoryBytes)
+			}
+
 			msg = msg.WithTableRow(
 				r.Name,
 				strconv.FormatBool(r.Ready),
-				bytes.ByteCountIEC(r.MemoryBytes),
-				strconv.Itoa(int(r.MilliCPUs)),
+				memory,
+				millis,
 				strconv.Itoa(int(r.Restarts)),
 				time.Since(createdAt).Round(time.Second).String(),
 			)
