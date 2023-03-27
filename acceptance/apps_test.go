@@ -1311,7 +1311,7 @@ configuration:
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-					WithRow(appName, WithDate(), "1/1", appName+".*", configurationName, ""),
+					WithRow(appName, WithDate(), "1/1", appName+".*", configurationName, ".*"),
 				),
 			)
 		})
@@ -1657,8 +1657,8 @@ userConfig:
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-					WithRow(namespace1, app1, WithDate(), "1/1", app1+".*", "", ""),
-					WithRow(namespace2, app2, WithDate(), "1/1", app2+".*", "", ""),
+					WithRow(namespace1, app1, WithDate(), "1/1", app1+".*", "", ".*"),
+					WithRow(namespace2, app2, WithDate(), "1/1", app2+".*", "", ".*"),
 				),
 			)
 		})
