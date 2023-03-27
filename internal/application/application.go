@@ -322,10 +322,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 
 	// V. Pod metrics and replica information
 
-	metrics, err := GetPodMetrics(ctx, cluster, namespace)
-	if err != nil {
-		return nil, err
-	}
+	metrics, _ := GetPodMetrics(ctx, cluster, namespace)
 
 	// VI. load all the status of the staging jobs
 
@@ -716,12 +713,9 @@ func aggregate(ctx context.Context,
 
 	// IV. Assemble the deployment structure for active applications.
 
-	var status string
 	podMetrics := []metricsv1beta1.PodMetrics{}
 
-	if metrics == nil {
-		status = "failed to get replica details"
-	} else {
+	if metrics != nil {
 		// extract the metrics for the app, based on the app pods
 		for _, pod := range appPods {
 			m, found := metrics[pod.Name]
@@ -732,7 +726,7 @@ func aggregate(ctx context.Context,
 	}
 
 	app.Workload, err = NewWorkload(cluster, app.Meta, instances).
-		AssembleFromParts(ctx, appPods, podMetrics, appRoutes, status)
+		AssembleFromParts(ctx, appPods, podMetrics, appRoutes)
 	if err != nil {
 		return nil, err
 	}

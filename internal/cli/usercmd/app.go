@@ -124,7 +124,8 @@ func (c *EpinioClient) Apps(all bool) error {
 	sort.Sort(apps)
 
 	if all {
-		msg = c.ui.Success().WithTable("Namespace", "Name", "Created", "Status", "Routes", "Configurations", "Status Details")
+		msg = c.ui.Success().WithTable("Namespace", "Name", "Created", "Status", "Routes",
+			"Configurations", "Status Details")
 
 		for _, app := range apps {
 			if app.Workload == nil {
@@ -140,6 +141,15 @@ func (c *EpinioClient) Apps(all bool) error {
 			} else {
 				sort.Strings(app.Configuration.Configurations)
 
+				status := app.StatusMessage
+				if !c.metricsOk(app.Workload) {
+					if status == "" {
+						status = "metrics not available"
+					} else {
+						status += ", metrics not available"
+					}
+				}
+
 				msg = msg.WithTableRow(
 					app.Meta.Namespace,
 					app.Meta.Name,
@@ -147,12 +157,13 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.Workload.Status,
 					formatRoutes(app.Workload.Routes),
 					strings.Join(app.Configuration.Configurations, ", "),
-					app.StatusMessage,
+					status,
 				)
 			}
 		}
 	} else {
-		msg = c.ui.Success().WithTable("Name", "Created", "Status", "Routes", "Configurations", "Status Details")
+		msg = c.ui.Success().WithTable("Name", "Created", "Status", "Routes",
+			"Configurations", "Status Details")
 
 		for _, app := range apps {
 			if app.Workload == nil {
@@ -167,13 +178,22 @@ func (c *EpinioClient) Apps(all bool) error {
 			} else {
 				sort.Strings(app.Configuration.Configurations)
 
+				status := app.StatusMessage
+				if !c.metricsOk(app.Workload) {
+					if status == "" {
+						status = "metrics not available"
+					} else {
+						status += ", metrics not available"
+					}
+				}
+
 				msg = msg.WithTableRow(
 					app.Meta.Name,
 					app.Meta.CreatedAt.String(),
 					app.Workload.Status,
 					formatRoutes(app.Workload.Routes),
 					strings.Join(app.Configuration.Configurations, ", "),
-					app.StatusMessage,
+					status,
 				)
 			}
 		}
@@ -613,6 +633,20 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 	}
 
 	return nil
+}
+
+func (c *EpinioClient) metricsOk(app *models.AppDeployment) bool {
+	if len(app.Replicas) == 0 {
+		return true
+	}
+
+	for _, r := range app.Replicas {
+		if !r.MetricsOk {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (c *EpinioClient) printReplicaDetails(app models.App) error {

@@ -205,15 +205,13 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		routes = []string{err.Error()}
 	}
 
-	var status string
-
 	// -- errors retrieving the pod metrics are ignored.
 	// -- this will be reported later as `not available`.
 	// note: The pod metrics are not nil in that cases, just an empty slice.
 	// that is good, as that allows AFP below to still generate the basic pod info.
 	podMetrics, _ := a.getPodMetrics(ctx)
 
-	return a.AssembleFromParts(ctx, podList, podMetrics, routes, status)
+	return a.AssembleFromParts(ctx, podList, podMetrics, routes)
 }
 
 // AssembleFromParts is the core of Get constructing the deployment structure from the pods and
@@ -223,7 +221,6 @@ func (a *Workload) AssembleFromParts(
 	podList []corev1.Pod,
 	podMetrics []metricsv1beta1.PodMetrics,
 	routes []string,
-	status string,
 ) (*models.AppDeployment, error) {
 	// No pods => no workload
 	if len(podList) == 0 {
@@ -264,6 +261,7 @@ func (a *Workload) AssembleFromParts(
 	// Order is important. Required before replicas is called.
 	a.name = controllerName
 
+	var status string
 	var replicas map[string]*models.PodInfo
 	var err error
 	if podMetrics != nil {
