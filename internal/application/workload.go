@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -205,14 +206,19 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		routes = []string{err.Error()}
 	}
 
-	var status string
-
+	// -- errors retrieving the pod metrics are ignored.
+	// -- this will be reported later as `not available`.
+	// note: The pod metrics are not nil in that cases, just an empty slice.
+	// that is good, as that allows AFP below to still generate the basic pod info.
 	podMetrics, err := a.getPodMetrics(ctx)
 	if err != nil {
-		status = pkgerrors.Wrap(err, "failed to get replica details").Error()
+		// While the error is ignored, as the server can operate without metrics, and while
+		// the missing metrics will be noted in the data shown to the user, it is logged so
+		// that the operator can see this as well.
+		requestctx.Logger(ctx).Error(err, "metrics not available")
 	}
 
-	return a.AssembleFromParts(ctx, podList, podMetrics, routes, status)
+	return a.AssembleFromParts(ctx, podList, podMetrics, routes)
 }
 
 // AssembleFromParts is the core of Get constructing the deployment structure from the pods and
@@ -222,7 +228,6 @@ func (a *Workload) AssembleFromParts(
 	podList []corev1.Pod,
 	podMetrics []metricsv1beta1.PodMetrics,
 	routes []string,
-	status string,
 ) (*models.AppDeployment, error) {
 	// No pods => no workload
 	if len(podList) == 0 {
@@ -263,6 +268,7 @@ func (a *Workload) AssembleFromParts(
 	// Order is important. Required before replicas is called.
 	a.name = controllerName
 
+	var status string
 	var replicas map[string]*models.PodInfo
 	var err error
 	if podMetrics != nil {
@@ -384,6 +390,7 @@ func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMe
 			return pkgerrors.Errorf("couldn't get memory usage as an integer, memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
 		}
 
+		podInfos[podMetric.Name].MetricsOk = true
 		podInfos[podMetric.Name].MemoryBytes = mem
 		podInfos[podMetric.Name].MilliCPUs = milliCPUs
 	}

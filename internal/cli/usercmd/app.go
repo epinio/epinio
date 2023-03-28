@@ -124,58 +124,60 @@ func (c *EpinioClient) Apps(all bool) error {
 	sort.Sort(apps)
 
 	if all {
-		msg = c.ui.Success().WithTable("Namespace", "Name", "Created", "Status", "Routes", "Configurations", "Status Details")
+		msg = c.ui.Success().WithTable("Namespace", "Name", "Created", "Status", "Routes",
+			"Configurations", "Status Details")
+	} else {
+		msg = c.ui.Success().WithTable("Name", "Created", "Status", "Routes",
+			"Configurations", "Status Details")
+	}
 
-		for _, app := range apps {
-			if app.Workload == nil {
-				msg = msg.WithTableRow(
-					app.Meta.Namespace,
-					app.Meta.Name,
-					app.Meta.CreatedAt.String(),
-					"n/a",
-					"n/a",
-					strings.Join(app.Configuration.Configurations, ", "),
-					app.StatusMessage,
-				)
-			} else {
-				sort.Strings(app.Configuration.Configurations)
+	for _, app := range apps {
+		sort.Strings(app.Configuration.Configurations)
+		configurations := strings.Join(app.Configuration.Configurations, ", ")
 
-				msg = msg.WithTableRow(
-					app.Meta.Namespace,
-					app.Meta.Name,
-					app.Meta.CreatedAt.String(),
-					app.Workload.Status,
-					formatRoutes(app.Workload.Routes),
-					strings.Join(app.Configuration.Configurations, ", "),
-					app.StatusMessage,
-				)
+		var (
+			status        string
+			routes        string
+			statusDetails string
+		)
+
+		if app.Workload == nil {
+			status = "n/a"
+			routes = "n/a"
+		} else {
+			status = app.Workload.Status
+			routes = formatRoutes(app.Workload.Routes)
+
+			statusDetails = app.StatusMessage
+
+			if !c.metricsOk(app.Workload) {
+				if statusDetails == "" {
+					statusDetails = "metrics not available"
+				} else {
+					statusDetails += ", metrics not available"
+				}
 			}
 		}
-	} else {
-		msg = c.ui.Success().WithTable("Name", "Created", "Status", "Routes", "Configurations", "Status Details")
 
-		for _, app := range apps {
-			if app.Workload == nil {
-				msg = msg.WithTableRow(
-					app.Meta.Name,
-					app.Meta.CreatedAt.String(),
-					"n/a",
-					"n/a",
-					strings.Join(app.Configuration.Configurations, ", "),
-					app.StatusMessage,
-				)
-			} else {
-				sort.Strings(app.Configuration.Configurations)
-
-				msg = msg.WithTableRow(
-					app.Meta.Name,
-					app.Meta.CreatedAt.String(),
-					app.Workload.Status,
-					formatRoutes(app.Workload.Routes),
-					strings.Join(app.Configuration.Configurations, ", "),
-					app.StatusMessage,
-				)
-			}
+		if all {
+			msg = msg.WithTableRow(
+				app.Meta.Namespace,
+				app.Meta.Name,
+				app.Meta.CreatedAt.String(),
+				status,
+				routes,
+				configurations,
+				statusDetails,
+			)
+		} else {
+			msg = msg.WithTableRow(
+				app.Meta.Name,
+				app.Meta.CreatedAt.String(),
+				status,
+				routes,
+				configurations,
+				statusDetails,
+			)
 		}
 	}
 
@@ -615,6 +617,20 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 	return nil
 }
 
+func (c *EpinioClient) metricsOk(app *models.AppDeployment) bool {
+	if len(app.Replicas) == 0 {
+		return true
+	}
+
+	for _, r := range app.Replicas {
+		if !r.MetricsOk {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (c *EpinioClient) printReplicaDetails(app models.App) error {
 	if app.Workload == nil {
 		return nil
@@ -627,11 +643,19 @@ func (c *EpinioClient) printReplicaDetails(app models.App) error {
 			if err != nil {
 				return err
 			}
+
+			millis := "not available"
+			memory := "not available"
+			if r.MetricsOk {
+				millis = strconv.Itoa(int(r.MilliCPUs))
+				memory = bytes.ByteCountIEC(r.MemoryBytes)
+			}
+
 			msg = msg.WithTableRow(
 				r.Name,
 				strconv.FormatBool(r.Ready),
-				bytes.ByteCountIEC(r.MemoryBytes),
-				strconv.Itoa(int(r.MilliCPUs)),
+				memory,
+				millis,
 				strconv.Itoa(int(r.Restarts)),
 				time.Since(createdAt).Round(time.Second).String(),
 			)
