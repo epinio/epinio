@@ -20,13 +20,20 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: "id - The plain random number from CI cluster creation, found in the respective github action logs (lookup the scenario* logs, cluster creation step, e.g. RUN_ID: 1234)"
+        type: number
+        description: "id - The plain random number from CI cluster creation, found in the respective github action logs (lookub the scenario* logs, cluster creation step, e.g. RUN_ID: 1234)"
         required: true
         default: ""
       pcp:
-        description: "Public Cloud Provider Kubernetes service (enter AKS, EKS or GKE)"
+        type: choice
+        description: "Public Cloud Provider Kubernetes service (select AKS, EKS or GKE)"
         required: true
-        default: ""
+        default: None
+        options:
+        - None
+        - AKS
+        - EKS
+        - GKE
 
 env:
   SETUP_GO_VERSION: '~1.19'
@@ -34,6 +41,7 @@ env:
 
 jobs:
   delete-ci-acceptance-test-cluster:
+    if: ${{ github.event.inputs.pcp != 'None' }}
     runs-on: ubuntu-latest
 
     steps:
