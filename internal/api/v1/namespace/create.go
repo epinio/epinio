@@ -14,6 +14,7 @@ package namespace
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -23,6 +24,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/gin-gonic/gin"
 )
@@ -46,6 +48,12 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	if namespaceName == "" {
 		return apierror.NewBadRequestError("name of namespace to create not found")
+	}
+
+	errorMsgs := validation.IsDNS1123Subdomain(namespaceName)
+	if len(errorMsgs) > 0 {
+		return apierror.NewBadRequestErrorf("%s: %s", "namespace name incorrect",
+			strings.Join(errorMsgs, "\n"))
 	}
 
 	exists, err := namespaces.Exists(ctx, cluster, namespaceName)
