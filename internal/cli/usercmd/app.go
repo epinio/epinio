@@ -126,76 +126,58 @@ func (c *EpinioClient) Apps(all bool) error {
 	if all {
 		msg = c.ui.Success().WithTable("Namespace", "Name", "Created", "Status", "Routes",
 			"Configurations", "Status Details")
-
-		for _, app := range apps {
-			if app.Workload == nil {
-				msg = msg.WithTableRow(
-					app.Meta.Namespace,
-					app.Meta.Name,
-					app.Meta.CreatedAt.String(),
-					"n/a",
-					"n/a",
-					strings.Join(app.Configuration.Configurations, ", "),
-					app.StatusMessage,
-				)
-			} else {
-				sort.Strings(app.Configuration.Configurations)
-
-				status := app.StatusMessage
-				if !c.metricsOk(app.Workload) {
-					if status == "" {
-						status = "metrics not available"
-					} else {
-						status += ", metrics not available"
-					}
-				}
-
-				msg = msg.WithTableRow(
-					app.Meta.Namespace,
-					app.Meta.Name,
-					app.Meta.CreatedAt.String(),
-					app.Workload.Status,
-					formatRoutes(app.Workload.Routes),
-					strings.Join(app.Configuration.Configurations, ", "),
-					status,
-				)
-			}
-		}
 	} else {
 		msg = c.ui.Success().WithTable("Name", "Created", "Status", "Routes",
 			"Configurations", "Status Details")
+	}
 
-		for _, app := range apps {
-			if app.Workload == nil {
-				msg = msg.WithTableRow(
-					app.Meta.Name,
-					app.Meta.CreatedAt.String(),
-					"n/a",
-					"n/a",
-					strings.Join(app.Configuration.Configurations, ", "),
-					app.StatusMessage,
-				)
-			} else {
-				sort.Strings(app.Configuration.Configurations)
+	for _, app := range apps {
+		sort.Strings(app.Configuration.Configurations)
+		configurations := strings.Join(app.Configuration.Configurations, ", ")
 
-				status := app.StatusMessage
-				if !c.metricsOk(app.Workload) {
-					if status == "" {
-						status = "metrics not available"
-					} else {
-						status += ", metrics not available"
-					}
+		var (
+			status        string
+			routes        string
+			statusDetails string
+		)
+
+		if app.Workload == nil {
+			status = "n/a"
+			routes = "n/a"
+		} else {
+			status = app.Workload.Status
+			routes = formatRoutes(app.Workload.Routes)
+
+			statusDetails = app.StatusMessage
+
+			if !c.metricsOk(app.Workload) {
+				if statusDetails == "" {
+					statusDetails = "metrics not available"
+				} else {
+					statusDetails += ", metrics not available"
 				}
-
-				msg = msg.WithTableRow(
-					app.Meta.Name,
-					app.Meta.CreatedAt.String(),
-					app.Workload.Status,
-					formatRoutes(app.Workload.Routes),
-					strings.Join(app.Configuration.Configurations, ", "),
-					status,
-				)
 			}
+		}
+
+		if all {
+			msg = msg.WithTableRow(
+				app.Meta.Namespace,
+				app.Meta.Name,
+				app.Meta.CreatedAt.String(),
+				status,
+				routes,
+				configurations,
+				statusDetails,
+			)
+		} else {
+			msg = msg.WithTableRow(
+				app.Meta.Name,
+				app.Meta.CreatedAt.String(),
+				status,
+				routes,
+				configurations,
+				statusDetails,
+			)
 		}
 	}
 
