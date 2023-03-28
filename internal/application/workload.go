@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -209,7 +210,13 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 	// -- this will be reported later as `not available`.
 	// note: The pod metrics are not nil in that cases, just an empty slice.
 	// that is good, as that allows AFP below to still generate the basic pod info.
-	podMetrics, _ := a.getPodMetrics(ctx)
+	podMetrics, err := a.getPodMetrics(ctx)
+	if err != nil {
+		// While the error is ignored, as the server can operate without metrics, and while
+		// the missing metrics will be noted in the data shown to the user, it is logged so
+		// that the operator can see this as well.
+		requestctx.Logger(ctx).Error(err, "metrics not available")
+	}
 
 	return a.AssembleFromParts(ctx, podList, podMetrics, routes)
 }

@@ -322,7 +322,13 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 
 	// V. Pod metrics and replica information
 
-	metrics, _ := GetPodMetrics(ctx, cluster, namespace)
+	metrics, err := GetPodMetrics(ctx, cluster, namespace)
+	if err != nil {
+		// While the error is ignored, as the server can operate without metrics, and while
+		// the missing metrics will be noted in the data shown to the user, it is logged so
+		// that the operator can see this as well.
+		requestctx.Logger(ctx).Error(err, "metrics not available")
+	}
 
 	// VI. load all the status of the staging jobs
 
