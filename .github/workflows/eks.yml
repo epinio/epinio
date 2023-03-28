@@ -23,14 +23,14 @@ on:
     - cron:  '0 4 * * *'
   workflow_dispatch:
     inputs:
-      aws_domain:
-        description: "AWS_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
-        required: false
-        default: ""
       keep_cluster:
-        description: "Keep the cluster afterwards? (empty/yes)"
-        required: false
-        default: ""
+        type: choice
+        description: "Keep the cluster afterwards?"
+        required: true
+        default: 'No'
+        options:
+        - No
+        - Yes
 
 env:
   SETUP_GO_VERSION: '~1.19'
@@ -160,8 +160,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           # Use a random host name, so we don't collide with our workflows on EKS
-          AWS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aws_domain || secrets.AWS_DOMAIN }}
-          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aws_domain || secrets.AWS_DOMAIN }}
+          AWS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ secrets.AWS_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ secrets.AWS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
           INGRESS_CONTROLLER: nginx
           # EXTRAENV_NAME: SESSION_KEY
@@ -174,7 +174,7 @@ jobs:
       - name: Delete EKS cluster
         # We always tear down the cluster, to avoid costs. Except when running
         # manually and keep_cluster was set to a non-empty string, like "yes"
-        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        if: ${{ always() && github.event.inputs.keep_cluster == 'No' }}
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_NAME }}
         run: |

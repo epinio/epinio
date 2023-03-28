@@ -23,14 +23,14 @@ on:
     - cron:  '0 0 * * *'
   workflow_dispatch:
     inputs:
-      aks_domain:
-        description: "AKS_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
-        required: false
-        default: ""
       keep_cluster:
-        description: "Keep the cluster afterwards? (empty/yes)"
-        required: false
-        default: ""
+        type: choice
+        description: "Keep the cluster afterwards?"
+        required: true
+        default: 'No'
+        options:
+        - No
+        - Yes
 
 env:
   SETUP_GO_VERSION: '~1.19'
@@ -142,8 +142,8 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
           # Use a random host name, so we don't collide with our workflows on AKS
-          AKS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aks_domain || secrets.AKS_DOMAIN }}
-          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aks_domain || secrets.AKS_DOMAIN }}
+          AKS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ secrets.AKS_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ secrets.AKS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
           INGRESS_CONTROLLER: traefik
           # EXTRAENV_NAME: SESSION_KEY
@@ -157,7 +157,7 @@ jobs:
       - name: Delete AKS cluster
         # We always tear down the cluster, to avoid costs. Except when running
         # manually and keep_cluster was set to a non-empty string, like "yes"
-        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        if: ${{ always() && github.event.inputs.keep_cluster == 'No' }}
         shell: bash
         run: |
           export RUN_ID=${{ steps.create-cluster.outputs.ID }}

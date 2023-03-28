@@ -28,7 +28,7 @@ on:
         type: choice
         description: "Public Cloud Provider Kubernetes service (select AKS, EKS or GKE)"
         required: true
-        default: None
+        default: 'None'
         options:
         - None
         - AKS

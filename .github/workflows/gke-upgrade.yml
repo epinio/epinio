@@ -24,14 +24,14 @@ on:
     - cron:  '30 1 * * *'
   workflow_dispatch:
     inputs:
-      gke_domain:
-        description: "GKE_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
-        required: false
-        default: ""
       keep_cluster:
-        description: "Keep the cluster afterwards? (empty/yes)"
-        required: false
-        default: ""
+        type: choice
+        description: "Keep the cluster afterwards?"
+        required: true
+        default: 'No'
+        options:
+        - No
+        - Yes
 
 env:
   SETUP_GO_VERSION: '~1.19'
@@ -157,8 +157,8 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
           # Use a random host name, so we don't collide with our workflows on GKE
-          GKE_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.gke_domain || secrets.GKE_DOMAIN }}
-          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.gke_domain || secrets.GKE_DOMAIN }}
+          GKE_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ secrets.GKE_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ secrets.GKE_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
           INGRESS_CONTROLLER: traefik
           # EXTRAENV_NAME: SESSION_KEY
@@ -176,7 +176,7 @@ jobs:
       - name: Delete GKE cluster
         # We always tear down the cluster, to avoid costs. Except when running
         # manually and keep_cluster was set to a non-empty string, like "yes"
-        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        if: ${{ always() && github.event.inputs.keep_cluster == 'No' }}
         run: |
           export RUN_ID=${{ steps.create-cluster.outputs.ID }}
           export RUN_PCP="GKE"
