@@ -136,6 +136,14 @@ var _ = Describe("Configurations", LConfiguration, func() {
 		})
 	})
 
+	Describe("configuration create failures", func() {
+		It("rejects names not fitting kubernetes requirements", func() {
+			out, err := env.Epinio("", "configuration", "create", "BOGUS", "dummy", "value")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("name must consist of lower case alphanumeric"))
+		})
+	})
+
 	Describe("configuration delete", func() {
 
 		BeforeEach(func() {

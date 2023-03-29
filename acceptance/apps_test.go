@@ -64,6 +64,13 @@ var _ = Describe("Apps", LApplication, func() {
 		env.DeleteNamespace(namespace)
 	})
 
+	Describe("application create failures", func() {
+		It("rejects names not fitting kubernetes requirements", func() {
+			out, err := env.Epinio("", "app", "create", "BOGUS")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("name must consist of lower case alphanumeric"))
+		})
+	})
 	When("creating an application without a workload", func() {
 		AfterEach(func() {
 			// MakeApp... by each test (It)

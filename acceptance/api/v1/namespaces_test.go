@@ -166,7 +166,7 @@ var _ = Describe("Namespaces API Application Endpoints", LNamespace, func() {
 				env.DeleteNamespace("birdy")
 			})
 
-			It("fails for a namespace not fitting kubernetes requirements", func() {
+			It("fails for a name not fitting kubernetes requirements", func() {
 				response, err := env.Curl("POST", fmt.Sprintf("%s%s/namespaces",
 					serverURL, api.Root),
 					strings.NewReader(`{"name":"BOGUS"}`))
