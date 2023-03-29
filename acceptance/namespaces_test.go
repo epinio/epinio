@@ -61,7 +61,7 @@ var _ = Describe("Namespaces", LNamespace, func() {
 			namespaceName := "BOGUS"
 			out, err := env.Epinio("", "namespace", "create", namespaceName)
 			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("namespace name incorrect"))
+			Expect(out).To(ContainSubstring("name must consist of lower case alphanumeric"))
 		})
 	})
 

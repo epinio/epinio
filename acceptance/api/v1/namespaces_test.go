@@ -179,7 +179,7 @@ var _ = Describe("Namespaces API Application Endpoints", LNamespace, func() {
 				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					ContainSubstring("namespace name incorrect"))
+					ContainSubstring("name must consist of lower case alphanumeric"))
 			})
 
 			It("fails for a restricted namespace", func() {

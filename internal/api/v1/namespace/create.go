@@ -14,7 +14,6 @@ package namespace
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -52,8 +51,7 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	errorMsgs := validation.IsDNS1123Subdomain(namespaceName)
 	if len(errorMsgs) > 0 {
-		return apierror.NewBadRequestErrorf("%s: %s", "namespace name incorrect",
-			strings.Join(errorMsgs, "\n"))
+		return apierror.NewBadRequestErrorf("Namespace's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
 	}
 
 	exists, err := namespaces.Exists(ctx, cluster, namespaceName)
