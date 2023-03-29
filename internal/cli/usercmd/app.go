@@ -30,6 +30,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"k8s.io/apimachinery/pkg/util/validation"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
 )
 
@@ -51,6 +52,11 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 		Msg("Create application")
 
 	details.Info("create application")
+
+	errorMsgs := validation.IsDNS1123Subdomain(appName)
+	if len(errorMsgs) > 0 {
+		return fmt.Errorf("Application's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
+	}
 
 	request := models.ApplicationCreateRequest{
 		Name:          appName,
