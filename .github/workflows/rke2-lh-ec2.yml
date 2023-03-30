@@ -34,6 +34,7 @@ env:
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
   AWS_REGION: eu-central-1
+  KUBECONFIG: ${{ $GITHUB_WORKSPACE }}/rke2-ec2-kubeconfig.yaml
 
 jobs:
   linter:
@@ -186,16 +187,20 @@ jobs:
           nodes_run 'curl -sfL https://get.rke2.io | sudo sh -'
           nodes_run 'sudo systemctl enable --now rke2-server'
           
-          # Copy the kubeconfig to runner and do server parsing
+          # TODO this won't work for multinode deployment
+          # Write rke2 ec2 kubeconfig to the runner workdir
           kubeconfig=$(nodes_run 'sudo cat /etc/rancher/rke2/rke2.yaml')
-          echo "$kubeconfig" > ~/kubeconfig
-          cat ~/kubeconfig
+          echo "$kubeconfig" > rke2-ec2-kubeconfig.yaml
+          echo $KUBECONFIG
+          kubectl config set-cluster default --server=https://$NODES:6443
+          kubectl get all -A
+          
 
       - name: Installation Acceptance Tests
         env:
           REGEX: Scenario3
           PUBLIC_CLOUD: 1
-          KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+          # KUBECONFIG: /etc/rancher/rke2/rke2.yaml
           REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
           INGRESS_CONTROLLER: traefik
