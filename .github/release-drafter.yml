@@ -16,6 +16,9 @@ categories:
   - title: '🐛 Bug Fixes'
     labels:
       - 'kind/bug'
+  - title: '📓 Documentation'
+    labels:
+      - 'area/documentation'
   - title: '🧰 Maintenance'
     labels:
       - 'kind/chore'
