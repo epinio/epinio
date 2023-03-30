@@ -139,7 +139,7 @@ jobs:
           EC2_INSTANCE_IDS=$(aws ec2 run-instances \
             --launch-template='LaunchTemplateName=epinio-ci-sle15sp4-chost-template' \
             --no-cli-pager --count 1 \
-            --tag-specifications 'ResourceType=instance,Tags=[{Key=jobid,Value=epinio-ci'$id'}]' \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=epinio-rke2-ci'$id'}]' \
             --query 'Instances[*].InstanceId' \
             --output text)
           echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
