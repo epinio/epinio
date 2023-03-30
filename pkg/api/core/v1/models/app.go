@@ -26,9 +26,14 @@ const (
 	ApplicationStaging = "staging"
 	ApplicationRunning = "running"
 	ApplicationError   = "error"
+
+	ApplicationStagingActive = "active"
+	ApplicationStagingDone   = "done"
+	ApplicationStagingFailed = "failed"
 )
 
 type ApplicationStatus string
+type ApplicationStagingStatus string
 
 type GitRef struct {
 	Revision string `json:"revision,omitempty" yaml:"revision,omitempty"`
@@ -46,6 +51,7 @@ type App struct {
 	Origin        ApplicationOrigin        `json:"origin"`
 	Workload      *AppDeployment           `json:"deployment,omitempty"`
 	Status        ApplicationStatus        `json:"status"`
+	StagingStatus ApplicationStagingStatus `json:"stagingstatus"`
 	StatusMessage string                   `json:"statusmessage"`
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
 	ImageURL      string                   `json:"image_url"`

@@ -144,8 +144,19 @@ func (c *EpinioClient) Apps(all bool) error {
 		if app.Workload == nil {
 			status = "n/a"
 			routes = "n/a"
-			if *app.Configuration.Instances == 0 {
-				status = "0/0"
+
+			switch app.StagingStatus {
+			case models.ApplicationStagingActive:
+				statusDetails = "staging"
+			case models.ApplicationStagingDone:
+				if *app.Configuration.Instances == 0 {
+					status = "0/0"
+				} else {
+					// staging is done, want > 0 instances, no workload
+					statusDetails = "deployment failed"
+				}
+			case models.ApplicationStagingFailed:
+				statusDetails = "staging failed"
 			}
 		} else {
 			status = app.Workload.Status
@@ -577,9 +588,17 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 		if app.StageID == "" {
 			msg = msg.WithTableRow("Status", "not deployed")
 		} else {
-			if *app.Configuration.Instances == 0 {
-				msg = msg.WithTableRow("Status", "deployed, scaled to zero")
-			} else {
+			switch app.StagingStatus {
+			case models.ApplicationStagingActive:
+				msg = msg.WithTableRow("Status", "not deployed, staging active")
+			case models.ApplicationStagingDone:
+				if *app.Configuration.Instances == 0 {
+					msg = msg.WithTableRow("Status", "deployed, scaled to zero")
+				} else {
+					// staging is done, want > 0 instances, no workload
+					msg = msg.WithTableRow("Status", "staging ok, deployment failed")
+				}
+			case models.ApplicationStagingFailed:
 				msg = msg.WithTableRow("Status", "not deployed, staging failed")
 			}
 			msg = msg.WithTableRow("Last StageId", app.StageID)
