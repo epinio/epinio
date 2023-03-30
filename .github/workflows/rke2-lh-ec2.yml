@@ -111,9 +111,10 @@ jobs:
           wget -q https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 -O - | bash
           
           echo 'Install kuberlr/kubectl'
+          whoami
           kuberlrUrl='https://github.com/flavio/kuberlr/releases/download/v0.4.2/kuberlr_0.4.2_linux_amd64.tar.gz'
-          wget -q $kuberlrUrl -O - | tar -xz -C /usr/local/bin --strip-components 1 --no-anchored kuberlr
-          ln -sf /usr/local/bin/kuberlr /usr/local/bin/kubectl
+          wget -q $kuberlrUrl -O - | sudo tar -xz -C /usr/local/bin --strip-components 1 --no-anchored kuberlr
+          sudo ln -sf /usr/local/bin/kuberlr /usr/local/bin/kubectl
           
           echo 'Install AWS CLI'
           mkdir awscli_installer
