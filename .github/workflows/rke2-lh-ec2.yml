@@ -77,7 +77,8 @@ jobs:
 
     outputs:
       # Stores what's needed by another steps and jobs
-      EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instance.outputs.EC2_INSTANCE_IDS }}
+      EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
+      EC2_PUBLIC_HOSTNAMES: ${{ steps.provision-ec2-instances.outputs.EC2_PUBLIC_HOSTNAMES }}
 
     steps:
       - name: Checkout
@@ -112,7 +113,6 @@ jobs:
           wget -q https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 -O - | bash
           
           echo 'Install kuberlr/kubectl'
-          whoami
           kuberlrUrl='https://github.com/flavio/kuberlr/releases/download/v0.4.2/kuberlr_0.4.2_linux_amd64.tar.gz'
           wget -q $kuberlrUrl -O - | sudo tar -xz -C /usr/local/bin --strip-components 1 --no-anchored kuberlr
           sudo ln -sf /usr/local/bin/kuberlr /usr/local/bin/kubectl
@@ -130,11 +130,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       
-      - name: Provision EC2 instance(s) and get public IP(s)
-        id: provision-ec2-instance
+      - name: Provision EC2 instances
+        id: provision-ec2-instances
         run: |
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
+          echo 'Provisioning EC2 instances...'
           EC2_INSTANCE_IDS=$(aws ec2 run-instances \
             --launch-template='LaunchTemplateName=epinio-ci-sle15sp4-chost-template' \
             --no-cli-pager --count 1 \
@@ -142,19 +143,16 @@ jobs:
             --query 'Instances[*].InstanceId' \
             --output text)
           echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
-          # Wait until the instance state is 'ok'
+          echo 'Waiting until the instance state is ok...'
           aws ec2 wait instance-status-ok \
             --instance-ids $EC2_INSTANCE_IDS \
             --filters Name=system-status.status,Values=ok
-          # --- TEMP
-          # Store instanceId for all related EC2 instances
-          #EC2_INSTANCE_IDS=$(aws ec2 describe-instances \
-          #  --filters Name=tag:jobid,Values=epinio-ci$id \
-          #  --query 'Reservations[*].Instances[*].InstanceId' \
-          #  --output text)
-          #echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
-          #echo $EC2_INSTANCE_IDS
-          # Get the public IP for all instances
+          # Get the public DNS name of the instance(s)
+          EC2_PUBLIC_HOSTNAMES=$(aws ec2 describe-instances --instance-ids $EC2_INSTANCE_IDS \
+            --query 'Reservations[*].Instances[*].PublicDnsName' \
+            --output text)
+          echo "EC2_PUBLIC_HOSTNAMES=$EC2_PUBLIC_HOSTNAMES" >> $GITHUB_OUTPUT
+          echo $EC2_PUBLIC_HOSTNAMES
 
           # TODO DELETE aws ec2 terminate-instances --instance-ids i-0e755dc6a23f8783f
 
