@@ -34,7 +34,7 @@ env:
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
   AWS_REGION: eu-central-1
-  KUBECONFIG: ${{ GITHUB_WORKSPACE }}/rke2-ec2-kubeconfig.yaml
+  KUBECONFIG: ${{ github.workspace }}/rke2-ec2-kubeconfig.yaml
 
 jobs:
   linter:
