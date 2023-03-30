@@ -130,24 +130,30 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       
-      - name: Provision EC2 instance
+      - name: Provision EC2 instance(s) and get public IP(s)
         id: provision-ec2-instance
         run: |
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
-          aws ec2 run-instances \
+          EC2_INSTANCE_IDS=$(aws ec2 run-instances \
             --launch-template='LaunchTemplateName=epinio-ci-sle15sp4-chost-template' \
-            --no-cli-pager --region eu-central-1 --count 1 \
-            --tag-specifications 'ResourceType=instance,Tags=[{Key=jobid,Value=epinio-ci'$id'}]'
-          # Wait until the instance is 'running'
-          aws ec2 wait instance-running  --filters Name=tag:jobid,Values=epinio-ci$id Name=instance-state-name,Values=running
-          # Store instanceId for all related EC2 instances
-          EC2_INSTANCE_IDS=$(aws ec2 describe-instances \
-            --filters Name=tag:jobid,Values=epinio-ci$id \
+            --no-cli-pager --count 1 \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=jobid,Value=epinio-ci'$id'}]' \
             --query 'Reservations[*].Instances[*].InstanceId' \
             --output text)
           echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
-          echo $EC2_INSTANCE_IDS
+          # Wait until the instance state is 'ok'
+          aws ec2 wait instance-status-ok \
+            --instance-ids $EC2_INSTANCE_IDS \
+            --filters Name=system-status.status,Values=ok
+          # --- TEMP
+          # Store instanceId for all related EC2 instances
+          #EC2_INSTANCE_IDS=$(aws ec2 describe-instances \
+          #  --filters Name=tag:jobid,Values=epinio-ci$id \
+          #  --query 'Reservations[*].Instances[*].InstanceId' \
+          #  --output text)
+          #echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
+          #echo $EC2_INSTANCE_IDS
           # Get the public IP for all instances
 
           # TODO DELETE aws ec2 terminate-instances --instance-ids i-0e755dc6a23f8783f
