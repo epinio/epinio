@@ -139,7 +139,7 @@ jobs:
             --launch-template='LaunchTemplateName=epinio-ci-sle15sp4-chost-template' \
             --no-cli-pager --count 1 \
             --tag-specifications 'ResourceType=instance,Tags=[{Key=jobid,Value=epinio-ci'$id'}]' \
-            --query 'Reservations[*].Instances[*].InstanceId' \
+            --query 'Instances[*].InstanceId' \
             --output text)
           echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
           # Wait until the instance state is 'ok'
