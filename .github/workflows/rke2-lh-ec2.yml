@@ -33,6 +33,7 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
+  AWS_REGION: eu-central-1
 
 jobs:
   linter:
