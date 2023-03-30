@@ -164,8 +164,8 @@ jobs:
           # Preparation for ssh client env
           eval $(ssh-agent -s)
           mkdir -p ~/.ssh
-          echo "${EC2_SSH_KEY}" > ~/.ssh/id_rsa_ec2.pem
-          chmod 600 ~/.ssh/id_rsa_ec2.pem
+          #echo "${EC2_SSH_KEY}" > ~/.ssh/id_rsa_ec2.pem
+          #chmod 600 ~/.ssh/id_rsa_ec2.pem
           ssh-add ~/.ssh/id_rsa_ec2.pem
           echo $(ssh-add -l)
           ssh_opts='-o BatchMode=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=error -o ConnectTimeout=30 -o User=ec2-user'
