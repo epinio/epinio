@@ -77,7 +77,7 @@ jobs:
 
     outputs:
       # Stores what's needed by another steps and jobs
-      EC2_INSTANCE_ID: ${{ steps.provision-ec2-instance.outputs.EC2_INSTANCE_ID }}
+      EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instance.outputs.EC2_INSTANCE_IDS }}
 
     steps:
       - name: Checkout
@@ -141,7 +141,15 @@ jobs:
             --tag-specifications 'ResourceType=instance,Tags=[{Key=jobid,Value=epinio-ci'$id'}]'
           # Wait until the instance is 'running'
           aws ec2 wait instance-running  --filters Name=tag:jobid,Values=epinio-ci$id Name=instance-state-name,Values=running
-          
+          # Store instanceId for all related EC2 instances
+          EC2_INSTANCE_IDS=$(aws ec2 describe-instances \
+            --filters Name=tag:jobid,Values=epinio-ci$id \
+            --query 'Reservations[*].Instances[*].InstanceId' \
+            --output text)
+          echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
+          echo $EC2_INSTANCE_IDS
+          # Get the public IP for all instances
+
           # TODO DELETE aws ec2 terminate-instances --instance-ids i-0e755dc6a23f8783f
 
       - name: Deploy RKE2 over SSH
