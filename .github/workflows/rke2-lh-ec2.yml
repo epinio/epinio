@@ -167,14 +167,15 @@ jobs:
           echo "${EC2_SSH_KEY}" > ~/.ssh/id_rsa_ec2.pem
           chmod 600 ~/.ssh/id_rsa_ec2.pem
           ssh-add ~/.ssh/id_rsa_ec2.pem
-          echo $(ssh-add -l)
           ssh_opts='-o BatchMode=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=error -o ConnectTimeout=30 -o User=ec2-user'
-          #alias ssh="ssh $ssh_opts"
-          #alias scp="scp $ssh_opts"
+          # Enable aliases for non-interactive shell
+          shopt -s expand_aliases
+          alias ssh="ssh $ssh_opts"
+          alias scp="scp $ssh_opts"
           
           # Commands to be performed on the nodes
           for vm in $NODES; do
-            ssh $ssh_opts -vvv $vm cat /etc/os-release
+            ssh $vm cat /etc/os-release
           done
           
           # curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_METHOD=tar sh -
