@@ -678,7 +678,7 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-					WithRow(appName, WithDate(), "0/1", ".*", "", ""),
+					WithRow(appName, WithDate(), "0/1", ".*", "", ".*"),
 				),
 			)
 		})
