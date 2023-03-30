@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-name: RKE2-Longhorn-EC2-CI
+name: RKE2-EC2-CI
 
 on:
   pull_request:
@@ -184,9 +184,10 @@ jobs:
           nodes_run 'sudo sh -c "mkdir -p /etc/rancher/rke2/config.yaml.d"'
           nodes_run 'sudo sh -c "echo 'cloud-provider-name: aws' >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml"'
           nodes_run 'sudo sh -c "echo 'disable: rke2-ingress-nginx' >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml"'
+          # enable tls-san
+          nodes_run "sudo sh -c 'echo -e tls-san:\n  - \"'$NODES'\"'"
           nodes_run 'curl -sfL https://get.rke2.io | sudo sh -'
           nodes_run 'sudo systemctl enable --now rke2-server'
-          
           # TODO this won't work for multinode deployment
           # Write rke2 ec2 kubeconfig to the runner workdir
           kubeconfig=$(nodes_run 'sudo cat /etc/rancher/rke2/rke2.yaml')
