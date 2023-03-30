@@ -188,8 +188,8 @@ jobs:
           
           # Copy the kubeconfig to runner and do server parsing
           kubeconfig=$(nodes_run 'sudo cat /etc/rancher/rke2/rke2.yaml')
-          echo "$kubeconfig" > kubeconfig
-          cat kubeconfig
+          echo "$kubeconfig" > ~/kubeconfig
+          cat ~/kubeconfig
 
       - name: Installation Acceptance Tests
         env:
