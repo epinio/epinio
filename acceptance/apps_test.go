@@ -611,6 +611,9 @@ var _ = Describe("Apps", LApplication, func() {
 	})
 
 	When("pushing a failed application", func() {
+		// NOTE: The staging of the application is OK.
+		// It is the actual deployment that fails!
+
 		var tmpDir string
 		var err error
 		BeforeEach(func() {
@@ -669,7 +672,7 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
-					WithRow("Status", "((0/1)|(not deployed, staging failed))"),
+					WithRow("Status", "((0/1)|(staging ok, deployment failed))"),
 				),
 			)
 
