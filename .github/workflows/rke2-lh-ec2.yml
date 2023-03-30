@@ -119,8 +119,8 @@ jobs:
           echo 'Install AWS CLI'
           mkdir awscli_installer
           wget -q https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -O awscli_installer/awscliv2.zip
-          unzip awscli_installer/awscliv2.zip -d awscli_installer
-          awscli_installer/aws/install -u
+          unzip -q awscli_installer/awscliv2.zip -d awscli_installer
+          sudo awscli_installer/aws/install -u
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
