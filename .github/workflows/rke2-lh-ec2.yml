@@ -157,7 +157,25 @@ jobs:
           # TODO DELETE aws ec2 terminate-instances --instance-ids i-0e755dc6a23f8783f
 
       - name: Deploy RKE2 over SSH
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          NODES: ${{steps.provision-ec2-instances.outputs.EC2_PUBLIC_HOSTNAMES}}
         run: |
+          # Preparation for ssh client env
+          eval $(ssh-agent -s)
+          mkdir -p ~/.ssh
+          cat $EC2_SSH_KEY > ~/.ssh/id_rsa_ec2.pem
+          chmod 600 ~/.ssh/id_rsa_ec2.pem
+          ssh-add ~/.ssh/id_rsa_ec2.pem
+          ssh_opts='-o BatchMode=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=error -o ConnectTimeout=30 -o User=ec2-user'
+          alias ssh="ssh $ssh_opts"
+          alias scp="scp $ssh_opts"
+          
+          # Commands to be performed on the nodes
+          for vm in $NODES; do
+            ssh $vm cat /etc/os-release
+          done
+          
           # curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_METHOD=tar sh -
           # Allow non-root user to read KUBECONFIG file
           # sudo sh -c "echo RKE2_KUBECONFIG_MODE=0644 > /etc/sysconfig/rke2-server"
