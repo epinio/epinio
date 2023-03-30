@@ -21,6 +21,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	api "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -232,6 +233,24 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+		})
+	})
+
+	Describe("POST /api/v1/namespaces/:namespace/configurations/:configuration", func() {
+		It("fails for a name not fitting kubernetes requirements", func() {
+			response, err := env.Curl("POST", fmt.Sprintf("%s%s/namespaces/%s/configurations",
+				serverURL, api.Root, namespace),
+				strings.NewReader(`{"name":"BOGUS"}`))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+			var responseBody map[string][]errors.APIError
+			json.Unmarshal(bodyBytes, &responseBody)
+			Expect(responseBody["errors"][0].Title).To(
+				ContainSubstring("name must consist of lower case alphanumeric"))
 		})
 	})
 

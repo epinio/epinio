@@ -35,7 +35,7 @@ func (c *EpinioClient) CreateNamespace(namespace string) error {
 
 	errorMsgs := validation.IsDNS1123Subdomain(namespace)
 	if len(errorMsgs) > 0 {
-		return fmt.Errorf("%s: %s", "namespace name incorrect", strings.Join(errorMsgs, "\n"))
+		return fmt.Errorf("Namespace's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
 	}
 
 	_, err := c.API.NamespaceCreate(models.NamespaceCreateRequest{Name: namespace})

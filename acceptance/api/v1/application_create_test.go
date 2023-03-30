@@ -12,12 +12,14 @@
 package v1_test
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -40,7 +42,6 @@ var _ = Describe("AppCreate Endpoint", LApplication, func() {
 	})
 
 	When("creating a new app", func() {
-
 		AfterEach(func() {
 			env.DeleteApp(appName)
 		})
@@ -73,6 +74,22 @@ var _ = Describe("AppCreate Endpoint", LApplication, func() {
 			out, err := proc.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.chartname}")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(Equal("standard"))
+		})
+	})
+
+	Describe("app creation failures", func() {
+		It("fails for a name not fitting kubernetes requirements", func() {
+			response, err := createApplication("BOGUS", namespace, []string{"mytestdomain.org"})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+			var responseBody map[string][]errors.APIError
+			json.Unmarshal(bodyBytes, &responseBody)
+			Expect(responseBody["errors"][0].Title).To(
+				ContainSubstring("name must consist of lower case alphanumeric"))
 		})
 	})
 

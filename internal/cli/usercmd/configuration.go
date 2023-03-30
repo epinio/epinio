@@ -21,6 +21,7 @@ import (
 
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 // Configurations gets all Epinio configurations in the targeted namespace
@@ -391,6 +392,11 @@ func (c *EpinioClient) CreateConfiguration(name string, dict []string) error {
 
 	if err := c.TargetOk(); err != nil {
 		return err
+	}
+
+	errorMsgs := validation.IsDNS1123Subdomain(name)
+	if len(errorMsgs) > 0 {
+		return fmt.Errorf("Configuration's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
 	}
 
 	request := models.ConfigurationCreateRequest{

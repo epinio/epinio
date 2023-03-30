@@ -44,7 +44,6 @@ var _ = Describe("Namespaces", LNamespace, func() {
 
 		It("creates and targets an namespace", func() {
 			env.SetupAndTargetNamespace(namespaceName)
-
 			By("switching namespace back to default")
 			out, err := env.Epinio("", "target", "workspace")
 			Expect(err).ToNot(HaveOccurred(), out)
@@ -54,10 +53,18 @@ var _ = Describe("Namespaces", LNamespace, func() {
 
 		It("rejects creating an existing namespace", func() {
 			env.SetupAndTargetNamespace(namespaceName)
-
 			out, err := env.Epinio("", "namespace", "create", namespaceName)
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("namespace '%s' already exists", namespaceName))
+		})
+	})
+
+	Describe("namespace create failures", func() {
+		It("rejects names not fitting kubernetes requirements", func() {
+			namespaceName := "BOGUS"
+			out, err := env.Epinio("", "namespace", "create", namespaceName)
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("name must consist of lower case alphanumeric"))
 		})
 	})
 

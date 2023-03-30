@@ -166,6 +166,22 @@ var _ = Describe("Namespaces API Application Endpoints", LNamespace, func() {
 				env.DeleteNamespace("birdy")
 			})
 
+			It("fails for a name not fitting kubernetes requirements", func() {
+				response, err := env.Curl("POST", fmt.Sprintf("%s%s/namespaces",
+					serverURL, api.Root),
+					strings.NewReader(`{"name":"BOGUS"}`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := io.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+				var responseBody map[string][]errors.APIError
+				json.Unmarshal(bodyBytes, &responseBody)
+				Expect(responseBody["errors"][0].Title).To(
+					ContainSubstring("name must consist of lower case alphanumeric"))
+			})
+
 			It("fails for a restricted namespace", func() {
 				response, err := env.Curl("POST", fmt.Sprintf("%s%s/namespaces",
 					serverURL, api.Root),
