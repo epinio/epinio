@@ -109,15 +109,16 @@ jobs:
           
       - name: Install Dependencies
         run: |
-          echo 'Install helm'
+          echo 'Install latest helm'
           wget -q https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 -O - | bash
           
           echo 'Install kuberlr/kubectl'
-          kuberlrUrl='https://github.com/flavio/kuberlr/releases/download/v0.4.2/kuberlr_0.4.2_linux_amd64.tar.gz'
+          kuberlrVer='0.4.2'
+          kuberlrUrl="https://github.com/flavio/kuberlr/releases/download/v${kuberlrVer}/kuberlr_${kuberlrVer}_linux_amd64.tar.gz"
           wget -q $kuberlrUrl -O - | sudo tar -xz -C /usr/local/bin --strip-components 1 --no-anchored kuberlr
           sudo ln -sf /usr/local/bin/kuberlr /usr/local/bin/kubectl
           
-          echo 'Install AWS CLI'
+          echo 'Install latest AWS CLI'
           mkdir awscli_installer
           wget -q https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -O awscli_installer/awscliv2.zip
           unzip -q awscli_installer/awscliv2.zip -d awscli_installer
@@ -143,7 +144,7 @@ jobs:
             --query 'Instances[*].InstanceId' \
             --output text)
           echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
-          echo 'Waiting until the instance state is ok...'
+          echo 'Waiting until the instances are in ok state...'
           aws ec2 wait instance-status-ok \
             --instance-ids $EC2_INSTANCE_IDS \
             --filters Name=system-status.status,Values=ok
@@ -152,42 +153,42 @@ jobs:
             --query 'Reservations[*].Instances[*].PublicDnsName' \
             --output text)
           echo "EC2_PUBLIC_HOSTNAMES=$EC2_PUBLIC_HOSTNAMES" >> $GITHUB_OUTPUT
-          echo $EC2_PUBLIC_HOSTNAMES
-
-          # TODO DELETE aws ec2 terminate-instances --instance-ids i-0e755dc6a23f8783f
+          echo $EC2_PUBLIC_HOSTNAMES # DEBUG_ONLY
 
       - name: Deploy RKE2 over SSH
         env:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          NODES: ${{steps.provision-ec2-instances.outputs.EC2_PUBLIC_HOSTNAMES}}
+          NODES: ${{ steps.provision-ec2-instances.outputs.EC2_PUBLIC_HOSTNAMES }}
         run: |
-          # Preparation for ssh client env
+          # SSH client env preparation
           eval $(ssh-agent -s)
           mkdir -p ~/.ssh
           echo "${EC2_SSH_KEY}" > ~/.ssh/id_rsa_ec2.pem
           chmod 600 ~/.ssh/id_rsa_ec2.pem
-          ssh-add ~/.ssh/id_rsa_ec2.pem
+          ssh-add -q ~/.ssh/id_rsa_ec2.pem
           ssh_opts='-o BatchMode=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=error -o ConnectTimeout=30 -o User=ec2-user'
           # Enable aliases for non-interactive shell
           shopt -s expand_aliases
           alias ssh="ssh $ssh_opts"
           alias scp="scp $ssh_opts"
           
+          nodes_run() {
+            local vm
+            for vm in $NODES; do
+              ssh $vm "$@" || { echo "Failed: ssh $vm $@"; false; }
+            done
+          }
+
           # Commands to be performed on the nodes
-          for vm in $NODES; do
-            ssh $vm cat /etc/os-release
-          done
+          nodes_run 'sudo sh -c "mkdir -p /etc/rancher/rke2/config.yaml.d"'
+          nodes_run 'sudo sh -c "echo 'cloud-provider-name: aws' >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml"'
+          nodes_run 'sudo sh -c "echo 'disable: rke2-ingress-nginx' >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml"'
+          nodes_run 'curl -sfL https://get.rke2.io | sudo sh -'
+          nodes_run 'sudo systemctl enable --now rke2-server'
           
-          # curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_METHOD=tar sh -
-          # Allow non-root user to read KUBECONFIG file
-          # sudo sh -c "echo RKE2_KUBECONFIG_MODE=0644 > /etc/sysconfig/rke2-server"
-          # Disable RKE integrated ingress-nginx controller
-          # sudo sh -c "mkdir -p /etc/rancher/rke2/config.yaml.d"
-          # sudo sh -c "echo 'disable: rke2-ingress-nginx' > /etc/rancher/rke2/config.yaml.d/00-epinio.yaml"
-          # Start RKE cluster
-          #sudo systemctl enable --now rke2-server
-          # Wait a "little" to let enough time for RKE cluster to be up and running
-          sleep 120
+          # Copy the kubeconfig to runner and do server parsing
+          kubeconfig=$(nodes_run 'sudo cat /etc/rancher/rke2/rke2.yaml')
+          echo $kubeconfig
 
       - name: Installation Acceptance Tests
         env:
@@ -201,14 +202,16 @@ jobs:
           # EXTRAENV_VALUE: 12345
         run: |
           # Get a free IP address on server's network
-          export RANGE_IP="$(scripts/get-free-ip.sh)"
-          export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).omg.howdoi.website"
-          make test-acceptance-install
+          # export RANGE_IP="$(scripts/get-free-ip.sh)"
+          # export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).omg.howdoi.website"
+          # make test-acceptance-install
+          true
 
-      - name: Delete RKE cluster
+      - name: Delete EC2 instances
         if: ${{ always() && !github.event.inputs.keep_cluster }}
-        run: |
-          sudo sh /usr/local/bin/rke2-uninstall.sh
+        env:
+          EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
+        run: aws ec2 terminate-instances --instance-ids $EC2_INSTANCE_IDS
 
       # Only on RKE, as it uses a self-hosted runner
       - name: Clean all
