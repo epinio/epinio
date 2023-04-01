@@ -60,7 +60,7 @@ jobs:
 
       - uses: anchore/sbom-action/download-syft@v0.13.3
 
-      - uses: sigstore/cosign-installer@v2.8.1
+      - uses: sigstore/cosign-installer@v3.0.1
 
       - name: Get latest tag
         id: get_latest_tag
