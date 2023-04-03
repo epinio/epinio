@@ -141,8 +141,7 @@ var _ = Describe("application", func() {
 		})
 	})
 
-	Describe("StagingStati", func() {
-
+	Describe("StagingStatuses", func() {
 		When("there is one job running for app1 and a completed job for app2", func() {
 			It("returns true for app1 and false for app2", func() {
 				app1, app2 := appName(), appName()
@@ -156,7 +155,7 @@ var _ = Describe("application", func() {
 				}
 				fake.ListJobsReturns(stagingJobs, nil)
 
-				isStagingMap, err := application.StagingStati(context.Background(), fake, namespace)
+				isStagingMap, err := application.StagingStatuses(context.Background(), fake, namespace)
 				Expect(err).To(BeNil())
 				Expect(isStagingMap).To(HaveLen(2))
 				Expect(string(isStagingMap[application.EncodeConfigurationKey(app1, namespace)])).To(Equal(models.ApplicationStagingActive))
