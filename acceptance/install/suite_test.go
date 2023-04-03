@@ -67,6 +67,18 @@ func InstallNginx() {
 		"--set", "controller.service.name=ingress-nginx-controller",
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.Kubectl("wait", "deployment", "--for-condition=available", "--timeout=3m",
+		"nginx-ingress-controller", "-n ingress-nginx",
+	)
+	// Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.Kubectl("get", "all", "-n ingress-nginx", "-o wide")
+	if err != nil {
+		fmt.Print(err.Error())
+	} else {
+		fmt.Print(out)
+	}
+
+	//Expect(err).NotTo(HaveOccurred(), out)
 }
 
 func InstallTraefik() {
