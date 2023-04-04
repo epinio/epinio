@@ -141,8 +141,8 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 }
 
 // IsCurrentlyStaging returns true if the named application is staging (there is an active Job for
-// this application).  If this information is needed for more than one application use StagingStati
-// instead.
+// this application).  If this information is needed for more than one application use
+// StagingStatuses instead.
 func IsCurrentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (bool, error) {
 	staging, err := stagingStatus(ctx, cluster, namespace, appName)
 	if err != nil {
@@ -152,8 +152,8 @@ func IsCurrentlyStaging(ctx context.Context, cluster JobLister, namespace, appNa
 	return status == models.ApplicationStagingActive, nil
 }
 
-// StagingStati returns a map of applications and their staging stati
-func StagingStati(ctx context.Context, cluster JobLister, namespace string) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
+// StagingStatuses returns a map of applications and their staging statuses
+func StagingStatuses(ctx context.Context, cluster JobLister, namespace string) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
 	return stagingStatus(ctx, cluster, namespace, "")
 }
 
@@ -335,13 +335,13 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 		requestctx.Logger(ctx).Error(err, "metrics not available")
 	}
 
-	// VI. load the stati of all staging jobs
+	// VI. load the statuses of all staging jobs
 
-	stagingStati, err := StagingStati(ctx, cluster, namespace)
+	stagingStatuses, err := StagingStatuses(ctx, cluster, namespace)
 	if err != nil {
 		return nil, err
 	}
-	appAuxiliary = updateAppDataMapWithStagingJobStatus(appAuxiliary, stagingStati)
+	appAuxiliary = updateAppDataMapWithStagingJobStatus(appAuxiliary, stagingStatuses)
 
 	// Fuse the loaded resources into full application structures.
 
