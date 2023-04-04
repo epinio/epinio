@@ -64,7 +64,6 @@ func InstallNginx() {
 		"-n", "ingress-nginx",
 		"--create-namespace",
 		"--set", "controller.setAsDefaultIngress=true",
-		"--set", "controller.service.name=ingress-nginx-controller",
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
 }

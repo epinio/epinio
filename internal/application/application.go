@@ -140,22 +140,28 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return true, nil
 }
 
-// IsCurrentlyStaging returns true if the app is staging (there is an active Job for this application).
-// If you need this information for more than one app please use the CurrentlyStaging(ctx context.Context, cluster JobLister, namespace string)
+// IsCurrentlyStaging returns true if the named application is staging (there is an active Job for
+// this application).  If this information is needed for more than one application use
+// StagingStatuses instead.
 func IsCurrentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (bool, error) {
-	currentlyStagingApps, err := currentlyStaging(ctx, cluster, namespace, appName)
-	return currentlyStagingApps[EncodeConfigurationKey(appName, namespace)], err
+	staging, err := stagingStatus(ctx, cluster, namespace, appName)
+	if err != nil {
+		return false, err
+	}
+	status := staging[EncodeConfigurationKey(appName, namespace)]
+	return status == models.ApplicationStagingActive, nil
 }
 
-// CurrentlyStaging returns a map of applications that are currently in a staging status
-func CurrentlyStaging(ctx context.Context, cluster JobLister, namespace string) (map[ConfigurationKey]bool, error) {
-	return currentlyStaging(ctx, cluster, namespace, "")
+// StagingStatuses returns a map of applications and their staging statuses
+func StagingStatuses(ctx context.Context, cluster JobLister, namespace string) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
+	return stagingStatus(ctx, cluster, namespace, "")
 }
 
-// currentlyStaging is a utility func that will load a map of the status of the application's staging jobs
-// If no appName is specified it will load a complete map, otherwise the map will contain just the status of job of the specified app
-func currentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (map[ConfigurationKey]bool, error) {
-	stagingJobsMap := make(map[ConfigurationKey]bool)
+// stagingStatus is a utility function loading a map of the status of the application's staging jobs
+// (active, done, error).  If no appName is specified it will load a complete map, otherwise the map
+// will contain only the status of the job of the specified app
+func stagingStatus(ctx context.Context, cluster JobLister, namespace, appName string) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
+	stagingJobsMap := make(map[ConfigurationKey]models.ApplicationStagingStatus)
 
 	// filter the jobs in the namespace
 	labelsMap := make(map[string]string)
@@ -182,19 +188,18 @@ func currentlyStaging(ctx context.Context, cluster JobLister, namespace, appName
 		return condition.Status == v1.ConditionTrue && condition.Type == apibatchv1.JobFailed
 	}
 
-	done := func(condition apibatchv1.JobCondition) bool {
-		return completed(condition) || failed(condition)
-	}
-
-	jobStaging := func(job apibatchv1.Job) bool {
+	jobStaging := func(job apibatchv1.Job) models.ApplicationStagingStatus {
 		for _, condition := range job.Status.Conditions {
-			if done(condition) {
+			if failed(condition) {
+				return models.ApplicationStagingFailed
+			}
+			if completed(condition) {
 				// Terminal, not staging
-				return false
+				return models.ApplicationStagingDone
 			}
 		}
 		// No terminal condition found on the job, it is actively staging
-		return true
+		return models.ApplicationStagingActive
 	}
 
 	for _, job := range jobList.Items {
@@ -206,10 +211,10 @@ func currentlyStaging(ctx context.Context, cluster JobLister, namespace, appName
 	return stagingJobsMap, nil
 }
 
-func updateAppDataMapWithStagingJobStatus(appDataMap map[ConfigurationKey]AppData, stagingJobsMap map[ConfigurationKey]bool) map[ConfigurationKey]AppData {
+func updateAppDataMapWithStagingJobStatus(appDataMap map[ConfigurationKey]AppData, stagingJobsMap map[ConfigurationKey]models.ApplicationStagingStatus) map[ConfigurationKey]AppData {
 	for appName, stagingStatus := range stagingJobsMap {
 		appData := appDataMap[appName]
-		appData.isStaging = stagingStatus
+		appData.staging = stagingStatus
 		appDataMap[appName] = appData
 	}
 	return appDataMap
@@ -257,12 +262,12 @@ func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace str
 }
 
 type AppData struct {
-	scaling   *v1.Secret
-	bound     *v1.Secret
-	env       *v1.Secret
-	routes    []string
-	pods      []v1.Pod
-	isStaging bool
+	scaling *v1.Secret
+	bound   *v1.Secret
+	env     *v1.Secret
+	routes  []string
+	pods    []v1.Pod
+	staging models.ApplicationStagingStatus
 }
 
 // List returns a list of all available apps in the specified namespace. If no namespace
@@ -330,13 +335,13 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 		requestctx.Logger(ctx).Error(err, "metrics not available")
 	}
 
-	// VI. load all the status of the staging jobs
+	// VI. load the statuses of all staging jobs
 
-	currentlyStagingJobs, err := CurrentlyStaging(ctx, cluster, namespace)
+	stagingStatuses, err := StagingStatuses(ctx, cluster, namespace)
 	if err != nil {
 		return nil, err
 	}
-	appAuxiliary = updateAppDataMapWithStagingJobStatus(appAuxiliary, currentlyStagingJobs)
+	appAuxiliary = updateAppDataMapWithStagingJobStatus(appAuxiliary, stagingStatuses)
 
 	// Fuse the loaded resources into full application structures.
 
@@ -738,7 +743,10 @@ func aggregate(ctx context.Context,
 	}
 
 	// set app status and done ...
-	if aux.isStaging {
+
+	app.StagingStatus = aux.staging
+
+	if aux.staging == models.ApplicationStagingActive {
 		app.Status = models.ApplicationStaging
 		return app, nil
 	}
@@ -869,7 +877,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	staging, err := IsCurrentlyStaging(ctx, cluster, app.Meta.Namespace, app.Meta.Name)
+	staging, err := stagingStatus(ctx, cluster, app.Meta.Namespace, app.Meta.Name)
 	if err != nil {
 		err = errors.Wrap(err, "staging app")
 		app.StatusMessage = err.Error()
@@ -877,7 +885,9 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	if staging {
+	app.StagingStatus = staging[EncodeConfigurationKey(app.Meta.Name, app.Meta.Namespace)]
+
+	if app.StagingStatus == models.ApplicationStagingActive {
 		app.Status = models.ApplicationStaging
 		return nil
 	}

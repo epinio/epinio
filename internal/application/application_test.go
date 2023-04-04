@@ -20,6 +20,7 @@ import (
 
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/application/applicationfakes"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -140,8 +141,7 @@ var _ = Describe("application", func() {
 		})
 	})
 
-	Describe("CurrentlyStaging", func() {
-
+	Describe("StagingStatuses", func() {
 		When("there is one job running for app1 and a completed job for app2", func() {
 			It("returns true for app1 and false for app2", func() {
 				app1, app2 := appName(), appName()
@@ -155,11 +155,11 @@ var _ = Describe("application", func() {
 				}
 				fake.ListJobsReturns(stagingJobs, nil)
 
-				isStagingMap, err := application.CurrentlyStaging(context.Background(), fake, namespace)
+				isStagingMap, err := application.StagingStatuses(context.Background(), fake, namespace)
 				Expect(err).To(BeNil())
 				Expect(isStagingMap).To(HaveLen(2))
-				Expect(isStagingMap[application.EncodeConfigurationKey(app1, namespace)]).To(BeTrue())
-				Expect(isStagingMap[application.EncodeConfigurationKey(app2, namespace)]).To(BeFalse())
+				Expect(string(isStagingMap[application.EncodeConfigurationKey(app1, namespace)])).To(Equal(models.ApplicationStagingActive))
+				Expect(string(isStagingMap[application.EncodeConfigurationKey(app2, namespace)])).To(Equal(models.ApplicationStagingDone))
 			})
 		})
 	})

@@ -39,7 +39,7 @@ import (
 //
 // It is kept for older clients still calling on it. Because of that it is also kept
 // functional. Instead of checking for an app `Deployment` and its status it now checks
-// the app `Pod` stati.
+// the app `Pod` statuses.
 func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
