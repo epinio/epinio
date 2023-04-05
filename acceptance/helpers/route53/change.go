@@ -15,7 +15,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
-	"strings"
+	"fmt"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 )
@@ -52,6 +52,12 @@ type DNSAnswer struct {
 	RecordData   []string `json:"RecordData"`
 	ResponseCode string   `json:"ResponseCode"`
 	Protocol     string   `json:"Protocol"`
+}
+
+type RecordValues struct {
+	Name string
+	Type string
+	Record string
 }
 
 func CNAME(record string, value string, action string) ChangeResourceRecordSet {
@@ -108,21 +114,22 @@ func TestDnsAnswer(zoneID string, recordName string, recordType string) (string,
 	return proc.RunW("aws", "route53", "test-dns-answer", "--hosted-zone-id", zoneID, "--record-name", recordName, "--record-type", recordType, "--resolver-ip", resolverIP)
 }
 
-func GetRecord(zoneID string, domainname string) (string, string, string, error) {
-	b, err := proc.RunW("aws", "route53", "list-resource-record-sets", "--hosted-zone-id", zoneID, "--query", strings.Join([]string{"ResourceRecordSets[?Name == '", domainname, "']"}, ""))
+// External delete_cluster.go needs to query an existing record, to get the actual record type for deletion
+func GetRecord(zoneID string, domainname string) (RecordValues, error) {
+	var r RecordValues
+	b, err := proc.RunW("aws", "route53", "list-resource-record-sets", "--hosted-zone-id", zoneID, "--query", fmt.Sprintf("ResourceRecordSets[?Name == '%s']", domainname))
 	if err != nil {
-		return "", "", "", err
+		return r, err
 	}
 	v := []ResourceRecordSet{}
 	err = json.Unmarshal([]byte(b), &v)
 	if err != nil {
-		return "", "", "", err
+		return r, err
 	}
 	if len(v) == 0 {
-		return "Clean", "", "", err
+		r = RecordValues{"Clean", "", ""}
+		return r, err
 	}
-	Name := v[0].Name
-	Type := v[0].Type
-	Record := v[0].ResourceRecords[0].Value
-	return Name, Type, Record, err
+	r = RecordValues{v[0].Name, v[0].Type, v[0].ResourceRecords[0].Value}
+	return r, nil
 }
