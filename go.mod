@@ -23,7 +23,7 @@ require (
 	github.com/fatih/color v1.14.1
 	github.com/gin-gonic/gin v1.8.2
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/go-logr/stdr v1.2.2
 	github.com/go-logr/zapr v1.2.3
 	github.com/golang-jwt/jwt/v4 v4.4.3
@@ -55,13 +55,13 @@ require (
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.11.1
-	k8s.io/api v0.26.2
-	k8s.io/apiextensions-apiserver v0.26.1
-	k8s.io/apimachinery v0.26.2
-	k8s.io/apiserver v0.26.1
-	k8s.io/client-go v0.26.1
-	k8s.io/kubectl v0.26.1
-	k8s.io/metrics v0.26.1
+	k8s.io/api v0.26.3
+	k8s.io/apiextensions-apiserver v0.26.3
+	k8s.io/apimachinery v0.26.3
+	k8s.io/apiserver v0.26.3
+	k8s.io/client-go v0.26.3
+	k8s.io/kubectl v0.26.3
+	k8s.io/metrics v0.26.3
 	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d
 )
 
@@ -217,8 +217,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/cli-runtime v0.26.1 // indirect
-	k8s.io/component-base v0.26.1 // indirect
+	k8s.io/cli-runtime v0.26.3 // indirect
+	k8s.io/component-base v0.26.3 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
 	oras.land/oras-go v1.2.2 // indirect
