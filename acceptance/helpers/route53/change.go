@@ -13,9 +13,9 @@ package route53
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
-	"fmt"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 )
@@ -55,8 +55,8 @@ type DNSAnswer struct {
 }
 
 type RecordValues struct {
-	Name string
-	Type string
+	Name   string
+	Type   string
 	Record string
 }
 

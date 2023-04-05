@@ -144,7 +144,7 @@ func ListClusterGKE(runID string) (exists bool) {
 }
 
 func GetKubeconfigAKS(runID string) {
-	kubeconfig_name := os.Getenv("KUBECONFIG_NAME")+"-Deletion"
+	kubeconfig_name := os.Getenv("KUBECONFIG_NAME") + "-Deletion"
 	aks_resource_group := os.Getenv("AKS_RESOURCE_GROUP")
 	out, err := proc.RunW("az", "aks", "get-credentials", "--admin", "--resource-group", aks_resource_group, "--name", aks_resource_group+runID, "--file", kubeconfig_name)
 	if err != nil {
@@ -155,7 +155,7 @@ func GetKubeconfigAKS(runID string) {
 }
 
 func GetKubeconfigEKS(runID string) {
-	kubeconfig_name := os.Getenv("KUBECONFIG_NAME")+"-Deletion"
+	kubeconfig_name := os.Getenv("KUBECONFIG_NAME") + "-Deletion"
 	eks_region := os.Getenv("EKS_REGION")
 	out, err := proc.RunW("eksctl", "utils", "write-kubeconfig", "--region", eks_region, "--cluster", "epinio-ci"+runID, "--kubeconfig", kubeconfig_name)
 	if err != nil {
@@ -166,7 +166,7 @@ func GetKubeconfigEKS(runID string) {
 }
 
 func GetKubeconfigGKE(runID string) {
-	kubeconfig_name := os.Getenv("KUBECONFIG_NAME")+"-Deletion"
+	kubeconfig_name := os.Getenv("KUBECONFIG_NAME") + "-Deletion"
 	gke_zone := os.Getenv("GKE_ZONE")
 	epci_gke_project := os.Getenv("EPCI_GKE_PROJECT")
 	os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
@@ -181,7 +181,7 @@ func GetKubeconfigGKE(runID string) {
 
 // Clean up namespaces - therefore unused disks will be removed on cluster deletion
 func CleanupNamespaces() {
-	kubeconfig_name := os.Getenv("KUBECONFIG_NAME")+"-Deletion"
+	kubeconfig_name := os.Getenv("KUBECONFIG_NAME") + "-Deletion"
 	os.Setenv("KUBECONFIG", kubeconfig_name)
 
 	out, err := proc.RunW("kubectl", "--kubeconfig", kubeconfig_name, "delete", "--force", "--ignore-not-found", "namespace", "epinio", "workspace")
@@ -259,11 +259,11 @@ func DeleteClusterGKE(runID string) {
 
 func DeleteCluster(runID string, pcp string) {
 	switch pcp {
-		case "AKS":
-			DeleteClusterAKS(runID)
-		case "EKS":
-			DeleteClusterEKS(runID)
-		case "GKE":
-			DeleteClusterGKE(runID)
+	case "AKS":
+		DeleteClusterAKS(runID)
+	case "EKS":
+		DeleteClusterEKS(runID)
+	case "GKE":
+		DeleteClusterGKE(runID)
 	}
 }
