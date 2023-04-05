@@ -1643,6 +1643,22 @@ userConfig:
 					),
 				)
 			})
+
+			It("scales up to a running workload", func() {
+				out, err := env.Epinio("", "app", "update", app, "-i", "3")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "show", app)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "3/3"),
+					),
+				)
+			})
 		})
 	})
 
