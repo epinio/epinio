@@ -38,7 +38,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
@@ -55,7 +55,7 @@ jobs:
           username: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
 
-      - uses: anchore/sbom-action/download-syft@v0.13.3
+      - uses: anchore/sbom-action/download-syft@v0.13.4
 
       - uses: sigstore/cosign-installer@v2.8.1
 
