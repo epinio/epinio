@@ -42,6 +42,7 @@ on:
 
 env:
   SETUP_GO_VERSION: '~1.19'
+  GOLANGCI_LINT_VERSION: v1.52
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
@@ -78,7 +79,10 @@ jobs:
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
       - name: Lint Epinio
-        run: make lint
+        uses: golangci/golangci-lint-action@v3.4.0
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          args: --timeout=10m --skip-files docs.go
 
       - name: Clean all
         if: always()
