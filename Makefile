@@ -159,16 +159,13 @@ generate-cli-docs:
 	@./scripts/cli-docs-generate.sh ../docs/docs/references/commands/cli
 
 lint:
-	go vet ./...
+	golangci-lint run --skip-files docs.go
 
 tidy:
 	go mod tidy
 
 fmt:
 	go fmt ./...
-
-check:
-	golangci-lint run --skip-files docs.go
 
 patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
