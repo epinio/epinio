@@ -49,7 +49,7 @@ import (
 // GetPart handles the API endpoint GET /namespaces/:namespace/applications/:app/part/:part
 // It determines the contents of the requested part (values, chart, image) and returns as
 // the response of the handler.
-func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
+func GetPart(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")

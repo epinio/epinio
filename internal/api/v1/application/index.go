@@ -21,7 +21,7 @@ import (
 
 // Index handles the API endpoint GET /namespaces/:namespace/applications
 // It lists all the known applications in the specified namespace, with and without workload.
-func (hc Controller) Index(c *gin.Context) apierror.APIErrors {
+func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 

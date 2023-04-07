@@ -32,7 +32,7 @@ import (
 
 // Create handles the API endpoint POST /namespaces/:namespace/applications
 // It creates a new and empty application. I.e. without a workload.
-func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
+func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	username := requestctx.User(ctx).Username

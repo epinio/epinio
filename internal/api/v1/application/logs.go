@@ -37,7 +37,7 @@ import (
 // It arranges for the logs of the specified application to be
 // streamed over a websocket. Dependent on the endpoint this may be
 // either regular logs, or the app's staging logs.
-func (hc Controller) Logs(c *gin.Context) {
+func Logs(c *gin.Context) {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
@@ -96,7 +96,7 @@ func (hc Controller) Logs(c *gin.Context) {
 	log.Info("streaming mode", "follow", follow)
 	log.Info("streaming begin")
 
-	err = hc.streamPodLogs(ctx, conn, namespace, appName, stageID, cluster, follow)
+	err = streamPodLogs(ctx, conn, namespace, appName, stageID, cluster, follow)
 	if err != nil {
 		log.V(1).Error(err, "error occurred after upgrading the websockets connection")
 		return
@@ -120,7 +120,7 @@ func (hc Controller) Logs(c *gin.Context) {
 // connection is closed. In any case it will call the cancel func that will stop
 // all the children go routines described above and then will wait for their parent
 // go routine to stop too (using another WaitGroup).
-func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
+func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
 	logger := requestctx.Logger(ctx).WithName("streamer-to-websockets").V(1)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)

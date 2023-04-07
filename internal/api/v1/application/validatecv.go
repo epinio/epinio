@@ -28,7 +28,7 @@ import (
 // ValidateChartValues handles the API endpoint /namespaces/:namespace/applications/:app/validate-cv
 // Given application by name, and namespace the custom chart values are checked against the
 // declarations in the referenced appchart.
-func (hc Controller) ValidateChartValues(c *gin.Context) apierror.APIErrors {
+func ValidateChartValues(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
 	namespace := c.Param("namespace")

@@ -32,7 +32,7 @@ import (
 )
 
 // Update handles the API endpoint PATCH /namespaces/:namespace/applications/:app
-func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
+func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")

@@ -24,7 +24,7 @@ import (
 
 // FullIndex handles the API endpoint GET /applications
 // It lists all the known applications in all namespaces, with and without workload.
-func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
+func FullIndex(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	user := requestctx.User(ctx)
 
