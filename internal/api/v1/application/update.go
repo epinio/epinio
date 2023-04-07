@@ -12,6 +12,7 @@
 package application
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -25,6 +26,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -155,17 +157,9 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		}
 	}
 
-	var desired int32
-	if updateRequest.Instances != nil {
-		desired = *updateRequest.Instances
-
-		log.Info("updating app", "desired instances", desired)
-
-		// Save to configuration
-		err := application.ScalingSet(ctx, cluster, app.Meta, desired)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
+	desired, err := updateInstances(ctx, log, updateRequest.Instances, cluster, appRef)
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
 	if len(updateRequest.Environment) > 0 {
@@ -279,4 +273,17 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	response.OK(c)
 	return nil
+}
+
+func updateInstances(ctx context.Context, log logr.Logger, instances *int32, cluster *kubernetes.Cluster, app models.AppRef) (int32, error) {
+	if instances == nil {
+		return 0, nil
+	}
+
+	desired := *instances
+	log.Info("updating app", "desired instances", desired)
+
+	// Save to configuration
+	err := application.ScalingSet(ctx, cluster, app, desired)
+	return desired, err
 }
