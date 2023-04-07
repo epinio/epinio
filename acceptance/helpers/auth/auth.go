@@ -26,6 +26,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var ErrCodeNotFound = errors.New("code not found")
+
 type DexClient struct {
 	lastURL string
 	dexURL  string
@@ -100,17 +102,10 @@ func (c *DexClient) Login(loginURL, username, password string) (string, error) {
 
 	// do login
 	loginURL = c.dexURL + c.lastURL
-	_, err = c.Client.PostForm(loginURL, url.Values{
+	res, err := c.Client.PostForm(loginURL, url.Values{
 		"login":    []string{username},
 		"password": []string{password},
 	})
-	if err != nil {
-		return "", err
-	}
-
-	// approve request
-	approvalURL := c.dexURL + c.lastURL
-	res, err := c.Client.PostForm(approvalURL, url.Values{"approval": []string{"approve"}})
 	if err != nil {
 		return "", err
 	}
@@ -140,5 +135,5 @@ func (c *DexClient) Login(loginURL, username, password string) (string, error) {
 		}
 	}
 
-	return "", nil
+	return "", ErrCodeNotFound
 }
