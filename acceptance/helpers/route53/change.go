@@ -121,15 +121,16 @@ func GetRecord(zoneID string, domainname string) (RecordValues, error) {
 	if err != nil {
 		return r, err
 	}
+
 	v := []ResourceRecordSet{}
 	err = json.Unmarshal([]byte(b), &v)
 	if err != nil {
 		return r, err
 	}
 	if len(v) == 0 {
-		r = RecordValues{"Clean", "", ""}
-		return r, err
+		return r, nil
 	}
+
 	r = RecordValues{v[0].Name, v[0].Type, v[0].ResourceRecords[0].Value}
 	return r, nil
 }
