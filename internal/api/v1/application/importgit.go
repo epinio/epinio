@@ -93,7 +93,7 @@ import (
 // ImportGit handles the API endpoint /namespaces/:namespace/applications/:app/import-git.
 // It receives a Git repo url and revision, clones that (shallow clone), creates a tarball
 // of the repo and puts it on S3.
-func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
+func ImportGit(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 

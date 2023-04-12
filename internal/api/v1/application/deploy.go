@@ -33,7 +33,7 @@ const (
 // Deploy handles the API endpoint /namespaces/:namespace/applications/:app/deploy
 // It uses an application chart to create the deployment, configuration and ingress (kube)
 // resources for the app.
-func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
+func Deploy(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
 	namespace := c.Param("namespace")

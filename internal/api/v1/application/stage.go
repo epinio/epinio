@@ -104,7 +104,7 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 
 // Stage handles the API endpoint /namespaces/:namespace/applications/:app/stage
 // It creates a Job resource to stage the app
-func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
+func Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
@@ -274,7 +274,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 // Staged handles the API endpoint /namespaces/:namespace/staging/:stage_id/complete
 // It waits for the Job resource staging the app to complete
-func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
+func Staged(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
 	namespace := c.Param("namespace")

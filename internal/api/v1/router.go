@@ -89,25 +89,25 @@ var Routes = routes.NamedRoutes{
 
 	// app controller files see application/*.go
 
-	"AllApps":         get("/applications", errorHandler(application.Controller{}.FullIndex)),
-	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Controller{}.Index)),
-	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Controller{}.Create)),
-	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Show)),
-	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Controller{}.Staged)), // See stage.go
-	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Delete)),
-	"AppBatchDelete":  delete("/namespaces/:namespace/applications", errorHandler(application.Controller{}.Delete)),
-	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Controller{}.Deploy)),
-	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.Controller{}.ImportGit)),
-	"AppPart":         get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.Controller{}.GetPart)),
-	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Controller{}.Restart)),
-	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Controller{}.Running)),
-	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Controller{}.Stage)), // See stage.go
-	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Update)),
-	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Controller{}.Upload)), // See upload.go
-	"AppValidateCV":   get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.Controller{}.ValidateChartValues)),
+	"AllApps":         get("/applications", errorHandler(application.FullIndex)),
+	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Index)),
+	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Create)),
+	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),
+	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Staged)), // See stage.go
+	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Delete)),
+	"AppBatchDelete":  delete("/namespaces/:namespace/applications", errorHandler(application.Delete)),
+	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Deploy)),
+	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.ImportGit)),
+	"AppPart":         get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.GetPart)),
+	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),
+	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Running)),
+	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)), // See stage.go
+	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
+	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
+	"AppValidateCV":   get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
 
-	"AppMatch":  get("/namespaces/:namespace/appsmatches/:pattern", errorHandler(application.Controller{}.Match)),
-	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Controller{}.Match)),
+	"AppMatch":  get("/namespaces/:namespace/appsmatches/:pattern", errorHandler(application.Match)),
+	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Match)),
 
 	// See env.go
 	"EnvList": get("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Controller{}.Index)),
@@ -191,10 +191,10 @@ var Routes = routes.NamedRoutes{
 }
 
 var WsRoutes = routes.NamedRoutes{
-	"AppExec":        get("/namespaces/:namespace/applications/:app/exec", errorHandler(application.Controller{}.Exec)),
-	"AppPortForward": get("/namespaces/:namespace/applications/:app/portforward", errorHandler(application.Controller{}.PortForward)),
-	"AppLogs":        get("/namespaces/:namespace/applications/:app/logs", application.Controller{}.Logs),
-	"StagingLogs":    get("/namespaces/:namespace/staging/:stage_id/logs", application.Controller{}.Logs),
+	"AppExec":        get("/namespaces/:namespace/applications/:app/exec", errorHandler(application.Exec)),
+	"AppPortForward": get("/namespaces/:namespace/applications/:app/portforward", errorHandler(application.PortForward)),
+	"AppLogs":        get("/namespaces/:namespace/applications/:app/logs", application.Logs),
+	"StagingLogs":    get("/namespaces/:namespace/staging/:stage_id/logs", application.Logs),
 }
 
 // Lemon extends the specified router with the methods and urls

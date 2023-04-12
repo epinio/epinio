@@ -22,7 +22,7 @@ import (
 
 // Delete handles the API endpoint DELETE /namespaces/:namespace/applications/:app
 // It removes the named application
-func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
+func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 

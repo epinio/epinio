@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
+func Exec(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
