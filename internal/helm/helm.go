@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -385,6 +386,15 @@ func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster
 	return r.Info.Status, nil
 }
 
+// syncNamespaceClientMap is holding a SynchronizedClient for each namespace
+var syncNamespaceClientMap sync.Map
+
+type SynchronizedClient struct {
+	namespace  string
+	m          sync.Mutex
+	helmClient hc.Client
+}
+
 func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string) (hc.Client, error) {
 	options := &hc.RestConfClientOptions{
 		RestConfig: restConfig,
@@ -399,8 +409,24 @@ func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string
 			},
 		},
 	}
+	helmClient, err := hc.NewClientFromRestConf(options)
+	if err != nil {
+		return nil, err
+	}
 
-	return hc.NewClientFromRestConf(options)
+	synchronizedHelmClient := &SynchronizedClient{
+		namespace:  namespace,
+		helmClient: helmClient,
+	}
+
+	// we are loading the SynchronizedClient for this namespace, if any
+	loadedSynchronizedHelmClient, _ := syncNamespaceClientMap.LoadOrStore(namespace, synchronizedHelmClient)
+	synchronizedHelmClient, ok := loadedSynchronizedHelmClient.(*SynchronizedClient)
+	if !ok {
+		return nil, errors.New("error while loading SynchronizedClient from the sync.Map")
+	}
+
+	return synchronizedHelmClient, nil
 }
 
 // cleanupReleaseIfNeeded will delete the helm release if it exists and is not
