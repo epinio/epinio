@@ -1,0 +1,263 @@
+# Copyright © 2021 - 2023 SUSE LLC
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Introduced NEW Secrets: AWS_RKE2_SSH_KEY, AWS_RKE2_DOMAIN
+
+name: RKE2-EC2-CI
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ ready_for_review ]
+    paths:
+      - 'acceptance/install/scenario4_test.go'
+      - '.github/workflows/rke2-lh-ec2.yml'
+  schedule:
+    - cron:  '0 2 30 * *'
+  workflow_dispatch:
+    inputs:
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
+        required: false
+        default: ""
+
+env:
+  SETUP_GO_VERSION: '~1.19'
+  GOLANGCI_LINT_VERSION: v1.52
+  GINKGO_NODES: 1
+  FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
+  AWS_REGION: eu-central-1
+  KUBECONFIG: ${{ github.workspace }}/rke2-ec2-kubeconfig.yaml
+
+jobs:
+  linter:
+    runs-on: [self-hosted, epinio]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: Lint Epinio
+        uses: golangci/golangci-lint-action@v3.4.0
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          args: --timeout=10m --skip-files docs.go
+
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
+
+  acceptance-scenario4:
+    needs:
+      - linter
+    runs-on: [self-hosted, epinio]
+
+    outputs:
+      # Stores what's needed by another steps and jobs
+      EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
+      EC2_PUBLIC_HOSTNAMES: ${{ steps.provision-ec2-instances.outputs.EC2_PUBLIC_HOSTNAMES }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: Install Dependencies
+        run: |
+          # Tools for runner
+          echo 'Installing Helm'
+          unset KUBECONFIG
+          wget -q https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 -O - | bash
+          echo 'Installing Kuberlr/kubectl'
+          if [ -x "$(command -v kubectl)" ]; then
+            echo "Kubectl command exists, skipping"
+          else
+            kuberlrVer='0.4.2'
+            kuberlrUrl="https://github.com/flavio/kuberlr/releases/download/v${kuberlrVer}/kuberlr_${kuberlrVer}_linux_amd64.tar.gz"
+            wget -q $kuberlrUrl -O - | sudo tar -xz -C /usr/local/bin --strip-components 1 --no-anchored kuberlr
+            sudo ln -sf /usr/local/bin/kuberlr /usr/local/bin/kubectl
+          fi
+          echo 'Installing AWS CLI'
+          mkdir awscli_installer
+          wget -q https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -O awscli_installer/awscliv2.zip
+          unzip -q awscli_installer/awscliv2.zip -d awscli_installer
+          sudo awscli_installer/aws/install -u
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Provision EC2 instances
+        id: provision-ec2-instances
+        run: |
+          # Provision nodes by awscli
+          id=$RANDOM
+          echo "ID=$id" >> $GITHUB_OUTPUT
+          echo 'Provisioning EC2 instances...'
+          INSTANCES_COUNT=1
+          EC2_INSTANCE_IDS=$(aws ec2 run-instances \
+            --launch-template='LaunchTemplateName=epinio-ci-sle15sp4-chost-template' \
+            --no-cli-pager --count $INSTANCES_COUNT \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=epinio-rke2-ci'$id'}]' \
+            --query 'Instances[*].InstanceId' \
+            --output text)
+          echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
+
+          echo 'Waiting until the instances are in ok state...'
+          aws ec2 wait instance-status-ok \
+            --instance-ids $EC2_INSTANCE_IDS \
+            --filters Name=system-status.status,Values=ok
+
+          echo 'Getting the PublicDnsName from instances'
+          EC2_PUBLIC_HOSTNAMES=$(aws ec2 describe-instances --instance-ids $EC2_INSTANCE_IDS \
+            --query 'Reservations[*].Instances[*].PublicDnsName' \
+            --output text)
+          echo "::add-mask::$EC2_PUBLIC_HOSTNAMES"
+          echo "EC2_PUBLIC_HOSTNAMES=$EC2_PUBLIC_HOSTNAMES" >> $GITHUB_OUTPUT
+
+      - name: Deploy RKE2 server over SSH
+        env:
+          AWS_RKE2_SSH_KEY: ${{ secrets.AWS_RKE2_SSH_KEY }}
+          NODES: ${{ steps.provision-ec2-instances.outputs.EC2_PUBLIC_HOSTNAMES }}
+        run: |
+          # Bootstrap cluster from runner
+          echo "::add-mask::$NODES"
+          eval $(ssh-agent -s)
+          mkdir -p ~/.ssh
+          echo "${AWS_RKE2_SSH_KEY}" > ~/.ssh/id_rsa_ec2.pem
+          chmod 600 ~/.ssh/id_rsa_ec2.pem
+          ssh-add -q ~/.ssh/id_rsa_ec2.pem
+
+          # Set $server_node variable containing only the first entry from $NODES
+          server_node=$(echo "$NODES" | awk '{print $1}')
+
+          ssh_run_server() {
+            local ssh_opts=(-o BatchMode=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=error -o ConnectTimeout=30 -o User=ec2-user)
+            ssh "${ssh_opts[@]}" "$server_node" 'sudo bash -s' <<< "$@" || { echo "Failed to run on $server_node over ssh:"; echo "$@"; false; }
+          }
+
+          # Script to be performed on the $server_node (first node from $NODES)
+          server_script=$(cat <<EOF
+
+          # Configure rke2 with aws provider
+          mkdir -p /etc/rancher/rke2/config.yaml.d
+          echo "cloud-provider-name: aws" >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml
+          echo "disable: rke2-ingress-nginx" >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml
+          # enable tls-san to be able communicate with cluster from runner over TLS when using its public hostname
+          echo "tls-san:" >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml
+          echo "  - \"$server_node\"" >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml
+
+          # Run rke2
+          curl -sfL https://get.rke2.io | sh -
+          systemctl enable --now rke2-server
+          EOF
+          )
+
+          ssh_run_server "$server_script"
+
+          # Write rke2 ec2 kubeconfig into runner workdir and configure the server endpoint
+          kubeconfig=$(ssh_run_server "cat /etc/rancher/rke2/rke2.yaml")
+          echo "$kubeconfig" > rke2-ec2-kubeconfig.yaml
+          kubectl config set-cluster default --server=https://"$server_node":6443 2>/dev/null
+
+          # TODO a new step for adding RKE2 agents to the cluster according to INSTANCES_COUNT
+
+      - name: Wait for kubernetes resources
+        run: |
+          # Block until important resources are up (the order matters)
+          timeout=5m
+          kubectl wait --for=condition=Ready --timeout=$timeout node --all
+          kubectl wait --for=condition=Ready --timeout=$timeout pods -l tier=control-plane -n kube-system
+          kubectl wait --for=condition=complete --timeout=$timeout job --all -n kube-system
+          kubectl wait --for=condition=Established --timeout=$timeout crd --all
+
+      - name: Deploy Longhorn as default StorageClass
+        run: |
+          # Install Longhorn as default SC (all requirements as iscsi and nfs met in the AMI from the template)
+          timeout=5m
+          longhornRelease=1.4.1
+          kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v${longhornRelease}/deploy/longhorn.yaml
+          kubectl wait --for=condition=Available --timeout=$timeout deployment --all --namespace longhorn-system
+
+      - name: Installation Acceptance Tests
+        env:
+          REGEX: Scenario4
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # Use a random host name, so we don't collide with our workflows on EKS
+          AWS_DOMAIN: id${{ steps.provision-ec2-instances.outputs.ID }}-${{ secrets.AWS_RKE2_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.provision-ec2-instances.outputs.ID }}-${{ secrets.AWS_RKE2_DOMAIN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+          INGRESS_CONTROLLER: nginx
+          # EXTRAENV_NAME: SESSION_KEY
+          # EXTRAENV_VALUE: 12345
+        run: make test-acceptance-install
+
+      - name: Delete EC2 instances
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        env:
+          EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
+        run: aws ec2 terminate-instances --instance-ids $EC2_INSTANCE_IDS
+
+      # Only on RKE, as it uses a self-hosted runner
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
