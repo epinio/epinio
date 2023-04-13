@@ -29,7 +29,7 @@ func main() {
 
 	err := DeleteCluster(runID, pcp)
 	if err != nil {
-		fmt.Println("something failed: " + err.Error())
+		fmt.Println("Error: " + err.Error())
 		os.Exit(1)
 	}
 }
@@ -55,7 +55,7 @@ func DeleteClusterAKS(runID string) error {
 	domainname := fmt.Sprintf("id%s-%s", runID, os.Getenv("AKS_DOMAIN"))
 	deletedRecords, err := CleanupDNS(aws_zone_id, domainname)
 	if err != nil {
-		return errors.Wrap(err, "cleanup DNS failed")
+		return errors.Wrap(err, "CleanupDNS failed")
 	}
 
 	exists, err := ListClusterAKS(runID)
@@ -65,24 +65,24 @@ func DeleteClusterAKS(runID string) error {
 
 	// if the cluster didn't exists and we have not deleted any records something was wrong!
 	if !exists && len(deletedRecords) == 0 {
-		return errors.Wrap(err, "no cluster and no DNS records were deleted. Check your inputs!")
+		return errors.New("Nothing was cleaned up. Please check your input values!")
 	}
 
 	if exists {
 		err := GetKubeconfigAKS(runID)
 		if err != nil {
-			return errors.Wrap(err, "failed to get kubeconfig")
+			return errors.Wrap(err, "GetKubeconfigAKS failed")
 		}
 
 		err = CleanupNamespaces()
 		if err != nil {
-			return errors.Wrap(err, "failed to cleanup namespace")
+			return errors.Wrap(err, "CleanupNamespaces failed")
 		}
 
 		fmt.Println("Deleting AKS cluster ...")
 		out, err := proc.RunW("az", "aks", "delete", "--resource-group", aks_resource_group, "--name", aks_resource_group+runID, "--yes")
 		if err != nil {
-			return errors.Wrap(err, "failed to delete cluster: "+out)
+			return errors.Wrap(err, "Failed to delete cluster: "+out)
 		}
 
 		fmt.Println("Deleted AKS cluster: ", aks_resource_group+runID)
@@ -99,34 +99,34 @@ func DeleteClusterEKS(runID string) error {
 	domainname := fmt.Sprintf("id%s-%s", runID, os.Getenv("EKS_DOMAIN"))
 	deletedRecords, err := CleanupDNS(aws_zone_id, domainname)
 	if err != nil {
-		return errors.Wrap(err, "cleanup DNS failed")
+		return errors.Wrap(err, "CleanupDNS failed")
 	}
 
 	exists, err := ListClusterEKS(runID)
 	if err != nil {
-		return errors.Wrap(err, "ListClusterAKS failed")
+		return errors.Wrap(err, "ListClusterEKS failed")
 	}
 
 	// if the cluster didn't exists and we have not deleted any records something was wrong!
 	if !exists && len(deletedRecords) == 0 {
-		return errors.Wrap(err, "no cluster and no DNS records were deleted. Check your inputs!")
+		return errors.New("Nothing was cleaned up. Please check your input values!")
 	}
 
 	if exists {
 		err := GetKubeconfigEKS(runID)
 		if err != nil {
-			return errors.Wrap(err, "failed to get kubeconfig")
+			return errors.Wrap(err, "GetKubeconfigEKS failed")
 		}
 
 		err = CleanupNamespaces()
 		if err != nil {
-			return errors.Wrap(err, "failed to cleanup namespace")
+			return errors.Wrap(err, "CleanupNamespaces failed")
 		}
 
 		fmt.Println("Deleting EKS cluster ...")
 		out, err := proc.RunW("eksctl", "delete", "cluster", "--region="+eks_region, "--name=epinio-ci"+runID)
 		if err != nil {
-			return errors.Wrap(err, "failed to delete cluster: "+out)
+			return errors.Wrap(err, "Failed to delete cluster: "+out)
 		}
 
 		fmt.Println("Deleted EKS cluster: ", "epinio-ci"+runID)
@@ -143,35 +143,35 @@ func DeleteClusterGKE(runID string) error {
 	domainname := fmt.Sprintf("id%s-%s", runID, os.Getenv("GKE_DOMAIN"))
 	deletedRecords, err := CleanupDNS(aws_zone_id, domainname)
 	if err != nil {
-		return errors.Wrap(err, "cleanup DNS failed")
+		return errors.Wrap(err, "CleanupDNS failed")
 	}
 
 	exists, err := ListClusterGKE(runID)
 	if err != nil {
-		return errors.Wrap(err, "ListClusterAKS failed")
+		return errors.Wrap(err, "ListClusterGKE failed")
 	}
 
 	// if the cluster didn't exists and we have not deleted any records something was wrong!
 	if !exists && len(deletedRecords) == 0 {
-		return errors.Wrap(err, "no cluster and no DNS records were deleted. Check your inputs!")
+		return errors.New("Nothing was cleaned up. Please check your input values!")
 	}
 
 	if exists {
 		err := GetKubeconfigGKE(runID)
 		if err != nil {
-			return errors.Wrap(err, "failed to get kubeconfig")
+			return errors.Wrap(err, "GetKubeconfigGKE failed")
 		}
 
 		err = CleanupNamespaces()
 		if err != nil {
-			return errors.Wrap(err, "failed to cleanup namespace")
+			return errors.Wrap(err, "CleanupNamespaces failed")
 		}
 
 		fmt.Println("Deleting GKE cluster ...")
 		os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
 		out, err := proc.RunW("gcloud", "container", "clusters", "delete", "epinioci"+runID, "--zone", gke_zone, "--quiet")
 		if err != nil {
-			return errors.Wrap(err, "failed to delete cluster: "+out)
+			return errors.Wrap(err, "Failed to delete cluster: "+out)
 		}
 
 		fmt.Println("Deleted GKE cluster: ", "epinioci"+runID)
@@ -193,7 +193,7 @@ func CleanupDNS(zoneID string, domainname string) ([]route53.RecordValues, error
 		// We need to get the record by name first - we can only clean up by knowing the correct record type
 		recordvalues, err := route53.GetRecord(zoneID, dnsrecord)
 		if err != nil {
-			return deletedRecordValues, errors.Wrap(err, "get record failed")
+			return deletedRecordValues, errors.Wrap(err, "GetRecord failed")
 		}
 
 		if recordvalues == (route53.RecordValues{}) {
@@ -217,7 +217,7 @@ func CleanupDNS(zoneID string, domainname string) ([]route53.RecordValues, error
 		// Delete existing DNS record
 		out, err := route53.Update(zoneID, change, "")
 		if err != nil {
-			return deletedRecordValues, errors.Wrap(err, "updating Route53 failed: "+out)
+			return deletedRecordValues, errors.Wrap(err, "Update AWS Route53 failed: "+out)
 		}
 		fmt.Println("Cleaned up AWS Route53 DNS record: ", dnsrecord)
 
@@ -232,13 +232,14 @@ func ListClusterAKS(runID string) (exists bool, err error) {
 	aks_resource_group := os.Getenv("AKS_RESOURCE_GROUP")
 	out, err := proc.RunW("az", "aks", "list", "--resource-group", aks_resource_group, "--query", fmt.Sprintf("[].{name:name} | [? contains(name,'%s%s')]", aks_resource_group, runID))
 	if err != nil {
-		return false, errors.Wrap(err, "azure listing failed")
+		return false, errors.Wrap(err, "az cli command failed: "+out)
 	}
 
 	if strings.TrimSpace(out) == "[]" {
 		fmt.Println("AKS cluster does not exists: " + aks_resource_group + runID)
 		return false, nil
 	}
+
 	return true, nil
 }
 
@@ -247,13 +248,14 @@ func ListClusterEKS(runID string) (exists bool, err error) {
 	eks_region := os.Getenv("EKS_REGION")
 	out, err := proc.RunW("aws", "eks", "list-clusters", "--region="+eks_region, "--query", fmt.Sprintf("clusters | [? contains(@,'epinio-ci%s')]", runID), "--output", "text")
 	if err != nil {
-		return false, errors.Wrap(err, "aws listing failed")
+		return false, errors.Wrap(err, "aws cli command failed: "+out)
 	}
 
 	if strings.TrimSpace(out) == "" {
 		fmt.Println("EKS cluster does not exisit: epinio-ci" + runID)
 		return false, nil
 	}
+
 	return true, nil
 }
 
@@ -263,13 +265,14 @@ func ListClusterGKE(runID string) (exists bool, err error) {
 	os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
 	out, err := proc.RunW("gcloud", "container", "clusters", "list", "--filter", "epinioci"+runID, "--zone", gke_zone, "--quiet")
 	if err != nil {
-		return false, errors.Wrap(err, "gke listing failed")
+		return false, errors.Wrap(err, "gcloud cli command failed: "+out)
 	}
 
 	if strings.TrimSpace(out) == "" {
 		fmt.Println("GKE cluster does not exisit: epinioci" + runID)
 		return false, nil
 	}
+
 	return true, nil
 }
 
@@ -278,7 +281,7 @@ func GetKubeconfigAKS(runID string) error {
 	aks_resource_group := os.Getenv("AKS_RESOURCE_GROUP")
 	out, err := proc.RunW("az", "aks", "get-credentials", "--admin", "--resource-group", aks_resource_group, "--name", aks_resource_group+runID, "--file", kubeconfig_name)
 	if err != nil {
-		return errors.Wrap(err, "kubeconfig cannot be fetched: "+out)
+		return errors.Wrap(err, "az cli command failed: "+out)
 	}
 
 	fmt.Println("Fetched current kubeconfig")
@@ -290,7 +293,7 @@ func GetKubeconfigEKS(runID string) error {
 	eks_region := os.Getenv("EKS_REGION")
 	out, err := proc.RunW("eksctl", "utils", "write-kubeconfig", "--region", eks_region, "--cluster", "epinio-ci"+runID, "--kubeconfig", kubeconfig_name)
 	if err != nil {
-		return errors.Wrap(err, "kubeconfig cannot be fetched: "+out)
+		return errors.Wrap(err, "eksctl cli command failed: "+out)
 	}
 
 	fmt.Println("Fetched current kubeconfig")
@@ -305,7 +308,7 @@ func GetKubeconfigGKE(runID string) error {
 	os.Setenv("KUBECONFIG", kubeconfig_name)
 	out, err := proc.RunW("gcloud", "container", "clusters", "get-credentials", "epinioci"+runID, "--zone", gke_zone, "--project", epci_gke_project)
 	if err != nil {
-		return errors.Wrap(err, "kubeconfig cannot be fetched: "+out)
+		return errors.Wrap(err, "gcloud cli command failed: "+out)
 	}
 
 	fmt.Println("Fetched current kubeconfig")
@@ -319,7 +322,7 @@ func CleanupNamespaces() error {
 
 	out, err := proc.RunW("kubectl", "--kubeconfig", kubeconfig_name, "delete", "--force", "--ignore-not-found", "namespace", "epinio", "workspace")
 	if err != nil {
-		return errors.Wrap(err, "failed to cleanup namespace: "+out)
+		return errors.Wrap(err, "kubectl cli command failed: "+out)
 	}
 
 	fmt.Println("Cleaning up test namespaces ...")
