@@ -77,6 +77,7 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           args: --timeout=10m --skip-files docs.go
+          skip-pkg-cache: true
 
       - name: Clean all
         if: always()
