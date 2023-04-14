@@ -126,7 +126,7 @@ jobs:
         run: |
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
-          echo "RUN_ID: ${{ steps.create-cluster.outputs.ID }}"
+          echo "RUN_ID: $id"
           az aks create --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
           --node-vm-size ${{ env.AKS_MACHINE_TYPE }} \
           --name ${{ env.AKS_RESOURCE_GROUP }}$id \

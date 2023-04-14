@@ -127,7 +127,7 @@ jobs:
         run: |
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
-          echo "RUN_ID: ${{ steps.create-cluster.outputs.ID }}"
+          echo "RUN_ID: $id"
           gcloud container clusters create epinioci$id \
           --disk-size 100 \
           --num-nodes=1 \
