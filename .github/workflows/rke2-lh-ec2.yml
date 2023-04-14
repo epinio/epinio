@@ -82,10 +82,10 @@ jobs:
       - linter
     runs-on: [self-hosted, epinio]
 
-    outputs:
+    #outputs:
       # Stores what's needed by another steps and jobs
-      EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
-      EC2_PUBLIC_HOSTNAMES: ${{ steps.provision-ec2-instances.outputs.EC2_PUBLIC_HOSTNAMES }}
+    #  EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
+    #  EC2_PUBLIC_HOSTNAMES: ${{ steps.provision-ec2-instances.outputs.EC2_PUBLIC_HOSTNAMES }}
 
     steps:
       - name: Checkout
@@ -252,11 +252,13 @@ jobs:
           # EXTRAENV_VALUE: 12345
         run: make test-acceptance-install
 
-      - name: Delete EC2 instances
+      - name: Delete EC2 instances and ELB
         if: ${{ always() && !github.event.inputs.keep_cluster }}
         env:
           EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
-        run: aws ec2 terminate-instances --instance-ids $EC2_INSTANCE_IDS
+        run: |
+          helm delete nginx-ingress -n ingress-nginx
+          aws ec2 terminate-instances --instance-ids $EC2_INSTANCE_IDS
 
       # Only on RKE, as it uses a self-hosted runner
       - name: Clean all
