@@ -12,7 +12,6 @@
 package v1
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -25,14 +24,13 @@ import (
 )
 
 func AuthorizationMiddleware(c *gin.Context) {
-	logger := requestctx.Logger(c.Request.Context()).WithName("AuthorizationMiddleware")
-	user := requestctx.User(c.Request.Context())
+	ctx := c.Request.Context()
+	logger := requestctx.Logger(ctx).WithName("AuthorizationMiddleware")
+	user := requestctx.User(ctx)
 
 	method := c.Request.Method
 	path := c.Request.URL.Path
 	namespace := c.Param("namespace")
-
-	logger.Info(fmt.Sprintf("authorization request from user [%s] with role [%s] for [%s - %s]", user.Username, user.Role, method, path))
 
 	var authorized bool
 	switch user.Role {
@@ -42,7 +40,13 @@ func AuthorizationMiddleware(c *gin.Context) {
 		authorized = authorizeUser(logger, user, path, namespace)
 	}
 
-	logger.Info(fmt.Sprintf("user [%s] with role [%s] authorized [%t] for namespace [%s]", user.Username, user.Role, authorized, namespace))
+	logger.V(1).Info("authorization request",
+		"user", user.Username,
+		"role", user.Role,
+		"method", method,
+		"path", path,
+		"authorized", authorized,
+	)
 
 	if !authorized {
 		response.Error(c, apierrors.NewAPIError("user unauthorized", http.StatusForbidden))
@@ -52,16 +56,14 @@ func AuthorizationMiddleware(c *gin.Context) {
 }
 
 func authorizeAdmin(logger logr.Logger) bool {
-	logger.V(1).WithName("authorizeAdmin").Info("user admin is authorized")
+	logger.V(1).Info("user admin is authorized")
 	return true
 }
 
 func authorizeUser(logger logr.Logger, user auth.User, path, namespace string) bool {
-	logger = logger.V(1).WithName("authorizeUser")
-
 	// check if the requested path is restricted
 	if _, found := AdminRoutes[path]; found {
-		logger.Info(fmt.Sprintf("path [%s] is an admin route, user unauthorized", path))
+		logger.V(1).Info("path is an admin route, user unauthorized", "path", path)
 		return false
 	}
 
@@ -73,7 +75,7 @@ func authorizeUser(logger logr.Logger, user auth.User, path, namespace string) b
 			}
 		}
 
-		logger.Info(fmt.Sprintf("namespace [%s] is not in user namespaces [%s]", namespace, strings.Join(user.Namespaces, ", ")))
+		logger.V(1).Info("namespace is not in user namespaces", "namespace", namespace, "userNamespaces", strings.Join(user.Namespaces, ", "))
 		return false
 	}
 

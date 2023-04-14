@@ -13,6 +13,7 @@
 package response
 
 import (
+	goerrs "errors"
 	"net/http"
 
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -24,7 +25,8 @@ import (
 
 // OK reports a generic success
 func OK(c *gin.Context) {
-	requestctx.Logger(c.Request.Context()).Info("OK",
+	logger := requestctx.Logger(c.Request.Context())
+	logger.V(2).Info("OK",
 		"origin", c.Request.URL.String(),
 		"returning", models.ResponseOK,
 	)
@@ -34,9 +36,10 @@ func OK(c *gin.Context) {
 
 // OKBytes reports a success with some data
 func OKBytes(c *gin.Context, response []byte) {
-	requestctx.Logger(c.Request.Context()).Info("OK",
+	logger := requestctx.Logger(c.Request.Context())
+	logger.V(2).Info("OK",
 		"origin", c.Request.URL.String(),
-		"returning", response,
+		"returning", string(response),
 	)
 
 	c.Data(http.StatusOK, "application/octet-stream", response)
@@ -54,7 +57,8 @@ func OKYaml(c *gin.Context, response interface{}) {
 
 // OKReturn reports a success with some data
 func OKReturn(c *gin.Context, response interface{}) {
-	requestctx.Logger(c.Request.Context()).Info("OK",
+	logger := requestctx.Logger(c.Request.Context())
+	logger.V(2).Info("OK",
 		"origin", c.Request.URL.String(),
 		"returning", response,
 	)
@@ -64,7 +68,8 @@ func OKReturn(c *gin.Context, response interface{}) {
 
 // Created reports successful creation of a resource.
 func Created(c *gin.Context) {
-	requestctx.Logger(c.Request.Context()).Info("CREATED",
+	logger := requestctx.Logger(c.Request.Context())
+	logger.V(2).Info("CREATED",
 		"origin", c.Request.URL.String(),
 		"returning", models.ResponseOK,
 	)
@@ -74,19 +79,24 @@ func Created(c *gin.Context) {
 
 // Error reports the specified errors
 func Error(c *gin.Context, responseErrors errors.APIErrors) {
-	requestctx.Logger(c.Request.Context()).Info("ERROR",
+	logger := requestctx.Logger(c.Request.Context())
+	logger.V(2).Info("ERROR",
 		"origin", c.Request.URL.String(),
-		"error", responseErrors,
+		"errors", responseErrors,
 	)
 
 	// add errors to the Gin context
 	for _, err := range responseErrors.Errors() {
 		if ginErr := c.Error(err); ginErr != nil {
-			requestctx.Logger(c.Request.Context()).Error(
-				ginErr, "ERROR",
-				"origin", c.Request.URL.String(),
-				"error", ginErr,
-			)
+			// if the error returned is different something weird happened
+			if goerrs.As(err, ginErr) {
+				logger.Error(
+					ginErr,
+					"error adding responseError to Gin context",
+					"origin", c.Request.URL.String(),
+					"error", err,
+				)
+			}
 		}
 	}
 

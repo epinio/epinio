@@ -57,7 +57,7 @@ func NewLogger() logr.Logger {
 
 // NewStdrLogger returns a stdr logger
 func NewStdrLogger() logr.Logger {
-	return stdr.New(log.New(os.Stderr, "", log.LstdFlags)).V(1) // NOTE: Increment of level, not absolute.
+	return stdr.New(log.New(os.Stderr, "", log.LstdFlags)) // NOTE: Increment of level, not absolute.
 }
 
 // NewZapLogger creates a new zap logger with our setup. It only prints messages below

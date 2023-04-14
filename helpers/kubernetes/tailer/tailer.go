@@ -45,13 +45,13 @@ type TailOptions struct {
 }
 
 // NewTail returns a new tail for a Kubernetes container inside a pod
-func NewTail(namespace, podName, containerName string, logger logr.Logger, clientSet *kubernetes.Clientset, options *TailOptions) *Tail {
+func NewTail(logger logr.Logger, namespace, podName, containerName string, clientSet *kubernetes.Clientset, options *TailOptions) *Tail {
 	return &Tail{
+		logger:        logger.WithName("log-tracing"),
 		Namespace:     namespace,
 		PodName:       podName,
 		ContainerName: containerName,
 		Options:       options,
-		logger:        logger,
 		clientSet:     clientSet,
 	}
 }
@@ -60,6 +60,8 @@ func NewTail(namespace, podName, containerName string, logger logr.Logger, clien
 // It's the caller's responsibility to close the logChan (because there may be more
 // instances of this method (go routines) writing to the same channel.
 func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow bool) error {
+	logger := t.logger.WithName("Start")
+
 	var ident string
 	var mode string
 	if t.Options.Namespace {
@@ -70,7 +72,7 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 		mode = "local"
 	}
 
-	t.logger.Info("starting the tail for pod " + t.PodName)
+	logger.V(1).Info("starting the tail for pod " + t.PodName)
 
 	req := t.clientSet.CoreV1().Pods(t.Namespace).GetLogs(t.PodName, &corev1.PodLogOptions{
 		Follow:       follow,
@@ -88,15 +90,15 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 
 	reader := bufio.NewReader(stream)
 
-	t.logger.Info(fmt.Sprintf("now tracking %s %s", mode, ident))
+	logger.V(1).Info(fmt.Sprintf("now tracking %s %s", mode, ident))
 OUTER:
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
-				t.logger.Info("tailer reached end of logs", "container", ident)
+				logger.V(1).Info("tailer reached end of logs", "container", ident)
 			} else {
-				t.logger.Error(err, "reading failed")
+				logger.Error(err, "reading failed")
 			}
 			return nil
 		}
@@ -122,7 +124,8 @@ OUTER:
 			}
 		}
 
-		t.logger.Info("passing", "container", ident, "", str)
+		logger.V(3).Info("passing", "container", ident, "", str)
+
 		logChan <- ContainerLogLine{
 			Message:       str,
 			ContainerName: t.ContainerName,

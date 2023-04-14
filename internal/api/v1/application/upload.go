@@ -43,14 +43,14 @@ var validArchiveTypes = []string{
 // it creates the k8s resources needed for staging
 func Upload(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	logger := requestctx.Logger(ctx).WithName("Upload")
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
 
-	log.Info("processing upload", "namespace", namespace, "app", name)
+	logger.V(1).Info("processing upload", "namespace", namespace, "app", name)
 
-	log.V(2).Info("parsing multipart form")
+	logger.V(2).Info("parsing multipart form")
 
 	file, fileheader, err := c.Request.FormFile("file")
 	if err != nil {
@@ -90,7 +90,7 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 
-	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
+	logger.V(1).Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
 	response.OKReturn(c, models.UploadResponse{
 		BlobUID: blobUID,

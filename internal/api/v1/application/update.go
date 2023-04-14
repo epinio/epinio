@@ -37,7 +37,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	username := requestctx.User(ctx).Username
-	log := requestctx.Logger(ctx)
+	logger := requestctx.Logger(ctx).WithName("Logger")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -62,7 +62,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		return apierror.NewBadRequestError(err.Error())
 	}
 
-	log.Info("updating app", "namespace", namespace, "app", appName, "request", updateRequest)
+	logger.V(1).Info("updating app", "namespace", namespace, "app", appName, "request", updateRequest)
 
 	if updateRequest.Instances != nil && *updateRequest.Instances < 0 {
 		return apierror.NewBadRequestError("instances param should be integer equal or greater than zero")
@@ -83,7 +83,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		updateRequest.Routes == nil &&
 		updateRequest.AppChart == "" {
 
-		log.Info("updating app -- no changes")
+		logger.V(1).Info("updating app -- no changes")
 		response.OK(c)
 		return nil
 	}
@@ -149,7 +149,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 				"value": "%s" }]`,
 			updateRequest.AppChart)
 
-		log.Info("updating app", "app chart patch", patch)
+		logger.V(1).Info("updating app", "app chart patch", patch)
 
 		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {
@@ -157,13 +157,13 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		}
 	}
 
-	desired, err := updateInstances(ctx, log, updateRequest.Instances, cluster, appRef)
+	desired, err := updateInstances(ctx, logger, updateRequest.Instances, cluster, appRef)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if len(updateRequest.Environment) > 0 {
-		log.Info("updating app", "environment", updateRequest.Environment)
+		logger.V(1).Info("updating app", "environment", updateRequest.Environment)
 
 		err := application.EnvironmentSet(ctx, cluster, app.Meta, updateRequest.Environment, true)
 		if err != nil {
@@ -174,7 +174,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	if updateRequest.Configurations != nil {
 		var okToBind []string
 
-		log.Info("updating app", "configurations", updateRequest.Configurations)
+		logger.V(1).Info("updating app", "configurations", updateRequest.Configurations)
 
 		if len(updateRequest.Configurations) > 0 {
 			for _, configurationName := range updateRequest.Configurations {
@@ -224,7 +224,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 			"value": [%s] }]`,
 			strings.Join(routes, ","))
 
-		log.Info("updating app", "route patch", patch)
+		logger.V(1).Info("updating app", "route patch", patch)
 
 		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {
@@ -250,7 +250,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 			"value": {%s} }]`,
 			strings.Join(values, ","))
 
-		log.Info("updating app", "settings patch", patch)
+		logger.V(1).Info("updating app", "settings patch", patch)
 
 		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {
@@ -263,7 +263,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	// (as there are no pods).
 
 	if app.Workload != nil || desired > 0 {
-		log.Info("updating app -- redeploy")
+		logger.V(1).Info("updating app -- redeploy")
 
 		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
 		if apierr != nil {
@@ -275,13 +275,13 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	return nil
 }
 
-func updateInstances(ctx context.Context, log logr.Logger, instances *int32, cluster *kubernetes.Cluster, app models.AppRef) (int32, error) {
+func updateInstances(ctx context.Context, logger logr.Logger, instances *int32, cluster *kubernetes.Cluster, app models.AppRef) (int32, error) {
 	if instances == nil {
 		return 0, nil
 	}
 
 	desired := *instances
-	log.Info("updating app", "desired instances", desired)
+	logger.V(1).Info("updating app", "desired instances", desired)
 
 	// Save to configuration
 	err := application.ScalingSet(ctx, cluster, app, desired)

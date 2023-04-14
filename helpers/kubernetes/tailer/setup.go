@@ -57,7 +57,9 @@ type ContainerLogLine struct {
 // FetchLogs writes all the logs of the matching containers to the logChan.
 // If ctx is Done() the method stops even if not all logs are fetched.
 func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
-	logger := requestctx.Logger(ctx).WithName("fetching-logs").V(3)
+	logger := requestctx.Logger(ctx).WithName("FetchLogs")
+	logger.Info("starting fetching logs")
+
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
@@ -65,7 +67,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 		return errors.New("no namespace set for tailing logs")
 	}
 
-	logger.Info("list pods")
+	logger.V(1).Info("list pods")
 	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
 		ctx, metav1.ListOptions{LabelSelector: config.LabelSelector.String()})
 	if err != nil {
@@ -74,8 +76,11 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 
 	tails := []*Tail{}
 	newTail := func(pod corev1.Pod, c corev1.Container) *Tail {
-		return NewTail(pod.Namespace, pod.Name, c.Name,
-			requestctx.Logger(ctx).WithName("log-tracing").V(4),
+		return NewTail(
+			logger,
+			pod.Namespace,
+			pod.Name,
+			c.Name,
 			cluster.Kubectl,
 			&TailOptions{
 				Timestamps:   config.Timestamps,
@@ -89,16 +94,17 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 
 	acceptable := func(c corev1.Container) bool {
 		if !config.ContainerQuery.MatchString(c.Name) {
+			logger.Info("not acceptable: ContainerQuery not matching name", "container", c.Name)
 			return false
 		}
-		if config.ExcludeContainerQuery != nil &&
-			config.ExcludeContainerQuery.MatchString(c.Name) {
+		if config.ExcludeContainerQuery != nil && config.ExcludeContainerQuery.MatchString(c.Name) {
+			logger.Info("not acceptable: ExcludeContainerQuery matching name", "container", c.Name)
 			return false
 		}
 		return true
 	}
 
-	logger.Info("filter pods, containers")
+	logger.V(1).Info("filter pods, containers")
 
 	for _, pod := range podList.Items {
 		for _, c := range pod.Spec.InitContainers {
@@ -107,7 +113,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 			}
 			tails = append(tails, newTail(pod, c))
 
-			logger.Info("have", "namespace", pod.Namespace, "pod", pod.Name, "container", c.Name)
+			logger.V(2).Info("keeping logs for init pod/container", "namespace", pod.Namespace, "pod", pod.Name, "container", c.Name)
 		}
 		for _, c := range pod.Spec.Containers {
 			if !acceptable(c) {
@@ -115,15 +121,15 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 			}
 			tails = append(tails, newTail(pod, c))
 
-			logger.Info("have", "namespace", pod.Namespace, "pod", pod.Name, "container", c.Name)
+			logger.V(2).Info("keeping logs for pod/container", "namespace", pod.Namespace, "pod", pod.Name, "container", c.Name)
 		}
 	}
 
 	if config.Ordered {
-		logger.Info("fetch in order")
+		logger.V(1).Info("fetch in order")
 
 		for _, t := range tails {
-			logger.Info("tail", "namespace", t.Namespace, "pod", t.PodName, "container", t.ContainerName)
+			logger.V(2).Info("tailing logs", "namespace", t.Namespace, "pod", t.PodName, "container", t.ContainerName)
 
 			err := t.Start(ctx, logChan, false)
 			if err != nil {
@@ -135,7 +141,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 	}
 
 	for _, t := range tails {
-		logger.Info("tail", "namespace", t.Namespace, "pod", t.PodName, "container", t.ContainerName)
+		logger.V(2).Info("tail", "namespace", t.Namespace, "pod", t.PodName, "container", t.ContainerName)
 
 		wg.Add(1)
 		go func(tail *Tail) {
@@ -154,7 +160,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 // logChan.  The containers are determined by an internal watcher
 // polling the cluster for pod __changes__.
 func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
-	logger := requestctx.Logger(ctx).WithName("tail-handling").V(3)
+	logger := requestctx.Logger(ctx).WithName("tail-handling")
 
 	var namespace string
 	if config.AllNamespaces {
@@ -163,7 +169,7 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 		return errors.New("no namespace set for tailing logs")
 	}
 
-	logger.Info("start watcher",
+	logger.V(1).Info("start watcher",
 		"pods", config.PodQuery.String(),
 		"containers", config.ContainerQuery.String(),
 		"excluded", config.ExcludeContainerQuery.String(),
@@ -178,10 +184,9 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 
 	tails := make(map[string]*Tail)
 
-	logger.Info("await reports")
-	defer func() {
-		logger.Info("report processing ends")
-	}()
+	logger.V(2).Info("await reports")
+	defer logger.V(2).Info("report processing ends")
+
 	for {
 		select {
 		case p := <-added:
@@ -190,10 +195,13 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 				continue
 			}
 
-			logger.Info("tailer add", "id", id)
+			logger.V(2).Info("tailer add", "id", id)
 
-			tail := NewTail(p.Namespace, p.Pod, p.Container,
-				requestctx.Logger(ctx).WithName("log-tracing"),
+			tail := NewTail(
+				logger,
+				p.Namespace,
+				p.Pod,
+				p.Container,
 				cluster.Kubectl,
 				&TailOptions{
 					Timestamps:   config.Timestamps,
@@ -202,21 +210,22 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 					Include:      config.Include,
 					Namespace:    config.AllNamespaces,
 					TailLines:    config.TailLines,
-				})
+				},
+			)
 			tails[id] = tail
 
 			wg.Add(1)
 			go func(id string) {
-				logger.Info("tailer start", "id", id)
+				logger.V(2).Info("tailer start", "id", id)
 				err := tail.Start(ctx, logChan, true)
 				if err != nil {
 					logger.Error(err, "failed to start a Tail")
 				}
-				logger.Info("tailer done", "id", id)
+				logger.V(2).Info("tailer done", "id", id)
 				wg.Done()
 			}(id)
 
-			logger.Info("tailer added", "id", id)
+			logger.V(2).Info("tailer added", "id", id)
 
 		case p := <-removed:
 			id := p.GetID()
@@ -224,13 +233,13 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 				continue
 			}
 
-			logger.Info("tailer remove", "id", id)
+			logger.V(2).Info("tailer remove", "id", id)
 
 			delete(tails, id)
 
-			logger.Info("tailer removed", "id", id)
+			logger.V(2).Info("tailer removed", "id", id)
 		case <-ctx.Done():
-			logger.Info("received stop request")
+			logger.V(2).Info("received stop request")
 			return nil
 		}
 	}

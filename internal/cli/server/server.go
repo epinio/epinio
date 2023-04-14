@@ -86,7 +86,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		})
 	}
 
-	ginLogger := ginlogr.Ginlogr(logger, time.RFC3339, true)
+	ginLogger := Ginlogr(logger, time.RFC3339, true)
 	ginRecoveryLogger := ginlogr.RecoveryWithLogr(logger, time.RFC3339, true, true)
 
 	// Register routes
@@ -342,7 +342,8 @@ func getRoleFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvide
 
 	pg, err := oidcProvider.GetProviderGroups(providerID)
 	if err != nil {
-		logger.Info(
+		logger.Error(
+			err,
 			"error getting provider groups",
 			"provider", providerID,
 		)
@@ -432,7 +433,8 @@ func tokenAuthMiddleware(ctx *gin.Context) {
 		}
 
 		// detailed log message
-		logger.V(2).Info(apiErr.Title, "error", err.Error())
+		logger.Error(err, apiErr.Title)
+
 		// not too specific log message for unauthorized client
 		response.Error(ctx, apiErr)
 		ctx.Abort()
