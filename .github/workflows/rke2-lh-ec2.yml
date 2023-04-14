@@ -82,11 +82,6 @@ jobs:
       - linter
     runs-on: [self-hosted, epinio]
 
-    outputs:
-      # Stores what's needed by another steps and jobs
-      EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
-      EC2_PUBLIC_HOSTNAMES: ${{ steps.provision-ec2-instances.outputs.EC2_PUBLIC_HOSTNAMES }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v3
