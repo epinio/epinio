@@ -28,10 +28,10 @@ on:
         type: choice
         description: "Keep the cluster afterwards?"
         required: true
-        default: 'No'
+        default: 'Delete'
         options:
-        - No
-        - Yes
+        - Delete
+        - Keep
 
 env:
   SETUP_GO_VERSION: '~1.19'
@@ -135,7 +135,7 @@ jobs:
         run: |
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
-          echo "RUN_ID: ${{ steps.create-cluster.outputs.ID }}"
+          echo "RUN_ID: $id"
           gcloud container clusters create epinioci$id \
           --disk-size 100 \
           --num-nodes=1 \
@@ -180,8 +180,8 @@ jobs:
 
       - name: Delete GKE cluster
         # We always tear down the cluster, to avoid costs. Except when running
-        # manually and keep_cluster was set to a non-empty string, like "yes"
-        if: ${{ always() && github.event.inputs.keep_cluster == 'No' }}
+        # manually and keep_cluster was set to "Keep"
+        if: ${{ always() && github.event.inputs.keep_cluster != 'Keep' }}
         run: |
           export RUN_ID=${{ steps.create-cluster.outputs.ID }}
           export RUN_PCP="GKE"
