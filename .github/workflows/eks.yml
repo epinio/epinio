@@ -29,8 +29,8 @@ on:
         required: true
         default: 'No'
         options:
-        - No
-        - Yes
+        - 'No'
+        - 'Yes'
 
 env:
   SETUP_GO_VERSION: '~1.19'
@@ -179,7 +179,7 @@ jobs:
       - name: Delete EKS cluster
         # We always tear down the cluster, to avoid costs. Except when running
         # manually and keep_cluster was set to a non-empty string, like "yes"
-        if: ${{ always() && github.event.inputs.keep_cluster == 'No' }}
+        if: ${{ always() && github.event.inputs.keep_cluster != 'Yes' }}
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_NAME }}
         run: |
