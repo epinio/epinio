@@ -27,10 +27,10 @@ on:
         type: choice
         description: "Keep the cluster afterwards?"
         required: true
-        default: 'No'
+        default: 'Delete'
         options:
-        - 'No'
-        - 'Yes'
+        - Delete
+        - Keep
 
 env:
   SETUP_GO_VERSION: '~1.19'
@@ -166,8 +166,8 @@ jobs:
 
       - name: Delete GKE cluster
         # We always tear down the cluster, to avoid costs. Except when running
-        # manually and keep_cluster was set to a non-empty string, like "yes"
-        if: ${{ always() && github.event.inputs.keep_cluster != 'Yes' }}
+        # manually and keep_cluster was set to "Keep"
+        if: ${{ always() && github.event.inputs.keep_cluster != 'Keep' }}
         run: |
           export RUN_ID=${{ steps.create-cluster.outputs.ID }}
           export RUN_PCP="GKE"
