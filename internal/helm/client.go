@@ -2,7 +2,6 @@ package helm
 
 import (
 	"context"
-	"fmt"
 
 	hc "github.com/mittwald/go-helm-client"
 	"helm.sh/helm/v3/pkg/action"
@@ -16,14 +15,8 @@ var _ hc.Client = (*SynchronizedClient)(nil)
 
 // InstallOrUpgradeChart implements helmclient.Client
 func (c *SynchronizedClient) InstallOrUpgradeChart(ctx context.Context, spec *hc.ChartSpec, opts *hc.GenericHelmOptions) (*release.Release, error) {
-	fmt.Printf("INSTALLING %s, ACQUIRING LOCK\n", spec.ReleaseName)
-
 	c.m.Lock()
-	defer func(c *SynchronizedClient) {
-		fmt.Printf("DONE %s, LEAVING LOCK\n", spec.ReleaseName)
-		c.m.Unlock()
-		fmt.Println("UNLOCKED")
-	}(c)
+	defer c.m.Unlock()
 
 	return c.helmClient.InstallOrUpgradeChart(ctx, spec, opts)
 }

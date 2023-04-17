@@ -390,6 +390,7 @@ func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster
 var syncNamespaceClientMap sync.Map
 
 type SynchronizedClient struct {
+	namespace  string
 	m          sync.Mutex
 	helmClient hc.Client
 }
@@ -413,11 +414,14 @@ func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string
 		return nil, err
 	}
 
-	return NewNamespaceSynchronizedHelmClient(namespace, helmClient)
+	return GetNamespaceSynchronizedHelmClient(namespace, helmClient)
 }
 
-func NewNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client) (*SynchronizedClient, error) {
-	synchronizedHelmClient := &SynchronizedClient{helmClient: helmClient}
+func GetNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client) (*SynchronizedClient, error) {
+	synchronizedHelmClient := &SynchronizedClient{
+		namespace:  namespace,
+		helmClient: helmClient,
+	}
 
 	// we are loading the SynchronizedClient for this namespace, if any
 	loadedSynchronizedHelmClient, _ := syncNamespaceClientMap.LoadOrStore(namespace, synchronizedHelmClient)

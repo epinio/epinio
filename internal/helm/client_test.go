@@ -13,10 +13,10 @@ package helm_test
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/golang/mock/gomock"
 	hc "github.com/mittwald/go-helm-client"
@@ -29,11 +29,13 @@ import (
 
 var _ = FDescribe("SynchronizedClient", func() {
 	var (
+		ctx        context.Context
 		mockCtrl   *gomock.Controller
 		mockClient *hcmock.MockClient
 	)
 
 	BeforeEach(func() {
+		ctx = context.Background()
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockClient = hcmock.NewMockClient(mockCtrl)
 	})
@@ -53,173 +55,193 @@ var _ = FDescribe("SynchronizedClient", func() {
 		return fakeRelease
 	}
 
-	It("should wait for releases in the same namespace", func() {
-		ctx := context.Background()
-		namespace := "namespace"
+	When("getting a namespace synchronized client", func() {
 
-		// setup the mock with a couple of releases
+		It("should return the same client from the same namespace", func() {
+			namespace := catalog.NewNamespaceName()
 
-		// release2s will take 2s
-		release2s := setupMockRelease(ctx, "release-2s", 2*time.Second)
-		// release3s will take 3s
-		release3s := setupMockRelease(ctx, "release-3s", 3*time.Second)
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			Expect(err).To(BeNil())
 
-		// create a synch client
-		syncClient, err := helm.NewNamespaceSynchronizedHelmClient(namespace, mockClient)
-		Expect(err).To(BeNil())
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			Expect(err).To(BeNil())
 
-		// Begin TEST!
-		wg := &sync.WaitGroup{}
+			Expect(syncClient1).To(Equal(syncClient2))
+		})
 
-		// let's see how long the two installation are taking
-		// since they are done in the same namespace they should take 2s + 3s
-		start := time.Now()
+		It("should return a different client from different namespaces", func() {
+			namespace1 := catalog.NewNamespaceName()
+			namespace2 := catalog.NewNamespaceName()
 
-		// release2s will take 2s
-		wg.Add(1)
-		go func(wg *sync.WaitGroup) {
-			defer GinkgoRecover()
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
+			Expect(err).To(BeNil())
 
-			syncClient.InstallOrUpgradeChart(ctx, release2s, nil)
-			fmt.Fprintln(GinkgoWriter, "done release2s")
-			wg.Done()
-		}(wg)
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient)
+			Expect(err).To(BeNil())
 
-		// and release3s this will take 3s
-		wg.Add(1)
-		go func(wg *sync.WaitGroup) {
-			defer GinkgoRecover()
-
-			syncClient.InstallOrUpgradeChart(ctx, release3s, nil)
-			fmt.Fprintln(GinkgoWriter, "done release3s")
-			wg.Done()
-		}(wg)
-
-		wg.Wait()
-
-		// at the end the elapsed time should be greater than 5s!
-		elapsed := time.Since(start)
-		Expect(elapsed).To(BeNumerically(">=", 5*time.Second))
+			Expect(syncClient1).To(Not(Equal(syncClient2)))
+		})
 	})
 
-	FIt("should not wait for releases in different namespaces and to them concurrently", func() {
-		ctx := context.Background()
-		namespace1 := "namespace1"
-		namespace2 := "namespace2"
+	When("installing or upgrading chart", func() {
 
-		// setup the mock with a couple of releases
+		It("should wait for releases in the same namespace", func() {
+			// setup the mock with a couple of releases
 
-		// releaseOne3s will take 3s
-		releaseOne3s := setupMockRelease(ctx, "release-ns1-3s", 3*time.Second)
-		// releaseTwo3s will take 3s
-		releaseTwo3s := setupMockRelease(ctx, "release-ns2-3s", 3*time.Second)
+			// release2s will take 2s
+			release2s := setupMockRelease(ctx, "release-2s", 2*time.Second)
+			// release3s will take 3s
+			release3s := setupMockRelease(ctx, "release-3s", 3*time.Second)
 
-		// create two sync client
-		syncClient1, err := helm.NewNamespaceSynchronizedHelmClient(namespace1, mockClient)
-		Expect(err).To(BeNil())
-		syncClient2, err := helm.NewNamespaceSynchronizedHelmClient(namespace2, mockClient)
-		Expect(err).To(BeNil())
+			// create a sync client
+			namespace := catalog.NewNamespaceName()
+			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			Expect(err).To(BeNil())
 
-		// Begin TEST!
-		wg := &sync.WaitGroup{}
+			// Begin TEST!
 
-		// let's see how long the two installation are taking
-		// since they are done in the same namespace they should take 2s + 3s
-		start := time.Now()
+			wg := &sync.WaitGroup{}
 
-		// releaseOne3s will take 3s
-		wg.Add(1)
-		go func(wg *sync.WaitGroup) {
-			defer GinkgoRecover()
+			// let's see how long the two installation are taking
+			// since they are done in the same namespace they should take 2s + 3s
+			start := time.Now()
 
-			syncClient1.InstallOrUpgradeChart(ctx, releaseOne3s, nil)
-			fmt.Fprintln(GinkgoWriter, "done releaseOne3s")
-			wg.Done()
-		}(wg)
+			// release2s will take 2s
+			wg.Add(1)
+			go func(wg *sync.WaitGroup) {
+				defer GinkgoRecover()
 
-		// and releaseTwo3s this will take 3s
-		wg.Add(1)
-		go func(wg *sync.WaitGroup) {
-			defer GinkgoRecover()
+				syncClient.InstallOrUpgradeChart(ctx, release2s, nil)
+				wg.Done()
+			}(wg)
 
-			syncClient2.InstallOrUpgradeChart(ctx, releaseTwo3s, nil)
-			fmt.Fprintln(GinkgoWriter, "done releaseTwo3s")
-			wg.Done()
-		}(wg)
+			// release3s will take 3s
+			wg.Add(1)
+			go func(wg *sync.WaitGroup) {
+				defer GinkgoRecover()
 
-		wg.Wait()
+				syncClient.InstallOrUpgradeChart(ctx, release3s, nil)
+				wg.Done()
+			}(wg)
 
-		// at the end the elapsed time should be greater than 3s but less than 4s!
-		elapsed := time.Since(start)
-		Expect(elapsed).To(BeNumerically(">=", 3*time.Second))
-		Expect(elapsed).To(BeNumerically("<", 4*time.Second))
-	})
+			wg.Wait()
 
-	FIt("should not wait for releases in the same namespace and to them concurrently, while waiting for the same", func() {
-		ctx := context.Background()
-		namespace1 := "namespace1"
-		namespace2 := "namespace2"
+			// the elapsed time should be greater than 5s
+			elapsed := time.Since(start)
+			Expect(elapsed).To(BeNumerically(">=", 5*time.Second))
+		})
 
-		syncClient1, err := helm.NewNamespaceSynchronizedHelmClient(namespace1, mockClient)
-		Expect(err).To(BeNil())
+		It("should not wait for releases in different namespaces and to them concurrently", func() {
+			// setup the mock with a couple of releases
 
-		syncClient2, err := helm.NewNamespaceSynchronizedHelmClient(namespace2, mockClient)
-		Expect(err).To(BeNil())
+			// releaseOne3s will take 3s in the first namespace
+			releaseOne3s := setupMockRelease(ctx, "release-ns1-3s", 3*time.Second)
+			// releaseTwo3s will take 3s in the second namespace
+			releaseTwo3s := setupMockRelease(ctx, "release-ns2-3s", 3*time.Second)
 
-		// setup the mock with a couple of releases
+			// create two sync client
+			namespace1 := catalog.NewNamespaceName()
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
+			Expect(err).To(BeNil())
 
-		// releaseFoo2s will take 2s
-		releaseFoo2s := setupMockRelease(ctx, "release-foo-2s", 2*time.Second)
-		// releaseBar2s will take 2s
-		releaseBar2s := setupMockRelease(ctx, "release-bar-2s", 2*time.Second)
-		// release3s will take 3s
-		release3s := setupMockRelease(ctx, "release-3s", 3*time.Second)
+			namespace2 := catalog.NewNamespaceName()
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient)
+			Expect(err).To(BeNil())
 
-		// Begin TEST!
-		wg := &sync.WaitGroup{}
+			// Begin TEST!
+			wg := &sync.WaitGroup{}
 
-		// let's see how long the two installation are taking
-		// since they are done in the same namespace they should take 2s + 3s
-		start := time.Now()
+			// let's see how long the two installation are taking
+			// since they are done in two different namespaces they should take 3s in total
+			// because they will be done concurrently
+			start := time.Now()
 
-		// releaseFoo2s will take 2s
-		wg.Add(1)
-		go func(wg *sync.WaitGroup) {
-			defer GinkgoRecover()
+			// releaseOne3s will take 3s
+			wg.Add(1)
+			go func(wg *sync.WaitGroup) {
+				defer GinkgoRecover()
 
-			fmt.Fprintln(GinkgoWriter, "installing releaseFoo2s")
-			syncClient1.InstallOrUpgradeChart(ctx, releaseFoo2s, nil)
-			fmt.Fprintln(GinkgoWriter, "done releaseFoo2s")
-			wg.Done()
-		}(wg)
+				syncClient1.InstallOrUpgradeChart(ctx, releaseOne3s, nil)
+				wg.Done()
+			}(wg)
 
-		// releaseBar2s will take 2s
-		wg.Add(1)
-		go func(wg *sync.WaitGroup) {
-			defer GinkgoRecover()
+			// releaseTwo3s will take 3s
+			wg.Add(1)
+			go func(wg *sync.WaitGroup) {
+				defer GinkgoRecover()
 
-			fmt.Fprintln(GinkgoWriter, "installing releaseBar2s")
-			syncClient1.InstallOrUpgradeChart(ctx, releaseBar2s, nil)
-			fmt.Fprintln(GinkgoWriter, "done releaseBar2s")
-			wg.Done()
-		}(wg)
+				syncClient2.InstallOrUpgradeChart(ctx, releaseTwo3s, nil)
+				wg.Done()
+			}(wg)
 
-		// and release3s will take 3s
-		wg.Add(1)
-		go func(wg *sync.WaitGroup) {
-			defer GinkgoRecover()
+			wg.Wait()
 
-			fmt.Fprintln(GinkgoWriter, "installing release3s")
-			syncClient2.InstallOrUpgradeChart(ctx, release3s, nil)
-			fmt.Fprintln(GinkgoWriter, "done release3s")
-			wg.Done()
-		}(wg)
+			// at the end the elapsed time should be greater than 3s but less than 4s!
+			elapsed := time.Since(start)
+			Expect(elapsed).To(BeNumerically(">=", 3*time.Second))
+			Expect(elapsed).To(BeNumerically("<", 4*time.Second))
+		})
 
-		wg.Wait()
+		It("should not wait for releases in different namespaces and to them concurrently, while waiting for the one in the same", func() {
+			// setup the mock with three releases
 
-		// at the end the elapsed time should be greater than 4s but less than 5s!
-		elapsed := time.Since(start)
-		Expect(elapsed).To(BeNumerically(">=", 4*time.Second))
-		Expect(elapsed).To(BeNumerically("<", 5*time.Second))
+			// release1s will take 1s
+			release1s := setupMockRelease(ctx, "release-1s", 1*time.Second)
+			// release3s will take 3s
+			release3s := setupMockRelease(ctx, "release-3s", 3*time.Second)
+			// release5s will take 5s
+			release5s := setupMockRelease(ctx, "release-5s", 5*time.Second)
+
+			// create two sync client
+			namespace1 := catalog.NewNamespaceName()
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
+			Expect(err).To(BeNil())
+
+			namespace2 := catalog.NewNamespaceName()
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient)
+			Expect(err).To(BeNil())
+
+			// Begin TEST!
+			wg := &sync.WaitGroup{}
+
+			// let's see how long the installation will take
+			// since the first two are done in the same namespace they should take 1s + 3s
+			// and the other one whould take 5s. Total should be 5s!
+			start := time.Now()
+
+			// release1s will take 1s in NS 1
+			wg.Add(1)
+			go func(wg *sync.WaitGroup) {
+				defer GinkgoRecover()
+
+				syncClient1.InstallOrUpgradeChart(ctx, release1s, nil)
+				wg.Done()
+			}(wg)
+
+			// release3s will take 3s in NS 1
+			wg.Add(1)
+			go func(wg *sync.WaitGroup) {
+				defer GinkgoRecover()
+
+				syncClient1.InstallOrUpgradeChart(ctx, release3s, nil)
+				wg.Done()
+			}(wg)
+
+			// and release5s will take 5s in NS 2
+			wg.Add(1)
+			go func(wg *sync.WaitGroup) {
+				defer GinkgoRecover()
+
+				syncClient2.InstallOrUpgradeChart(ctx, release5s, nil)
+				wg.Done()
+			}(wg)
+
+			wg.Wait()
+
+			// at the end the elapsed time should be greater than 4s but less than 6s!
+			elapsed := time.Since(start)
+			Expect(elapsed).To(BeNumerically(">=", 4*time.Second))
+			Expect(elapsed).To(BeNumerically("<", 6*time.Second))
+		})
 	})
 })
