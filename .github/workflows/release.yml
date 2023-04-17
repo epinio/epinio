@@ -24,7 +24,7 @@ permissions:
 
 env:
   SETUP_GO_VERSION: '~1.19'
-  SETUP_GO_TIMEOUT_MINUTES: 5
+  SETUP_GO_TIMEOUT_MINUTES: '5'
 
 jobs:
   release:

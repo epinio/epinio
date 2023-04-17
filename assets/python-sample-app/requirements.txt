@@ -1,0 +1,13 @@
+# ########################################################################################
+# APPLICATION REFS
+# ########################################################################################
+# Please verify that your pypi lib exists in Artifactory Repo:
+#   http://artifactory.bcbsfl.com/artifactory/api/pypi/pypi-libs/simple
+# If not, get with the Artifactory Admins to have the Repo updated with the new libs.
+
+# Place your pypi libraries below
+# ########################################################################################
+
+#--index-url https://artifactory.bcbsfl.com/artifactory/api/pypi/pypi-libs-virtual/simple --trusted-host artifactory.bcbsfl.com
+#pip==10
+
