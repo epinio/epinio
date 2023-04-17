@@ -34,6 +34,7 @@ on:
 env:
   EPINIO_RELEASED: true
   SETUP_GO_VERSION: '~1.19'
+  SETUP_GO_TIMEOUT_MINUTES: 5
   GINKGO_NODES: 2
   INGRESS_CONTROLLER: traefik
 
@@ -49,6 +50,7 @@ jobs:
 
       - name: Setup Go
         uses: actions/setup-go@v4
+        timeout-minutes: ${{ env.SETUP_GO_TIMEOUT_MINUTES }}
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 

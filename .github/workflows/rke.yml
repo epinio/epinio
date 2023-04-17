@@ -30,7 +30,9 @@ on:
 
 env:
   SETUP_GO_VERSION: '~1.19'
+  SETUP_GO_TIMEOUT_MINUTES: 5
   GOLANGCI_LINT_VERSION: v1.52
+  GOLANGCI_LINT_TIMEOUT_MINUTES: 5
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
@@ -47,6 +49,7 @@ jobs:
 
       - name: Setup Go
         uses: actions/setup-go@v4
+        timeout-minutes: ${{ env.SETUP_GO_TIMEOUT_MINUTES }}
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
@@ -65,6 +68,7 @@ jobs:
 
       - name: Lint Epinio
         uses: golangci/golangci-lint-action@v3.4.0
+        timeout-minutes: ${{ env.GOLANGCI_LINT_TIMEOUT_MINUTES }}
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           args: --timeout=10m --skip-files docs.go
@@ -88,6 +92,7 @@ jobs:
 
       - name: Setup Go
         uses: actions/setup-go@v4
+        timeout-minutes: ${{ env.SETUP_GO_TIMEOUT_MINUTES }}
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 

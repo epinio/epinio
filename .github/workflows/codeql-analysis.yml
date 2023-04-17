@@ -13,6 +13,7 @@ name: "CodeQL"
 
 env:
   SETUP_GO_VERSION: '~1.19'
+  SETUP_GO_TIMEOUT_MINUTES: 5
 
 on:
   workflow_dispatch:
@@ -47,6 +48,7 @@ jobs:
 
     - name: Setup Go
       uses: actions/setup-go@v4
+      timeout-minutes: ${{ env.SETUP_GO_TIMEOUT_MINUTES }}
       with:
         go-version: ${{ env.SETUP_GO_VERSION }}
 

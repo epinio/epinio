@@ -37,6 +37,7 @@ on:
 
 env:
   SETUP_GO_VERSION: '~1.19'
+  SETUP_GO_TIMEOUT_MINUTES: 5
   EKS_REGION: ${{ secrets.EKS_REGION }}
 
 jobs:
@@ -52,7 +53,8 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
+        timeout-minutes: ${{ env.SETUP_GO_TIMEOUT_MINUTES }}
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
