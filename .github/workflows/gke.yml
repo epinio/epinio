@@ -38,7 +38,8 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
-  KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
+  KUBECONFIG_NAME: 'kubeconfig-epinio-ci' # Needed for delete_clusters.go
+  KUBECONFIG: ${{ github.workspace }}/kubeconfig-epinio-ci
   GKE_ZONE: ${{ secrets.GKE_ZONE }}
   GKE_MACHINE_TYPE: 'n2-standard-4'
   GKE_NETWORK: 'epinio-ci'
@@ -143,7 +144,6 @@ jobs:
           USE_GKE_GCLOUD_AUTH_PLUGIN: True
         run: |
           id=${{ steps.create-cluster.outputs.ID }}
-          export KUBECONFIG=${{ env.KUBECONFIG_NAME }}
           gcloud container clusters get-credentials epinioci$id --zone ${{ env.GKE_ZONE }} --project ${{ secrets.EPCI_GKE_PROJECT }}
 
       - name: Installation Acceptance Tests
@@ -161,7 +161,6 @@ jobs:
           # EXTRAENV_VALUE: 12345
         run: |
           echo "System Domain: $GKE_DOMAIN"
-          export KUBECONFIG=${{ env.KUBECONFIG_NAME }}
           make test-acceptance-install
 
       - name: Delete GKE cluster
@@ -175,5 +174,4 @@ jobs:
           export GKE_DOMAIN=${{ secrets.GKE_DOMAIN }}
           export GKE_ZONE=${{ secrets.GKE_ZONE }}
           export EPCI_GKE_PROJECT=${{ secrets.EPCI_GKE_PROJECT }}
-          export KUBECONFIG_NAME=${{ env.KUBECONFIG_NAME }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go
