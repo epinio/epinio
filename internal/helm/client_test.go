@@ -57,7 +57,7 @@ var _ = Describe("SynchronizedClient", func() {
 
 	When("getting a namespace synchronized client", func() {
 
-		It("should return the same client from the same namespace", func() {
+		It("should return the same client for the same namespace", func() {
 			namespace := catalog.NewNamespaceName()
 
 			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
@@ -69,7 +69,7 @@ var _ = Describe("SynchronizedClient", func() {
 			Expect(syncClient1).To(Equal(syncClient2))
 		})
 
-		It("should return a different client from different namespaces", func() {
+		It("should return a different client for different namespaces", func() {
 			namespace1 := catalog.NewNamespaceName()
 			namespace2 := catalog.NewNamespaceName()
 
@@ -102,7 +102,7 @@ var _ = Describe("SynchronizedClient", func() {
 
 			wg := &sync.WaitGroup{}
 
-			// let's see how long the two installation are taking
+			// let's see how long the two installations are taking
 			// since they are done in the same namespace they should take 2s + 3s
 			start := time.Now()
 
@@ -131,7 +131,7 @@ var _ = Describe("SynchronizedClient", func() {
 			Expect(elapsed).To(BeNumerically(">=", 5*time.Second))
 		})
 
-		It("should not wait for releases in different namespaces and to them concurrently", func() {
+		It("should not wait for releases in different namespaces and do them concurrently", func() {
 			// setup the mock with a couple of releases
 
 			// releaseOne3s will take 3s in the first namespace
@@ -139,7 +139,7 @@ var _ = Describe("SynchronizedClient", func() {
 			// releaseTwo3s will take 3s in the second namespace
 			releaseTwo3s := setupMockRelease(ctx, "release-ns2-3s", 3*time.Second)
 
-			// create two sync client
+			// create two sync clients
 			namespace1 := catalog.NewNamespaceName()
 			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
 			Expect(err).To(BeNil())
@@ -151,7 +151,7 @@ var _ = Describe("SynchronizedClient", func() {
 			// Begin TEST!
 			wg := &sync.WaitGroup{}
 
-			// let's see how long the two installation are taking
+			// let's see how long the two installations are taking
 			// since they are done in two different namespaces they should take 3s in total
 			// because they will be done concurrently
 			start := time.Now()
@@ -182,7 +182,7 @@ var _ = Describe("SynchronizedClient", func() {
 			Expect(elapsed).To(BeNumerically("<", 4*time.Second))
 		})
 
-		It("should not wait for releases in different namespaces and to them concurrently, while waiting for the one in the same", func() {
+		It("should not wait for releases in different namespaces and do them concurrently, while waiting for the one in the same", func() {
 			// setup the mock with three releases
 
 			// release1s will take 1s
@@ -192,7 +192,7 @@ var _ = Describe("SynchronizedClient", func() {
 			// release5s will take 5s
 			release5s := setupMockRelease(ctx, "release-5s", 5*time.Second)
 
-			// create two sync client
+			// create two sync clients
 			namespace1 := catalog.NewNamespaceName()
 			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
 			Expect(err).To(BeNil())
@@ -204,7 +204,7 @@ var _ = Describe("SynchronizedClient", func() {
 			// Begin TEST!
 			wg := &sync.WaitGroup{}
 
-			// let's see how long the installation will take
+			// let's see how long the installations will take
 			// since the first two are done in the same namespace they should take 1s + 3s
 			// and the other one whould take 5s. Total should be 5s!
 			start := time.Now()
