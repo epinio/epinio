@@ -27,7 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("SynchronizedClient", func() {
+var _ = Describe("SynchronizedClient", func() {
 	var (
 		ctx        context.Context
 		mockCtrl   *gomock.Controller
