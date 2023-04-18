@@ -336,6 +336,26 @@
             "$ref": "#/responses/NamespaceCreateResponse"
           }
         }
+      },
+      "delete": {
+        "summary": "Delete the named namespaces.",
+        "operationId": "NamespaceBatchDelete",
+        "parameters": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "in: url",
+            "name": "Namespaces",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/NamespaceDeleteResponse"
+          }
+        }
       }
     },
     "/namespaces/{Namespace}": {
@@ -1711,6 +1731,9 @@
           "type": "string",
           "x-go-name": "StageID"
         },
+        "stagingstatus": {
+          "$ref": "#/definitions/ApplicationStagingStatus"
+        },
         "status": {
           "$ref": "#/definitions/ApplicationStatus"
         },
@@ -1946,6 +1969,10 @@
           "x-go-name": "Path"
         }
       },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ApplicationStagingStatus": {
+      "type": "string",
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "ApplicationStatus": {
@@ -2499,6 +2526,10 @@
           "type": "integer",
           "format": "int64",
           "x-go-name": "MemoryBytes"
+        },
+        "metricsOk": {
+          "type": "boolean",
+          "x-go-name": "MetricsOk"
         },
         "millicpus": {
           "type": "integer",
