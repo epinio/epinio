@@ -414,6 +414,10 @@ func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string
 		return nil, err
 	}
 
+	return GetNamespaceSynchronizedHelmClient(namespace, helmClient)
+}
+
+func GetNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client) (*SynchronizedClient, error) {
 	synchronizedHelmClient := &SynchronizedClient{
 		namespace:  namespace,
 		helmClient: helmClient,
