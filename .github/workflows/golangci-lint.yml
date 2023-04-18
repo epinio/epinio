@@ -13,9 +13,7 @@ name: golangci-lint
 
 env:
   SETUP_GO_VERSION: '~1.19'
-  SETUP_GO_TIMEOUT_MINUTES: '5'
   GOLANGCI_LINT_VERSION: v1.52
-  GOLANGCI_LINT_TIMEOUT_MINUTES: '5'
 
 on:
   workflow_dispatch:
