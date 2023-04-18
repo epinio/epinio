@@ -56,6 +56,7 @@ jobs:
 
       - name: Setup Go
         uses: actions/setup-go@v4
+        timeout-minutes: 5
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
@@ -74,6 +75,7 @@ jobs:
 
       - name: Lint Epinio
         uses: golangci/golangci-lint-action@v3.4.0
+        timeout-minutes: 5
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           args: --timeout=10m --skip-files docs.go
@@ -97,6 +99,7 @@ jobs:
 
       - name: Setup Go
         uses: actions/setup-go@v4
+        timeout-minutes: 5
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 

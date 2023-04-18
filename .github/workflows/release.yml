@@ -42,6 +42,7 @@ jobs:
 
       - name: Set up Go
         uses: actions/setup-go@v4
+        timeout-minutes: 5
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
