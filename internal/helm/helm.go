@@ -390,8 +390,9 @@ func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster
 var syncNamespaceClientMap sync.Map
 
 type SynchronizedClient struct {
-	namespace  string
-	m          sync.Mutex
+	namespace string
+	// mutexMap is holding the mutexes for the same releases
+	mutexMap   sync.Map
 	helmClient hc.Client
 }
 

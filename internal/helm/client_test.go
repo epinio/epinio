@@ -85,7 +85,7 @@ var _ = Describe("SynchronizedClient", func() {
 
 	When("installing or upgrading chart", func() {
 
-		It("should wait for releases in the same namespace", func() {
+		It("should not wait for different releases in the same namespace", func() {
 			// setup the mock with a couple of releases
 
 			// release2s will take 2s
@@ -103,7 +103,7 @@ var _ = Describe("SynchronizedClient", func() {
 			wg := &sync.WaitGroup{}
 
 			// let's see how long the two installations are taking
-			// since they are done in the same namespace they should take 2s + 3s
+			// since they are done in the same namespace but they are different they should take 3s
 			start := time.Now()
 
 			// release2s will take 2s
@@ -128,7 +128,8 @@ var _ = Describe("SynchronizedClient", func() {
 
 			// the elapsed time should be greater than 5s
 			elapsed := time.Since(start)
-			Expect(elapsed).To(BeNumerically(">=", 5*time.Second))
+			Expect(elapsed).To(BeNumerically(">=", 3*time.Second))
+			Expect(elapsed).To(BeNumerically("<", 4*time.Second))
 		})
 
 		It("should not wait for releases in different namespaces and do them concurrently", func() {
