@@ -13,6 +13,7 @@ package application
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -21,6 +22,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -47,6 +49,31 @@ func Restart(c *gin.Context) apierror.APIErrors {
 
 	if app.Workload == nil {
 		return apierror.NewAPIError("No restart possible for an application without workload", http.StatusBadRequest)
+	}
+
+	if !strings.Contains(app.ImageURL, app.StageID) {
+		// The stage id should be contained in the image url (as image tag).  As it is not
+		// found we conclude that the app was restaged, and restart now has to bring this
+		// version up.
+
+		// Recompute the image url, by replacing the old image tag (= old stage id) with the
+		// new stage id.
+
+		pieces := strings.Split(app.ImageURL, ":")
+		pieces[len(pieces)-1] = app.StageID
+		newImageURL := strings.Join(pieces, ":")
+
+		// .. and save it for `DeployApp` to find.
+
+		appRef := models.NewAppRef(appName, namespace)
+		applicationCR, err := application.Get(ctx, cluster, appRef)
+		if err != nil {
+			return apierror.InternalError(err, "failed to get the application resource")
+		}
+		err = deploy.UpdateImageURL(ctx, cluster, applicationCR, newImageURL)
+		if err != nil {
+			return apierror.InternalError(err, "failed to set application's image url")
+		}
 	}
 
 	nano := time.Now().UnixNano()
