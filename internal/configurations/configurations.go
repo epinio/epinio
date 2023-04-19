@@ -304,24 +304,32 @@ func forService(ctx context.Context, kubeClient *kubernetes.Cluster, service *mo
 // LabelServiceSecrets will look for the Opaque secrets released with a service, looking for the
 // app.kubernetes.io/instance label, then it will add the Configuration labels to "create" the configurations
 func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
-	// Simplification - Get the secrets to handle via the helper above.
-	filteredSecrets, err := ForServiceUnlabeled(ctx, kubeClient, service)
+	var filteredSecrets []v1.Secret
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Simplification - Get the secrets to handle via the helper above.
+		filteredSecrets, err := ForServiceUnlabeled(ctx, kubeClient, service)
+		if err != nil {
+			return err
+		}
+
+		for _, secret := range filteredSecrets {
+			sec := secret
+
+			// set labels without overriding the old ones
+			sec.GetLabels()[ConfigurationLabelKey] = "true"
+			sec.GetLabels()[ConfigurationTypeLabelKey] = "service"
+			sec.GetLabels()[ConfigurationOriginLabelKey] = service.Meta.Name
+
+			_, err = kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).Update(ctx, &sec, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
-	}
-
-	for _, secret := range filteredSecrets {
-		sec := secret
-
-		// set labels without overriding the old ones
-		sec.GetLabels()[ConfigurationLabelKey] = "true"
-		sec.GetLabels()[ConfigurationTypeLabelKey] = "service"
-		sec.GetLabels()[ConfigurationOriginLabelKey] = service.Meta.Name
-
-		_, err = kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).Update(ctx, &sec, metav1.UpdateOptions{})
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return filteredSecrets, nil
