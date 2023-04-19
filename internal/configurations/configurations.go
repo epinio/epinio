@@ -308,12 +308,12 @@ func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, se
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Simplification - Get the secrets to handle via the helper above.
-		filteredSecrets, err := ForServiceUnlabeled(ctx, kubeClient, service)
+		filteredSecretsLocal, err := ForServiceUnlabeled(ctx, kubeClient, service)
 		if err != nil {
 			return err
 		}
 
-		for _, secret := range filteredSecrets {
+		for _, secret := range filteredSecretsLocal {
 			sec := secret
 
 			// set labels without overriding the old ones
@@ -326,6 +326,8 @@ func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, se
 				return err
 			}
 		}
+
+		filteredSecrets = filteredSecretsLocal
 		return nil
 	})
 	if err != nil {
