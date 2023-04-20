@@ -68,11 +68,11 @@ func Restart(c *gin.Context) apierror.APIErrors {
 		appRef := models.NewAppRef(appName, namespace)
 		applicationCR, err := application.Get(ctx, cluster, appRef)
 		if err != nil {
-			return apierror.InternalError(err, "failed to get the application resource")
+			return apierror.InternalError(err, "getting the application resource")
 		}
 		err = deploy.UpdateImageURL(ctx, cluster, applicationCR, newImageURL)
 		if err != nil {
-			return apierror.InternalError(err, "failed to set application's image url")
+			return apierror.InternalError(err, "updating application's image url")
 		}
 	}
 
