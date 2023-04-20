@@ -17,7 +17,7 @@ on:
     - cron: '0 22 * * *'
 
 env:
-  SETUP_GO_VERSION: '~1.19'
+  SETUP_GO_VERSION: '1.19.8'
 
 jobs:
   release:
