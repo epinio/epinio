@@ -165,7 +165,7 @@ tidy:
 	go mod tidy
 
 fmt:
-	go fmt ./...
+	go fmt ./... ; git checkout -- internal/api/v1/docs/docs.go
 
 patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
