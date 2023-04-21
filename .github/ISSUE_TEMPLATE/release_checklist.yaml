@@ -27,6 +27,30 @@ body:
         ---
 
   - type: checkboxes
+    id: epinio-ui-checklist
+    attributes:
+      label: Epinio UI [OPTIONAL]
+      options:
+        - label: >
+            **( 📝 Manual step )**  Tag the Epinio Dashboard in the `epinio-dev` branch in the `rancher/dashboard`.
+            The tag needs to be in the `epinio-standalone-vX.Y.Z-a.b.c` format.
+            `git tag -a epinio-standalone-vX.Y.Z-a.b.c -m 'epinio-standalone-vX.Y.Z-a.b.c'`
+            Check the release action, and the generated bundle.
+            [LINK](https://github.com/rancher/dashboard/actions/workflows/release-rancher-epinio-standalone.yml)
+            [TAGS](https://github.com/rancher/dashboard/tags)            
+        - label: >
+            **( 📝 Manual step )** Update the UI_BUNDLE_URL in the `epinio/ui-backend` repository to get the latest dashboard.
+            Open a PR and merge it.
+            [LINK](https://github.com/epinio/ui-backend/blob/main/.github/workflows/release.yml)
+        - label: >
+            **( 📝 Manual step )** Tag the `epinio/ui-backend` and check the release action.
+            `git tag -a vX.Y.Z-a.b.c -m 'vX.Y.Z-a.b.c'`
+            [LINK](https://github.com/epinio/ui-backend/actions/workflows/release.yml)
+        - label: >
+            **( 📝 Manual step )** Check the `epinio/helm-charts` pull requests for the latest updates. Merge the PR.
+            [LINK](https://github.com/epinio/helm-charts/pulls?q=is%3Apr+author%3Aapp%2Fgithub-actions)
+
+  - type: checkboxes
     id: epinio-checklist
     attributes:
       label: Epinio
