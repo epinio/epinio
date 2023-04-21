@@ -33,7 +33,8 @@ body:
       options:
         - label: >
             **( 📝 Manual step )**  Tag the Epinio Dashboard in the `epinio-dev` branch in the `rancher/dashboard`.
-            The tag needs to be in the `epinio-standalone-vX.Y.Z-a.b.c` format.
+            The tag needs to be in the `epinio-standalone-vX.Y.Z-a.b.c` format. The first part usually refers to the Epinio release (ie: v1.8.0),
+            while the second one is an incremental version (`0.0.1`): `epinio-standalone-v1.8.0-0.0.1`
             `git tag -a epinio-standalone-vX.Y.Z-a.b.c -m 'epinio-standalone-vX.Y.Z-a.b.c'`
             `git push --tags`
             Check the release action, and the generated bundle.
