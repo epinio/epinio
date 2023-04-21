@@ -36,7 +36,7 @@ on:
         - GKE
 
 env:
-  SETUP_GO_VERSION: '~1.19'
+  SETUP_GO_VERSION: '1.19.8'
   EKS_REGION: ${{ secrets.EKS_REGION }}
 
 jobs:
