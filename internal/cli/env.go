@@ -146,11 +146,10 @@ var CmdEnvShow = &cobra.Command{
 
 // CmdEnvUnset implements the command: epinio app env unset
 var CmdEnvUnset = &cobra.Command{
-	Use:               "unset APPNAME NAME",
-	Short:             "Shrink application environment",
-	Long:              "Remove environment variable from named application",
-	Args:              cobra.ExactArgs(2),
-	ValidArgsFunction: matchingAppsFinder,
+	Use:   "unset APPNAME NAME",
+	Short: "Shrink application environment",
+	Long:  "Remove environment variable from named application",
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -165,5 +164,27 @@ var CmdEnvUnset = &cobra.Command{
 		}
 
 		return nil
+	},
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 2 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		app, err := usercmd.New(cmd.Context())
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		app.API.DisableVersionWarning()
+
+		if len(args) == 1 {
+			// #args == 1: environment variable name (in application)
+			matches := app.EnvMatching(context.Background(), args[0], toComplete)
+			return matches, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		// #args == 0: application name.
+		matches := app.AppsMatching(toComplete)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 }
