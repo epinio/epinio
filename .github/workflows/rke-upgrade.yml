@@ -48,6 +48,7 @@ jobs:
         uses: actions/setup-go@v4
         timeout-minutes: 5
         with:
+          cache: false
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Cache Tools
@@ -65,11 +66,11 @@ jobs:
 
       - name: Lint Epinio
         uses: golangci/golangci-lint-action@v3.4.0
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           args: --timeout=10m --skip-files docs.go
-          skip-pkg-cache: true
+          skip-cache: true
 
       - name: Clean all
         if: always()
@@ -91,6 +92,7 @@ jobs:
         uses: actions/setup-go@v4
         timeout-minutes: 5
         with:
+          cache: false
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Login to GitHub Docker Registry
