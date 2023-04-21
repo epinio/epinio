@@ -49,6 +49,7 @@ jobs:
         uses: actions/setup-go@v4
         timeout-minutes: 5
         with:
+          cache: false
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
