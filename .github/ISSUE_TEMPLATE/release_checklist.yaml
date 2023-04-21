@@ -35,6 +35,7 @@ body:
             **( 📝 Manual step )**  Tag the Epinio Dashboard in the `epinio-dev` branch in the `rancher/dashboard`.
             The tag needs to be in the `epinio-standalone-vX.Y.Z-a.b.c` format.
             `git tag -a epinio-standalone-vX.Y.Z-a.b.c -m 'epinio-standalone-vX.Y.Z-a.b.c'`
+            `git push --tags`
             Check the release action, and the generated bundle.
             [LINK](https://github.com/rancher/dashboard/actions/workflows/release-rancher-epinio-standalone.yml)
             [TAGS](https://github.com/rancher/dashboard/tags)            
@@ -45,6 +46,7 @@ body:
         - label: >
             **( 📝 Manual step )** Tag the `epinio/ui-backend` and check the release action.
             `git tag -a vX.Y.Z-a.b.c -m 'vX.Y.Z-a.b.c'`
+            `git push --tags`
             [LINK](https://github.com/epinio/ui-backend/actions/workflows/release.yml)
         - label: >
             **( 📝 Manual step )** Check the `epinio/helm-charts` pull requests for the latest updates. Merge the PR.
@@ -60,6 +62,8 @@ body:
             [![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=branch%3Amain)
         - label: >
             **( 📝 Manual step )** Tag `epinio` and check the release action.
+            `git tag -a vX.Y.Z -m 'vX.Y.Z'`
+            `git push --tags`
             [LINK](https://github.com/epinio/epinio/actions/workflows/release.yml)
         - label: >
             Check the release page for the latest assets and changelog.
@@ -74,7 +78,9 @@ body:
       label: Helm Charts
       options:
         - label: >
-            **( 📝 Manual step )** Check the `epinio/helm-charts` pull requests for the latest updates. Merge the PR.
+            **( 📝 Manual step )** Check the `epinio/helm-charts` pull requests for the latest updates. 
+            Update the version of the Chart.yaml accordingly (if you want to create a RELEASE CANDIDATE add the `-rc` suffix)
+            Merge the PR.
             [LINK](https://github.com/epinio/helm-charts/pulls?q=is%3Apr+author%3Aapp%2Fgithub-actions)
         - label: >
             **( 📝 Manual step )** Run the `epinio/helm-charts` release action to publish the latest chart.
