@@ -80,7 +80,7 @@ var CmdEnvSet = &cobra.Command{
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		// Ignore name and value of environment variable.
 		// EV may exist or not, the command will set or modify.
-		if len(args) > 1 {
+		if len(args) > 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
