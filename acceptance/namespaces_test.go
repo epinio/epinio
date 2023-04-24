@@ -109,6 +109,37 @@ var _ = Describe("Namespaces", LNamespace, func() {
 			Expect(out).To(ContainSubstring("namespace 'missing-namespace' does not exist"))
 		})
 
+		Context("command completion", func() {
+			var namespaceName string
+
+			BeforeEach(func() {
+				namespaceName = catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespaceName)
+			})
+
+			AfterEach(func() {
+				env.DeleteNamespace(namespaceName)
+			})
+
+			It("matches empty prefix", func() {
+				out, err := env.Epinio("", "__complete", "namespace", "show", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(namespaceName))
+			})
+
+			It("does not match unknown prefix", func() {
+				out, err := env.Epinio("", "__complete", "namespace", "show", "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match bogus arguments", func() {
+				out, err := env.Epinio("", "__complete", "namespace", "show", namespaceName, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(namespaceName))
+			})
+		})
+
 		Context("existing namespace", func() {
 			var namespaceName string
 			var configurationName string
@@ -148,15 +179,42 @@ var _ = Describe("Namespaces", LNamespace, func() {
 	})
 
 	Describe("namespace delete", func() {
-		It("deletes an namespace", func() {
-			namespaceName := catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespaceName)
+		var namespaceName string
 
-			By("deleting namespace")
+		BeforeEach(func() {
+			namespaceName = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespaceName)
+		})
+
+		It("deletes an namespace", func() {
 			out, err := env.Epinio("", "namespace", "delete", "-f", namespaceName)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Namespaces: %s", namespaceName))
 			Expect(out).To(ContainSubstring("Namespaces deleted."))
+		})
+
+		Context("command completion", func() {
+			AfterEach(func() {
+				env.DeleteNamespace(namespaceName)
+			})
+
+			It("matches empty prefix", func() {
+				out, err := env.Epinio("", "__complete", "namespace", "delete", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(namespaceName))
+			})
+
+			It("does not match unknown prefix", func() {
+				out, err := env.Epinio("", "__complete", "namespace", "delete", "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match bogus arguments", func() {
+				out, err := env.Epinio("", "__complete", "namespace", "delete", namespaceName, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(namespaceName))
+			})
 		})
 	})
 
