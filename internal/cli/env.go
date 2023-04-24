@@ -12,8 +12,6 @@
 package cli
 
 import (
-	"context"
-
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -161,7 +159,7 @@ func matchingAppAndVarFinder(cmd *cobra.Command, args []string, toComplete strin
 
 	if len(args) == 1 {
 		// #args == 1: environment variable name (in application)
-		matches := app.EnvMatching(context.Background(), args[0], toComplete)
+		matches := app.EnvMatching(cmd.Context(), args[0], toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
 
