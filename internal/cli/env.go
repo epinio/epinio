@@ -120,28 +120,7 @@ var CmdEnvShow = &cobra.Command{
 
 		return nil
 	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) > 2 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-		app.API.DisableVersionWarning()
-
-		if len(args) == 1 {
-			// #args == 1: environment variable name (in application)
-			matches := app.EnvMatching(context.Background(), args[0], toComplete)
-			return matches, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		// #args == 0: application name.
-		matches := app.AppsMatching(toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	},
+	ValidArgsFunction: matchingAppAndVarFinder,
 }
 
 // CmdEnvUnset implements the command: epinio app env unset
@@ -165,26 +144,28 @@ var CmdEnvUnset = &cobra.Command{
 
 		return nil
 	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) > 2 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
+	ValidArgsFunction: matchingAppAndVarFinder,
+}
 
-		app, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-		app.API.DisableVersionWarning()
+func matchingAppAndVarFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 2 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
-		if len(args) == 1 {
-			// #args == 1: environment variable name (in application)
-			matches := app.EnvMatching(context.Background(), args[0], toComplete)
-			return matches, cobra.ShellCompDirectiveNoFileComp
-		}
+	app, err := usercmd.New(cmd.Context())
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	app.API.DisableVersionWarning()
 
-		// #args == 0: application name.
-		matches := app.AppsMatching(toComplete)
-
+	if len(args) == 1 {
+		// #args == 1: environment variable name (in application)
+		matches := app.EnvMatching(context.Background(), args[0], toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
-	},
+	}
+
+	// #args == 0: application name.
+	matches := app.AppsMatching(toComplete)
+
+	return matches, cobra.ShellCompDirectiveNoFileComp
 }
