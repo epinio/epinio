@@ -148,7 +148,8 @@ var CmdEnvUnset = &cobra.Command{
 }
 
 func matchingAppAndVarFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) > 2 {
+	// #args == 2, 3, ... nothing matches
+	if len(args) > 1 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
