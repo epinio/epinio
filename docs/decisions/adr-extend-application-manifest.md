@@ -1,79 +1,120 @@
 ---
-# These are optional elements. Feel free to remove any of them.
-status: {proposed | rejected | accepted | deprecated | … | superseded by ADR-0005 <0005-example.md>}
-date: {YYYY-MM-DD when the decision was last updated}
-deciders: {list everyone involved in the decision}
-consulted: {list everyone whose opinions are sought (typically subject-matter experts); and with whom there is a two-way communication}
-informed: {list everyone who is kept up-to-date on progress; and with whom there is a one-way communication}
+status: proposed
+date: 2023-04-24
+deciders: Andreas Kupries, Enrico Candino, Richard Cox
+consulted: Richard Cox, Enrico Candino, Olivier Vernin
+informed: Sorin Curescu, Francesco Torchia
 ---
 
-# {short title of solved problem and solution}
+# Extended Application Manifest and Server API in support of Web UI features for application management
 
 ## Context and Problem Statement
 
-{Describe the context and problem statement, e.g., in free form using two to three sentences or in the form of an illustrative story. You may want to articulate the problem in form of a question and add links to collaboration boards or issue management systems.}
+The Web UI manages extended application origin information and currently persists this information
+in a special environment variable, to the likely confusion of users. This environment variable is
+also brittle when accessing the application from both Web UI and CLI, causing this data to be easily
+lost, to the detriment of users.
 
-<!-- This is an optional element. Feel free to remove. -->
+Further both Web UI and CLI are out of sync with respect to the application manifest, i.e. the
+structure describing an application to users. In that Web UI and CLI use/export different formats
+(JSON vs YAML).
+
+See [Epinio PR 2221](https://github.com/epinio/epinio/pull/2221) for the main discussion.
+
 ## Decision Drivers
 
-* {decision driver 1, e.g., a force, facing concern, …}
-* {decision driver 2, e.g., a force, facing concern, …}
-* … <!-- numbers of drivers can vary -->
+  * Converging Web UI and CLI to the same format for application manifests.
+  * Stable persistence for the additional application information.
 
 ## Considered Options
 
-* {title of option 1}
-* {title of option 2}
-* {title of option 3}
-* … <!-- numbers of options can vary -->
+  * For the converged application manifest format only one option is considered:
+
+      1. Creation of a new API endpoint delivered the manifest in the desired final format. This
+      	 moves the responsibility for the generation of the format from the clients to the Epinio
+      	 server, and trivially to the desired outcome of having all clients export the same format.
+
+  * For the persistence of the new application information two options were considered:
+
+      1. Saving to a new adjunct kubernetes secret resource.
+      2. Extending the application CRD with fields for the new application information.
 
 ## Decision Outcome
 
-Chosen option: "{title of option 1}", because
-{justification. e.g., only option, which meets k.o. criterion decision driver | which resolves force {force} | … | comes out best (see below)}.
+We are extending the application CRD with fields for the new application information.
 
-<!-- This is an optional element. Feel free to remove. -->
-### Consequences
+While both persistence options will lead to stable persistence the chosen option is believed to be
+likely less complex, as only the code reading and writing application CR's has to be adapted to
+(extended for) the new information. Whereas with a separate resource completely new code will be
+required, not just for reading and writing, but also construction and destruction.
 
-* Good, because {positive consequence, e.g., improvement of one or more desired qualities, …}
-* Bad, because {negative consequence, e.g., compromising one or more desired qualities, …}
-* … <!-- numbers of consequences can vary -->
-
-<!-- This is an optional element. Feel free to remove. -->
 ## Validation
 
-{describe how the implementation of/compliance with the ADR is validated. E.g., by a review or an ArchUnit test}
+The implementation of both API endpoint and extended application information will be validated
+through additional API and command tests added to the testsuites used by the CI/CD system.
 
-<!-- This is an optional element. Feel free to remove. -->
-## Pros and Cons of the Options
+## Specification Details
 
-### {title of option 1}
+### API endpoint
 
-<!-- This is an optional element. Feel free to remove. -->
-{example | description | pointer to more information | …}
+The new API endpoint is an extension of the existing `AppPart` endpoint, i.e. of
+`/namespaces/:namespace/applications/:app/part/:part`.
 
-* Good, because {argument a}
-* Good, because {argument b}
-<!-- use "neutral" if the given argument weights neither for good nor bad -->
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* … <!-- numbers of pros and cons can vary -->
+This endpoint is extended with a new allowed part value `manifest`, which, when requested delivers a
+`text/plain` result containing the application manifest serialized into its final form.
 
-### {title of other option}
+The chosen form is the YAML-formatted manifest currently written by the Epinio CLI.
 
-{example | description | pointer to more information | …}
+### Extended Application CRD
 
-* Good, because {argument a}
-* Good, because {argument b}
-* Neutral, because {argument c}
-* Bad, because {argument d}
-* …
+The extended application information managed by the Web UI revolves around the application origin,
+where the Web UI provides more features to the user than the CLI.
 
-<!-- This is an optional element. Feel free to remove. -->
-## More Information
+The existing `origin` fields in the CRD are for the handling of paths, containers, and git
+references.
 
-{You might want to provide additional evidence/confidence for the decision outcome here and/or
- document the team agreement on the decision and/or
- define when and how this decision should be realized and if/when it should be re-visited and/or
- how the decision is validated.
- Links to other decisions and resources might appear here as well.}
+In the case of paths the Web UI enables the user to make use of a variety of archive files, whereas
+the CLI only supports directories. To this end a new field `archive` is added to the `origin`
+object, of type `string`. This field is exptected to contain values like `zip`, `tarball`, `tar+gz`,
+etc. Note however that this list of examples is not considered to be exhaustive and is definitely
+not a list of the only allowed values for the field.y
+
+No additional information is managed for containers.
+
+For git references two additional fields are added to the `git` objects in the `origin`
+object. These fields are `provider` and `branch`, both of type `string`.
+
+The first field, `provider` provides (sic!) information about the provider of the git repository,
+with expected values of `git`, `github`, and `gitlab`. Note however that this list of examples is
+not considered to be exhaustive and is definitely not a list of the only allowed values for the
+field.
+
+The second field, `branch`, records the name of the repository branch the `revision` is part of, in
+support of the Web UIs ability to ....
+
+The modified part of the CRD is
+
+```
+origin:
+  properties:
+    archive:
+      type: string
+    container:
+      type: string
+    git:
+      properties:
+        branch:
+          type: string
+        provider:
+          type: string
+        repository:
+          type: string
+        revision:
+          type: string
+      required:
+      - repository
+      type: object
+    path:
+      type: string
+  type: object
+```
