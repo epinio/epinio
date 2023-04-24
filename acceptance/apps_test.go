@@ -1911,7 +1911,6 @@ userConfig:
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).ToNot(ContainSubstring(appName))
 			})
-
 		})
 	}
 
