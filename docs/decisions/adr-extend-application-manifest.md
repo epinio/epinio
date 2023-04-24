@@ -75,9 +75,8 @@ references.
 
 In the case of paths the Web UI enables the user to make use of a variety of archive files, whereas
 the CLI only supports directories. To this end a new field `archive` is added to the `origin`
-object, of type `string`. This field is exptected to contain values like `zip`, `tarball`, `tar+gz`,
-etc. Note however that this list of examples is not considered to be exhaustive and is definitely
-not a list of the only allowed values for the field.y
+object, of type `boolean`. True indicates that the path refers to some kind of (compressed) archive,
+instead of a directory.
 
 No additional information is managed for containers.
 
@@ -90,7 +89,9 @@ not considered to be exhaustive and is definitely not a list of the only allowed
 field.
 
 The second field, `branch`, records the name of the repository branch the `revision` is part of, in
-support of the Web UIs ability to ....
+support of the Web UI's ability to show the user a selection of commits to choose from when creating
+an application or editing it's source. This also helps telling the user where the source came from
+(`main`, `v2.7.6`, etc.)
 
 The modified part of the CRD is
 
@@ -98,7 +99,7 @@ The modified part of the CRD is
 origin:
   properties:
     archive:
-      type: string
+      type: boolean
     container:
       type: string
     git:
