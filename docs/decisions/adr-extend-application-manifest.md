@@ -61,9 +61,11 @@ The new API endpoint is an extension of the existing `AppPart` endpoint, i.e. of
 `/namespaces/:namespace/applications/:app/part/:part`.
 
 This endpoint is extended with a new allowed part value `manifest`, which, when requested delivers a
-`text/plain` result containing the application manifest serialized into its final form.
+`application/octet-stream` result containing the application manifest serialized into its final form.
 
 The chosen form is the YAML-formatted manifest currently written by the Epinio CLI.
+
+This matches the behaviour of the existing part `values`, both in content format, and content type.
 
 ### Extended Application CRD
 
@@ -92,6 +94,10 @@ The second field, `branch`, records the name of the repository branch the `revis
 support of the Web UI's ability to show the user a selection of commits to choose from when creating
 an application or editing it's source. This also helps telling the user where the source came from
 (`main`, `v2.7.6`, etc.)
+
+The names of the new fields in the CRD, i.e. `archive`, `provider`, and `branch` are translated as
+they are to the YAML serialization for these fields. In contrast to the existing `repository` field,
+which is translated to `url` in the YAML.
 
 The modified part of the CRD is
 
