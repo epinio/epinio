@@ -1873,6 +1873,48 @@ userConfig:
 		})
 	})
 
+	for _, command := range []string{
+		"exec",
+		"export",
+		"logs",
+		"manifest",
+		"port-forward",
+		"restage",
+		"restart",
+		"show",
+		"update",
+	} {
+		Context(command+" command completion", func() {
+			BeforeEach(func() {
+				out, err := env.Epinio("", "app", "create", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
+
+			It("matches empty prefix", func() {
+				out, err := env.Epinio("", "__complete", "app", command, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(appName))
+			})
+
+			It("does not match unknown prefix", func() {
+				out, err := env.Epinio("", "__complete", "app", command, "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match bogus arguments", func() {
+				out, err := env.Epinio("", "__complete", "app", command, appName, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(appName))
+			})
+
+		})
+	}
+
 	var _ = Describe("Custom chart-value", func() {
 		var (
 			namespace string
