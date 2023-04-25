@@ -56,8 +56,8 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 	partName := c.Param("part")
 	logger := requestctx.Logger(ctx)
 
-	if partName != "values" && partName != "chart" && partName != "image" {
-		return apierror.NewBadRequestError("unknown part, expected chart, image, or values")
+	if partName != "manifest" && partName != "values" && partName != "chart" && partName != "image" {
+		return apierror.NewBadRequestError("unknown part, expected chart, manifest, image, or values")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -74,9 +74,9 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	if app.Workload == nil {
-		// While the app exists it has no workload, and therefore no chart to
-		// export
+	if partName != "manifest" && app.Workload == nil {
+		// While the app exists it has no workload, and therefore no chart/image/values to
+		// export. Manifest however will be fine.
 		return apierror.NewBadRequestError("no chart available for application without workload")
 	}
 
@@ -87,9 +87,11 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 		return fetchAppImage(c, ctx, logger, cluster, app.Meta)
 	case "values":
 		return fetchAppValues(c, logger, cluster, app.Meta)
+	case "manifest":
+		return fetchAppManifest(c, app)
 	}
 
-	return apierror.NewBadRequestError("unknown part, expected chart, image, or values")
+	return apierror.NewBadRequestError("unknown part, expected chart, image, manifest, or values")
 }
 
 func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
@@ -315,6 +317,30 @@ func getFileImageAndJobCleanup(ctx context.Context, cluster *kubernetes.Cluster,
 
 func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
 	yaml, err := helm.Values(cluster, logger, app)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	response.OKBytes(c, yaml)
+	return nil
+}
+
+func fetchAppManifest(c *gin.Context, app *models.App) apierror.APIErrors {
+	m := models.ApplicationManifest{
+		ApplicationCreateRequest: models.ApplicationCreateRequest{
+			Name:          app.Meta.Name,
+			Configuration: app.Configuration,
+		},
+		Namespace: app.Meta.Namespace,
+		Origin:    app.Origin,
+	}
+
+	// TODO -- determine and fill builder --
+	// Staging: models.ApplicationStage{
+	// 	Builder: "-- data not found -- placeholder -- fix --",
+	// },
+
+	yaml, err := yaml.Marshal(m)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
