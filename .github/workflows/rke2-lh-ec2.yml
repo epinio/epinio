@@ -262,7 +262,7 @@ jobs:
         env:
           EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
         run: |
-          helm delete nginx-ingress -n ingress-nginx
+          helm delete nginx-ingress -n ingress-nginx --wait
           aws ec2 terminate-instances --instance-ids $EC2_INSTANCE_IDS
 
       # Only on RKE, as it uses a self-hosted runner
