@@ -244,5 +244,36 @@ var _ = Describe("Namespaces", LNamespace, func() {
 				Expect(out).To(ContainSubstring("Namespace targeted."))
 			})
 		})
+
+		Context("command completion", func() {
+			var namespaceName string
+
+			BeforeEach(func() {
+				namespaceName = catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespaceName)
+			})
+
+			AfterEach(func() {
+				env.DeleteNamespace(namespaceName)
+			})
+
+			It("matches empty prefix", func() {
+				out, err := env.Epinio("", "__complete", "target", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(namespaceName))
+			})
+
+			It("does not match unknown prefix", func() {
+				out, err := env.Epinio("", "__complete", "target", "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match bogus arguments", func() {
+				out, err := env.Epinio("", "__complete", "target", namespaceName, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(namespaceName))
+			})
+		})
 	})
 })
