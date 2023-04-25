@@ -159,6 +159,10 @@ jobs:
             --output text)
           echo "EC2_INSTANCE_IDS=$EC2_INSTANCE_IDS" >> $GITHUB_OUTPUT
 
+          echo 'Adding Tag kubeconfig=true to the first EC2_INSTANCE_IDS entry'
+          server_instance_id=$(echo $EC2_INSTANCE_IDS | awk '{print $1}')
+          aws ec2 create-tags --resources $server_instance_id --tags Key=kubeconfig,Value=true
+
           echo 'Waiting until the instances are in ok state...'
           aws ec2 wait instance-status-ok \
             --instance-ids $EC2_INSTANCE_IDS \
@@ -197,6 +201,7 @@ jobs:
 
           # Configure rke2 with aws provider
           mkdir -p /etc/rancher/rke2/config.yaml.d
+          echo "write-kubeconfig-mode: \"0644\"" >> /etc/rancher/rke2/config.yaml.d/00-epinio.yam
           echo "cloud-provider-name: aws" >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml
           echo "disable: rke2-ingress-nginx" >> /etc/rancher/rke2/config.yaml.d/00-epinio.yaml
           # enable tls-san to be able communicate with cluster from runner over TLS when using its public hostname
