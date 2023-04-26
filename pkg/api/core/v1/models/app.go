@@ -37,7 +37,7 @@ type ApplicationStagingStatus string
 
 type GitRef struct {
 	Revision string `json:"revision,omitempty" yaml:"revision,omitempty"`
-	URL      string `json:"repository"         yaml:"url"`
+	URL      string `json:"repository"         yaml:"url,omitempty"`
 	Provider string `json:"provider,omitempty" yaml:"provider,omitempty"`
 	Branch   string `json:"branch,omitempty"   yaml:"branch,omitempty"`
 }
