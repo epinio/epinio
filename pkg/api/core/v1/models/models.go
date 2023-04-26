@@ -121,7 +121,7 @@ type ApplicationManifest struct {
 // relevant to staging the application's sources. This is, currently,
 // only the reference to the Paketo builder image to use.
 type ApplicationStage struct {
-	Builder string `yaml:"builder,omitempty"`
+	Builder string `yaml:"builder,omitempty" json:"builder,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
@@ -135,6 +135,7 @@ type ApplicationOrigin struct {
 	Container string  `yaml:"container,omitempty" json:"container,omitempty"`
 	Git       *GitRef `yaml:"git,omitempty"       json:"git,omitempty"`
 	Path      string  `yaml:"path,omitempty"      json:"path,omitempty"`
+	Archive   bool    `yaml:"archive,omitempty"   json:"archive,omitempty"`
 }
 
 // manifest origin codes for `Kind`.
