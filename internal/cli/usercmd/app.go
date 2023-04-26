@@ -604,6 +604,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 
 	msg = msg.
 		WithTableRow("App Chart", app.Configuration.AppChart).
+		WithTableRow("Builder Image", app.Staging.Builder).
 		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
 		WithTableRow("Bound Configurations", strings.Join(app.Configuration.Configurations, ", ")).
 		WithTableRow("Environment", "")

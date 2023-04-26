@@ -333,12 +333,8 @@ func fetchAppManifest(c *gin.Context, app *models.App) apierror.APIErrors {
 		},
 		Namespace: app.Meta.Namespace,
 		Origin:    app.Origin,
+		Staging:   app.Staging,
 	}
-
-	// TODO -- determine and fill builder --
-	// Staging: models.ApplicationStage{
-	// 	Builder: "-- data not found -- placeholder -- fix --",
-	// },
 
 	yaml, err := yaml.Marshal(m)
 	if err != nil {
