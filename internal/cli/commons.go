@@ -113,7 +113,7 @@ func matchingNamespaceFinder(cmd *cobra.Command, args []string, toComplete strin
 
 // matchingChartFinder returns a list of application charts whose names match the provided partial name
 func matchingChartFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) > 1 {
+	if len(args) > 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 

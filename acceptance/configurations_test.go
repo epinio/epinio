@@ -198,6 +198,24 @@ var _ = Describe("Configurations", LConfiguration, func() {
 				),
 			)
 		})
+
+		Context("command completion", func() {
+			AfterEach(func() {
+				env.CleanupConfiguration(configurationName1)
+			})
+
+			It("matches empty prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "delete", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(configurationName1))
+			})
+
+			It("does not match unknown prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "delete", "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+		})
 	})
 
 	Describe("configuration bind", func() {
@@ -217,6 +235,39 @@ var _ = Describe("Configurations", LConfiguration, func() {
 
 		It("binds a configuration to the application deployment", func() {
 			env.BindAppConfiguration(appName, configurationName1, namespace)
+		})
+
+		Context("command completion", func() {
+			It("matches empty configuration prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "bind", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(configurationName1))
+			})
+
+			It("matches empty app prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "bind", configurationName1, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(appName))
+			})
+
+			It("does not match unknown configuration prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "bind", "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match unknown app prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "bind", configurationName1, "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match bogus arguments", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "bind", configurationName1, appName, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(appName))
+				Expect(out).ToNot(ContainSubstring(configurationName1))
+			})
 		})
 	})
 
@@ -238,6 +289,39 @@ var _ = Describe("Configurations", LConfiguration, func() {
 
 		It("unbinds a configuration from the application deployment", func() {
 			env.UnbindAppConfiguration(appName, configurationName1, namespace)
+		})
+
+		Context("command completion", func() {
+			It("matches empty configuration prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "unbind", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(configurationName1))
+			})
+
+			It("matches empty app prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "unbind", configurationName1, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(appName))
+			})
+
+			It("does not match unknown configuration prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "unbind", "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match unknown app prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "unbind", configurationName1, "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match bogus arguments", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "unbind", configurationName1, appName, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(appName))
+				Expect(out).ToNot(ContainSubstring(configurationName1))
+			})
 		})
 	})
 
@@ -262,6 +346,26 @@ var _ = Describe("Configurations", LConfiguration, func() {
 					WithRow("username", "epinio-user", "\\/configurations\\/"+configurationName1+"\\/username"),
 				),
 			)
+		})
+
+		Context("command completion", func() {
+			It("matches empty prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "show", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(configurationName1))
+			})
+
+			It("does not match unknown prefix", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "show", "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match bogus arguments", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "show", configurationName1, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(configurationName1))
+			})
 		})
 	})
 
