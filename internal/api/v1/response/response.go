@@ -42,6 +42,16 @@ func OKBytes(c *gin.Context, response []byte) {
 	c.Data(http.StatusOK, "application/octet-stream", response)
 }
 
+// OKYaml reports a success with some YAML data
+func OKYaml(c *gin.Context, response interface{}) {
+	requestctx.Logger(c.Request.Context()).Info("OK",
+		"origin", c.Request.URL.String(),
+		"returning", response,
+	)
+
+	c.YAML(http.StatusOK, response)
+}
+
 // OKReturn reports a success with some data
 func OKReturn(c *gin.Context, response interface{}) {
 	requestctx.Logger(c.Request.Context()).Info("OK",

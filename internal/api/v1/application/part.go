@@ -342,12 +342,7 @@ func fetchAppManifest(c *gin.Context, app *models.App) apierror.APIErrors {
 		Staging:   app.Staging,
 	}
 
-	yaml, err := yaml.Marshal(m)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	response.OKBytes(c, yaml)
+	response.OKYaml(c, m)
 	return nil
 }
 
