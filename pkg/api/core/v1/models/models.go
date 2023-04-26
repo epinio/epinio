@@ -149,10 +149,19 @@ const (
 func (o *ApplicationOrigin) String() string {
 	switch o.Kind {
 	case OriginPath:
+		if o.Archive {
+			return helpers.AbsPath(o.Path) + " (archive)"
+		}
 		return helpers.AbsPath(o.Path)
 	case OriginGit:
 		if o.Git.Revision == "" {
+			if o.Git.Branch != "" {
+				return fmt.Sprintf("%s on %s", o.Git.URL, o.Git.Branch)
+			}
 			return o.Git.URL
+		}
+		if o.Git.Branch != "" {
+			return fmt.Sprintf("%s @ %s (on %s)", o.Git.URL, o.Git.Revision, o.Git.Branch)
 		}
 		return fmt.Sprintf("%s @ %s", o.Git.URL, o.Git.Revision)
 	case OriginContainer:
