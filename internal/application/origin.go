@@ -57,6 +57,16 @@ func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
 			return result, errors.New("bad path origin, empty string")
 		}
 
+		// For path check the archive flag as well
+		isarchive, found, err := unstructured.NestedBool(origin, "archive")
+		if found {
+			if err != nil {
+				return result, err
+			}
+
+			result.Archive = isarchive
+		}
+
 		result.Kind = models.OriginPath
 		result.Path = path
 		return result, nil
@@ -95,6 +105,30 @@ func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
 				return result, errors.New("bad git origin, revision is empty string")
 			}
 			result.Git.Revision = revision
+		}
+
+		// For git check for the optional provider as well.
+		provider, found, err := unstructured.NestedString(origin, "git", "provider")
+		if found {
+			if err != nil {
+				return result, err
+			}
+			if provider == "" {
+				return result, errors.New("bad git origin, provider is empty string")
+			}
+			result.Git.Provider = provider
+		}
+
+		// For git check for the optional branch as well.
+		branch, found, err := unstructured.NestedString(origin, "git", "branch")
+		if found {
+			if err != nil {
+				return result, err
+			}
+			if branch == "" {
+				return result, errors.New("bad git origin, branch is empty string")
+			}
+			result.Git.Branch = branch
 		}
 
 		result.Kind = models.OriginGit
