@@ -56,8 +56,11 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 	partName := c.Param("part")
 	logger := requestctx.Logger(ctx)
 
-	if partName != "manifest" && partName != "values" && partName != "chart" && partName != "image" {
-		return apierror.NewBadRequestError("unknown part, expected chart, manifest, image, or values")
+	switch partName {
+	case "manifest", "values", "chart", "image":
+		// valid parts, no error
+	default:
+		return apierror.NewBadRequestErrorf("unknown '%s' part, expected chart, manifest, image, or values", partName)
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -74,9 +77,14 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	if partName != "manifest" && app.Workload == nil {
-		// While the app exists it has no workload, and therefore no chart/image/values to
-		// export. Manifest however will be fine.
+	if partName == "manifest" {
+		return fetchAppManifest(c, app)
+	}
+
+	// While the app exists it has no workload, and therefore no chart/image/values to
+	// export. Manifest however is fine, see above for its handler.
+
+	if app.Workload == nil {
 		return apierror.NewBadRequestError("no chart available for application without workload")
 	}
 
@@ -87,11 +95,9 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 		return fetchAppImage(c, ctx, logger, cluster, app.Meta)
 	case "values":
 		return fetchAppValues(c, logger, cluster, app.Meta)
-	case "manifest":
-		return fetchAppManifest(c, app)
 	}
 
-	return apierror.NewBadRequestError("unknown part, expected chart, image, manifest, or values")
+	return apierror.InternalError(fmt.Errorf("should not be reached"))
 }
 
 func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
