@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
@@ -39,6 +40,9 @@ var _ = Describe("Users Namespace", LNamespace, func() {
 		response, err := env.Client().Do(request)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusCreated))
+
+		out, err := proc.Kubectl("label", "namespace", namespace, "epinio.io/test=true")
+		Expect(err).NotTo(HaveOccurred(), out)
 	}
 
 	namespaceRequest := func(user, password, endpoint string) *http.Response {
@@ -179,9 +183,12 @@ var _ = Describe("Users Namespace", LNamespace, func() {
 				BeforeEach(func() {
 					commonNamespace = catalog.NewNamespaceName()
 					createNamespace(user1, passwordUser1, commonNamespace)
-					env.DeleteNamespace(commonNamespace)
-					createNamespace(user2, passwordUser2, commonNamespace)
 
+					// delete namespace
+					out, err := env.Epinio("", "namespace", "delete", "-f", commonNamespace)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+					createNamespace(user2, passwordUser2, commonNamespace)
 				})
 
 				It("shows the user's namespace", func() {
