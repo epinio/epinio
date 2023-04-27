@@ -114,6 +114,10 @@ var _ = AfterSuite(func() {
 		fmt.Printf("Deleting tmpdir on node %d\n", GinkgoParallelProcess())
 		testenv.DeleteTmpDir(nodeTmpDir)
 	}
+
+	// delete all the created namespaces
+	out, err := proc.Kubectl("delete", "namespace", "--force", "-l", "epinio.io/test=true")
+	Expect(err).NotTo(HaveOccurred(), out)
 })
 
 var _ = AfterEach(func() {

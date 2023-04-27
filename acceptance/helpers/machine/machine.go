@@ -100,6 +100,9 @@ func (m *Machine) SetupNamespace(namespace string) {
 	out, err = m.Epinio("", "namespace", "show", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + namespace))
+
+	out, err = proc.Kubectl("label", "namespace", namespace, "epinio.io/test=true")
+	Expect(err).NotTo(HaveOccurred(), out)
 }
 
 func (m *Machine) TargetNamespace(namespace string) {

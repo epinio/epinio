@@ -298,6 +298,10 @@ var _ = SynchronizedAfterSuite(func() {
 		// Delete left-overs no matter what
 		defer func() { _, _ = testenv.CleanupTmp() }()
 	}
+
+	// delete all the created namespaces
+	out, err := proc.Kubectl("delete", "namespace", "--force", "-l", "epinio.io/test=true")
+	Expect(err).NotTo(HaveOccurred(), out)
 })
 
 var _ = AfterEach(func() {
