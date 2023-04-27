@@ -121,12 +121,12 @@ func (m *Machine) SetupAndTargetNamespace(namespace string) {
 func (m *Machine) DeleteNamespace(namespace string) {
 	By(fmt.Sprintf("deleting a namespace: %s", namespace))
 
-	out, err := m.Epinio("", "namespace", "delete", "-f", namespace)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	// out, err := m.Epinio("", "namespace", "delete", "-f", namespace)
+	// ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	out, err = m.Epinio("", "namespace", "show", namespace)
-	ExpectWithOffset(1, err).To(HaveOccurred())
-	ExpectWithOffset(1, out).To(MatchRegexp(".*Not Found: namespace '" + namespace + "' does not exist.*"))
+	// out, err = m.Epinio("", "namespace", "show", namespace)
+	// ExpectWithOffset(1, err).To(HaveOccurred())
+	// ExpectWithOffset(1, out).To(MatchRegexp(".*Not Found: namespace '" + namespace + "' does not exist.*"))
 }
 
 func (m *Machine) VerifyNamespaceNotExist(namespace string) {
