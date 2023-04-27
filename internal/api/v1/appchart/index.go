@@ -22,7 +22,7 @@ import (
 
 // Index handles the API endpoint GET /appcharts
 // It lists all the known appcharts in all namespaces
-func (hc Controller) Index(c *gin.Context) apierror.APIErrors {
+func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
 	cluster, err := kubernetes.GetCluster(ctx)

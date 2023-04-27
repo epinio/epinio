@@ -25,7 +25,7 @@ import (
 
 // Match handles the API endpoint /appchartsmatch/:pattern (GET)
 // It returns a list of all Epinio-controlled appcharts matching the prefix pattern.
-func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
+func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
