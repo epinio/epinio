@@ -25,9 +25,13 @@ on:
   workflow_dispatch:
     inputs:
       keep_cluster:
-        description: "Keep the cluster afterwards? (empty/yes)"
-        required: false
-        default: ""
+        type: choice
+        description: "Keep the cluster afterwards?"
+        required: true
+        default: 'Delete'
+        options:
+        - Delete
+        - Keep
 
 env:
   SETUP_GO_VERSION: '1.19.8'
@@ -35,8 +39,7 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
-  AWS_REGION: eu-central-1
-  KUBECONFIG: ${{ github.workspace }}/rke2-ec2-kubeconfig.yaml
+  KUBECONFIG: ${{ github.workspace }}/kubeconfig-epinio-ci
 
 jobs:
   linter:
@@ -141,7 +144,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.EKS_REGION }}
 
       - name: Provision EC2 instances
         id: provision-ec2-instances
@@ -149,7 +152,9 @@ jobs:
           # Provision nodes by awscli
           id=$RANDOM
           echo "ID=$id" >> $GITHUB_OUTPUT
+          echo "RUN_ID: $id"
           echo 'Provisioning EC2 instances...'
+          # TODO: workflow and delete_clusters.go to support multiple EC2 instances/nodes
           INSTANCES_COUNT=1
           EC2_INSTANCE_IDS=$(aws ec2 run-instances \
             --launch-template='LaunchTemplateName=epinio-ci-sle15sp4-chost-template' \
@@ -218,7 +223,7 @@ jobs:
 
           # Write rke2 ec2 kubeconfig into runner workdir and configure the server endpoint
           kubeconfig=$(ssh_run_server "cat /etc/rancher/rke2/rke2.yaml")
-          echo "$kubeconfig" > rke2-ec2-kubeconfig.yaml
+          echo "$kubeconfig" > ${{ env.KUBECONFIG }}
           kubectl config set-cluster default --server=https://"$server_node":6443 2>/dev/null
 
           # TODO a new step for adding RKE2 agents to the cluster according to INSTANCES_COUNT
@@ -258,12 +263,17 @@ jobs:
         run: make test-acceptance-install
 
       - name: Delete EC2 instances and ELB
-        if: ${{ always() && !github.event.inputs.keep_cluster }}
-        env:
-          EC2_INSTANCE_IDS: ${{ steps.provision-ec2-instances.outputs.EC2_INSTANCE_IDS }}
+        # TODO: workflow and delete_clusters.go to support multiple EC2 instances/nodes 
+        if: ${{ always() && github.event.inputs.keep_cluster != 'Keep' }}
+        shell: bash
         run: |
-          helm delete nginx-ingress -n ingress-nginx --wait
-          aws ec2 terminate-instances --instance-ids $EC2_INSTANCE_IDS
+          export RUN_ID=${{ steps.create-cluster.outputs.ID }}
+          export RUN_PCP="AWS_RKE2"
+          export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
+          export AWS_RKE2_DOMAIN=${{ secrets.AWS_RKE2_DOMAIN }}
+          export AWS_RKE2_SSH_KEY=${{ secrets.AWS_RKE2_SSH_KEY }}
+          export KUBECONFIG=${{ env.KUBECONFIG }}
+          go run acceptance/helpers/delete_clusters/delete_clusters.go
 
       # Only on RKE, as it uses a self-hosted runner
       - name: Clean all
