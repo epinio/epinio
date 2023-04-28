@@ -184,10 +184,10 @@ var Routes = routes.NamedRoutes{
 		errorHandler(service.Controller{}.Unbind)),
 
 	// App charts
-	"ChartList":   get("/appcharts", errorHandler(appchart.Controller{}.Index)),
-	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Controller{}.Match)),
-	"ChartMatch0": get("/appchartsmatch", errorHandler(appchart.Controller{}.Match)),
-	"ChartShow":   get("/appcharts/:name", errorHandler(appchart.Controller{}.Show)),
+	"ChartList":   get("/appcharts", errorHandler(appchart.Index)),
+	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Match)),
+	"ChartMatch0": get("/appchartsmatch", errorHandler(appchart.Match)),
+	"ChartShow":   get("/appcharts/:name", errorHandler(appchart.Show)),
 }
 
 var WsRoutes = routes.NamedRoutes{

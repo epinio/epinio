@@ -21,7 +21,7 @@ import (
 
 // Show handles the API endpoint GET /appcharts/:name
 // It returns the details of the specified appchart.
-func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
+func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	chartName := c.Param("name")
 
