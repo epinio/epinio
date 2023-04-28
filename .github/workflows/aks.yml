@@ -38,7 +38,7 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
-  KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
+  KUBECONFIG: ${{ github.workspace }}/kubeconfig-epinio-ci
   AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
   AKS_MACHINE_TYPE: 'Standard_D3_v2'
 
@@ -140,7 +140,7 @@ jobs:
 
           az aks get-credentials --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
           --name ${{ env.AKS_RESOURCE_GROUP }}$id \
-          --file ${{ env.KUBECONFIG_NAME }}
+          --file ${{ env.KUBECONFIG }}
 
           # List existing clusters
           az aks list | jq '.[] | .name + " " + (.powerState|tostring)'
@@ -161,7 +161,7 @@ jobs:
         shell: bash
         run: |
           echo "System Domain: $AKS_DOMAIN"
-          export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
+          export KUBECONFIG=${{ env.KUBECONFIG }}
           make test-acceptance-install
 
       - name: Delete AKS cluster
@@ -175,5 +175,5 @@ jobs:
           export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
           export AKS_DOMAIN=${{ secrets.AKS_DOMAIN }}
           export AKS_RESOURCE_GROUP=${{ env.AKS_RESOURCE_GROUP }}
-          export KUBECONFIG_NAME=${{ env.KUBECONFIG_NAME }}
+          export KUBECONFIG=${{ env.KUBECONFIG }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go

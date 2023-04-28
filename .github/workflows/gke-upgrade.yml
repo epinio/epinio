@@ -39,7 +39,6 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
-  KUBECONFIG_NAME: 'kubeconfig-epinio-ci' # Needed for delete_clusters.go
   KUBECONFIG: ${{ github.workspace }}/kubeconfig-epinio-ci
   GKE_ZONE: ${{ secrets.GKE_ZONE }}
   GKE_MACHINE_TYPE: 'n2-standard-4'
@@ -193,4 +192,5 @@ jobs:
           export GKE_DOMAIN=${{ secrets.GKE_DOMAIN }}
           export GKE_ZONE=${{ secrets.GKE_ZONE }}
           export EPCI_GKE_PROJECT=${{ secrets.EPCI_GKE_PROJECT }}
+          export KUBECONFIG=${{ env.KUBECONFIG }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go

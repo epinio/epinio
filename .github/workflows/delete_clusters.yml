@@ -34,10 +34,12 @@ on:
         - AKS
         - EKS
         - GKE
+        - AWS_RKE2
 
 env:
   SETUP_GO_VERSION: '1.19.8'
   EKS_REGION: ${{ secrets.EKS_REGION }}
+  KUBECONFIG: ${{ github.workspace }}/kubeconfig-epinio-ci
 
 jobs:
   delete-ci-acceptance-test-cluster:
@@ -112,5 +114,9 @@ jobs:
           export GKE_DOMAIN=${{ secrets.GKE_DOMAIN }}
           export GKE_ZONE=${{ secrets.GKE_ZONE }}
           export EPCI_GKE_PROJECT=${{ secrets.EPCI_GKE_PROJECT }}
-          export KUBECONFIG_NAME="kubeconfig-epinio-ci"
+          export AWS_RKE2_DOMAIN=${{ secrets.AWS_RKE2_DOMAIN }}
+          export AWS_RKE2_SSH_KEY=${{ secrets.AWS_RKE2_SSH_KEY }}
+          export KUBECONFIG=${{ env.KUBECONFIG }}
+          # in standalone mode we need to fetch the kubeconfig
+          export FETCH_KUBECONFIG='true'
           go run acceptance/helpers/delete_clusters/delete_clusters.go

@@ -42,6 +42,8 @@ func DeleteCluster(runID string, pcp string) error {
 		return DeleteClusterEKS(runID)
 	case "GKE":
 		return DeleteClusterGKE(runID)
+	case "AWS_RKE2":
+		return DeleteClusterAWS_RKE2(runID)
 	}
 
 	return nil
@@ -63,15 +65,17 @@ func DeleteClusterAKS(runID string) error {
 		return errors.Wrap(err, "ListClusterAKS failed")
 	}
 
-	// if the cluster didn't exists and we have not deleted any records something was wrong!
+	// if the cluster didn't exist and we have not deleted any records something was wrong!
 	if !exists && len(deletedRecords) == 0 {
 		return errors.New("Nothing was cleaned up. Please check your input values!")
 	}
 
 	if exists {
-		err := GetKubeconfigAKS(runID)
-		if err != nil {
-			return errors.Wrap(err, "GetKubeconfigAKS failed")
+		if os.Getenv("FETCH_KUBECONFIG") == "true" {
+			err := GetKubeconfigAKS(runID)
+			if err != nil {
+				return errors.Wrap(err, "GetKubeconfigAKS failed")
+			}
 		}
 
 		err = CleanupNamespaces()
@@ -107,15 +111,17 @@ func DeleteClusterEKS(runID string) error {
 		return errors.Wrap(err, "ListClusterEKS failed")
 	}
 
-	// if the cluster didn't exists and we have not deleted any records something was wrong!
+	// if the cluster didn't exist and we have not deleted any records something was wrong!
 	if !exists && len(deletedRecords) == 0 {
 		return errors.New("Nothing was cleaned up. Please check your input values!")
 	}
 
 	if exists {
-		err := GetKubeconfigEKS(runID)
-		if err != nil {
-			return errors.Wrap(err, "GetKubeconfigEKS failed")
+		if os.Getenv("FETCH_KUBECONFIG") == "true" {
+			err := GetKubeconfigEKS(runID)
+			if err != nil {
+				return errors.Wrap(err, "GetKubeconfigEKS failed")
+			}
 		}
 
 		err = CleanupNamespaces()
@@ -151,15 +157,17 @@ func DeleteClusterGKE(runID string) error {
 		return errors.Wrap(err, "ListClusterGKE failed")
 	}
 
-	// if the cluster didn't exists and we have not deleted any records something was wrong!
+	// if the cluster didn't exist and we have not deleted any records something was wrong!
 	if !exists && len(deletedRecords) == 0 {
 		return errors.New("Nothing was cleaned up. Please check your input values!")
 	}
 
 	if exists {
-		err := GetKubeconfigGKE(runID)
-		if err != nil {
-			return errors.Wrap(err, "GetKubeconfigGKE failed")
+		if os.Getenv("FETCH_KUBECONFIG") == "true" {
+			err := GetKubeconfigGKE(runID)
+			if err != nil {
+				return errors.Wrap(err, "GetKubeconfigGKE failed")
+			}
 		}
 
 		err = CleanupNamespaces()
@@ -175,6 +183,56 @@ func DeleteClusterGKE(runID string) error {
 		}
 
 		fmt.Println("Deleted GKE cluster: ", "epinioci"+runID)
+	}
+
+	return nil
+}
+
+// Complete cleanup steps for AWS-EC2 RKE2 case
+func DeleteClusterAWS_RKE2(runID string) error {
+	aws_zone_id := os.Getenv("AWS_ZONE_ID")
+
+	domainname := fmt.Sprintf("id%s-%s", runID, os.Getenv("AWS_RKE2_DOMAIN"))
+	deletedRecords, err := CleanupDNS(aws_zone_id, domainname)
+	if err != nil {
+		return errors.Wrap(err, "CleanupDNS failed")
+	}
+
+	exists, err := ListInstancesAWS_RKE2(runID)
+	if err != nil {
+		return errors.Wrap(err, "ListInstancesAWS_RKE2 failed")
+	}
+
+	// if the instances didn't exist and we have not deleted any records something was wrong!
+	if !exists && len(deletedRecords) == 0 {
+		return errors.New("Nothing was cleaned up. Please check your input values!")
+	}
+
+	if exists {
+		if os.Getenv("FETCH_KUBECONFIG") == "true" {
+			err := GetKubeconfigAWS_RKE2(runID)
+			if err != nil {
+				return errors.Wrap(err, "GetKubeconfigAKS_RKE2 failed")
+			}
+		}
+
+		err = CleanupAWS_RKE2()
+		if err != nil {
+			return errors.Wrap(err, "CleanupAWS_RKE2 failed")
+		}
+
+		fmt.Println("Deleting EC2 instances ...")
+		out, err := proc.RunW("aws", "ec2", "describe-instances", "--filters", fmt.Sprintf("Name=tag:Name,Values='epinio-rke2-ci%s'", runID), "--query", "Reservations[*].Instances[*].InstanceId", "--output", "text")
+		if err != nil {
+			return errors.Wrap(err, "aws cli command failed: "+out)
+		}
+		instance_ids := strings.TrimSpace(out)
+
+		out, err = proc.RunW("aws", "ec2", "terminate-instances", "--instance-ids", instance_ids)
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete instances: "+out)
+		}
+		fmt.Println("Deleted EC2 instances: " + instance_ids)
 	}
 
 	return nil
@@ -236,7 +294,7 @@ func ListClusterAKS(runID string) (exists bool, err error) {
 	}
 
 	if strings.TrimSpace(out) == "[]" {
-		fmt.Println("AKS cluster does not exists: " + aks_resource_group + runID)
+		fmt.Println("AKS cluster does not exist: " + aks_resource_group + runID)
 		return false, nil
 	}
 
@@ -252,7 +310,7 @@ func ListClusterEKS(runID string) (exists bool, err error) {
 	}
 
 	if strings.TrimSpace(out) == "" {
-		fmt.Println("EKS cluster does not exisit: epinio-ci" + runID)
+		fmt.Println("EKS cluster does not exist: epinio-ci" + runID)
 		return false, nil
 	}
 
@@ -269,7 +327,22 @@ func ListClusterGKE(runID string) (exists bool, err error) {
 	}
 
 	if strings.TrimSpace(out) == "" {
-		fmt.Println("GKE cluster does not exisit: epinioci" + runID)
+		fmt.Println("GKE cluster does not exist: epinioci" + runID)
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// Check if EC2 AWS_RKE2 instances exist
+func ListInstancesAWS_RKE2(runID string) (exists bool, err error) {
+	out, err := proc.RunW("aws", "ec2", "describe-instances", "--query", fmt.Sprintf("Reservations[].Instances[].Tags[].{Name:Value} | [? contains(Name,'epinio-rke2-ci%s')]", runID), "--output", "text")
+	if err != nil {
+		return false, errors.Wrap(err, "aws cli command failed: "+out)
+	}
+
+	if strings.TrimSpace(out) == "" {
+		fmt.Println("EC2 instances do not exist: epinio-rke2-ci" + runID)
 		return false, nil
 	}
 
@@ -277,9 +350,9 @@ func ListClusterGKE(runID string) (exists bool, err error) {
 }
 
 func GetKubeconfigAKS(runID string) error {
-	kubeconfig_name := os.Getenv("KUBECONFIG_NAME") + "-Deletion"
+	kubeconfig := os.Getenv("KUBECONFIG")
 	aks_resource_group := os.Getenv("AKS_RESOURCE_GROUP")
-	out, err := proc.RunW("az", "aks", "get-credentials", "--admin", "--resource-group", aks_resource_group, "--name", aks_resource_group+runID, "--file", kubeconfig_name)
+	out, err := proc.RunW("az", "aks", "get-credentials", "--admin", "--resource-group", aks_resource_group, "--name", aks_resource_group+runID, "--file", kubeconfig)
 	if err != nil {
 		return errors.Wrap(err, "az cli command failed: "+out)
 	}
@@ -289,9 +362,9 @@ func GetKubeconfigAKS(runID string) error {
 }
 
 func GetKubeconfigEKS(runID string) error {
-	kubeconfig_name := os.Getenv("KUBECONFIG_NAME") + "-Deletion"
+	kubeconfig := os.Getenv("KUBECONFIG")
 	eks_region := os.Getenv("EKS_REGION")
-	out, err := proc.RunW("eksctl", "utils", "write-kubeconfig", "--region", eks_region, "--cluster", "epinio-ci"+runID, "--kubeconfig", kubeconfig_name)
+	out, err := proc.RunW("eksctl", "utils", "write-kubeconfig", "--region", eks_region, "--cluster", "epinio-ci"+runID, "--kubeconfig", kubeconfig)
 	if err != nil {
 		return errors.Wrap(err, "eksctl cli command failed: "+out)
 	}
@@ -301,11 +374,9 @@ func GetKubeconfigEKS(runID string) error {
 }
 
 func GetKubeconfigGKE(runID string) error {
-	kubeconfig_name := os.Getenv("KUBECONFIG_NAME") + "-Deletion"
 	gke_zone := os.Getenv("GKE_ZONE")
 	epci_gke_project := os.Getenv("EPCI_GKE_PROJECT")
 	os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
-	os.Setenv("KUBECONFIG", kubeconfig_name)
 	out, err := proc.RunW("gcloud", "container", "clusters", "get-credentials", "epinioci"+runID, "--zone", gke_zone, "--project", epci_gke_project)
 	if err != nil {
 		return errors.Wrap(err, "gcloud cli command failed: "+out)
@@ -315,16 +386,62 @@ func GetKubeconfigGKE(runID string) error {
 	return nil
 }
 
+func GetKubeconfigAWS_RKE2(runID string) error {
+	kubeconfig := os.Getenv("KUBECONFIG")
+	aws_rke2_ssh_key := []byte(os.Getenv("AWS_RKE2_SSH_KEY"))
+	err := os.WriteFile("id_rsa_ec2.pem", aws_rke2_ssh_key, 0600)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create id_rsa_ec2.pem")
+	}
+
+	out, err := proc.RunW("aws", "ec2", "describe-instances", "--filters", fmt.Sprintf("Name=tag:Name,Values='epinio-rke2-ci%s'", runID), "--query", "Reservations[*].Instances[*].PublicDnsName", "--output", "text")
+	if err != nil {
+		return errors.Wrap(err, "aws cli command failed: "+out)
+	}
+
+	server_hostname := strings.TrimSpace(out)
+	server_config, err := proc.RunW("ssh", "-o", "BatchMode=yes", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-o", "LogLevel=error", "-o", "ConnectTimeout=30", "-o", "User=ec2-user", "-i", "id_rsa_ec2.pem", server_hostname, "cat /etc/rancher/rke2/rke2.yaml")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get /etc/rancher/rke2/rke2.yaml "+server_config)
+	}
+
+	kubeconfig_rke2 := []byte(strings.Replace(server_config, "127.0.0.1", server_hostname, 1))
+	err = os.WriteFile(kubeconfig, kubeconfig_rke2, 0600)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create "+kubeconfig)
+	}
+
+	fmt.Println("Fetched current kubeconfig")
+	return nil
+}
+
 // Clean up namespaces - therefore unused disks will be removed on cluster deletion
 func CleanupNamespaces() error {
-	kubeconfig_name := os.Getenv("KUBECONFIG_NAME") + "-Deletion"
-	os.Setenv("KUBECONFIG", kubeconfig_name)
+	kubeconfig := os.Getenv("KUBECONFIG")
 
-	out, err := proc.RunW("kubectl", "--kubeconfig", kubeconfig_name, "delete", "--force", "--ignore-not-found", "namespace", "epinio", "workspace")
+	fmt.Println("Cleaning up test namespaces ...")
+	out, err := proc.RunW("kubectl", "--kubeconfig", kubeconfig, "delete", "--force", "--ignore-not-found", "namespace", "epinio", "workspace")
 	if err != nil {
 		return errors.Wrap(err, "kubectl cli command failed: "+out)
 	}
 
-	fmt.Println("Cleaning up test namespaces ...")
+	return nil
+}
+
+// Clean up namespaces and resources from AWS_RKE2 setup
+func CleanupAWS_RKE2() error {
+	kubeconfig := os.Getenv("KUBECONFIG")
+
+	fmt.Println("Cleaning up nginx-ingress and namespaces ...")
+	out, err := proc.RunW("helm", "--kubeconfig", kubeconfig, "delete", "nginx-ingress", "-n", "ingress-nginx", "--wait")
+	if err != nil {
+		return errors.Wrap(err, "helm cli command failed: "+out)
+	}
+
+	out, err = proc.RunW("kubectl", "--kubeconfig", kubeconfig, "delete", "--force", "--ignore-not-found", "namespace", "epinio", "workspace", "ingress-nginx")
+	if err != nil {
+		return errors.Wrap(err, "kubectl cli command failed: "+out)
+	}
+
 	return nil
 }

@@ -38,7 +38,7 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
-  KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
+  KUBECONFIG: ${{ github.workspace }}/kubeconfig-epinio-ci
   EKS_REGION: ${{ secrets.EKS_REGION }}
   AWS_MACHINE_TYPE: 't3.xlarge'
 
@@ -136,7 +136,7 @@ jobs:
           --node-type=${{ env.AWS_MACHINE_TYPE }} \
           --node-volume-size=40 \
           --managed \
-          --kubeconfig=kubeconfig-epinio-ci
+          --kubeconfig=${{ env.KUBECONFIG }}
 
       - name: Configure EKS EBS CSI storage
         id: configure-storage
@@ -177,20 +177,18 @@ jobs:
           # EXTRAENV_VALUE: 12345
         run: |
           echo "System Domain: $AWS_DOMAIN"
-          export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
+          export KUBECONFIG=${{ env.KUBECONFIG }}
           make test-acceptance-install
 
       - name: Delete EKS cluster
         # We always tear down the cluster, to avoid costs. Except when running
         # manually and keep_cluster was set to "Keep"
         if: ${{ always() && github.event.inputs.keep_cluster != 'Keep' }}
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_NAME }}
         run: |
           export RUN_ID=${{ steps.create-cluster.outputs.ID }}
           export RUN_PCP="EKS"
           export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
           export EKS_DOMAIN=${{ secrets.EKS_DOMAIN }}
           export EKS_REGION=${{ env.EKS_REGION }}
-          export KUBECONFIG_NAME=${{ env.KUBECONFIG_NAME }}
+          export KUBECONFIG=${{ env.KUBECONFIG }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go
