@@ -100,6 +100,16 @@ jobs:
         if: ${{ github.event.inputs.pcp == 'GKE' }}
         run: gcloud components install kubectl
 
+      # Save EC2 user ssh-key for the AWS_RKE2 case
+      - name: Store ssh-key for EC2 user
+        if: ${{ github.event.inputs.pcp == 'AWS_RKE2' }}
+        env:
+          AWS_RKE2_SSH_KEY: ${{ secrets.AWS_RKE2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${AWS_RKE2_SSH_KEY}" > ~/.ssh/id_rsa_ec2.pem
+          chmod 600 ~/.ssh/id_rsa_ec2.pem
+
       # Delete PVCs, DNS records and Public Cloud Providers cluster
       - name: Delete PCP Clusters and Resources
         shell: bash
@@ -115,7 +125,6 @@ jobs:
           export GKE_ZONE=${{ secrets.GKE_ZONE }}
           export EPCI_GKE_PROJECT=${{ secrets.EPCI_GKE_PROJECT }}
           export AWS_RKE2_DOMAIN=${{ secrets.AWS_RKE2_DOMAIN }}
-          export AWS_RKE2_SSH_KEY=${{ secrets.AWS_RKE2_SSH_KEY }}
           export KUBECONFIG=${{ env.KUBECONFIG }}
           # in standalone mode we need to fetch the kubeconfig
           export FETCH_KUBECONFIG='true'
