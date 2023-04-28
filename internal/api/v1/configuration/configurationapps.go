@@ -22,7 +22,7 @@ import (
 // ConfigurationApps handles the API endpoint GET /namespaces/:namespace/configurationapps
 // It returns a map from configurations to the apps they are bound to, in the specified
 // namespace.
-func (hc Controller) ConfigurationApps(c *gin.Context) apierror.APIErrors {
+func ConfigurationApps(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 

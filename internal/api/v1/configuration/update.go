@@ -27,7 +27,7 @@ import (
 
 // Update handles the API endpoint PATCH /namespaces/:namespace/configurations/:app
 // It modifies the keys and values of the specified configuration.
-func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
+func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	configurationName := c.Param("configuration")

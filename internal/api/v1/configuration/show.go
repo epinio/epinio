@@ -24,7 +24,7 @@ import (
 
 // Show handles the API end point /namespaces/:namespace/configurations/:configuration
 // It returns the detail information of the named configuration instance
-func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
+func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	configurationName := c.Param("configuration")
