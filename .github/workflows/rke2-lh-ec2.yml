@@ -267,11 +267,10 @@ jobs:
         if: ${{ always() && github.event.inputs.keep_cluster != 'Keep' }}
         shell: bash
         run: |
-          export RUN_ID=${{ steps.create-cluster.outputs.ID }}
+          export RUN_ID=${{ steps.provision-ec2-instances.outputs.ID }}
           export RUN_PCP="AWS_RKE2"
           export AWS_ZONE_ID=${{ secrets.AWS_ZONE_ID }}
           export AWS_RKE2_DOMAIN=${{ secrets.AWS_RKE2_DOMAIN }}
-          export AWS_RKE2_SSH_KEY=${{ secrets.AWS_RKE2_SSH_KEY }}
           export KUBECONFIG=${{ env.KUBECONFIG }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go
 

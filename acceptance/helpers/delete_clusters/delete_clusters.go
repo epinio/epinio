@@ -388,11 +388,6 @@ func GetKubeconfigGKE(runID string) error {
 
 func GetKubeconfigAWS_RKE2(runID string) error {
 	kubeconfig := os.Getenv("KUBECONFIG")
-	aws_rke2_ssh_key := []byte(os.Getenv("AWS_RKE2_SSH_KEY"))
-	err := os.WriteFile("id_rsa_ec2.pem", aws_rke2_ssh_key, 0600)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create id_rsa_ec2.pem")
-	}
 
 	out, err := proc.RunW("aws", "ec2", "describe-instances", "--filters", fmt.Sprintf("Name=tag:Name,Values='epinio-rke2-ci%s'", runID), "--query", "Reservations[*].Instances[*].PublicDnsName", "--output", "text")
 	if err != nil {
@@ -400,7 +395,7 @@ func GetKubeconfigAWS_RKE2(runID string) error {
 	}
 
 	server_hostname := strings.TrimSpace(out)
-	server_config, err := proc.RunW("ssh", "-o", "BatchMode=yes", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-o", "LogLevel=error", "-o", "ConnectTimeout=30", "-o", "User=ec2-user", "-i", "id_rsa_ec2.pem", server_hostname, "cat /etc/rancher/rke2/rke2.yaml")
+	server_config, err := proc.RunW("ssh", "-o", "BatchMode=yes", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-o", "LogLevel=error", "-o", "ConnectTimeout=30", "-o", "User=ec2-user", "-i", "~/.ssh/id_rsa_ec2.pem", server_hostname, "cat /etc/rancher/rke2/rke2.yaml")
 	if err != nil {
 		return errors.Wrap(err, "Failed to get /etc/rancher/rke2/rke2.yaml "+server_config)
 	}
