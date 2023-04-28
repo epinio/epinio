@@ -167,19 +167,19 @@ func matchingCatalogFinder(cmd *cobra.Command, args []string, toComplete string)
 // filteredMatchingFinder will use the finder func to find the resources with the prefix name
 // It will then filter the matches removing the provided args
 func filteredMatchingFinder(args []string, prefix string, finder func(prefix string) []string) []string {
-	// map to check for already selected applications
-	alreadyMatchedApps := map[string]struct{}{}
-	for _, app := range args {
-		alreadyMatchedApps[app] = struct{}{}
+	// map to check for already selected resources
+	alreadyMatched := map[string]struct{}{}
+	for _, resource := range args {
+		alreadyMatched[resource] = struct{}{}
 	}
 
 	filteredMatches := []string{}
 
 	matches := finder(prefix)
-	for _, app := range matches {
-		// return only the not matched apps
-		if _, found := alreadyMatchedApps[app]; !found {
-			filteredMatches = append(filteredMatches, app)
+	for _, resource := range matches {
+		// return only the not already matched resources
+		if _, found := alreadyMatched[resource]; !found {
+			filteredMatches = append(filteredMatches, resource)
 		}
 	}
 
