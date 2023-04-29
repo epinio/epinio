@@ -38,10 +38,10 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
-  # Windows workspace path contains "\", we need to quote for bash export
-  KUBECONFIG: "'${{ github.workspace }}/kubeconfig-epinio-ci'"
   AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
   AKS_MACHINE_TYPE: 'Standard_D3_v2'
+  # On Windows github workspace path contains "\", we need to have the right quoting for bash export
+  KUBECONFIG: "'${{ github.workspace }}\kubeconfig-epinio-ci'"
 
 jobs:
   linter:
