@@ -41,7 +41,7 @@ env:
   AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
   AKS_MACHINE_TYPE: 'Standard_D3_v2'
   # On Windows github workspace path contains "\", we need to have the right quoting for bash export
-  KUBECONFIG: "'${{ github.workspace }}\kubeconfig-epinio-ci'"
+  KUBECONFIG: "'${{ github.workspace }}\\kubeconfig-epinio-ci'"
 
 jobs:
   linter:
