@@ -100,7 +100,6 @@ configuration:
   appchart: standard
 origin:
   container: splatform/sample-app
-  git: {}
 namespace: %s
 `, app, domain, namespace)
 

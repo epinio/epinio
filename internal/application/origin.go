@@ -27,9 +27,7 @@ import (
 // constructed from the stored information on the Application Custom
 // Resource.
 func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
-	result := models.ApplicationOrigin{
-		Git: &models.GitRef{},
-	}
+	result := models.ApplicationOrigin{}
 
 	origin, found, err := unstructured.NestedMap(app.Object, "spec", "origin")
 
@@ -94,6 +92,8 @@ func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
 		if repository == "" {
 			return result, errors.New("bad git origin, url is empty string")
 		}
+
+		result.Git = &models.GitRef{}
 
 		// For git check for the optional revision as well.
 		revision, found, err := unstructured.NestedString(origin, "git", "revision")
