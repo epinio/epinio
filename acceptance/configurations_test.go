@@ -215,6 +215,18 @@ var _ = Describe("Configurations", LConfiguration, func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).ToNot(ContainSubstring("bogus"))
 			})
+
+			It("does match for more than one configuration but only the remaining one", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "delete", configurationName1, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(configurationName1))
+				Expect(out).To(ContainSubstring(configurationName2))
+
+				out, err = env.Epinio("", "__complete", "service", "delete", configurationName2, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(configurationName1))
+				Expect(out).ToNot(ContainSubstring(configurationName2))
+			})
 		})
 	})
 
