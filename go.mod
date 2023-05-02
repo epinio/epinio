@@ -17,7 +17,7 @@ require (
 	github.com/adrg/xdg v0.4.0
 	github.com/alron/ginlogr v0.0.4
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/briandowns/spinner v1.19.0
+	github.com/briandowns/spinner v1.23.0
 	github.com/coreos/go-oidc/v3 v3.5.0
 	github.com/epinio/application v0.0.0-20230426074828-5749af9ec363
 	github.com/fatih/color v1.14.1
