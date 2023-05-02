@@ -32,6 +32,10 @@ var _ = Describe("AppPart Endpoint", LApplication, func() {
 	)
 	containerImageURL := "splatform/sample-app"
 
+	// The testsuite checks using only part `values` and part `manifest`, as the smallest
+	// possible parts, and also (YAML-formatted) text.  The data returned for parts `chart` and
+	// `image` will be much much larger, and binary.
+
 	BeforeEach(func() {
 		domain = catalog.NewTmpName("exportdomain-") + ".org"
 
@@ -47,10 +51,7 @@ var _ = Describe("AppPart Endpoint", LApplication, func() {
 		env.DeleteNamespace(namespace)
 	})
 
-	It("retrieves the named application part", func() {
-		// The testsuite checks using only part `values`, as the smallest possible, and also text.
-		// The parts `chart` (and, in the future, maybe, `image`) are much larger, and binary.
-
+	It("retrieves the named application part, values", func() {
 		response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications/%s/part/values",
 			serverURL, v1.Root, namespace, app), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
@@ -78,6 +79,33 @@ var _ = Describe("AppPart Endpoint", LApplication, func() {
   tlsIssuer: epinio-ca
   username: admin
 `, app, domain, domain)))
+	})
+
+	It("retrieves the named application part, manifest", func() {
+		response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications/%s/part/manifest",
+			serverURL, v1.Root, namespace, app), strings.NewReader(""))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+		defer response.Body.Close()
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+		expecting := fmt.Sprintf(`name: %s
+configuration:
+  instances: 1
+  routes:
+  - %s
+  appchart: standard
+origin:
+  container: splatform/sample-app
+namespace: %s
+`, app, domain, namespace)
+
+		By(string(bodyBytes))
+		By(expecting)
+		Expect(string(bodyBytes)).To(Equal(expecting))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

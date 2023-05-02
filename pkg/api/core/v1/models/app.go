@@ -37,7 +37,9 @@ type ApplicationStagingStatus string
 
 type GitRef struct {
 	Revision string `json:"revision,omitempty" yaml:"revision,omitempty"`
-	URL      string `json:"repository"         yaml:"url"`
+	URL      string `json:"repository"         yaml:"url,omitempty"`
+	Provider string `json:"provider,omitempty" yaml:"provider,omitempty"`
+	Branch   string `json:"branch,omitempty"   yaml:"branch,omitempty"`
 }
 
 // App has all the application's properties, for at rest (Configuration), and active (Workload).
@@ -50,8 +52,9 @@ type App struct {
 	Configuration ApplicationUpdateRequest `json:"configuration"`
 	Origin        ApplicationOrigin        `json:"origin"`
 	Workload      *AppDeployment           `json:"deployment,omitempty"`
-	Status        ApplicationStatus        `json:"status"`
+	Staging       ApplicationStage         `json:"staging,omitempty"`
 	StagingStatus ApplicationStagingStatus `json:"stagingstatus"`
+	Status        ApplicationStatus        `json:"status"`
 	StatusMessage string                   `json:"statusmessage"`
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
 	ImageURL      string                   `json:"image_url"`

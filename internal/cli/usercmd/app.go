@@ -21,8 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/helpers/bytes"
@@ -299,23 +297,7 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 
 	details.Info("show application")
 
-	app, err := c.API.AppShow(c.Settings.Namespace, appName)
-	if err != nil {
-		return err
-	}
-
-	m := models.ApplicationManifest{}
-	m.Name = appName
-	m.Configuration = app.Configuration
-	m.Origin = app.Origin
-	m.Namespace = c.Settings.Namespace
-
-	yaml, err := yaml.Marshal(m)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(manifestPath, yaml, 0600)
+	err := c.API.AppGetPart(c.Settings.Namespace, appName, "manifest", manifestPath)
 	if err != nil {
 		return err
 	}
@@ -622,6 +604,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 
 	msg = msg.
 		WithTableRow("App Chart", app.Configuration.AppChart).
+		WithTableRow("Builder Image", app.Staging.Builder).
 		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
 		WithTableRow("Bound Configurations", strings.Join(app.Configuration.Configurations, ", ")).
 		WithTableRow("Environment", "")

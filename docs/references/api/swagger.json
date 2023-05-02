@@ -1731,6 +1731,9 @@
           "type": "string",
           "x-go-name": "StageID"
         },
+        "staging": {
+          "$ref": "#/definitions/ApplicationStage"
+        },
         "stagingstatus": {
           "$ref": "#/definitions/ApplicationStagingStatus"
         },
@@ -1957,6 +1960,10 @@
           "type": "integer",
           "format": "int64"
         },
+        "archive": {
+          "type": "boolean",
+          "x-go-name": "Archive"
+        },
         "container": {
           "type": "string",
           "x-go-name": "Container"
@@ -1967,6 +1974,17 @@
         "path": {
           "type": "string",
           "x-go-name": "Path"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ApplicationStage": {
+      "description": "ApplicationStage is the part of the manifest holding information\nrelevant to staging the application's sources. This is, currently,\nonly the reference to the Paketo builder image to use.",
+      "type": "object",
+      "properties": {
+        "builder": {
+          "type": "string",
+          "x-go-name": "Builder"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2366,6 +2384,14 @@
     "GitRef": {
       "type": "object",
       "properties": {
+        "branch": {
+          "type": "string",
+          "x-go-name": "Branch"
+        },
+        "provider": {
+          "type": "string",
+          "x-go-name": "Provider"
+        },
         "repository": {
           "type": "string",
           "x-go-name": "URL"
