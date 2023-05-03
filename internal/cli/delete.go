@@ -29,9 +29,8 @@ var CmdAppDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := epinioClient.AppsMatching(toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
+		filteredMatches := filteredMatchingFinder(args, toComplete, epinioClient.AppsMatching)
+		return filteredMatches, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true

@@ -46,8 +46,6 @@ func bindOption(cmd *cobra.Command) {
 			// We are responsible for splitting into segments, and expanding only the last
 			// segment.
 
-			ctx := cmd.Context()
-
 			app, err := usercmd.New(cmd.Context())
 			if err != nil {
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -56,7 +54,7 @@ func bindOption(cmd *cobra.Command) {
 			values := strings.Split(toComplete, ",")
 			if len(values) == 0 {
 				// Nothing. Report all possible matches
-				matches := app.ConfigurationMatching(ctx, toComplete)
+				matches := app.ConfigurationMatching(toComplete)
 				return matches, cobra.ShellCompDirectiveNoFileComp
 			}
 
@@ -65,7 +63,7 @@ func bindOption(cmd *cobra.Command) {
 			// expansions for that segment.
 
 			matches := []string{}
-			for _, match := range app.ConfigurationMatching(ctx, values[len(values)-1]) {
+			for _, match := range app.ConfigurationMatching(values[len(values)-1]) {
 				values[len(values)-1] = match
 				matches = append(matches, strings.Join(values, ","))
 			}

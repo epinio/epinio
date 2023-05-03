@@ -1883,6 +1883,7 @@ userConfig:
 		"restart",
 		"show",
 		"update",
+		"delete",
 	} {
 		Context(command+" command completion", func() {
 			BeforeEach(func() {

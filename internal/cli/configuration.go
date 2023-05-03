@@ -12,7 +12,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -103,7 +102,7 @@ var CmdConfigurationDelete = &cobra.Command{
 		}
 		epinioClient.API.DisableVersionWarning()
 
-		matches := epinioClient.ConfigurationMatching(context.Background(), toComplete)
+		matches := filteredMatchingFinder(args, toComplete, epinioClient.ConfigurationMatching)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -329,6 +328,6 @@ func findConfigurationApp(cmd *cobra.Command, args []string, toComplete string) 
 
 	// #args == 0: configuration name.
 
-	matches := app.ConfigurationMatching(context.Background(), toComplete)
+	matches := app.ConfigurationMatching(toComplete)
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
