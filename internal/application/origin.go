@@ -27,9 +27,7 @@ import (
 // constructed from the stored information on the Application Custom
 // Resource.
 func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
-	result := models.ApplicationOrigin{
-		Git: &models.GitRef{},
-	}
+	result := models.ApplicationOrigin{}
 
 	origin, found, err := unstructured.NestedMap(app.Object, "spec", "origin")
 
@@ -55,6 +53,16 @@ func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
 		}
 		if path == "" {
 			return result, errors.New("bad path origin, empty string")
+		}
+
+		// For path check the archive flag as well
+		isarchive, found, err := unstructured.NestedBool(origin, "archive")
+		if found {
+			if err != nil {
+				return result, err
+			}
+
+			result.Archive = isarchive
 		}
 
 		result.Kind = models.OriginPath
@@ -85,6 +93,8 @@ func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
 			return result, errors.New("bad git origin, url is empty string")
 		}
 
+		result.Git = &models.GitRef{}
+
 		// For git check for the optional revision as well.
 		revision, found, err := unstructured.NestedString(origin, "git", "revision")
 		if found {
@@ -95,6 +105,30 @@ func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
 				return result, errors.New("bad git origin, revision is empty string")
 			}
 			result.Git.Revision = revision
+		}
+
+		// For git check for the optional provider as well.
+		provider, found, err := unstructured.NestedString(origin, "git", "provider")
+		if found {
+			if err != nil {
+				return result, err
+			}
+			if provider == "" {
+				return result, errors.New("bad git origin, provider is empty string")
+			}
+			result.Git.Provider = provider
+		}
+
+		// For git check for the optional branch as well.
+		branch, found, err := unstructured.NestedString(origin, "git", "branch")
+		if found {
+			if err != nil {
+				return result, err
+			}
+			if branch == "" {
+				return result, errors.New("bad git origin, branch is empty string")
+			}
+			result.Git.Branch = branch
 		}
 
 		result.Kind = models.OriginGit

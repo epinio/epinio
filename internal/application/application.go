@@ -467,6 +467,18 @@ func ImageURL(app *unstructured.Unstructured) (string, error) {
 	return imageURL, nil
 }
 
+// BuilderURL returns the builder url of the currently running build, if one exists. It
+// returns an empty string otherwise. The information is pulled out of the app resource
+// itself, saved there by the deploy endpoint.
+func BuilderURL(app *unstructured.Unstructured) (string, error) {
+	builderURL, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "builderimage")
+	if err != nil {
+		return "", errors.New("builderimage should be string")
+	}
+
+	return builderURL, nil
+}
+
 // Unstage removes staging resources. It deletes either all Jobs of the named application,
 // or all but stageIDCurrent. It also deletes the staged objects from the S3 storage
 // except for the current one.
@@ -695,6 +707,11 @@ func aggregate(ctx context.Context,
 		return nil, errors.Wrap(err, "finding the image url")
 	}
 
+	builderURL, err := BuilderURL(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the builder url")
+	}
+
 	settings, err := Settings(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding settings")
@@ -721,6 +738,7 @@ func aggregate(ctx context.Context,
 	app.Origin = origin
 	app.StageID = stageID
 	app.ImageURL = imageURL
+	app.Staging.Builder = builderURL
 
 	// IV. Assemble the deployment structure for active applications.
 
@@ -846,6 +864,14 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	builderURL, err := BuilderURL(applicationCR)
+	if err != nil {
+		err = errors.Wrap(err, "finding the builder url")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
+	}
+
 	settings, err := Settings(applicationCR)
 	if err != nil {
 		err = errors.Wrap(err, "finding settings")
@@ -865,6 +891,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Origin = origin
 	app.StageID = stageID
 	app.ImageURL = imageURL
+	app.Staging.Builder = builderURL
 
 	// Check if app is active, and if yes, fill the associated parts.  May have to
 	// straighten the workload structure a bit further.

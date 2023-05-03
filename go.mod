@@ -19,7 +19,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.23.0
 	github.com/coreos/go-oidc/v3 v3.5.0
-	github.com/epinio/application v0.0.0-20220901082113-1f9503b4ae5a
+	github.com/epinio/application v0.0.0-20230426074828-5749af9ec363
 	github.com/fatih/color v1.14.1
 	github.com/gin-gonic/gin v1.8.2
 	github.com/go-git/go-git/v5 v5.4.2
