@@ -200,8 +200,14 @@ var _ = Describe("Configurations", LConfiguration, func() {
 		})
 
 		Context("command completion", func() {
+
+			BeforeEach(func() {
+				env.MakeConfiguration(configurationName2)
+			})
+
 			AfterEach(func() {
 				env.CleanupConfiguration(configurationName1)
+				env.CleanupConfiguration(configurationName2)
 			})
 
 			It("matches empty prefix", func() {
@@ -214,6 +220,18 @@ var _ = Describe("Configurations", LConfiguration, func() {
 				out, err := env.Epinio("", "__complete", "configuration", "delete", "bogus")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does match for more than one configuration but only the remaining one", func() {
+				out, err := env.Epinio("", "__complete", "configuration", "delete", configurationName1, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(configurationName1))
+				Expect(out).To(ContainSubstring(configurationName2))
+
+				out, err = env.Epinio("", "__complete", "configuration", "delete", configurationName2, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(configurationName1))
+				Expect(out).ToNot(ContainSubstring(configurationName2))
 			})
 		})
 	})

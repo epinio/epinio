@@ -128,8 +128,8 @@ var CmdServiceDelete = &cobra.Command{
 		}
 
 		app.API.DisableVersionWarning()
-		matches := app.ServiceMatching(toComplete)
 
+		matches := filteredMatchingFinder(args, toComplete, app.ServiceMatching)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {

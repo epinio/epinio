@@ -12,7 +12,6 @@
 package usercmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -111,7 +110,7 @@ func (c *EpinioClient) Configurations(all bool) error {
 
 // ConfigurationMatching returns all Epinio configurations having the specified prefix
 // in their name.
-func (c *EpinioClient) ConfigurationMatching(ctx context.Context, prefix string) []string {
+func (c *EpinioClient) ConfigurationMatching(prefix string) []string {
 	log := c.Log.WithName("ConfigurationMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")

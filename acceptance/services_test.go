@@ -575,6 +575,25 @@ var _ = Describe("Services", LService, func() {
 					return out
 				}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service2))
 			})
+
+			It("does match for more than one service", func() {
+				out, err := env.Epinio("", "__complete", "service", "delete", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(service))
+				Expect(out).To(ContainSubstring(service2))
+			})
+
+			It("does match for more than one service but only the remaining one", func() {
+				out, err := env.Epinio("", "__complete", "service", "delete", service, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(service))
+				Expect(out).To(ContainSubstring(service2))
+
+				out, err = env.Epinio("", "__complete", "service", "delete", service2, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(service))
+				Expect(out).ToNot(ContainSubstring(service2))
+			})
 		})
 
 		When("bound to an app", func() {

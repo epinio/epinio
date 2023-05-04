@@ -57,10 +57,11 @@ var CmdEnvList = &cobra.Command{
 
 // CmdEnvSet implements the command: epinio app env set
 var CmdEnvSet = &cobra.Command{
-	Use:   "set APPNAME NAME VALUE",
-	Short: "Extend application environment",
-	Long:  "Add or change environment variable of named application",
-	Args:  cobra.ExactArgs(3),
+	Use:               "set APPNAME NAME VALUE",
+	Short:             "Extend application environment",
+	Long:              "Add or change environment variable of named application",
+	Args:              cobra.ExactArgs(3),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -76,24 +77,6 @@ var CmdEnvSet = &cobra.Command{
 		}
 
 		return nil
-	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		// Ignore name and value of environment variable.
-		// EV may exist or not, the command will set or modify.
-		if len(args) > 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-		app.API.DisableVersionWarning()
-
-		// #args == 0: application name.
-		matches := app.AppsMatching(toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 }
 
