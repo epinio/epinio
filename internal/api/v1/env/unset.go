@@ -24,7 +24,7 @@ import (
 // Unset handles the API endpoint /namespaces/:namespace/applications/:app/environment/:env (DELETE)
 // It receives the namespace, application name, var name, and removes the
 // variable from the application's environment.
-func (hc Controller) Unset(c *gin.Context) apierror.APIErrors {
+func Unset(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 	username := requestctx.User(ctx).Username

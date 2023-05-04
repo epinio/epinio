@@ -25,7 +25,7 @@ import (
 // Set handles the API endpoint /namespaces/:namespace/applications/:app/environment (POST)
 // It receives the namespace, application name, var name and value,
 // and add/modifies the variable in the  application's environment.
-func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
+func Set(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 	username := requestctx.User(ctx).Username

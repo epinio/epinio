@@ -110,15 +110,15 @@ var Routes = routes.NamedRoutes{
 	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Match)),
 
 	// See env.go
-	"EnvList": get("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Controller{}.Index)),
+	"EnvList": get("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Index)),
 
 	// Note, the second registration catches calls with an empty pattern!
-	"EnvMatch":  get("/namespaces/:namespace/applications/:app/environmentmatch/:pattern", errorHandler(env.Controller{}.Match)),
-	"EnvMatch0": get("/namespaces/:namespace/applications/:app/environmentmatch", errorHandler(env.Controller{}.Match)),
+	"EnvMatch":  get("/namespaces/:namespace/applications/:app/environmentmatch/:pattern", errorHandler(env.Match)),
+	"EnvMatch0": get("/namespaces/:namespace/applications/:app/environmentmatch", errorHandler(env.Match)),
 
-	"EnvSet":   post("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Controller{}.Set)),
-	"EnvShow":  get("/namespaces/:namespace/applications/:app/environment/:env", errorHandler(env.Controller{}.Show)),
-	"EnvUnset": delete("/namespaces/:namespace/applications/:app/environment/:env", errorHandler(env.Controller{}.Unset)),
+	"EnvSet":   post("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Set)),
+	"EnvShow":  get("/namespaces/:namespace/applications/:app/environment/:env", errorHandler(env.Show)),
+	"EnvUnset": delete("/namespaces/:namespace/applications/:app/environment/:env", errorHandler(env.Unset)),
 
 	// Bind and unbind configurations to/from applications, by means of configurationbindings in applications
 	"ConfigurationBindingCreate": post("/namespaces/:namespace/applications/:app/configurationbindings",

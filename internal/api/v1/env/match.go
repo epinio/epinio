@@ -29,7 +29,7 @@ import (
 // It receives the namespace, application name, plus a prefix and returns
 // the names of all the environment associated with that application
 // with prefix
-func (hc Controller) Match(c *gin.Context) apierror.APIErrors {
+func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
