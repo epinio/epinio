@@ -30,7 +30,7 @@ import (
 
 // Create handles the API endpoint /namespaces (POST).
 // It creates a namespace with the specified name.
-func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
+func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
 	cluster, err := kubernetes.GetCluster(ctx)

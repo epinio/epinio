@@ -27,7 +27,7 @@ import (
 
 // Show handles the API endpoint GET /namespaces/:namespace
 // It returns the details of the specified namespace
-func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
+func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 

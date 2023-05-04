@@ -127,15 +127,15 @@ var Routes = routes.NamedRoutes{
 		errorHandler(configurationbinding.Controller{}.Delete)),
 
 	// List, create, show and delete namespaces
-	"Namespaces":           get("/namespaces", errorHandler(namespace.Controller{}.Index)),
-	"NamespaceCreate":      post("/namespaces", errorHandler(namespace.Controller{}.Create)),
-	"NamespaceDelete":      delete("/namespaces/:namespace", errorHandler(namespace.Controller{}.Delete)),
-	"NamespaceBatchDelete": delete("/namespaces", errorHandler(namespace.Controller{}.Delete)),
-	"NamespaceShow":        get("/namespaces/:namespace", errorHandler(namespace.Controller{}.Show)),
+	"Namespaces":           get("/namespaces", errorHandler(namespace.Index)),
+	"NamespaceCreate":      post("/namespaces", errorHandler(namespace.Create)),
+	"NamespaceDelete":      delete("/namespaces/:namespace", errorHandler(namespace.Delete)),
+	"NamespaceBatchDelete": delete("/namespaces", errorHandler(namespace.Delete)),
+	"NamespaceShow":        get("/namespaces/:namespace", errorHandler(namespace.Show)),
 
 	// Note, the second registration catches calls with an empty pattern!
-	"NamespacesMatch":  get("/namespacematches/:pattern", errorHandler(namespace.Controller{}.Match)),
-	"NamespacesMatch0": get("/namespacematches", errorHandler(namespace.Controller{}.Match)),
+	"NamespacesMatch":  get("/namespacematches/:pattern", errorHandler(namespace.Match)),
+	"NamespacesMatch0": get("/namespacematches", errorHandler(namespace.Match)),
 
 	// List, show, create and delete configurations
 	"ConfigurationApps": get("/namespaces/:namespace/configurationapps", errorHandler(configuration.Controller{}.ConfigurationApps)),
