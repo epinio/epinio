@@ -59,7 +59,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - uses: anchore/sbom-action/download-syft@v0.13.4
+      - uses: anchore/sbom-action/download-syft@v0.14.1
 
       - uses: sigstore/cosign-installer@v2.8.1
 
