@@ -27,7 +27,7 @@ import (
 
 // Replace handles the API endpoint PUT /namespaces/:namespace/configurations/:app
 // It replaces the specified configuration.
-func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
+func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	configurationName := c.Param("configuration")

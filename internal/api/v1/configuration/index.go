@@ -27,7 +27,7 @@ import (
 
 // Index handles the API end point /namespaces/:namespace/configurations
 // It returns a list of all known configuration instances
-func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
+func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 

@@ -24,7 +24,7 @@ import (
 
 // Create handles the API end point /namespaces/:namespace/configurations
 // It creates the named configuration from its parameters
-func (sc Controller) Create(c *gin.Context) apierror.APIErrors {
+func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	username := requestctx.User(ctx).Username

@@ -27,7 +27,7 @@ import (
 
 // Delete handles the API end point /namespaces/:namespace/configurations/:configuration (DELETE)
 // It deletes the named configuration
-func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
+func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 
