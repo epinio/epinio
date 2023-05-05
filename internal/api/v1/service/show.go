@@ -20,7 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (ctr Controller) Show(c *gin.Context) apierror.APIErrors {
+func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")

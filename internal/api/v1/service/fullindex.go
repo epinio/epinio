@@ -24,7 +24,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (ctr Controller) FullIndex(c *gin.Context) apierror.APIErrors {
+func FullIndex(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	user := requestctx.User(ctx)
 

@@ -26,7 +26,7 @@ import (
 
 // Match handles the API endpoint /catalogservicesmatches/:pattern (GET)
 // It returns a list of all Epinio-controlled catalog services matching the prefix pattern.
-func (oc Controller) CatalogMatch(c *gin.Context) apierror.APIErrors {
+func CatalogMatch(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 

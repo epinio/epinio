@@ -31,7 +31,7 @@ import (
 
 // Unbind handles the API endpoint /namespaces/:namespace/services/:service/unbind (POST)
 // It removes the binding between the specified service and application
-func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
+func Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Bind")
 	username := requestctx.User(ctx).Username

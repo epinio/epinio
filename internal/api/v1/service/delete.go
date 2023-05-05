@@ -32,7 +32,7 @@ import (
 
 // Delete handles the API end point /namespaces/:namespace/services/:service (DELETE)
 // It deletes the named service
-func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
+func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Delete")
 	username := requestctx.User(ctx).Username

@@ -153,35 +153,35 @@ var Routes = routes.NamedRoutes{
 	"ConfigurationMatch0": get("/namespaces/:namespace/configurationsmatches", errorHandler(configuration.Controller{}.Match)),
 
 	// Service Catalog
-	"ServiceCatalog":     get("/catalogservices", errorHandler(service.Controller{}.Catalog)),
-	"ServiceCatalogShow": get("/catalogservices/:catalogservice", errorHandler(service.Controller{}.CatalogShow)),
+	"ServiceCatalog":     get("/catalogservices", errorHandler(service.Catalog)),
+	"ServiceCatalogShow": get("/catalogservices/:catalogservice", errorHandler(service.CatalogShow)),
 
 	// Note, the second registration catches calls with an empty pattern!
-	"ServiceCatalogMatch":  get("catalogservicesmatches/:pattern", errorHandler(service.Controller{}.CatalogMatch)),
-	"ServiceCatalogMatch0": get("catalogservicesmatches", errorHandler(service.Controller{}.CatalogMatch)),
+	"ServiceCatalogMatch":  get("catalogservicesmatches/:pattern", errorHandler(service.CatalogMatch)),
+	"ServiceCatalogMatch0": get("catalogservicesmatches", errorHandler(service.CatalogMatch)),
 
 	// Services
-	"ServiceApps": get("/namespaces/:namespace/serviceapps", errorHandler(service.Controller{}.ServiceApps)),
+	"ServiceApps": get("/namespaces/:namespace/serviceapps", errorHandler(service.ServiceApps)),
 	//
-	"AllServices":        get("/services", errorHandler(service.Controller{}.FullIndex)),
-	"ServiceCreate":      post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
-	"ServiceList":        get("/namespaces/:namespace/services", errorHandler(service.Controller{}.List)),
-	"ServiceShow":        get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
-	"ServiceDelete":      delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
-	"ServiceBatchDelete": delete("/namespaces/:namespace/services", errorHandler(service.Controller{}.Delete)),
+	"AllServices":        get("/services", errorHandler(service.FullIndex)),
+	"ServiceCreate":      post("/namespaces/:namespace/services", errorHandler(service.Create)),
+	"ServiceList":        get("/namespaces/:namespace/services", errorHandler(service.List)),
+	"ServiceShow":        get("/namespaces/:namespace/services/:service", errorHandler(service.Show)),
+	"ServiceDelete":      delete("/namespaces/:namespace/services/:service", errorHandler(service.Delete)),
+	"ServiceBatchDelete": delete("/namespaces/:namespace/services", errorHandler(service.Delete)),
 
-	"ServiceMatch":  get("/namespaces/:namespace/servicesmatches/:pattern", errorHandler(service.Controller{}.Match)),
-	"ServiceMatch0": get("/namespaces/:namespace/servicesmatches", errorHandler(service.Controller{}.Match)),
+	"ServiceMatch":  get("/namespaces/:namespace/servicesmatches/:pattern", errorHandler(service.Match)),
+	"ServiceMatch0": get("/namespaces/:namespace/servicesmatches", errorHandler(service.Match)),
 
 	// Bind a service to/from applications
 	"ServiceBind": post(
 		"/namespaces/:namespace/services/:service/bind",
-		errorHandler(service.Controller{}.Bind)),
+		errorHandler(service.Bind)),
 
 	// Unbind a service to/from applications
 	"ServiceUnbind": post(
 		"/namespaces/:namespace/services/:service/unbind",
-		errorHandler(service.Controller{}.Unbind)),
+		errorHandler(service.Unbind)),
 
 	// App charts
 	"ChartList":   get("/appcharts", errorHandler(appchart.Index)),

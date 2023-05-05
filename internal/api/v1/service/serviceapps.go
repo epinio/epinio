@@ -22,7 +22,7 @@ import (
 // ServiceApps handles the API endpoint GET /namespaces/:namespace/serviceapps
 // It returns a map from services to the apps they are bound to, in the specified
 // namespace.
-func (hc Controller) ServiceApps(c *gin.Context) apierror.APIErrors {
+func ServiceApps(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 

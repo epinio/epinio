@@ -28,7 +28,7 @@ import (
 
 // Bind handles the API endpoint /namespaces/:namespace/services/:service/bind (POST)
 // It creates a binding between the specified service and application
-func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
+func Bind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Bind")
 
