@@ -33,7 +33,7 @@ import (
 
 // Create handles the API endpoint /namespaces/:namespace/applications/:app/configurationbindings (POST)
 // It creates a binding between the specified configuration and application
-func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
+func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
