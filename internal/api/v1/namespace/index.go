@@ -31,7 +31,7 @@ import (
 // It returns a list of all Epinio-controlled namespaces
 // An Epinio namespace is nothing but a kubernetes namespace which has a
 // special Label (Look at the code to see which).
-func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
+func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	user := requestctx.User(ctx)
 

@@ -26,7 +26,7 @@ import (
 
 // Match handles the API endpoint /namespacematches/:pattern (GET)
 // It returns a list of all Epinio-controlled namespaces matching the prefix pattern.
-func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
+func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 	user := requestctx.User(ctx)

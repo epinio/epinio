@@ -37,7 +37,7 @@ import (
 // Delete handles the API endpoint /namespaces/:namespace (DELETE).
 // It destroys the namespace specified by its name.
 // This includes all the applications and configurations in it.
-func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
+func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespaceName := c.Param("namespace")
 
