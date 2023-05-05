@@ -25,7 +25,7 @@ import (
 // EnvShow handles the API endpoint /namespaces/:namespace/applications/:app/environment/:env
 // It receives the namespace, application name, var name, and returns
 // the variable's value in the application's environment.
-func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
+func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 

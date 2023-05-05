@@ -25,7 +25,7 @@ import (
 // Index handles the API endpoint /namespaces/:namespace/applications/:app/environment
 // It receives the namespace, application name and returns the environment
 // associated with that application
-func (hc Controller) Index(c *gin.Context) apierror.APIErrors {
+func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
