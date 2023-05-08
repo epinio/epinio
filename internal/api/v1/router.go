@@ -122,9 +122,9 @@ var Routes = routes.NamedRoutes{
 
 	// Bind and unbind configurations to/from applications, by means of configurationbindings in applications
 	"ConfigurationBindingCreate": post("/namespaces/:namespace/applications/:app/configurationbindings",
-		errorHandler(configurationbinding.Controller{}.Create)),
+		errorHandler(configurationbinding.Create)),
 	"ConfigurationBindingDelete": delete("/namespaces/:namespace/applications/:app/configurationbindings/:configuration",
-		errorHandler(configurationbinding.Controller{}.Delete)),
+		errorHandler(configurationbinding.Delete)),
 
 	// List, create, show and delete namespaces
 	"Namespaces":           get("/namespaces", errorHandler(namespace.Index)),

@@ -22,7 +22,7 @@ import (
 
 // Delete handles the API endpoint /namespaces/:namespace/applications/:app/configurationbindings/:configuration
 // It removes the binding between the specified configuration and application
-func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
+func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
