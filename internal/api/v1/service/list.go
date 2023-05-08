@@ -21,7 +21,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (ctr Controller) List(c *gin.Context) apierror.APIErrors {
+func List(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 

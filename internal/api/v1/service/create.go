@@ -22,7 +22,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-func (ctr Controller) Create(c *gin.Context) apierror.APIErrors {
+func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 

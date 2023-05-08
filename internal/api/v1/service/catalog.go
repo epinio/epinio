@@ -21,7 +21,7 @@ import (
 	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-func (ctr Controller) Catalog(c *gin.Context) apierror.APIErrors {
+func Catalog(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -43,7 +43,7 @@ func (ctr Controller) Catalog(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func (ctr Controller) CatalogShow(c *gin.Context) apierror.APIErrors {
+func CatalogShow(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	serviceName := c.Param("catalogservice")
 
