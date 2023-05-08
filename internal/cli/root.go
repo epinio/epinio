@@ -116,6 +116,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		cmdVersion,
 		CmdServices,
 		CmdLogin,
+		CmdLogout,
 	)
 
 	// Hidden command providing developer tools
