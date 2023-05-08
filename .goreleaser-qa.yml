@@ -270,7 +270,7 @@ docker_manifests:
 
 sboms:
   - id: archive 
-    artifacts: archive
+    artifacts: any
   - id: source
     artifacts: source
 
