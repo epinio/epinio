@@ -267,6 +267,9 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 	epinioSettings.Password = password
 	epinioSettings.Certs = serverCertificate
 
+	// Clear any previous oidc login settings
+	epinioSettings.Token = settings.TokenSetting{}
+
 	return epinioSettings, nil
 }
 

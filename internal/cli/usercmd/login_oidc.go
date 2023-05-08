@@ -78,6 +78,10 @@ func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, p
 	updatedSettings.Token.Expiry = token.Expiry
 	updatedSettings.Token.RefreshToken = token.RefreshToken
 
+	// Clear any previous regular login settings
+	updatedSettings.User = ""
+	updatedSettings.Password = ""
+
 	// verify that settings are valid
 	err = verifyCredentials(ctx, updatedSettings)
 	if err != nil {
