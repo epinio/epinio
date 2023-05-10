@@ -315,6 +315,8 @@ sboms:
     artifacts: archive
   - id: source
     artifacts: source
+  - id: binary
+    artifacts: binary
 
 # signs our docker images
 # https://goreleaser.com/customization/docker_sign
