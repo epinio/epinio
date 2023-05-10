@@ -31,9 +31,6 @@ VERSION ?= $(shell git describe --tags)$(VSUFFIX)
 CGO_ENABLED ?= 0
 export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
 
-FAIL_PENDING = --fail-on-pending
-#FAIL_PENDING =
-
 build: build-amd64
 
 # amd64 variant
@@ -87,7 +84,7 @@ compress:
 	upx --brute -1 ./dist/epinio-darwin-arm64
 
 test:
-	ginkgo --nodes ${GINKGO_NODES} -r -p --cover -race ${FAIL_PENDING} --skip-file=acceptance
+	ginkgo --nodes ${GINKGO_NODES} -r -p --cover -race --fail-on-pending --skip-file=acceptance
 
 tag:
 	@git describe --tags --abbrev=0
@@ -99,7 +96,7 @@ FLAKE_ATTEMPTS ?= 2
 GINKGO_NODES ?= 2
 GINKGO_POLL_PROGRESS_AFTER ?= 200s
 REGEX ?= ""
-STANDARD_TEST_OPTIONS= -v --nodes ${GINKGO_NODES} --poll-progress-after ${GINKGO_POLL_PROGRESS_AFTER} --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} ${FAIL_PENDING}
+STANDARD_TEST_OPTIONS= -v --nodes ${GINKGO_NODES} --poll-progress-after ${GINKGO_POLL_PROGRESS_AFTER} --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending
 
 acceptance-cluster-delete:
 	k3d cluster delete epinio-acceptance
