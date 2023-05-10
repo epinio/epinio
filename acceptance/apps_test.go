@@ -1736,18 +1736,21 @@ userConfig:
 			logLength = len(logs)
 
 			By("----------------------------------")
-			By(fmt.Sprintf("LOGS = %d lines", logLength))
+			By(fmt.Sprintf("LOGS = %d lines (raw)", logLength))
 
 			for idx, line := range logs {
+				// Exclude fake log lines caused by coverage collection.
+				if (line == "PASS") || strings.Contains(line, "coverage") {
+					logLength--
+					continue
+				}
 				By(fmt.Sprintf("LOG_ [%3d]: %s", idx, line))
 			}
 			By("----------------------------------")
+			By(fmt.Sprintf("LOGS = %d lines (filtered)", logLength))
 
-			// Skip correction dependent on coverage vs not.
+			// Skip correction (coverage, if present, is already accounted for, see above)
 			logLength = logLength - 1
-			if _, ok := os.LookupEnv("EPINIO_COVERAGE"); ok {
-				logLength = logLength - 2
-			}
 			By(fmt.Sprintf("SKIP %d lines", logLength))
 		})
 
