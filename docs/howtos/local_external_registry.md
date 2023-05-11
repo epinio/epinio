@@ -8,7 +8,32 @@ We are going to put them in a `docker_reg_certs` folder:
 
 ```
 mkdir docker_reg_certs
+```
 
+Using this `epinio.cfg` configuration file
+
+```
+[ req ]
+default_bits       = 2048
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+[ req_distinguished_name ]
+countryName                = Country Name (2 letter code)
+stateOrProvinceName        = State or Province Name (full name)
+localityName               = Locality Name (eg, city)
+organizationName           = Organization Name (eg, company)
+commonName                 = Common Name (e.g. server FQDN or YOUR name)
+[ req_ext ]
+subjectAltName = @alt_names
+[alt_names]
+DNS.1   = omg.howdoi.website
+DNS.2   = *.omg.howdoi.website
+DNS.3   = 172.21.0.5.omg.howdoi.website
+```
+
+we can now run these commands:
+
+```
 # create the Certificate Signing Request
 openssl req -new -newkey rsa:4096 -nodes \
     -config epinio.cfg \
