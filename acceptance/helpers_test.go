@@ -9,7 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package machine
+package acceptance_test
 
 import (
 	"bytes"
@@ -24,20 +24,23 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func (m *Machine) ExpectGoodUserLogin(tmpSettingsPath, password, serverURL string) {
-	out, err := m.Epinio("", "login", "-u", "epinio", "-p", password,
+func ExpectGoodUserLogin(tmpSettingsPath, password, serverURL string) {
+	By("Regular login")
+	out, err := env.Epinio("", "login", "-u", "epinio", "-p", password,
 		"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
 
 	Expect(err).ToNot(HaveOccurred())
 	Expect(out).To(ContainSubstring(`Login to your Epinio cluster`))
 	Expect(out).To(ContainSubstring(`Trusting certificate`))
 	Expect(out).To(ContainSubstring(`Login successful`))
+	By("Regular login done")
 }
 
-func (m *Machine) ExpectGoodTokenLogin(tmpSettingsPath, serverURL string) {
+func ExpectGoodTokenLogin(tmpSettingsPath, serverURL string) {
+	By("OIDC login")
 
 	out := &bytes.Buffer{}
-	cmd := m.EpinioCmd("login", "--prompt", "--oidc",
+	cmd := env.EpinioCmd("login", "--prompt", "--oidc",
 		"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
 	cmd.Stdout = out
 	cmd.Stderr = out
@@ -45,21 +48,20 @@ func (m *Machine) ExpectGoodTokenLogin(tmpSettingsPath, serverURL string) {
 	stdinPipe, err := cmd.StdinPipe()
 	Expect(err).ToNot(HaveOccurred())
 
+	iscomplete := make(chan error)
+
 	// run the epinio login and wait for the input of the authCode
 	go func() {
+		By("Background: login")
 		defer GinkgoRecover()
 
 		err = cmd.Run()
-		Expect(err).ToNot(HaveOccurred(), out.String())
-
-		// when the command terminates check that the login was successful
-		Expect(out.String()).To(ContainSubstring(`Login successful`))
-
-		// check that the settings are now updated
-		m.ExpectTokenSettings(tmpSettingsPath)
+		By("Background: signal run completion")
+		iscomplete <- err
 	}()
 
 	// read the full output, until the command asks you to paste the auth code
+	By("Waiting for auth code query")
 	for {
 		if strings.Contains(out.String(), "paste the authorization code") {
 			break
@@ -91,14 +93,24 @@ func (m *Machine) ExpectGoodTokenLogin(tmpSettingsPath, serverURL string) {
 
 	authCode, err := loginClient.Login(authURL, "admin@epinio.io", "password")
 	Expect(err).ToNot(HaveOccurred())
+
+	By("Piping auth data into command")
 	_, err = fmt.Fprintln(stdinPipe, authCode)
 	Expect(err).ToNot(HaveOccurred())
 
+	By("Waiting for login completion")
+	err = <-iscomplete
+	Expect(err).ToNot(HaveOccurred(), out.String())
+
+	// after the command terminates check that the login was successful
+	Expect(out.String()).To(ContainSubstring(`Login successful`))
+	By("OIDC login done")
 }
 
-func (m *Machine) ExpectEmptySettings(tmpSettingsPath string) {
+func ExpectEmptySettings(tmpSettingsPath string) {
+	By("Check for empty settings")
 	// check that the settings are empty
-	settings, err := m.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
+	settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 	Expect(err).ToNot(HaveOccurred(), settings)
 	Expect(settings).To(
 		HaveATable(
@@ -111,9 +123,10 @@ func (m *Machine) ExpectEmptySettings(tmpSettingsPath string) {
 	)
 }
 
-func (m *Machine) ExpectUserPasswordSettings(tmpSettingsPath string) {
+func ExpectUserPasswordSettings(tmpSettingsPath string) {
+	By("Check for user/pass settings")
 	// check that the settings contain user/assword authentication
-	settings, err := m.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
+	settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 	Expect(err).ToNot(HaveOccurred(), settings)
 	Expect(settings).To(
 		HaveATable(
@@ -126,14 +139,15 @@ func (m *Machine) ExpectUserPasswordSettings(tmpSettingsPath string) {
 	)
 }
 
-func (m *Machine) ExpectTokenSettings(tmpSettingsPath string) {
+func ExpectTokenSettings(tmpSettingsPath string) {
+	By("Check for token settings")
 	// check that the settings contain user/assword authentication
-	settings, err := m.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
+	settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 	Expect(err).ToNot(HaveOccurred(), settings)
 	Expect(settings).To(
 		HaveATable(
 			WithHeaders("KEY", "VALUE"),
-			WithRow("API User Name", "epinio"),
+			WithRow("API User Name", ""),
 			WithRow("API Password", ""),
 			WithRow("API Token", "[*]+"),
 			WithRow("Certificates", "Present"),

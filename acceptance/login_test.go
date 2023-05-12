@@ -41,13 +41,12 @@ var _ = Describe("Login", LMisc, func() {
 
 	It("succeeds with a valid user", func() {
 		// check that the initial settings are empt
-		env.ExpectEmptySettings(tmpSettingsPath)
+		ExpectEmptySettings(tmpSettingsPath)
 
 		// login with a valid user
-		env.ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
-
+		ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
 		// check that the settings are now updated
-		env.ExpectUserPasswordSettings(tmpSettingsPath)
+		ExpectUserPasswordSettings(tmpSettingsPath)
 	})
 
 	It("succeeds with an interactively entered valid user [fixed bug]", func() {
@@ -69,7 +68,7 @@ var _ = Describe("Login", LMisc, func() {
 		// Result, for now, no password test.
 
 		// check that the initial settings are empty
-		env.ExpectEmptySettings(tmpSettingsPath)
+		ExpectEmptySettings(tmpSettingsPath)
 
 		// login with a different user - name is specified interactively on stdin
 		var out bytes.Buffer
@@ -87,45 +86,52 @@ var _ = Describe("Login", LMisc, func() {
 		Expect(out.String()).To(ContainSubstring(`Login successful`))
 
 		// check that the settings are now updated
-		env.ExpectUserPasswordSettings(tmpSettingsPath)
+		ExpectUserPasswordSettings(tmpSettingsPath)
 	})
 
 	It("succeeds with OIDC", func() {
 		// check that the initial settings are empty
-		env.ExpectEmptySettings(tmpSettingsPath)
+		ExpectEmptySettings(tmpSettingsPath)
 
-		env.ExpectGoodTokenLogin(tmpSettingsPath, serverURL)
+		// login with valid token
+		ExpectGoodTokenLogin(tmpSettingsPath, serverURL)
+		// check that the settings are now updated
+		ExpectTokenSettings(tmpSettingsPath)
 	})
 
 	It("performs implied logout of previous oidc login", func() {
 		// check that the initial settings are empty
-		env.ExpectEmptySettings(tmpSettingsPath)
+		ExpectEmptySettings(tmpSettingsPath)
 
-		env.ExpectGoodTokenLogin(tmpSettingsPath, serverURL)
+		// login with valid token
+		ExpectGoodTokenLogin(tmpSettingsPath, serverURL)
+		// check that the settings are now updated
+		ExpectTokenSettings(tmpSettingsPath)
 
 		// login with a valid user
-		env.ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
-
+		ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
 		// check that the settings are now updated
-		env.ExpectUserPasswordSettings(tmpSettingsPath)
+		ExpectUserPasswordSettings(tmpSettingsPath)
 	})
 
 	It("performs implied logout of previous regular login", func() {
 		// check that the initial settings are empty
-		env.ExpectEmptySettings(tmpSettingsPath)
+		ExpectEmptySettings(tmpSettingsPath)
 
 		// login with a valid user
-		env.ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
-
+		ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
 		// check that the settings are now updated
-		env.ExpectUserPasswordSettings(tmpSettingsPath)
+		ExpectUserPasswordSettings(tmpSettingsPath)
 
-		env.ExpectGoodTokenLogin(tmpSettingsPath, serverURL)
+		// login with valid token
+		ExpectGoodTokenLogin(tmpSettingsPath, serverURL)
+		// check that the settings are now updated
+		ExpectTokenSettings(tmpSettingsPath)
 	})
 
 	It("fails with a non existing user", func() {
 		// check that the initial settings are empty
-		env.ExpectEmptySettings(tmpSettingsPath)
+		ExpectEmptySettings(tmpSettingsPath)
 
 		// login with a non existing user
 		out, err := env.Epinio("", "login", "-u", "unknown", "-p", env.EpinioPassword,
@@ -134,7 +140,7 @@ var _ = Describe("Login", LMisc, func() {
 		Expect(out).To(ContainSubstring(`error verifying credentials`))
 
 		// check that the settings are still empty
-		env.ExpectEmptySettings(tmpSettingsPath)
+		ExpectEmptySettings(tmpSettingsPath)
 	})
 
 	It("respects the port when one is present [fixed bug]", func() {
