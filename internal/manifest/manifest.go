@@ -53,7 +53,7 @@ func UpdateRoutes(manifest models.ApplicationManifest, cmd *cobra.Command) (mode
 }
 
 // UpdateBASN updates the incoming manifest with information pulled from the --builder,
-// sources (--path, --git, and --container-imageurl), --app-chart, and --name options.
+// sources (--path, --git, --git-provider, and --container-image-url), --app-chart, and --name options.
 // Option information replaces any existing information.
 func UpdateBASN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
 	var err error
@@ -119,21 +119,26 @@ func UpdateAppChart(manifest models.ApplicationManifest, cmd *cobra.Command) (mo
 }
 
 // UpdateSources updates the incoming manifest with information pulled from the sources
-// (--path, --git, and --container-imageurl) options
+// (--path, --git, --git-provider, and --container-image-url) options
 func UpdateSources(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
 	path, err := cmd.Flags().GetString("path")
 	if err != nil {
-		return manifest, errors.Wrap(err, "failed to read option --name")
+		return manifest, errors.Wrap(err, "failed to read option --path")
 	}
 
 	git, err := cmd.Flags().GetString("git")
 	if err != nil {
-		return manifest, errors.Wrap(err, "failed to read option --name")
+		return manifest, errors.Wrap(err, "failed to read option --git")
+	}
+
+	gitProvider, err := cmd.Flags().GetString("git-provider")
+	if err != nil {
+		return manifest, errors.Wrap(err, "failed to read option --git-provider")
 	}
 
 	container, err := cmd.Flags().GetString("container-image-url")
 	if err != nil {
-		return manifest, errors.Wrap(err, "failed to read option --name")
+		return manifest, errors.Wrap(err, "failed to read option --container-image-url")
 	}
 
 	kind := models.OriginNone
@@ -153,6 +158,16 @@ func UpdateSources(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 	if git != "" {
 		kind = models.OriginGit
 		origins++
+
+		// Standard provider, and conditional override by the user
+		gitRef.Provider = models.ProviderGit
+		if gitProvider != "" {
+			if !models.ProviderIsValid(gitProvider) {
+				return manifest, errors.New("Bad --git-provider `" + gitProvider + "`")
+			}
+
+			gitRef.Provider = gitProvider
+		}
 
 		if origins == 1 {
 			pieces := strings.Split(git, separator)
