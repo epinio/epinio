@@ -45,7 +45,7 @@ env:
 
 jobs:
   linter:
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -80,10 +80,6 @@ jobs:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           args: --timeout=10m --skip-files docs.go
           skip-cache: true
-
-      - name: Clean all
-        if: always()
-        uses: colpal/actions-clean@v1
 
   acceptance-scenario6:
     needs:
