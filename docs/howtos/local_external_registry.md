@@ -49,7 +49,7 @@ openssl x509 -req -sha256 -days 365 \
     -out docker_reg_certs/epinio.pem
 ```
 
-**Note:** to check the SAN of the request and the certificate you can run:
+**Note:** Check the SAN of request and certificate by running:
 
 ```
 openssl req -in docker_reg_certs/epinio.csr -text | grep -A1 'Subject Alternative Name'
@@ -59,14 +59,14 @@ openssl x509 -in docker_reg_certs/epinio.pem -text  | grep -A1 'Subject Alternat
 
 ## Setup the cluster
 
-With `k3d` we'll need to mount the certificate during the cluster creation, so you will need to mount it adding this flag `--volume $(pwd)/docker_reg_certs/epinio.pem:/etc/ssl/certs/epinio.pem`:
+With `k3d` we'll need to mount the certificate during the cluster creation. This is done by adding the flag `--volume $(pwd)/docker_reg_certs/epinio.pem:/etc/ssl/certs/epinio.pem`:
 
 i.e.:
 ```
 k3d cluster create --volume /path/to/your/certs.crt:/etc/ssl/certs/yourcert.crt
 ```
 
-We need to do that otherwise the kubelet will not be able to pull the created images.
+If this is not done the kubelet will not be able to pull the created images.
 
 See [k3d doc](https://k3d.io/v5.2.1/faq/faq/#pods-fail-to-start-x509-certificate-signed-by-unknown-authority).
 
@@ -90,7 +90,7 @@ docker network connect epinio-acceptance registry
 docker inspect registry | jq -r ".[].NetworkSettings.Networks[\"epinio-acceptance\"].IPAddress"
 ```
 
-**Note:** to check the certificate you can curl with:
+**Note:** Check the certificate with:
 
 ```
 curl -L --cacert docker_reg_certs/epinio.pem https://172.21.0.5.omg.howdoi.website:5000/v2
@@ -98,7 +98,7 @@ curl -L --cacert docker_reg_certs/epinio.pem https://172.21.0.5.omg.howdoi.websi
 
 ## Epinio setup
 
-We can now install/upgrade Epinio setting up an external registry with the proper configuration:
+We can now install/upgrade Epinio using this external registry with the proper configuration:
 
 ```
 helm upgrade --install epinio -n epinio --create-namespace helm-charts/chart/epinio \
@@ -111,9 +111,9 @@ helm upgrade --install epinio -n epinio --create-namespace helm-charts/chart/epi
     --set server.disableTracking=true
 ```
 
-To make Epinio works we need to mount this certificate during the staging job.  
+To make Epinio work we need to mount this certificate into the staging job.  
 
-To do so let's create a secret with the certificate, and patch the Epinio deployment to fetch this secret:
+To do so create a secret with the certificate, and patch the Epinio deployment to fetch this secret:
 
 ```
 kubectl create secret -n epinio generic epinio-external-registry-tls --from-file=tls.crt=docker_reg_certs/epinio.pem
