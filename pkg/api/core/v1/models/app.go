@@ -30,7 +30,30 @@ const (
 	ApplicationStagingActive = "active"
 	ApplicationStagingDone   = "done"
 	ApplicationStagingFailed = "failed"
+
+	ProviderGit              = "git"
+	ProviderGithub           = "github"
+	ProviderGithubEnterprise = "github_enterprise"
+	ProviderGitlab           = "gitlab"
+	ProviderGitlabEnterprise = "gitlab_enterprise"
 )
+
+var validProviders = []string{
+	ProviderGit,
+	ProviderGithub,
+	ProviderGithubEnterprise,
+	ProviderGitlab,
+	ProviderGitlabEnterprise,
+}
+
+func ProviderIsValid(provider string) bool {
+	for _, candidate := range validProviders {
+		if candidate == provider {
+			return true
+		}
+	}
+	return false
+}
 
 type ApplicationStatus string
 type ApplicationStagingStatus string
