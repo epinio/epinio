@@ -65,7 +65,7 @@ jobs:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
 
       - name: Update Upgrade Responder Response JSON config
-        run: sudo ./scripts/upgrade-responder-release-update.sh
+        run: ./scripts/upgrade-responder-release-update.sh
         env:
           COGNITO_USERNAME: ${{ secrets.UPGRADE_RESPONDER_COGNITO_USERNAME }}
           COGNITO_PASSWORD: ${{ secrets.UPGRADE_RESPONDER_COGNITO_PASSWORD }}
