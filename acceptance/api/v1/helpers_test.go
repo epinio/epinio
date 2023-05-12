@@ -27,6 +27,7 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/names"
+	cerr "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 
@@ -125,7 +126,7 @@ func deployApplication(appName, namespace string, request models.DeployRequest) 
 	return *deploy
 }
 
-func deployApplicationWithFailure(appName, namespace string, request models.DeployRequest) models.DeployResponse {
+func deployApplicationWithFailure(appName, namespace string, request models.DeployRequest) cerr.ErrorResponse {
 	response := deployApplicationRequest(appName, namespace, request)
 	defer response.Body.Close()
 
@@ -133,11 +134,11 @@ func deployApplicationWithFailure(appName, namespace string, request models.Depl
 	Expect(err).ToNot(HaveOccurred())
 	Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 
-	deploy := &models.DeployResponse{}
-	err = json.Unmarshal(bodyBytes, deploy)
+	message := cerr.ErrorResponse{}
+	err = json.Unmarshal(bodyBytes, &message)
 	Expect(err).NotTo(HaveOccurred())
 
-	return *deploy
+	return message
 }
 
 func deployApplicationRequest(appName, namespace string, request models.DeployRequest) *http.Response {
