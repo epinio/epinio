@@ -52,6 +52,7 @@ var _ = Describe("Apps", LApplication, func() {
 		appName   string
 	)
 	containerImageURL := "splatform/sample-app"
+	wordpress := "https://github.com/epinio/example-wordpress"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
@@ -204,8 +205,17 @@ var _ = Describe("Apps", LApplication, func() {
 	})
 
 	When("pushing an app from an external repository", func() {
+		It("rejects a bad provider specification", func() {
+			out, err := env.Epinio("", "push",
+				"--name", appName,
+				"--git", wordpress,
+				"--git-provider", "bogus")
+			Expect(err).To(HaveOccurred(), out)
+
+			Expect(out).To(ContainSubstring("Bad --git-provider `bogus`"))
+		})
+
 		It("pushes the app successfully (repository alone)", func() {
-			wordpress := "https://github.com/epinio/example-wordpress"
 			pushLog, err := env.EpinioPush("",
 				appName,
 				"--name", appName,
@@ -231,7 +241,6 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 
 		It("pushes the app successfully (repository + branch name)", func() {
-			wordpress := "https://github.com/epinio/example-wordpress"
 			pushLog, err := env.EpinioPush("",
 				appName,
 				"--name", appName,
@@ -257,7 +266,6 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 
 		It("pushes the app successfully (repository + commit id)", func() {
-			wordpress := "https://github.com/epinio/example-wordpress"
 			pushLog, err := env.EpinioPush("",
 				appName,
 				"--name", appName,
@@ -284,7 +292,6 @@ var _ = Describe("Apps", LApplication, func() {
 
 		Describe("update", func() {
 			BeforeEach(func() {
-				wordpress := "https://github.com/epinio/example-wordpress"
 				pushLog, err := env.EpinioPush("",
 					appName,
 					"--name", appName,
