@@ -4,13 +4,29 @@
 
 Before running the registry or the cluster we will need to create the certificates.
 
-We are going to put them in a `docker_reg_certs` folder:
+This has a "cyclic dependency", because we need the IP of the registry to create them, but we cannot have the IP until we run the registry container and attach it to the docker network. But this is going to work anyway, because the IP that docker is releasing is the first available, and it will be the same also after a restart.
+
+Our script are going to create a `epinio-acceptance` docker network. We can check if we already have this available with `docker network ls`, or we can create it upfront with `docker network create epinio-acceptance`.
+
+To start in a clean state:
+```
+docker network rm epinio-acceptance && docker network create epinio-acceptance
+```
+
+Now we can see which IP are we going to have running the registry, and attaching it to the network.
+
+```
+docker run -d --name registry --network epinio-acceptance --rm registry:2
+REGISTRY_IP=$(docker inspect registry | jq -r ".[].NetworkSettings.Networks[\"epinio-acceptance\"].IPAddress") && echo $REGISTRY_IP
+```
+
+We can use this IP to create our certificates. We are going to put them in a `docker_reg_certs` folder:
 
 ```
 mkdir docker_reg_certs
 ```
 
-Using this `epinio.cfg` configuration file
+Using this `epinio.cfg` configuration file, with a wildcard SAN
 
 ```
 [ req ]
@@ -26,9 +42,7 @@ commonName                 = Common Name (e.g. server FQDN or YOUR name)
 [ req_ext ]
 subjectAltName = @alt_names
 [alt_names]
-DNS.1   = omg.howdoi.website
-DNS.2   = *.omg.howdoi.website
-DNS.3   = 172.21.0.5.omg.howdoi.website
+DNS.1   = *.omg.howdoi.website
 ```
 
 we can now run these commands:
@@ -37,13 +51,13 @@ we can now run these commands:
 # create the Certificate Signing Request
 openssl req -new -newkey rsa:4096 -nodes \
     -config epinio.cfg \
-    -subj "/C=IT/ST=Italy/L=Rome/O=SUSE/OU=Epinio/CN=*.omg.howdoi.website" \
+    -subj "/C=DE/ST=Germany/L=Nuremberg/O=SUSE/OU=Epinio" \
     -keyout docker_reg_certs/epinio.key \
     -out docker_reg_certs/epinio.csr
 
 # create the certificate
 openssl x509 -req -sha256 -days 365 \
-    -extfile <(printf "subjectAltName=DNS:172.21.0.5.omg.howdoi.website,DNS:*.omg.howdoi.website") \
+    -extfile <(printf "subjectAltName=DNS:$REGISTRY_IP.omg.howdoi.website") \
     -in docker_reg_certs/epinio.csr \
     -signkey docker_reg_certs/epinio.key \
     -out docker_reg_certs/epinio.pem
@@ -53,62 +67,72 @@ openssl x509 -req -sha256 -days 365 \
 
 ```
 openssl req -in docker_reg_certs/epinio.csr -text | grep -A1 'Subject Alternative Name'
-
 openssl x509 -in docker_reg_certs/epinio.pem -text  | grep -A1 'Subject Alternative Name'
 ```
 
-## Setup the cluster
-
-With `k3d` we'll need to mount the certificate during the cluster creation. This is done by adding the flag `--volume $(pwd)/docker_reg_certs/epinio.pem:/etc/ssl/certs/epinio.pem`:
-
-i.e.:
-```
-k3d cluster create --volume /path/to/your/certs.crt:/etc/ssl/certs/yourcert.crt
-```
-
-If this is not done the kubelet will not be able to pull the created images.
-
-See [k3d doc](https://k3d.io/v5.2.1/faq/faq/#pods-fail-to-start-x509-certificate-signed-by-unknown-authority).
-
-
 ## Setup the registry
 
-We can now run our registry:
+Now that we have a valid certificates we can stop and run again the registry, attaching it to the network:
 
 ```
+docker stop registry
 docker run -d -p 5000:5000 --name registry --rm \
+    --network epinio-acceptance \
     -v $PWD/docker_reg_certs:/certs \
     -v /reg:/var/lib/registry \
     -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/epinio.pem \
     -e REGISTRY_HTTP_TLS_KEY=/certs/epinio.key registry:2
 ```
 
-Now the registry needs to be accessible from the cluster. We can do that adding it to the same docker network, and check the IP that it got:
-
+To be sure that the IP haven't changed we can run again:
 ```
-docker network connect epinio-acceptance registry
 docker inspect registry | jq -r ".[].NetworkSettings.Networks[\"epinio-acceptance\"].IPAddress"
 ```
 
 **Note:** Check the certificate with:
 
 ```
-curl -L --cacert docker_reg_certs/epinio.pem https://172.21.0.5.omg.howdoi.website:5000/v2
+curl -L --cacert docker_reg_certs/epinio.pem https://$REGISTRY_IP.omg.howdoi.website:5000/v2
 ```
+
+## Setup the cluster
+
+With `k3d` we'll need to mount the certificate during the cluster creation, so you will need to mount it adding this flag `--volume $(pwd)/docker_reg_certs/epinio.pem:/etc/ssl/certs/epinio.pem` (see [k3d doc](https://k3d.io/v5.2.1/faq/faq/#pods-fail-to-start-x509-certificate-signed-by-unknown-authority).
+)).
+
+If this is not done the kubelet will not be able to pull the created images.
+
+We can provide this additional flag exporting it to the `EPINIO_K3D_INSTALL_ARGS` environment variable:
+
+```
+export EPINIO_K3D_INSTALL_ARGS="--volume $(pwd)/docker_reg_certs/epinio.pem:/etc/ssl/certs/epinio.pem"
+```
+
+and we can now create the cluster with the `make acceptance-cluster-setup` command.
+
 
 ## Epinio setup
 
-We can now install/upgrade Epinio using this external registry with the proper configuration:
+Install cert-manager and Epinio:
 
 ```
-helm upgrade --install epinio -n epinio --create-namespace helm-charts/chart/epinio \
-    --set global.domain=172.21.0.4.omg.howdoi.website \
+make install-cert-manager && make prepare_environment_k3d
+```
+
+and then upgrade the release with the new values:
+
+```
+./scripts/prepare-environment-k3d.sh \  
     --set containerregistry.enabled=false \
-    --set global.registryURL=172.21.0.5.omg.howdoi.website:5000 \
+    --set global.registryURL=$REGISTRY_IP.omg.howdoi.website:5000 \
     --set global.registryNamespace=docker-local \
     --set global.registryUsername=admin \
-    --set global.registryPassword=password \
-    --set server.disableTracking=true
+    --set global.registryPassword=password
+```
+
+To check the values:
+```
+helm get values -n epinio epinio
 ```
 
 To make Epinio work we need to mount this certificate into the staging job.  
@@ -122,3 +146,17 @@ kubectl patch deployment -n epinio epinio-server --patch '{"spec": {"template": 
 ```
 
 Now the certificate will be trusted by the staging job.
+
+### Test it
+
+To test it we can push a sample application:
+
+```
+epinio app push -n sample -p assets/golang-sample-app
+```
+
+and we should see that the image were pushed into the external registry:
+
+```
+curl -L --cacert docker_reg_certs/epinio.pem https://$REGISTRY_IP.omg.howdoi.website:5000/v2/_catalog
+```
