@@ -116,7 +116,11 @@ func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
 			if provider == "" {
 				return result, errors.New("bad git origin, provider is empty string")
 			}
-			result.Git.Provider = provider
+			gitProvider, err := models.GitProviderFromString(provider)
+			if err != nil {
+				return result, errors.New("bad git origin, illegal provider")
+			}
+			result.Git.Provider = gitProvider
 		}
 
 		// For git check for the optional branch as well.

@@ -162,11 +162,11 @@ func UpdateSources(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 		// Standard provider, and conditional override by the user
 		gitRef.Provider = models.ProviderGit
 		if gitProvider != "" {
-			if !models.ProviderIsValid(gitProvider) {
+			provider, err := models.GitProviderFromString(gitProvider)
+			if err != nil {
 				return manifest, errors.New("Bad --git-provider `" + gitProvider + "`")
 			}
-
-			gitRef.Provider = gitProvider
+			gitRef.Provider = provider
 		}
 
 		if origins == 1 {
