@@ -2381,6 +2381,10 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "GitProvider": {
+      "type": "string",
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "GitRef": {
       "type": "object",
       "properties": {
@@ -2389,8 +2393,7 @@
           "x-go-name": "Branch"
         },
         "provider": {
-          "type": "string",
-          "x-go-name": "Provider"
+          "$ref": "#/definitions/GitProvider"
         },
         "repository": {
           "type": "string",
