@@ -223,6 +223,10 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) err
 		if err != nil {
 			return err
 		}
+		if len(match.Names) == 0 {
+			c.ui.Exclamation().Msg("No configurations found to delete")
+			return nil
+		}
 
 		names = match.Names
 		sort.Strings(names)

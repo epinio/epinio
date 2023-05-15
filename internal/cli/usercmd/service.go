@@ -169,6 +169,10 @@ func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind, all bool) er
 		if err != nil {
 			return err
 		}
+		if len(match.Names) == 0 {
+			c.ui.Exclamation().Msg("No services found to delete")
+			return nil
+		}
 
 		serviceNames = match.Names
 		sort.Strings(serviceNames)

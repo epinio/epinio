@@ -490,6 +490,10 @@ func (c *EpinioClient) Delete(ctx context.Context, appNames []string, all bool) 
 		if err != nil {
 			return err
 		}
+		if len(match.Names) == 0 {
+			c.ui.Exclamation().Msg("No applications found to delete")
+			return nil
+		}
 
 		appNames = match.Names
 		sort.Strings(appNames)
