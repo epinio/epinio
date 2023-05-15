@@ -21,6 +21,7 @@ import (
 	"net/http"
 	urlpkg "net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -65,6 +66,11 @@ func (m *Machine) ShowStagingLogs(app string) {
 // It defaults to the current dir if left empty.
 func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
 	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
+}
+
+// EpinioCmd creates a Cmd to run the Epinio client
+func (m *Machine) EpinioCmd(command string, arg ...string) *exec.Cmd {
+	return exec.Command(m.epinioBinaryPath, append([]string{command}, arg...)...) // nolint:gosec // test setup
 }
 
 func (m *Machine) Versions() {

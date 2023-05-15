@@ -15,16 +15,13 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"net/url"
 	"os/exec"
 	"strings"
 
-	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 
-	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -43,37 +40,13 @@ var _ = Describe("Login", LMisc, func() {
 	})
 
 	It("succeeds with a valid user", func() {
-		// check that the initial settings are empty
-		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
-		Expect(settings).To(
-			HaveATable(
-				WithHeaders("KEY", "VALUE"),
-				WithRow("API User Name", ""),
-				WithRow("API Password", ""),
-				WithRow("Certificates", "None defined"),
-			),
-		)
+		// check that the initial settings are empt
+		ExpectEmptySettings(tmpSettingsPath)
 
-		// login with a different user
-		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,
-			"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(out).To(ContainSubstring(`Login to your Epinio cluster`))
-		Expect(out).To(ContainSubstring(`Trusting certificate`))
-		Expect(out).To(ContainSubstring(`Login successful`))
-
+		// login with a valid user
+		ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
 		// check that the settings are now updated
-		settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
-		Expect(settings).To(
-			HaveATable(
-				WithHeaders("KEY", "VALUE"),
-				WithRow("API User Name", "epinio"),
-				WithRow("API Password", "[*]+"),
-				WithRow("Certificates", "Present"),
-			),
-		)
+		ExpectUserPasswordSettings(tmpSettingsPath)
 	})
 
 	It("succeeds with an interactively entered valid user [fixed bug]", func() {
@@ -92,22 +65,12 @@ var _ = Describe("Login", LMisc, func() {
 		// Still, it also prevents us from using a simple redirect of the stdin to
 		// a bytes buffer, as that has no proper TTY.
 		//
-		// Result, for now no password test.
+		// Result, for now, no password test.
 
 		// check that the initial settings are empty
-		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
-		Expect(settings).To(
-			HaveATable(
-				WithHeaders("KEY", "VALUE"),
-				WithRow("API User Name", ""),
-				WithRow("API Password", ""),
-				WithRow("Certificates", "None defined"),
-			),
-		)
+		ExpectEmptySettings(tmpSettingsPath)
 
 		// login with a different user - name is specified interactively on stdin
-
 		var out bytes.Buffer
 		cmd := exec.Command(testenv.EpinioBinaryPath(), "login", "-p", env.EpinioPassword,
 			"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
@@ -115,7 +78,7 @@ var _ = Describe("Login", LMisc, func() {
 		cmd.Stdout = &out
 		cmd.Stderr = &out
 
-		err = cmd.Run()
+		err := cmd.Run()
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(out.String()).To(ContainSubstring(`Login to your Epinio cluster`))
@@ -123,113 +86,52 @@ var _ = Describe("Login", LMisc, func() {
 		Expect(out.String()).To(ContainSubstring(`Login successful`))
 
 		// check that the settings are now updated
-		settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
-		Expect(settings).To(
-			HaveATable(
-				WithHeaders("KEY", "VALUE"),
-				WithRow("API User Name", "epinio"),
-				WithRow("API Password", "[*]+"),
-				WithRow("Certificates", "Present"),
-			),
-		)
+		ExpectUserPasswordSettings(tmpSettingsPath)
 	})
 
-	It("login with OIDC", func() {
+	It("succeeds with OIDC", func() {
 		// check that the initial settings are empty
-		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
-		Expect(settings).To(
-			HaveATable(
-				WithHeaders("KEY", "VALUE"),
-				WithRow("API User Name", ""),
-				WithRow("API Password", ""),
-				WithRow("API Token", ""),
-				WithRow("Certificates", "None defined"),
-			),
-		)
+		ExpectEmptySettings(tmpSettingsPath)
 
-		out := &bytes.Buffer{}
-		cmd := exec.Command(testenv.EpinioBinaryPath(), "login", "--prompt", "--oidc",
-			"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
-		cmd.Stdout = out
-		cmd.Stderr = out
+		// login with valid token
+		ExpectGoodTokenLogin(tmpSettingsPath, serverURL)
+		// check that the settings are now updated
+		ExpectTokenSettings(tmpSettingsPath)
+	})
 
-		stdinPipe, err := cmd.StdinPipe()
-		Expect(err).ToNot(HaveOccurred())
+	It("performs implied logout of previous oidc login", func() {
+		// check that the initial settings are empty
+		ExpectEmptySettings(tmpSettingsPath)
 
-		// run the epinio login and wait for the input of the authCode
-		go func() {
-			defer GinkgoRecover()
+		// login with valid token
+		ExpectGoodTokenLogin(tmpSettingsPath, serverURL)
+		// check that the settings are now updated
+		ExpectTokenSettings(tmpSettingsPath)
 
-			err = cmd.Run()
-			Expect(err).ToNot(HaveOccurred(), out.String())
+		// login with a valid user
+		ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
+		// check that the settings are now updated
+		ExpectUserPasswordSettings(tmpSettingsPath)
+	})
 
-			// when the command terminates check that the login was successful
-			Expect(out.String()).To(ContainSubstring(`Login successful`))
+	It("performs implied logout of previous regular login", func() {
+		// check that the initial settings are empty
+		ExpectEmptySettings(tmpSettingsPath)
 
-			// check that the settings are now updated
-			settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), settings)
-			Expect(settings).To(
-				HaveATable(
-					WithHeaders("KEY", "VALUE"),
-					WithRow("API User Name", ""),
-					WithRow("API Password", ""),
-					WithRow("API Token", "[*]+"),
-					WithRow("Certificates", "Present"),
-				),
-			)
-		}()
+		// login with a valid user
+		ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
+		// check that the settings are now updated
+		ExpectUserPasswordSettings(tmpSettingsPath)
 
-		// read the full output, until the command asks you to paste the auth code
-		for {
-			if strings.Contains(out.String(), "paste the authorization code") {
-				break
-			}
-		}
-
-		fullOutput := out.String()
-
-		Expect(fullOutput).To(ContainSubstring(`Login to your Epinio cluster`))
-		Expect(fullOutput).To(ContainSubstring(`Trusting certificate`))
-
-		lines := strings.Split(fullOutput, "\n")
-
-		var authURL string
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "https://auth") {
-				authURL = line
-				break
-			}
-		}
-		Expect(authURL).ToNot(BeEmpty())
-
-		// authenticate with Dex, get the authCode and submit the input to the waiting command
-		u, err := url.Parse(authURL)
-		Expect(err).ToNot(HaveOccurred())
-		loginClient, err := auth.NewDexClient(fmt.Sprintf("%s://%s", u.Scheme, u.Host))
-		Expect(err).ToNot(HaveOccurred())
-
-		authCode, err := loginClient.Login(authURL, "admin@epinio.io", "password")
-		Expect(err).ToNot(HaveOccurred())
-		_, err = fmt.Fprintln(stdinPipe, authCode)
-		Expect(err).ToNot(HaveOccurred())
+		// login with valid token
+		ExpectGoodTokenLogin(tmpSettingsPath, serverURL)
+		// check that the settings are now updated
+		ExpectTokenSettings(tmpSettingsPath)
 	})
 
 	It("fails with a non existing user", func() {
 		// check that the initial settings are empty
-		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
-		Expect(settings).To(
-			HaveATable(
-				WithHeaders("KEY", "VALUE"),
-				WithRow("API User Name", ""),
-				WithRow("API Password", ""),
-				WithRow("Certificates", "None defined"),
-			),
-		)
+		ExpectEmptySettings(tmpSettingsPath)
 
 		// login with a non existing user
 		out, err := env.Epinio("", "login", "-u", "unknown", "-p", env.EpinioPassword,
@@ -237,17 +139,8 @@ var _ = Describe("Login", LMisc, func() {
 		Expect(err).To(HaveOccurred(), out)
 		Expect(out).To(ContainSubstring(`error verifying credentials`))
 
-		// check that the initial settings are still empty
-		settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
-		Expect(settings).To(
-			HaveATable(
-				WithHeaders("KEY", "VALUE"),
-				WithRow("API User Name", ""),
-				WithRow("API Password", ""),
-				WithRow("Certificates", "None defined"),
-			),
-		)
+		// check that the settings are still empty
+		ExpectEmptySettings(tmpSettingsPath)
 	})
 
 	It("respects the port when one is present [fixed bug]", func() {
