@@ -12,6 +12,7 @@
 package manifest
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -159,16 +160,6 @@ func UpdateSources(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 		kind = models.OriginGit
 		origins++
 
-		// Standard provider, and conditional override by the user
-		gitRef.Provider = models.ProviderGit
-		if gitProvider != "" {
-			provider, err := models.GitProviderFromString(gitProvider)
-			if err != nil {
-				return manifest, errors.New("Bad --git-provider `" + gitProvider + "`")
-			}
-			gitRef.Provider = provider
-		}
-
 		if origins == 1 {
 			pieces := strings.Split(git, separator)
 			if len(pieces) > 2 {
@@ -180,6 +171,16 @@ func UpdateSources(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 			if len(pieces) == 2 {
 				gitRef.URL = pieces[0]
 				gitRef.Revision = pieces[1]
+			}
+
+			// Standard provider (from git url), and conditional override by the user
+			gitRef.Provider = gitProviderFromOriginURL(gitRef.URL)
+			if gitProvider != "" {
+				provider, err := models.GitProviderFromString(gitProvider)
+				if err != nil {
+					return manifest, errors.New("Bad --git-provider `" + gitProvider + "`")
+				}
+				gitRef.Provider = provider
 			}
 		}
 	}
@@ -474,4 +475,20 @@ func fileExists(path string) (bool, error) {
 	} else {
 		return false, errors.Wrapf(err, "failed to stat file '%s'", path)
 	}
+}
+
+func gitProviderFromOriginURL(theurl string) models.GitProvider {
+	u, err := url.Parse(theurl)
+	if err != nil {
+		// A bad url will generate an issue on the server side which should tell us better
+		// what is broken. Thus, swallow the error and return a semi-sensible provider.
+		return models.ProviderGit
+	}
+	if u.Host == "github.com" {
+		return models.ProviderGithub
+	}
+	if u.Host == "gitlab.com" {
+		return models.ProviderGitlab
+	}
+	return models.ProviderGit
 }
