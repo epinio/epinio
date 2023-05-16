@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -44,7 +45,7 @@ var _ = Describe("Login", LMisc, func() {
 		ExpectEmptySettings(tmpSettingsPath)
 
 		// login with a valid user
-		ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
+		_ = ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
 		// check that the settings are now updated
 		ExpectUserPasswordSettings(tmpSettingsPath)
 	})
@@ -109,7 +110,7 @@ var _ = Describe("Login", LMisc, func() {
 		ExpectTokenSettings(tmpSettingsPath)
 
 		// login with a valid user
-		ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
+		_ = ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
 		// check that the settings are now updated
 		ExpectUserPasswordSettings(tmpSettingsPath)
 	})
@@ -119,7 +120,7 @@ var _ = Describe("Login", LMisc, func() {
 		ExpectEmptySettings(tmpSettingsPath)
 
 		// login with a valid user
-		ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
+		_ = ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
 		// check that the settings are now updated
 		ExpectUserPasswordSettings(tmpSettingsPath)
 
@@ -141,6 +142,26 @@ var _ = Describe("Login", LMisc, func() {
 
 		// check that the settings are still empty
 		ExpectEmptySettings(tmpSettingsPath)
+	})
+
+	It("clears a bogus current namespace", func() {
+		// check that the initial settings are empty
+		ExpectEmptySettings(tmpSettingsPath)
+
+		// place a bogus namespace into the settings -- cannot be done with epinio, it reject such
+		err := os.WriteFile(tmpSettingsPath, []byte(`namespace: bogus`), 0600)
+		Expect(err).ToNot(HaveOccurred())
+		ExpectNamespace(tmpSettingsPath, "bogus")
+
+		// login with a valid user
+		out := ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
+
+		Expect(out).To(ContainSubstring("Current namespace 'bogus' invalid for targeted cluster"))
+		Expect(out).To(ContainSubstring("Cleared current namespace"))
+		Expect(out).To(ContainSubstring("Please use `epinio target` to chose a new current namespace"))
+
+		// check that current namespace is empty
+		ExpectNamespace(tmpSettingsPath, "")
 	})
 
 	It("respects the port when one is present [fixed bug]", func() {

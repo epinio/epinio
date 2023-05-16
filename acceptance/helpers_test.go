@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func ExpectGoodUserLogin(tmpSettingsPath, password, serverURL string) {
+func ExpectGoodUserLogin(tmpSettingsPath, password, serverURL string) string {
 	By("Regular login")
 	out, err := env.Epinio("", "login", "-u", "epinio", "-p", password,
 		"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
@@ -34,6 +34,8 @@ func ExpectGoodUserLogin(tmpSettingsPath, password, serverURL string) {
 	Expect(out).To(ContainSubstring(`Trusting certificate`))
 	Expect(out).To(ContainSubstring(`Login successful`))
 	By("Regular login done")
+
+	return out
 }
 
 func ExpectGoodTokenLogin(tmpSettingsPath, serverURL string) {
@@ -119,6 +121,19 @@ func ExpectEmptySettings(tmpSettingsPath string) {
 			WithRow("API Password", ""),
 			WithRow("API Token", ""),
 			WithRow("Certificates", "None defined"),
+		),
+	)
+}
+
+func ExpectNamespace(tmpSettingsPath, namespace string) {
+	By("Check for namespace `" + namespace + "`")
+	// check that the namespace is not set
+	settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
+	Expect(err).ToNot(HaveOccurred(), settings)
+	Expect(settings).To(
+		HaveATable(
+			WithHeaders("KEY", "VALUE"),
+			WithRow("Current Namespace", namespace),
 		),
 	)
 }
