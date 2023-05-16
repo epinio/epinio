@@ -156,7 +156,7 @@ var _ = Describe("Login", LMisc, func() {
 		// login with a valid user
 		out := ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
 
-		Expect(out).To(ContainSubstring("Current namespace 'bogus' invalid for targeted cluster"))
+		Expect(out).To(ContainSubstring("Current namespace 'bogus' not found in targeted cluster"))
 		Expect(out).To(ContainSubstring("Cleared current namespace"))
 		Expect(out).To(ContainSubstring("Please use `epinio target` to chose a new current namespace"))
 
