@@ -47,7 +47,6 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 	})
 
 	Context("with staging", func() {
-
 		BeforeEach(func() {
 			deployRequest = models.DeployRequest{
 				App: models.AppRef{
@@ -255,6 +254,34 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 				Expect(err).NotTo(HaveOccurred(), out)
 				Expect(strings.Split(out, " ")).To(ConsistOf(routes))
 			})
+		})
+	})
+
+	Context("from git repository", func() {
+		BeforeEach(func() {
+			// Note: The deploy request is incomplete - no image url
+			// That is ok, as it is used only to check a validation.
+			// I.e. no actual deployment happens
+			deployRequest = models.DeployRequest{
+				App: models.AppRef{
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
+				},
+				Origin: models.ApplicationOrigin{
+					Kind: models.OriginGit,
+					Git: &models.GitRef{
+						URL: "https://github.com/epinio/example-wordpress",
+					},
+				},
+			}
+		})
+
+		It("rejects a bad provider specification", func() {
+			deployRequest.Origin.Git.Provider = "bogus"
+			response := deployApplicationWithFailure(appName, namespace, deployRequest)
+			Expect(response.Errors[0].Error()).To(ContainSubstring("bad git provider `bogus`"))
 		})
 	})
 })

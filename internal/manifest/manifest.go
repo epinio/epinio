@@ -12,6 +12,7 @@
 package manifest
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,7 +54,7 @@ func UpdateRoutes(manifest models.ApplicationManifest, cmd *cobra.Command) (mode
 }
 
 // UpdateBASN updates the incoming manifest with information pulled from the --builder,
-// sources (--path, --git, and --container-imageurl), --app-chart, and --name options.
+// sources (--path, --git, --git-provider, and --container-image-url), --app-chart, and --name options.
 // Option information replaces any existing information.
 func UpdateBASN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
 	var err error
@@ -119,21 +120,26 @@ func UpdateAppChart(manifest models.ApplicationManifest, cmd *cobra.Command) (mo
 }
 
 // UpdateSources updates the incoming manifest with information pulled from the sources
-// (--path, --git, and --container-imageurl) options
+// (--path, --git, --git-provider, and --container-image-url) options
 func UpdateSources(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
 	path, err := cmd.Flags().GetString("path")
 	if err != nil {
-		return manifest, errors.Wrap(err, "failed to read option --name")
+		return manifest, errors.Wrap(err, "failed to read option --path")
 	}
 
 	git, err := cmd.Flags().GetString("git")
 	if err != nil {
-		return manifest, errors.Wrap(err, "failed to read option --name")
+		return manifest, errors.Wrap(err, "failed to read option --git")
+	}
+
+	gitProvider, err := cmd.Flags().GetString("git-provider")
+	if err != nil {
+		return manifest, errors.Wrap(err, "failed to read option --git-provider")
 	}
 
 	container, err := cmd.Flags().GetString("container-image-url")
 	if err != nil {
-		return manifest, errors.Wrap(err, "failed to read option --name")
+		return manifest, errors.Wrap(err, "failed to read option --container-image-url")
 	}
 
 	kind := models.OriginNone
@@ -165,6 +171,16 @@ func UpdateSources(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 			if len(pieces) == 2 {
 				gitRef.URL = pieces[0]
 				gitRef.Revision = pieces[1]
+			}
+
+			// Standard provider (from git url), and conditional override by the user
+			gitRef.Provider = gitProviderFromOriginURL(gitRef.URL)
+			if gitProvider != "" {
+				provider, err := models.GitProviderFromString(gitProvider)
+				if err != nil {
+					return manifest, errors.New("Bad --git-provider `" + gitProvider + "`")
+				}
+				gitRef.Provider = provider
 			}
 		}
 	}
@@ -459,4 +475,20 @@ func fileExists(path string) (bool, error) {
 	} else {
 		return false, errors.Wrapf(err, "failed to stat file '%s'", path)
 	}
+}
+
+func gitProviderFromOriginURL(theurl string) models.GitProvider {
+	u, err := url.Parse(theurl)
+	if err != nil {
+		// A bad url will generate an issue on the server side which should tell us better
+		// what is broken. Thus, swallow the error and return a semi-sensible provider.
+		return models.ProviderGit
+	}
+	if u.Host == "github.com" {
+		return models.ProviderGithub
+	}
+	if u.Host == "gitlab.com" {
+		return models.ProviderGitlab
+	}
+	return models.ProviderGit
 }

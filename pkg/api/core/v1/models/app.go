@@ -12,6 +12,8 @@
 package models
 
 import (
+	"errors"
+
 	"github.com/epinio/epinio/internal/names"
 )
 
@@ -32,14 +34,42 @@ const (
 	ApplicationStagingFailed = "failed"
 )
 
+type GitProvider string
+
+const (
+	ProviderGit              = GitProvider("git")
+	ProviderGithub           = GitProvider("github")
+	ProviderGithubEnterprise = GitProvider("github_enterprise")
+	ProviderGitlab           = GitProvider("gitlab")
+	ProviderGitlabEnterprise = GitProvider("gitlab_enterprise")
+	ProviderUnknown          = GitProvider("unknown")
+)
+
+var validProviders = []GitProvider{
+	ProviderGit,
+	ProviderGithub,
+	ProviderGithubEnterprise,
+	ProviderGitlab,
+	ProviderGitlabEnterprise,
+}
+
+func GitProviderFromString(provider string) (GitProvider, error) {
+	for _, candidate := range validProviders {
+		if string(candidate) == provider {
+			return candidate, nil
+		}
+	}
+	return ProviderUnknown, errors.New("unknown provider")
+}
+
 type ApplicationStatus string
 type ApplicationStagingStatus string
 
 type GitRef struct {
-	Revision string `json:"revision,omitempty" yaml:"revision,omitempty"`
-	URL      string `json:"repository"         yaml:"url,omitempty"`
-	Provider string `json:"provider,omitempty" yaml:"provider,omitempty"`
-	Branch   string `json:"branch,omitempty"   yaml:"branch,omitempty"`
+	Revision string      `json:"revision,omitempty" yaml:"revision,omitempty"`
+	URL      string      `json:"repository"         yaml:"url,omitempty"`
+	Provider GitProvider `json:"provider,omitempty" yaml:"provider,omitempty"`
+	Branch   string      `json:"branch,omitempty"   yaml:"branch,omitempty"`
 }
 
 // App has all the application's properties, for at rest (Configuration), and active (Workload).

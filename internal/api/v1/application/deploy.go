@@ -52,6 +52,14 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError("namespace parameter from URL does not match namespace param in body")
 	}
 
+	// validate provider reference, if actually present (git origin, and specified)
+	if req.Origin.Git != nil && req.Origin.Git.Provider != "" {
+		_, err := models.GitProviderFromString(string(req.Origin.Git.Provider))
+		if err != nil {
+			return apierror.NewBadRequestErrorf("bad git provider `%s`", req.Origin.Git.Provider)
+		}
+	}
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err, "failed to get access to a kube client")
