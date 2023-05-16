@@ -169,6 +169,10 @@ func (c *EpinioClient) DeleteNamespace(namespaces []string, force, all bool) err
 		if err != nil {
 			return err
 		}
+		if len(match.Names) == 0 {
+			c.ui.Exclamation().Msg("No namespaces found to delete")
+			return nil
+		}
 
 		namespaces = match.Names
 		sort.Strings(namespaces)
