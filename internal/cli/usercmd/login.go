@@ -73,8 +73,28 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 
 	c.ui.Success().Msg("Login successful")
 
+	// Verify that the targeted namespace (if any) exists in the targeted cluster.
+	// If not report the issue, clear the information, and ask the user to chose a proper namespace.
+
+	if updatedSettings.Namespace != "" {
+		// we don't need anything, just checking if the namespace exist and we have permissions
+		_, err := c.API.NamespaceShow(updatedSettings.Namespace)
+		if err != nil {
+			c.ui.Exclamation().Msgf("Current namespace '%s' invalid for targeted cluster",
+				updatedSettings.Namespace)
+
+			updatedSettings.Namespace = ""
+
+			c.ui.Exclamation().Msg("Cleared current namespace")
+			c.ui.Exclamation().Msg("Please use `epinio target` to chose a new current namespace")
+		}
+	}
+
 	err = updatedSettings.Save()
-	return errors.Wrap(err, "error saving new settings")
+	if err != nil {
+		return errors.Wrap(err, "error saving new settings")
+	}
+	return nil
 }
 
 func askUsername(ui *termui.UI) (string, error) {
