@@ -686,15 +686,19 @@ func (c *EpinioClient) printReplicaDetails(app models.App) error {
 }
 
 // AppRestage restage an application
-func (c *EpinioClient) AppRestage(appName string) error {
+func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 	log := c.Log.WithName("AppRestage").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().
+	m := c.ui.Note().
 		WithStringValue("Namespace", c.Settings.Namespace).
-		WithStringValue("Application", appName).
-		Msg("Restaging application")
+		WithStringValue("Application", appName)
+	if restart {
+		m.Msg("Restaging and restarting application")
+	} else {
+		m.Msg("Restaging application")
+	}
 
 	if err := c.TargetOk(); err != nil {
 		return err
@@ -727,7 +731,19 @@ func (c *EpinioClient) AppRestage(appName string) error {
 	log.V(1).Info("wait for job", "StageID", stageID)
 	// blocking function that wait until the staging is done
 	_, err = c.API.StagingComplete(app.Meta.Namespace, stageID)
-	return errors.Wrap(err, "waiting for staging failed")
+	if err != nil {
+		return errors.Wrap(err, "waiting for staging failed")
+	}
+
+	if restart {
+		c.ui.Note().
+			Msg("Restarting application")
+		log.V(1).Info("restarting application")
+
+		return c.API.AppRestart(c.Settings.Namespace, appName)
+	}
+
+	return nil
 }
 
 func formatRoutes(routes []string) string {
