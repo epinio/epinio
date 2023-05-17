@@ -53,7 +53,7 @@ func init() {
 
 	err := CmdAppCreate.RegisterFlagCompletionFunc("app-chart", matchingChartFinder)
 	checkErr(err)
-	err := CmdAppUpdate.RegisterFlagCompletionFunc("app-chart", matchingChartFinder)
+	err = CmdAppUpdate.RegisterFlagCompletionFunc("app-chart", matchingChartFinder)
 	checkErr(err)
 
 	CmdAppDelete.Flags().Bool("all", false, "Delete all applications")
