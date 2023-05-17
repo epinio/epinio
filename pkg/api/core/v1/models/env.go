@@ -15,7 +15,6 @@ package models
 // Identical structures
 
 import (
-	"fmt"
 	"sort"
 )
 
@@ -69,15 +68,4 @@ func (evl EnvVariableList) Swap(i, j int) {
 // holds, and else false.
 func (evl EnvVariableList) Less(i, j int) bool {
 	return evl[i].Name < evl[j].Name
-}
-
-func (evl EnvVariableList) Assignments() []string {
-	assignments := []string{}
-
-	for _, ev := range evl {
-		assignments = append(assignments, fmt.Sprintf(`{"name":"%s","value":"%s"}`,
-			ev.Name, ev.Value))
-	}
-
-	return assignments
 }
