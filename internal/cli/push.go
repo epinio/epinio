@@ -14,6 +14,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/manifest"
@@ -27,12 +28,27 @@ var ()
 func init() {
 	// The following options override manifest data
 	CmdAppPush.Flags().StringP("git", "g", "", "Git repository and revision of sources separated by comma (e.g. GIT_URL,REVISION)")
-	CmdAppPush.Flags().String("git-provider", "", "Git provider code (default 'git')")
 	CmdAppPush.Flags().String("container-image-url", "", "Container image url for the app workload image")
 	CmdAppPush.Flags().StringP("name", "n", "", "Application name. (mandatory if no manifest is provided)")
 	CmdAppPush.Flags().StringP("path", "p", "", "Path to application sources.")
 	CmdAppPush.Flags().String("builder-image", "", "Paketo builder image to use for staging")
+
 	CmdAppPush.Flags().String("app-chart", "", "App chart to use for deployment")
+	err := CmdAppPush.RegisterFlagCompletionFunc("app-chart", matchingChartFinder)
+	checkErr(err)
+
+	CmdAppPush.Flags().String("git-provider", "", "Git provider code (default 'git')")
+	err = CmdAppPush.RegisterFlagCompletionFunc("git-provider",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			matches := []string{}
+			for _, candidate := range models.ValidProviders {
+				if strings.HasPrefix(string(candidate), toComplete) {
+					matches = append(matches, string(candidate))
+				}
+			}
+			return matches, cobra.ShellCompDirectiveDefault
+		})
+	checkErr(err)
 
 	routeOption(CmdAppPush)
 	bindOption(CmdAppPush)
