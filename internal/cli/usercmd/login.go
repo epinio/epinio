@@ -73,27 +73,41 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 
 	c.ui.Success().Msg("Login successful")
 
+	err = updatedSettings.Save()
+	if err != nil {
+		return errors.Wrap(err, "error saving new settings")
+	}
+
 	// Verify that the targeted namespace (if any) exists in the targeted cluster.
 	// If not report the issue, clear the information, and ask the user to chose a proper namespace.
 
 	if updatedSettings.Namespace != "" {
+		// Note: Create a new client for this. `c` cannot be assumed to be properly initialized,
+		// as it was created before the login was performed and saved.
+
+		client, err := New(ctx)
+		if err != nil {
+			return err
+		}
+
 		// we don't need anything, just checking if the namespace exist and we have permissions
-		_, err := c.API.NamespaceShow(updatedSettings.Namespace)
+		_, err = client.API.NamespaceShow(updatedSettings.Namespace)
 		if err != nil {
 			c.ui.Exclamation().Msgf("Current namespace '%s' not found in targeted cluster",
 				updatedSettings.Namespace)
 
 			updatedSettings.Namespace = ""
 
+			err = updatedSettings.Save()
+			if err != nil {
+				return errors.Wrap(err, "error saving new settings")
+			}
+
 			c.ui.Exclamation().Msg("Cleared current namespace")
 			c.ui.Exclamation().Msg("Please use `epinio target` to chose a new current namespace")
 		}
 	}
 
-	err = updatedSettings.Save()
-	if err != nil {
-		return errors.Wrap(err, "error saving new settings")
-	}
 	return nil
 }
 
