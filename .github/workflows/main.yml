@@ -592,8 +592,10 @@ jobs:
 
   upload-coverage:
     needs:
-      - acceptance-api-services
-      - acceptance-cli-services
+      - acceptance-api
+      - acceptance-api-apps
+      - acceptance-apps
+      - acceptance-cli-apps
 
     runs-on: [self-hosted, epinio]
 
