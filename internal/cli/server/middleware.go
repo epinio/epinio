@@ -16,8 +16,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 )
 
 // Ginlogr returns a gin.HandlerFunc (middleware) that logs requests using github.com/go-logr/logr.
@@ -31,9 +31,12 @@ import (
 //
 // Note: this is a slightly modified version of https://github.com/alron/ginlogr/blob/master/logr.go
 // We wanted to add more information in case of Errors
-func Ginlogr(logger logr.Logger, timeFormat string, utc bool) gin.HandlerFunc {
+func Ginlogr(timeFormat string, utc bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
+
+		logger := requestctx.Logger(c.Request.Context())
+
 		// some evil middlewares modify this values
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery

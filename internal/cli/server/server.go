@@ -86,7 +86,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		})
 	}
 
-	ginLogger := Ginlogr(logger, time.RFC3339, true)
+	ginLogger := Ginlogr(time.RFC3339, true)
 	ginRecoveryLogger := ginlogr.RecoveryWithLogr(logger, time.RFC3339, true, true)
 
 	// Register routes
@@ -99,9 +99,9 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	// add common middlewares to all the routes
 	router.Use(
-		ginLogger,
 		ginRecoveryLogger,
 		initContextMiddleware(logger),
+		ginLogger,
 	)
 
 	// Dex or no dex ?
