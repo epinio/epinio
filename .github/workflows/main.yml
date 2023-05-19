@@ -65,14 +65,11 @@ jobs:
 
       - name: Unit Tests
         run: make test
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      
+      - uses: actions/upload-artifact@v3
         with:
-          files: ./coverprofile.out
-          flags: unittests
-          name: codecov-epinio
-          verbose: true
+          name: unittests
+          path: ./coverprofile.out
 
   acceptance-cli:
     needs:
@@ -132,13 +129,10 @@ jobs:
           make test-acceptance-cli-other
           scripts/collect-coverage.sh
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v3
         with:
-          files: ./coverprofile.out
-          flags: acceptance-cli
-          name: codecov-epinio
-          verbose: true
+          name: acceptance-cli
+          path: ./coverprofile.out
 
       - name: Cleanup k3d cluster
         if: always()
@@ -206,13 +200,10 @@ jobs:
           make test-acceptance-cli-apps
           scripts/collect-coverage.sh
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v3
         with:
-          files: ./coverprofile.out
-          flags: acceptance-cli
-          name: codecov-epinio
-          verbose: true
+          name: acceptance-cli-apps
+          path: ./coverprofile.out
 
       - name: Cleanup k3d cluster
         if: always()
@@ -280,13 +271,10 @@ jobs:
           make test-acceptance-cli-services
           scripts/collect-coverage.sh
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v3
         with:
-          files: ./coverprofile.out
-          flags: acceptance-cli
-          name: codecov-epinio
-          verbose: true
+          name: acceptance-cli-services
+          path: ./coverprofile.out
 
       - name: Cleanup k3d cluster
         if: always()
@@ -355,13 +343,10 @@ jobs:
           make test-acceptance-api-other
           scripts/collect-coverage.sh
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v3
         with:
-          files: ./coverprofile.out
-          flags: acceptance-api
-          name: codecov-epinio
-          verbose: true
+          name: acceptance-api
+          path: ./coverprofile.out
 
       - name: Cleanup k3d cluster
         if: always()
@@ -430,13 +415,10 @@ jobs:
           make test-acceptance-api-apps
           scripts/collect-coverage.sh
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v3
         with:
-          files: ./coverprofile.out
-          flags: acceptance-api
-          name: codecov-epinio
-          verbose: true
+          name: acceptance-api-apps
+          path: ./coverprofile.out
 
       - name: Cleanup k3d cluster
         if: always()
@@ -504,13 +486,10 @@ jobs:
           make test-acceptance-api-services
           scripts/collect-coverage.sh
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v3
         with:
-          files: ./coverprofile.out
-          flags: acceptance-api
-          name: codecov-epinio
-          verbose: true
+          name: acceptance-api-services
+          path: ./coverprofile.out
 
       - name: Cleanup k3d cluster
         if: always()
@@ -579,13 +558,10 @@ jobs:
           make test-acceptance-apps
           scripts/collect-coverage.sh
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - uses: actions/upload-artifact@v3
         with:
-          files: ./coverprofile.out
-          flags: acceptance-apps
-          name: codecov-epinio
-          verbose: true
+          name: acceptance-apps
+          path: ./coverprofile.out
 
       - name: Failure Logs
         if: failure()
@@ -613,3 +589,51 @@ jobs:
       - name: Clean all
         if: always()
         uses: colpal/actions-clean@v1
+
+  upload-coverage:
+    needs:
+      - acceptance-api
+      - acceptance-api-apps
+      - acceptance-apps
+      - acceptance-cli-apps
+
+    runs-on: [self-hosted, epinio]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Upload unittests coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          name: codecov-epinio
+          files: ./unittests/coverprofile.out
+          flags: unittests
+          verbose: true
+
+      - name: Upload acceptance-api coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          name: codecov-epinio
+          files: ./acceptance-api/coverprofile.out,./acceptance-api-apps/coverprofile.out,./acceptance-api-services/coverprofile.out
+          flags: acceptance-api
+          verbose: true
+
+      - name: Upload acceptance-cli coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          name: codecov-epinio
+          files: ./acceptance-cli/coverprofile.out,./acceptance-cli-apps/coverprofile.out,./acceptance-cli-services/coverprofile.out
+          flags: acceptance-cli
+          verbose: true
+
+      - name: Upload acceptance-apps coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          name: codecov-epinio
+          files: ./acceptance-apps/coverprofile.out
+          flags: acceptance-apps
+          verbose: true
