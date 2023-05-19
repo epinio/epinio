@@ -625,4 +625,5 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           name: codecov-epinio
+          files: ./acceptance-api/coverprofile.out,./acceptance-cli/coverprofile.out
           verbose: true
