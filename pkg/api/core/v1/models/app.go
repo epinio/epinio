@@ -45,7 +45,7 @@ const (
 	ProviderUnknown          = GitProvider("unknown")
 )
 
-var validProviders = []GitProvider{
+var ValidProviders = []GitProvider{
 	ProviderGit,
 	ProviderGithub,
 	ProviderGithubEnterprise,
@@ -54,7 +54,7 @@ var validProviders = []GitProvider{
 }
 
 func GitProviderFromString(provider string) (GitProvider, error) {
-	for _, candidate := range validProviders {
+	for _, candidate := range ValidProviders {
 		if string(candidate) == provider {
 			return candidate, nil
 		}

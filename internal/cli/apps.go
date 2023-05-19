@@ -51,6 +51,11 @@ func init() {
 	CmdAppCreate.Flags().String("app-chart", "", "App chart to use for deployment")
 	CmdAppUpdate.Flags().String("app-chart", "", "App chart to use for deployment")
 
+	err := CmdAppCreate.RegisterFlagCompletionFunc("app-chart", matchingChartFinder)
+	checkErr(err)
+	err = CmdAppUpdate.RegisterFlagCompletionFunc("app-chart", matchingChartFinder)
+	checkErr(err)
+
 	CmdAppDelete.Flags().Bool("all", false, "Delete all applications")
 
 	CmdApp.AddCommand(CmdAppCreate)
