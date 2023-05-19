@@ -66,7 +66,7 @@ jobs:
       - name: Unit Tests
         run: make test
       
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: unittests
           path: ./coverprofile.out
@@ -278,7 +278,7 @@ jobs:
           make test-acceptance-cli-services
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: acceptance-cli
           path: ./coverprofile.out
@@ -500,7 +500,7 @@ jobs:
           make test-acceptance-api-services
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: acceptance-api
           path: ./coverprofile.out
@@ -619,11 +619,12 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
           name: codecov-epinio
-          files: ./acceptance-api/coverprofile.out,./acceptance-cli/coverprofile.out
+          files: ./unittests/coverprofile.out,./acceptance-api/coverprofile.out,./acceptance-cli/coverprofile.out
+          flags: unittests,acceptance-api,acceptance-cli
           verbose: true
