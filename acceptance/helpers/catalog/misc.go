@@ -18,8 +18,8 @@ import (
 	"strings"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
+	"github.com/epinio/epinio/acceptance/helpers"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"

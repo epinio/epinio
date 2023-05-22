@@ -18,9 +18,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/acceptance/helpers"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/helpers"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
