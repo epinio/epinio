@@ -140,3 +140,7 @@ func NewEpinioClient(cfg *settings.Settings, apiClient APIClient) (*EpinioClient
 		Log:      logger,
 	}, nil
 }
+
+func (cli *EpinioClient) UI() *termui.UI {
+	return cli.ui
+}
