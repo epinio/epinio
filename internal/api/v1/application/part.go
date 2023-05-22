@@ -237,13 +237,6 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 			},
 		},
 	}, {
-		Name: "registry-cert-volume",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: "epinio-registry-tls",
-			},
-		},
-	}, {
 		Name: "registry-creds-volume",
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
@@ -257,16 +250,30 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 			},
 		},
 	}}
+
 	mounts := []corev1.VolumeMount{{
 		Name:      "image-export-volume",
 		MountPath: "/tmp/",
 	}, {
-		Name:      "registry-cert-volume",
-		MountPath: "/etc/ssl/certs/",
-	}, {
 		Name:      "registry-creds-volume",
 		MountPath: "/root/containers/",
 	}}
+
+	registryCertificateSecret := viper.GetString("registry-certificate-secret")
+	if registryCertificateSecret != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "registry-cert-volume",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: registryCertificateSecret,
+				},
+			},
+		})
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      "registry-cert-volume",
+			MountPath: "/etc/ssl/certs/",
+		})
+	}
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
