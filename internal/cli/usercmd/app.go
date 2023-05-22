@@ -748,8 +748,7 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 	}
 
 	if restart {
-		c.ui.Note().
-			Msg("Restarting application")
+		c.ui.Note().Msg("Restarting application")
 		log.V(1).Info("restarting application")
 
 		return c.API.AppRestart(c.Settings.Namespace, appName)

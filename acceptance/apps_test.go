@@ -455,15 +455,48 @@ var _ = Describe("Apps", LApplication, func() {
 	})
 
 	Describe("restage", func() {
-		When("restaging an existing app", func() {
-			It("will be staged again", func() {
+		When("restaging an existing and running app", func() {
+			BeforeEach(func() {
 				env.MakeApp(appName, 1, false)
-
+			})
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
+			It("will be staged again, and restarted", func() {
 				restageLogs, err := env.Epinio("", "app", "restage", appName)
 				Expect(err).ToNot(HaveOccurred(), restageLogs)
+				Expect(restageLogs).To(ContainSubstring("Restaging and restarting application"))
+				Expect(restageLogs).To(ContainSubstring("Restarting application"))
+			})
+		})
 
-				By("deleting the app")
+		When("restaging an existing and inactive app", func() {
+			BeforeEach(func() {
+				env.MakeApp(appName, 0, false)
+			})
+			AfterEach(func() {
 				env.DeleteApp(appName)
+			})
+			It("will be staged again, and NOT restarted", func() {
+				restageLogs, err := env.Epinio("", "app", "restage", appName)
+				Expect(err).ToNot(HaveOccurred(), restageLogs)
+				Expect(restageLogs).To(ContainSubstring("Restaging application"))
+				Expect(restageLogs).ToNot(ContainSubstring("Restarting application"))
+			})
+		})
+
+		When("restaging an existing and running app, with restart suppressed", func() {
+			BeforeEach(func() {
+				env.MakeApp(appName, 1, false)
+			})
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
+			It("will be staged again, and NOT restarted", func() {
+				restageLogs, err := env.Epinio("", "app", "restage", "--no-restart", appName)
+				Expect(err).ToNot(HaveOccurred(), restageLogs)
+				Expect(restageLogs).To(ContainSubstring("Restaging application"))
+				Expect(restageLogs).ToNot(ContainSubstring("Restarting application"))
 			})
 		})
 
