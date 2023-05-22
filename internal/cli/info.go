@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewCmdInfo returns a new 'epinio info' command
+// NewInfoCmd returns a new 'epinio info' command
 func NewInfoCmd(client *usercmd.EpinioClient) *cobra.Command {
 	return &cobra.Command{
 		Use:   "info",
