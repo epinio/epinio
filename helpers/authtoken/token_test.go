@@ -56,4 +56,9 @@ var _ = Describe("Token", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("token is expired"))
 	})
+
+	It("does not create a token beyond the maximum allowed expiry time", func() {
+		token := authtoken.Create("armin", authtoken.MaxExpiry+time.Second)
+		Expect(token).To(BeEmpty())
+	})
 })

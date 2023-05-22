@@ -28,10 +28,10 @@ var (
 )
 
 const (
-	maxExpiry = 30 * time.Second
+	MaxExpiry = 30 * time.Second
 
 	// DefaultExpiry for the auth token
-	DefaultExpiry = maxExpiry
+	DefaultExpiry = MaxExpiry
 )
 
 // EpinioClaims are the values we store in the JWT
@@ -55,7 +55,7 @@ func init() {
 // because we can't revoke and don't check for deleted users.
 func Create(user string, s time.Duration) string {
 	// seriously, don't use a long expiry time with this code
-	if s > maxExpiry {
+	if s > MaxExpiry {
 		return ""
 	}
 	claims := EpinioClaims{

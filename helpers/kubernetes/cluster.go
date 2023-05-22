@@ -29,8 +29,6 @@ import (
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -246,51 +244,6 @@ func (c *Cluster) PodDoesNotExist(ctx context.Context, namespace, selector strin
 		}
 		return true, nil
 	}
-}
-
-// WaitForCRD wait for a custom resource definition to exist in the cluster.
-// It will wait until the CRD reaches the condition "established".
-// This method should be used when installing a Deployment that is supposed to
-// provide that CRD and want to make sure the CRD is ready for consumption before
-// continuing deploying things that will consume it.
-func (c *Cluster) WaitForCRD(ctx context.Context, ui *termui.UI, CRDName string, timeout time.Duration) error {
-	s := ui.Progressf("Waiting for CRD %s to be ready to use", CRDName)
-	defer s.Stop()
-
-	clientset, err := apiextensions.NewForConfig(c.RestConfig)
-	if err != nil {
-		return err
-	}
-
-	err = wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		_, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, CRDName, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return false, nil
-			}
-			return false, err
-		}
-
-		return true, nil
-	})
-	if err != nil {
-		return err
-	}
-
-	// Now wait until the CRD is "established"
-	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		crd, err := clientset.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, CRDName, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-
-		for _, cond := range crd.Status.Conditions {
-			if cond.Type == apiextensionsv1.Established && cond.Status == apiextensionsv1.ConditionTrue {
-				return true, nil
-			}
-		}
-		return false, nil
-	})
 }
 
 // WaitForSecret waits until the specified secret exists. If timeout is reached,
