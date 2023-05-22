@@ -12,9 +12,3 @@
 package tailer
 
 type ContainerState string
-
-const (
-	RUNNING    = "running"
-	WAITING    = "waiting"
-	TERMINATED = "terminated"
-)
