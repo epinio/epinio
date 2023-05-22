@@ -691,6 +691,23 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 	log.Info("start")
 	defer log.Info("return")
 
+	app, err := c.API.AppShow(c.Settings.Namespace, appName)
+	if err != nil {
+		return err
+	}
+	if app.Workload == nil {
+		// No workload
+		if app.StagingStatus == models.ApplicationStagingActive {
+			// Somebody already initiated staging.
+			c.ui.Exclamation().Msg("Attention: Application is already staging")
+			return nil
+		}
+		if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
+			// Scaled to zero, no workload desired -> prevent (re)start.
+			restart = false
+		}
+	}
+
 	m := c.ui.Note().
 		WithStringValue("Namespace", c.Settings.Namespace).
 		WithStringValue("Application", appName)
@@ -705,11 +722,6 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 	}
 
 	log.V(1).Info("restaging application")
-
-	app, err := c.API.AppShow(c.Settings.Namespace, appName)
-	if err != nil {
-		return err
-	}
 
 	if app.Origin.Kind == models.OriginContainer {
 		c.ui.Note().Msg("Unable to restage container-based application")

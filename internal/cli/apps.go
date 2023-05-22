@@ -348,7 +348,7 @@ var CmdAppRestart = &cobra.Command{
 // CmdAppRestage implements the command: epinio app restage
 var CmdAppRestage = &cobra.Command{
 	Use:               "restage NAME",
-	Short:             "Restage the application, then restart, if not suppressed",
+	Short:             "Restage the application, then restart, if running and not suppressed",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
