@@ -19,21 +19,17 @@ import (
 )
 
 var _ = Describe("BytesIEC", func() {
-	It("properly formats various ranges", func() {
-		for _, testcase := range []struct {
-			count  int64
-			result string
-		}{
-			/*B*/ {1, "1 B"},
-			/*K*/ {1 + 1024, "1.0 KiB"},
-			/*M*/ {1 + 1024*1024, "1.0 MiB"},
-			/*G*/ {1 + 1024*1024*1024, "1.0 GiB"},
-			/*T*/ {1 + 1024*1024*1024*1024, "1.0 TiB"},
-			/*P*/ {1 + 1024*1024*1024*1024*1024, "1.0 PiB"},
-			/*E*/ {1 + 1024*1024*1024*1024*1024*1024, "1.0 EiB"},
-		} {
-			r := bytes.ByteCountIEC(testcase.count)
-			Expect(r).To(Equal(testcase.result))
-		}
-	})
+	DescribeTable("properly formats various ranges",
+		func(v int64, formatted string) {
+			r := bytes.ByteCountIEC(v)
+			Expect(r).To(Equal(formatted))
+		},
+		Entry("Bytes", int64(1), "1 B"),
+		Entry("Kibibytes", int64(1+1024), "1.0 KiB"),
+		Entry("Mebibytes", int64(1+1024*1024), "1.0 MiB"),
+		Entry("Gibibytes", int64(1+1024*1024*1024), "1.0 GiB"),
+		Entry("Tebibytes", int64(1+1024*1024*1024*1024), "1.0 TiB"),
+		Entry("Petibytes", int64(1+1024*1024*1024*1024*1024), "1.0 PiB"),
+		Entry("Exibytes", int64(1+1024*1024*1024*1024*1024*1024), "1.0 EiB"),
+	)
 })
