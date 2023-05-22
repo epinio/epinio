@@ -29,7 +29,7 @@ var _ = Describe("BytesIEC", func() {
 		Entry("Mebibytes", int64(1+1024*1024), "1.0 MiB"),
 		Entry("Gibibytes", int64(1+1024*1024*1024), "1.0 GiB"),
 		Entry("Tebibytes", int64(1+1024*1024*1024*1024), "1.0 TiB"),
-		Entry("Petibytes", int64(1+1024*1024*1024*1024*1024), "1.0 PiB"),
-		Entry("Exibytes", int64(1+1024*1024*1024*1024*1024*1024), "1.0 EiB"),
+		Entry("Pebibytes", int64(1+1024*1024*1024*1024*1024), "1.0 PiB"),
+		Entry("Exbibytes", int64(1+1024*1024*1024*1024*1024*1024), "1.0 EiB"),
 	)
 })

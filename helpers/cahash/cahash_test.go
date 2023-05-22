@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("CAH Hash CanonicalString", func() {
+var _ = Describe("CA Hash CanonicalString", func() {
 	It("properly transforms the string", func() {
 		r := cahash.CanonicalString(" \f\n \v\thello      \t \f \n \v  world\t \v\n \f ")
 		Expect(r).To(Equal("hello world"))
