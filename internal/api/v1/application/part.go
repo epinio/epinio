@@ -229,6 +229,52 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 		"app.kubernetes.io/component":  "staging",
 	}
 
+	volumes := []corev1.Volume{{
+		Name: "image-export-volume",
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: "image-export-pvc",
+			},
+		},
+	}, {
+		Name: "registry-creds-volume",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: registry.CredentialsSecretName,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  ".dockerconfigjson",
+						Path: "auth.json",
+					},
+				},
+			},
+		},
+	}}
+
+	mounts := []corev1.VolumeMount{{
+		Name:      "image-export-volume",
+		MountPath: "/tmp/",
+	}, {
+		Name:      "registry-creds-volume",
+		MountPath: "/root/containers/",
+	}}
+
+	registryCertificateSecret := viper.GetString("registry-certificate-secret")
+	if registryCertificateSecret != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "registry-cert-volume",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: registryCertificateSecret,
+				},
+			},
+		})
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      "registry-cert-volume",
+			MountPath: "/etc/ssl/certs/",
+		})
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        jobName,
@@ -254,47 +300,11 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 								"docker://" + imageURL,
 								"docker-archive:/tmp/" + imageOutputFilename,
 							},
-							VolumeMounts: []corev1.VolumeMount{{
-								Name:      "image-export-volume",
-								MountPath: "/tmp/",
-							}, {
-								Name:      "registry-cert-volume",
-								MountPath: "/etc/ssl/certs/",
-							}, {
-								Name:      "registry-creds-volume",
-								MountPath: "/root/containers/",
-							}},
+							VolumeMounts: mounts,
 						},
 					},
 					RestartPolicy: corev1.RestartPolicyNever,
-					Volumes: []corev1.Volume{{
-						Name: "image-export-volume",
-						VolumeSource: corev1.VolumeSource{
-							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-								ClaimName: "image-export-pvc",
-							},
-						},
-					}, {
-						Name: "registry-cert-volume",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: "epinio-registry-tls",
-							},
-						},
-					}, {
-						Name: "registry-creds-volume",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: registry.CredentialsSecretName,
-								Items: []corev1.KeyToPath{
-									{
-										Key:  ".dockerconfigjson",
-										Path: "auth.json",
-									},
-								},
-							},
-						},
-					}},
+					Volumes:       volumes,
 				},
 			},
 		},
