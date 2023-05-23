@@ -108,6 +108,7 @@ type APIClient interface {
 	ServiceDelete(req models.ServiceDeleteRequest, namespace string, names []string, f epinioapi.ErrorFunc) (models.ServiceDeleteResponse, error)
 	ServiceList(namespace string) (models.ServiceList, error)
 	ServiceMatch(namespace, prefix string) (models.ServiceMatchResponse, error)
+	ServicePortForward(namespace string, serviceName string, opts *epinioapi.PortForwardOpts) error
 
 	// application charts
 	ChartList() ([]models.AppChart, error)

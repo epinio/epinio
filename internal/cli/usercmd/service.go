@@ -12,12 +12,14 @@
 package usercmd
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"sort"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/kyokomi/emoji"
@@ -431,4 +433,23 @@ func (c *EpinioClient) CatalogMatching(prefix string) []string {
 
 	log.Info("matches", "found", result)
 	return result
+}
+
+func (c *EpinioClient) ServicePortForward(ctx context.Context, serviceName string, address, ports []string) error {
+	log := c.Log.WithName("ServicePortForward")
+	log.Info("start")
+	defer log.Info("return")
+
+	msg := c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		WithStringValue("Service", serviceName)
+
+	msg.Msg("Executing port forwarding")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	opts := client.NewPortForwardOpts(address, ports)
+	return c.API.ServicePortForward(c.Settings.Namespace, serviceName, opts)
 }

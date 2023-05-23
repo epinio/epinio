@@ -12,10 +12,16 @@
 package acceptance_test
 
 import (
+	"bufio"
 	"fmt"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/helpers/epinio"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -986,6 +992,158 @@ var _ = Describe("Services", LService, func() {
 				out, err := env.Epinio("", "__complete", "service", "unbind", service, app, "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).ToNot(ContainSubstring(app))
+				Expect(out).ToNot(ContainSubstring(service))
+			})
+		})
+	})
+
+	Describe("Port-forward", Label("ServicePortForward"), func() {
+		var catalogService models.CatalogService
+		var namespace, service string
+
+		BeforeEach(func() {
+			var epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
+			namespace = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace)
+			catalogService = catalog.CreateCatalogServiceApache()
+			service = catalog.NewServiceName()
+			By("Deploying Apache with service", func() {
+				out, err := epinioHelper.Run("service", "create", "apache-test", service, "--wait")
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+		})
+
+		AfterEach(func() {
+			catalog.DeleteCatalogService(catalogService.Meta.Name)
+			env.DeleteNamespace(namespace)
+		})
+
+		Context("port-forwarding", func() {
+			It("port-forward a service with a single listening port", func() {
+				go func() {
+					env.Epinio("", "service", "port-forward", service, "30000")
+				}()
+
+				time.Sleep(1 * time.Second)
+
+				//test port 30000
+
+				conn, err := net.Dial("tcp4", "localhost:30000")
+				Expect(err).ToNot(HaveOccurred())
+
+				req, _ := http.NewRequest(http.MethodGet, "http://localhost", nil)
+				Expect(req.Write(conn)).ToNot(HaveOccurred())
+
+				resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+
+			It("port-forward a service with multiple listening ports", func() {
+				go func() {
+					env.Epinio("", "service", "port-forward", service, "30001", "30002")
+				}()
+
+				time.Sleep(1 * time.Second)
+
+				//test port 30001
+
+				conn, err := net.Dial("tcp4", "localhost:30001")
+				Expect(err).ToNot(HaveOccurred())
+
+				req, _ := http.NewRequest(http.MethodGet, "http://localhost", nil)
+				Expect(req.Write(conn)).ToNot(HaveOccurred())
+
+				resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+				//test port 30002
+
+				conn, err = net.Dial("tcp4", "localhost:30002")
+				Expect(err).ToNot(HaveOccurred())
+
+				req, _ = http.NewRequest(http.MethodGet, "http://localhost", nil)
+				Expect(req.Write(conn)).ToNot(HaveOccurred())
+
+				resp, err = http.ReadResponse(bufio.NewReader(conn), req)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+
+			It("port-forward a service with multiple listening ports and multiple addresses", func() {
+				go func() {
+					env.Epinio("", "service", "port-forward", service, "30003", "30004", "--address", "localhost,127.0.0.1")
+				}()
+
+				time.Sleep(1 * time.Second)
+
+				//test port 30003 and localhost
+
+				conn, err := net.Dial("tcp4", "localhost:30003")
+				Expect(err).ToNot(HaveOccurred())
+
+				req, _ := http.NewRequest(http.MethodGet, "http://localhost", nil)
+				Expect(req.Write(conn)).ToNot(HaveOccurred())
+
+				resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+				//test port 30003 and 127.0.0.1
+
+				conn, err = net.Dial("tcp4", "127.0.0.1:30003")
+				Expect(err).ToNot(HaveOccurred())
+
+				req, _ = http.NewRequest(http.MethodGet, "http://localhost", nil)
+				Expect(req.Write(conn)).ToNot(HaveOccurred())
+
+				resp, err = http.ReadResponse(bufio.NewReader(conn), req)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+				//test port 30004 and localhost
+
+				conn, err = net.Dial("tcp4", "localhost:30004")
+				Expect(err).ToNot(HaveOccurred())
+
+				req, _ = http.NewRequest(http.MethodGet, "http://localhost", nil)
+				Expect(req.Write(conn)).ToNot(HaveOccurred())
+
+				resp, err = http.ReadResponse(bufio.NewReader(conn), req)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+				//test port 30004 and 127.0.0.1
+
+				conn, err = net.Dial("tcp4", "127.0.0.1:30004")
+				Expect(err).ToNot(HaveOccurred())
+
+				req, _ = http.NewRequest(http.MethodGet, "http://localhost", nil)
+				Expect(req.Write(conn)).ToNot(HaveOccurred())
+
+				resp, err = http.ReadResponse(bufio.NewReader(conn), req)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("command completion", func() {
+			It("matches empty prefix", func() {
+				out, err := env.Epinio("", "__complete", "service", "port-forward", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(service))
+			})
+
+			It("does not match unknown prefix", func() {
+				out, err := env.Epinio("", "__complete", "service", "port-forward", "bogus")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring("bogus"))
+			})
+
+			It("does not match for more than one argument", func() {
+				out, err := env.Epinio("", "__complete", "service", "port-forward", "fake", "")
+				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).ToNot(ContainSubstring(service))
 			})
 		})

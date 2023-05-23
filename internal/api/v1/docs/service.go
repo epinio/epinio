@@ -236,3 +236,14 @@ type ServiceUnbindResponse struct {
 	// in: body
 	Body models.Response
 }
+
+// swagger:parameters ServicePortForward
+type ServicePortForwardParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	Service string
+}
+
+// swagger:response ServicePortForwardResponse
+type ServicePortForwardResponse struct{}
