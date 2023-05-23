@@ -28,10 +28,14 @@ import (
 func main() {
 	docDir := filepath.Join("./", os.Args[1])
 
-	cmd := cli.NewEpinioCLI()
+	cmd, err := cli.NewRootCmd()
+	if err != nil {
+		panic(err)
+	}
+
 	cmd.DisableAutoGenTag = true
 
-	err := generateCmdDoc(cmd, docDir)
+	err = generateCmdDoc(cmd, docDir)
 	if err != nil {
 		panic(err)
 	}

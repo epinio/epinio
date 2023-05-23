@@ -14,6 +14,7 @@ package termui
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -52,6 +53,7 @@ const (
 // UI contains functionality for dealing with the user
 // on the CLI
 type UI struct {
+	output    io.Writer
 	verbosity int // Verbosity level for user messages.
 }
 
@@ -89,12 +91,20 @@ type Progress interface {
 // NewUI creates a new UI
 func NewUI() *UI {
 	return &UI{
+		output:    color.Output,
 		verbosity: verbosity(),
 	}
 }
 
 func (u *UI) Raw(message string) {
-	fmt.Fprintf(color.Output, "%s", message)
+	fmt.Fprintf(u.output, "%s", message)
+}
+
+func (u *UI) SetOutput(output io.Writer) {
+	if output == nil {
+		output = color.Output
+	}
+	u.output = output
 }
 
 // Progress creates, configures, and returns an active progress
@@ -224,7 +234,7 @@ func (u *Message) Msg(message string) {
 		message = color.RedString(message)
 	}
 
-	fmt.Fprintf(color.Output, "%s", message)
+	fmt.Fprintf(u.ui.output, "%s", message)
 
 	for _, interaction := range u.interactions {
 		switch interaction.variant {
@@ -244,17 +254,17 @@ func (u *Message) Msg(message string) {
 		case show:
 			switch interaction.valueType {
 			case tBool:
-				fmt.Fprintf(color.Output, "%s: %s\n", emoji.Sprint(interaction.name), color.MagentaString("%t", interaction.value))
+				fmt.Fprintf(u.ui.output, "%s: %s\n", emoji.Sprint(interaction.name), color.MagentaString("%t", interaction.value))
 			case tInt:
-				fmt.Fprintf(color.Output, "%s: %s\n", emoji.Sprint(interaction.name), color.CyanString("%d", interaction.value))
+				fmt.Fprintf(u.ui.output, "%s: %s\n", emoji.Sprint(interaction.name), color.CyanString("%d", interaction.value))
 			case tString:
-				fmt.Fprintf(color.Output, "%s: %s\n", emoji.Sprint(interaction.name), color.GreenString("%s", interaction.value))
+				fmt.Fprintf(u.ui.output, "%s: %s\n", emoji.Sprint(interaction.name), color.GreenString("%s", interaction.value))
 			}
 		}
 	}
 
 	for idx, headers := range u.tableHeaders {
-		table := tablewriter.NewWriter(color.Output)
+		table := tablewriter.NewWriter(u.ui.output)
 		table.SetHeader(headers)
 		table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
 		table.SetCenterSeparator("|")
