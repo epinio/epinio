@@ -26,13 +26,11 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
-	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
-	epinioerrors "github.com/epinio/epinio/internal/errors"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -275,16 +273,7 @@ type AppData struct {
 func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (models.AppList, error) {
 
 	// Verify namespace, if specified
-
-	if namespace != "" {
-		exists, err := namespaces.Exists(ctx, cluster, namespace)
-		if err != nil {
-			return models.AppList{}, err
-		}
-		if !exists {
-			return models.AppList{}, epinioerrors.NamespaceMissingError{Namespace: namespace}
-		}
-	}
+	// This is actually handled by `NamespaceMiddleware`.
 
 	// Fast batch queries to load all relevant resources in as few kube calls as possible.
 
