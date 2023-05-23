@@ -227,3 +227,14 @@ func constructServiceBatchDeleteURL(namespace string, names []string) string {
 
 	return fmt.Sprintf("%s?%s", URL, URLParams)
 }
+
+// ServicePortForward will forward the local traffic to a remote app
+func (c *Client) ServicePortForward(namespace string, serviceName string, opts *PortForwardOpts) error {
+	endpoint := fmt.Sprintf("%s%s/%s", c.Settings.API, api.WsRoot, api.WsRoutes.Path("ServicePortForward", namespace, serviceName))
+
+	if fw, err := NewServicePortForwarder(c, endpoint, opts.Address, opts.Ports, opts.StopChannel); err != nil {
+		return err
+	} else {
+		return fw.ForwardPorts()
+	}
+}
