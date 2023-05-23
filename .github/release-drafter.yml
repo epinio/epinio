@@ -62,7 +62,6 @@ version-resolver:
       - 'minor'
       - 'feature'
       - 'kind/enhancement'
-      - 'kind/dependencies'
   patch:
     labels:
       - 'patch'
@@ -70,4 +69,5 @@ version-resolver:
       - 'bugfix'
       - 'kind/bug'
       - 'kind/chore'
+      - 'kind/dependencies'
   default: patch
