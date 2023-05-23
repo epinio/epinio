@@ -16,11 +16,13 @@ package usercmd
 
 import (
 	"context"
+	"runtime"
 
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/settings"
+	"github.com/epinio/epinio/internal/selfupdater"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
@@ -36,6 +38,7 @@ type EpinioClient struct {
 	Log      logr.Logger
 	ui       *termui.UI
 	API      APIClient
+	Updater  selfupdater.Updater
 }
 
 //counterfeiter:generate . APIClient
@@ -133,14 +136,34 @@ func NewEpinioClient(cfg *settings.Settings, apiClient APIClient) (*EpinioClient
 	log.Info("Ingress API", "url", cfg.API)
 	log.Info("Settings API", "url", cfg.API)
 
+	updater, err := getUpdater(runtime.GOOS)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting updater")
+	}
+
 	return &EpinioClient{
 		API:      apiClient,
 		ui:       termui.NewUI(),
 		Settings: cfg,
 		Log:      logger,
+		Updater:  updater,
 	}, nil
 }
 
 func (cli *EpinioClient) UI() *termui.UI {
 	return cli.ui
+}
+
+func getUpdater(os string) (selfupdater.Updater, error) {
+	var updater selfupdater.Updater
+	switch os {
+	case "linux", "darwin":
+		updater = selfupdater.PosixUpdater{}
+	case "windows":
+		updater = selfupdater.WindowsUpdater{}
+	default:
+		return nil, errors.New("unknown operating system")
+	}
+
+	return updater, nil
 }

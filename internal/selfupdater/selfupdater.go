@@ -13,6 +13,8 @@
 // a given version. It is used to sync the cli to the server version.
 package selfupdater
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+
 import (
 	"crypto/sha256"
 	"fmt"
@@ -49,6 +51,7 @@ var ArchToURL = map[string]string{
 	"amd64": "x86_64",
 }
 
+//counterfeiter:generate . Updater
 type Updater interface {
 	Update(string) error
 }
