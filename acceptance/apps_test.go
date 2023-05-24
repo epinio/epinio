@@ -204,6 +204,17 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 	})
 
+	When("pushing an app", func() {
+		It("rejects mixed origins", func() {
+			out, err := env.Epinio("", "push",
+				"--name", appName,
+				"--git", wordpress,
+				"--container-image-url", containerImageURL)
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Cannot use `--path`, `--git`, and `--container-image-url` options together"))
+		})
+	})
+
 	When("pushing an app from an external repository", func() {
 		It("rejects a bad provider specification", func() {
 			out, err := env.Epinio("", "push",
@@ -213,6 +224,16 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(err).To(HaveOccurred(), out)
 
 			Expect(out).To(ContainSubstring("Bad --git-provider `bogus`"))
+		})
+
+		It("rejects a bad specification", func() {
+			out, err := env.Epinio("", "push",
+				"--name", appName,
+				"--git", wordpress+",main,borken")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Bad --git reference git `" +
+				wordpress +
+				",main,borken`, expected `repo?,rev?` as value"))
 		})
 
 		It("pushes the app successfully (repository alone)", func() {

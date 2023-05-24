@@ -25,7 +25,6 @@ import (
 	"reflect"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -84,15 +83,11 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (ConfigurationList, error) {
 	// Verify namespace, if specified
 	if namespace != "" {
-		exists, err := namespaces.Exists(ctx, cluster, namespace)
+		_, err := namespaces.Exists(ctx, cluster, namespace)
 		if err != nil {
 			return ConfigurationList{}, err
 		}
-		if !exists {
-			return ConfigurationList{}, epinioerrors.NamespaceMissingError{
-				Namespace: namespace,
-			}
-		}
+		// if !exists - Is handled by `NamespaceMiddleware`.
 	}
 
 	secretSelector := labels.Set(map[string]string{

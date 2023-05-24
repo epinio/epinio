@@ -16,10 +16,8 @@ package s3manager
 import (
 	"context"
 	"crypto/x509"
-	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -29,8 +27,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"gopkg.in/ini.v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Manager struct {
@@ -163,36 +159,6 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 	}
 
 	return details, nil
-}
-
-// StoreConnectionDetails stores the S3 connection details in a secret. The
-// ini-file format is compatible with awscli.
-// related tekton task: https://hub.tekton.dev/tekton/task/aws-cli
-func StoreConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string, details ConnectionDetails) (*corev1.Secret, error) {
-	credentials := fmt.Sprintf(`[default]
-aws_access_key_id     = %s
-aws_secret_access_key = %s
-`, details.AccessKeyID, details.SecretAccessKey)
-	config := fmt.Sprintf(`[default]
-region = %s
-`, details.Location)
-
-	secret, err := cluster.Kubectl.CoreV1().Secrets(secretNamespace).Create(ctx,
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: secretName,
-			},
-			StringData: map[string]string{
-				"credentials": credentials,
-				"config":      config,
-				"endpoint":    details.Endpoint,
-				"useSSL":      strconv.FormatBool(details.UseSSL),
-				"bucket":      details.Bucket,
-			},
-			Type: "Opaque",
-		}, metav1.CreateOptions{})
-
-	return secret, err
 }
 
 // Meta retrieves the meta data for the blob specified by it blobUID.

@@ -15,7 +15,6 @@ package registry
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -49,27 +48,6 @@ type DockerConfigJSON struct {
 type ConnectionDetails struct {
 	RegistryCredentials []RegistryCredentials
 	Namespace           string
-}
-
-// DockerConfigJSON returns a DockerConfigJSON object from the connection
-// details. This object can be marshaled and stored into a Kubernetes secret.
-func (d *ConnectionDetails) DockerConfigJSON() (*DockerConfigJSON, error) {
-	result := DockerConfigJSON{Auths: map[string]ContainerRegistryAuth{}}
-
-	for _, r := range d.RegistryCredentials {
-		if r.URL == "" {
-			return nil, errors.New("url must be specified")
-		}
-		auth := ContainerRegistryAuth{
-			Auth:     base64.StdEncoding.EncodeToString([]byte(r.Username + ":" + r.Password)),
-			Username: r.Username,
-			Password: r.Password,
-		}
-
-		result.Auths[r.URL] = auth
-	}
-
-	return &result, nil
 }
 
 // PublicRegistryURL returns the public registry URL from the connection details
