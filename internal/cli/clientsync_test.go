@@ -85,7 +85,12 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 		Describe("and the versions are different", func() {
 
 			BeforeEach(func() {
+				initialVersion := version.Version
 				version.Version = "v0.0.0"
+
+				DeferCleanup(func() {
+					version.Version = initialVersion
+				})
 			})
 
 			Describe("it calls the updater", func() {
