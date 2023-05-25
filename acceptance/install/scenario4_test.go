@@ -165,7 +165,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			}, "2m", "2s").Should(ContainSubstring("Epinio Server Version:"))
 		})
 
-		By("Targetting workspace namespace", func() {
+		By("Targeting workspace namespace", func() {
 			Eventually(func() string {
 				out, _ := epinioHelper.Run("target", "workspace")
 				return out
