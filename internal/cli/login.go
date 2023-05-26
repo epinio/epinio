@@ -24,6 +24,24 @@ func init() {
 	CmdLogin.Flags().Bool("prompt", false, "enable the prompt of the authorization code and disable the local server during OIDC authentication")
 }
 
+// CmdLogout implements the command: epinio logout
+var CmdLogout = &cobra.Command{
+	Use:   "logout",
+	Short: "Epinio logout from server",
+	Long:  `The logout command removs all authentication information from the local state, i.e. settings file`,
+	Args:  cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		return client.Logout(cmd.Context())
+	},
+}
+
 // CmdLogin implements the command: epinio login
 var CmdLogin = &cobra.Command{
 	Use:   "login [URL]",
