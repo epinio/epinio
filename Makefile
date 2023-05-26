@@ -35,7 +35,7 @@ build: build-amd64
 
 # amd64 variant
 build-cover:
-	GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go test -c -covermode=count -coverpkg ./... -o dist/epinio-linux-amd64-coverage
+	GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go build -cover -covermode=count -coverpkg ./... $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-amd64
 
 build-win: build-windows
 

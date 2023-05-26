@@ -126,8 +126,8 @@ kubectl delete pod -n epinio epinio-copier
 EPINIO_BINARY_HASH=($(${SHASUM:=shasum} ${EPINIO_BINARY_PATH}))
 
 helper=""
-if [ -n "$EPINIO_COVERAGE" ]; then
-  helper=',{"name": "tools", "image": "alpine", "command": ["sleep","9000"], "volumeMounts": [{"mountPath": "/tmp", "name": "tmp-volume"}]}'
+if [ -n "$GOCOVERDIR" ]; then
+  helper=',{"name": "tools", "image": "alpine", "command": ["/bin/sh", "-ec", "trap : TERM INT; sleep infinity & wait"], "volumeMounts": [{"mountPath": "/tmp", "name": "tmp-volume"}]}'
 fi
 
 # Due to PV Multi-Attach Error on AKS the RollingUpdate strategy is needed.

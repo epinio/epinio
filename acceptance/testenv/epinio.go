@@ -74,10 +74,6 @@ func ServerBinaryName() string {
 
 // EpinioBinaryPath returns the absolute path to the dist/epinio binary
 func EpinioBinaryPath() string {
-	if _, ok := os.LookupEnv("EPINIO_COVERAGE"); ok {
-		p, _ := filepath.Abs(filepath.Join(Root(), "epinio.test"))
-		return p
-	}
 	p, _ := filepath.Abs(filepath.Join(Root(), "dist", BinaryName()))
 	return p
 }
