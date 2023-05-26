@@ -57,6 +57,7 @@ func init() {
 	checkErr(err)
 
 	CmdAppDelete.Flags().Bool("all", false, "Delete all applications")
+	CmdAppRestage.Flags().Bool("no-restart", false, "Do not restart application after restaging")
 
 	CmdApp.AddCommand(CmdAppCreate)
 	CmdApp.AddCommand(CmdAppChart) // See chart.go for implementation
@@ -347,7 +348,7 @@ var CmdAppRestart = &cobra.Command{
 // CmdAppRestage implements the command: epinio app restage
 var CmdAppRestage = &cobra.Command{
 	Use:               "restage NAME",
-	Short:             "Restage the application",
+	Short:             "Restage the application, then restart, if running and not suppressed",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -358,7 +359,13 @@ var CmdAppRestage = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.AppRestage(args[0])
+		norestart, err := cmd.Flags().GetBool("no-restart")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --no-restart")
+		}
+		restart := !norestart
+
+		err = client.AppRestage(args[0], restart)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error restaging app")
 	},

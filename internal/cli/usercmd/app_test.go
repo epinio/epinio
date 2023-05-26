@@ -52,7 +52,7 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 				epinioClient, err := usercmd.NewEpinioClient(&settings.Settings{Namespace: "workspace"}, fake)
 				Expect(err).ToNot(HaveOccurred())
 
-				err = epinioClient.AppRestage("appname")
+				err = epinioClient.AppRestage("appname", false)
 				Expect(err).ToNot(HaveOccurred())
 			})
 		})
@@ -77,7 +77,7 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 				epinioClient, err := usercmd.NewEpinioClient(&settings.Settings{Namespace: "workspace"}, fake)
 				Expect(err).ToNot(HaveOccurred())
 
-				err = epinioClient.AppRestage("appname")
+				err = epinioClient.AppRestage("appname", false)
 				Expect(err).ToNot(HaveOccurred())
 			})
 		})
