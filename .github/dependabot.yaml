@@ -16,16 +16,16 @@ updates:
     schedule:
       interval: "monthly"
     labels:
-      - "dependencies"
+      - "kind/dependencies"
   - package-ecosystem: "docker"
     directory: "/images/" 
     schedule:
       interval: "monthly"
     labels:
-      - "dependencies"
+      - "kind/dependencies"
   - package-ecosystem: "github-actions"
     directory: "/" 
     schedule:
       interval: "monthly"
     labels:
-      - "dependencies"
+      - "kind/dependencies"
