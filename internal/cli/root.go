@@ -106,7 +106,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		CmdCompletion,
 		CmdSettings,
 		NewInfoCmd(client),
-		CmdClientSync,
+		NewClientSyncCmd(client),
 		CmdNamespace,
 		CmdAppPush, // shorthand access to `app push`
 		CmdApp,

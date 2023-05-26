@@ -12,9 +12,6 @@
 package usercmd
 
 import (
-	"runtime"
-
-	"github.com/epinio/epinio/internal/selfupdater"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/pkg/errors"
 )
@@ -37,12 +34,7 @@ func (c *EpinioClient) ClientSync() error {
 		return nil
 	}
 
-	updater, err := getUpdater()
-	if err != nil {
-		return errors.Wrap(err, "getting an updater")
-	}
-
-	err = updater.Update(v.Version)
+	err = c.Updater.Update(v.Version)
 	if err != nil {
 		return errors.Wrap(err, "updating the client")
 	}
@@ -50,18 +42,4 @@ func (c *EpinioClient) ClientSync() error {
 	c.ui.Success().Msgf("Updated epinio client to %s", v.Version)
 
 	return nil
-}
-
-func getUpdater() (selfupdater.Updater, error) {
-	var updater selfupdater.Updater
-	switch os := runtime.GOOS; os {
-	case "linux", "darwin":
-		updater = selfupdater.PosixUpdater{}
-	case "windows":
-		updater = selfupdater.WindowsUpdater{}
-	default:
-		return nil, errors.New("unknown operating system")
-	}
-
-	return updater, nil
 }
