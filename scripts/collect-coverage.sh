@@ -27,7 +27,10 @@ kubectl rollout status deployment -n epinio epinio-server
 
 # copy server's coverprofile from helper container
 name=$(kubectl get pods -n epinio -l app.kubernetes.io/name=epinio-server -o jsonpath="{.items[0].metadata.name}")
-kubectl cp epinio/"$name":/tmp/coverprofile.out coverprofile-server.out -c tools
 
-echo 'mode: count' > coverprofile.out
-tail -q -n +2 coverprofile-server.out /tmp/coverprofile*.out >> coverprofile.out
+kubectl exec -n epinio pod/"$name" . -c tools -- sh -c "ls /tmp/cov*" | \
+    xargs -n1 basename | \
+    xargs -I{} kubectl cp epinio/"$name":tmp/{} /tmp/{} -c tools 2>/dev/null
+
+go tool covdata textfmt -i=/tmp -o coverprofile.out
+

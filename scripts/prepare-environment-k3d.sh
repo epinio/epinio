@@ -102,19 +102,18 @@ else
     epinio helm-charts/chart/epinio --wait "$@"
 
   # compile coverage binary and add required env var
-  if [ -n "$EPINIO_COVERAGE" ]; then
+  if [ -n "$GOCOVERDIR" ]; then
     echo "Compiling coverage binary"
-    GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go test -c -covermode=count -coverpkg ./...
-    export EPINIO_BINARY_PATH="epinio.test"
+    GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go build -cover -covermode=count -coverpkg ./... -o $EPINIO_BINARY
     echo "Patching epinio for coverage env var"
     kubectl patch deployments -n epinio epinio-server --type=json \
-      -p '[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "EPINIO_COVERAGE", "value": "true"}}]'
+      -p '[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "GOCOVERDIR", "value": "/tmp"}}]'
   fi
 
   # Patch Epinio
   ./scripts/patch-epinio-deployment.sh
 
-  if [ -n "$EPINIO_COVERAGE" ]; then
+  if [ -n "$GOCOVERDIR" ]; then
     echo "Patching epinio ingress with coverage helper container"
     kubectl patch ingress -n epinio epinio --type=json \
       -p '[{"op": "add", "path": "/spec/rules/0/http/paths/-", "value":

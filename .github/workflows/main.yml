@@ -77,7 +77,7 @@ jobs:
     runs-on: [self-hosted, epinio]
 
     env:
-      EPINIO_COVERAGE: true
+      GOCOVERDIR: /tmp
 
     steps:
       - name: Checkout
@@ -121,7 +121,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cover*
+          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
@@ -148,7 +148,7 @@ jobs:
     runs-on: [self-hosted, epinio]
 
     env:
-      EPINIO_COVERAGE: true
+      GOCOVERDIR: /tmp
 
     steps:
       - name: Checkout
@@ -192,7 +192,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cover*
+          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
@@ -219,7 +219,7 @@ jobs:
     runs-on: [self-hosted, epinio]
 
     env:
-      EPINIO_COVERAGE: true
+      GOCOVERDIR: /tmp
 
     steps:
       - name: Checkout
@@ -263,7 +263,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cover*
+          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
@@ -291,7 +291,7 @@ jobs:
     runs-on: [self-hosted, epinio]
 
     env:
-      EPINIO_COVERAGE: true
+      GOCOVERDIR: /tmp
 
     steps:
       - name: Checkout
@@ -335,7 +335,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cover*
+          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
@@ -363,7 +363,7 @@ jobs:
     runs-on: [self-hosted, epinio]
 
     env:
-      EPINIO_COVERAGE: true
+      GOCOVERDIR: /tmp
 
     steps:
       - name: Checkout
@@ -407,7 +407,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cover*
+          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
@@ -434,7 +434,7 @@ jobs:
     runs-on: [self-hosted, epinio]
 
     env:
-      EPINIO_COVERAGE: true
+      GOCOVERDIR: /tmp
 
     steps:
       - name: Checkout
@@ -478,7 +478,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cover*
+          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
@@ -506,7 +506,7 @@ jobs:
     runs-on: [self-hosted, epinio]
 
     env:
-      EPINIO_COVERAGE: true
+      GOCOVERDIR: /tmp
 
     steps:
       - name: Checkout
@@ -550,7 +550,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
-          rm -f /tmp/cover*
+          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
