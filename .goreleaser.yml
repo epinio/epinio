@@ -323,13 +323,12 @@ sboms:
 
 docker_signs:
   - cmd: cosign
-    env:
-    - COSIGN_EXPERIMENTAL=1
     artifacts: all
     output: true
     args:
     - 'sign'
     - '${artifact}@${digest}'
+    - "--yes" # needed on cosign 2.0.0+
 
 # signs the checksum file and other blobs. all files (including the sboms) are included in the
 # checksum, so we don't need to sign each one if we don't want to
@@ -337,13 +336,12 @@ docker_signs:
 
 signs:
 - cmd: cosign
-  env:
-  - COSIGN_EXPERIMENTAL=1
   certificate: '${artifact}.pem'
   args:
     - sign-blob
     - '--output-certificate=${certificate}'
     - '--output-signature=${signature}'
     - '${artifact}'
+    - "--yes" # needed on cosign 2.0.0+
   artifacts: checksum
   output: true
