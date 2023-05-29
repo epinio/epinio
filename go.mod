@@ -57,7 +57,6 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.11.2
 	k8s.io/api v0.26.3
-	k8s.io/apiextensions-apiserver v0.26.3
 	k8s.io/apimachinery v0.26.3
 	k8s.io/apiserver v0.26.3
 	k8s.io/client-go v0.26.3
@@ -66,7 +65,15 @@ require (
 	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d
 )
 
-require github.com/go-jose/go-jose/v3 v3.0.0 // indirect
+require (
+	github.com/buildpacks/libcnb v1.18.0 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
+	github.com/heroku/color v0.0.6 // indirect
+	github.com/mattn/go-shellwords v1.0.12 // indirect
+	github.com/paketo-buildpacks/libpak v1.49.0 // indirect
+	github.com/pelletier/go-toml v1.9.5 // indirect
+	k8s.io/apiextensions-apiserver v0.26.3 // indirect
+)
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
@@ -173,6 +180,7 @@ require (
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
+	github.com/paketo-buildpacks/ca-certificates v1.0.1
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
