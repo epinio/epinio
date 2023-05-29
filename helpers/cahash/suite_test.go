@@ -20,5 +20,5 @@ import (
 
 func TestEpinio(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, " CA hash suite")
+	RunSpecs(t, "CA hash suite")
 }
