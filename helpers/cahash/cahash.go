@@ -45,14 +45,13 @@ func GenerateHash(certRaw []byte) (string, error) {
 // -----------------------------------------------------------------------------------
 // See gh:paketo-buildpacks/ca-certificates (cacerts/certs.go) for the original code.
 
-// Iterates over pem blocks until a non-CA certificate if found or no other PEM
-// blocks exist.
+// Iterates over pem blocks until a valid certificate is found or no other PEM blocks exist.
 func DecodeOneCert(raw []byte) (*x509.Certificate, error) {
 	byteData := raw
 	for len(byteData) > 0 {
 		block, rest := pem.Decode(byteData)
 		if block == nil {
-			return nil, errors.New("failed find PEM data")
+			return nil, errors.New("failed decoding PEM data")
 		}
 
 		cert, err := x509.ParseCertificate(block.Bytes)
@@ -60,10 +59,7 @@ func DecodeOneCert(raw []byte) (*x509.Certificate, error) {
 			byteData = rest
 			continue // pem block is not a cert? (e.g. maybe it was a dh_params block)
 		}
-		if !cert.IsCA {
-			return cert, nil
-		}
-		byteData = rest
+		return cert, nil
 	}
 
 	return nil, errors.New("failed find PEM data")
