@@ -93,11 +93,15 @@ jobs:
       - name: Verify signatures on the generated docker images and manifests
         id: verify_signatures
         run: |
-          cosign verify ghcr.io/epinio/epinio-server:${{ steps.get_latest_tag.outputs.LATEST_TAG }}
-          cosign verify ghcr.io/epinio/epinio-unpacker:${{ steps.get_latest_tag.outputs.LATEST_TAG }}
-        env:
-          DOCKER_CLI_EXPERIMENTAL: enabled
-          COSIGN_EXPERIMENTAL: 1
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/epinio/epinio" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ghcr.io/epinio/epinio-server:${{ steps.get_latest_tag.outputs.LATEST_TAG }}
+          
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/epinio/epinio" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ghcr.io/epinio/epinio-unpacker:${{ steps.get_latest_tag.outputs.LATEST_TAG }}
 
       # Trigger automatic release of the Epinio Helm chart when we release
       # Epinio, by posting an event to the helm chart repository. This event
