@@ -58,6 +58,21 @@ func (c *Client) VersionWarningEnabled() bool {
 	return !c.noVersionWarning
 }
 
+func Get[T any](c *Client, endpoint string, v T) (T, error) {
+	data, err := c.get(endpoint)
+	if err != nil {
+		return v, err
+	}
+
+	if err := json.Unmarshal(data, &v); err != nil {
+		return v, err
+	}
+
+	c.log.V(1).Info("response decoded", "response", v)
+
+	return v, nil
+}
+
 func (c *Client) get(endpoint string) ([]byte, error) {
 	return c.do(endpoint, "GET", "")
 }

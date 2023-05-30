@@ -24,38 +24,18 @@ import (
 
 // Configurations returns a list of configurations for the specified namespace
 func (c *Client) Configurations(namespace string) (models.ConfigurationResponseList, error) {
-	resp := models.ConfigurationResponseList{}
+	v := models.ConfigurationResponseList{}
+	endpoint := api.Routes.Path("Configurations", namespace)
 
-	data, err := c.get(api.Routes.Path("Configurations", namespace))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, v)
 }
 
 // AllConfigurations returns a list of all configurations, across all namespaces
 func (c *Client) AllConfigurations() (models.ConfigurationResponseList, error) {
-	resp := models.ConfigurationResponseList{}
+	v := models.ConfigurationResponseList{}
+	endpoint := api.Routes.Path("AllConfigurations")
 
-	data, err := c.get(api.Routes.Path("AllConfigurations"))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, v)
 }
 
 // ConfigurationBindingCreate creates a binding from an app to a configurationclass
@@ -185,56 +165,26 @@ func (c *Client) ConfigurationUpdate(req models.ConfigurationUpdateRequest, name
 
 // ConfigurationShow shows a configuration
 func (c *Client) ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error) {
-	var resp models.ConfigurationResponse
+	v := models.ConfigurationResponse{}
+	endpoint := api.Routes.Path("ConfigurationShow", namespace, name)
 
-	data, err := c.get(api.Routes.Path("ConfigurationShow", namespace, name))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, v)
 }
 
 // ConfigurationApps lists all the apps by configurations
 func (c *Client) ConfigurationApps(namespace string) (models.ConfigurationAppsResponse, error) {
-	resp := models.ConfigurationAppsResponse{}
+	v := models.ConfigurationAppsResponse{}
+	endpoint := api.Routes.Path("ConfigurationApps", namespace)
 
-	data, err := c.get(api.Routes.Path("ConfigurationApps", namespace))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, errors.Wrap(err, "response body is not JSON")
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, v)
 }
 
 // ConfigurationMatch returns all matching configurations for the prefix
 func (c *Client) ConfigurationMatch(namespace, prefix string) (models.ConfigurationMatchResponse, error) {
-	resp := models.ConfigurationMatchResponse{}
+	v := models.ConfigurationMatchResponse{}
+	endpoint := api.Routes.Path("ConfigurationMatch", namespace, prefix)
 
-	data, err := c.get(api.Routes.Path("ConfigurationMatch", namespace, prefix))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, v)
 }
 
 func constructConfigurationBatchDeleteURL(namespace string, names []string) string {
