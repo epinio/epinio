@@ -74,7 +74,7 @@ jobs:
   acceptance-cli:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: [self-hosted, gcp-test]
 
     env:
       GOCOVERDIR: /tmp
@@ -145,7 +145,7 @@ jobs:
   acceptance-cli-apps:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: [self-hosted, gcp-test]
 
     env:
       GOCOVERDIR: /tmp
@@ -216,7 +216,7 @@ jobs:
   acceptance-cli-services:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: [self-hosted, gcp-test]
 
     env:
       GOCOVERDIR: /tmp
@@ -288,7 +288,7 @@ jobs:
     needs:
       - linter
       - acceptance-api-services
-    runs-on: [self-hosted, epinio]
+    runs-on: [self-hosted, gcp-test]
 
     env:
       GOCOVERDIR: /tmp
@@ -360,7 +360,7 @@ jobs:
     needs:
       - linter
       - acceptance-cli-services
-    runs-on: [self-hosted, epinio]
+    runs-on: [self-hosted, gcp-test]
 
     env:
       GOCOVERDIR: /tmp
@@ -431,7 +431,7 @@ jobs:
   acceptance-api-services:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: [self-hosted, gcp-test]
 
     env:
       GOCOVERDIR: /tmp
@@ -503,7 +503,7 @@ jobs:
     needs:
       - linter
       - acceptance-cli
-    runs-on: [self-hosted, epinio]
+    runs-on: [self-hosted, gcp-test]
 
     env:
       GOCOVERDIR: /tmp
@@ -597,7 +597,7 @@ jobs:
       - acceptance-apps
       - acceptance-cli-apps
 
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
