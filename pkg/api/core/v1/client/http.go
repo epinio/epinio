@@ -58,7 +58,7 @@ func (c *Client) VersionWarningEnabled() bool {
 	return !c.noVersionWarning
 }
 
-func getDecoded[T any](c *Client, endpoint string, v T) (T, error) {
+func Get[T any](c *Client, endpoint string, v T) (T, error) {
 	data, err := c.get(endpoint)
 	if err != nil {
 		return v, err

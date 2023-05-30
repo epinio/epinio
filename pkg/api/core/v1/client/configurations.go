@@ -27,7 +27,7 @@ func (c *Client) Configurations(namespace string) (models.ConfigurationResponseL
 	v := models.ConfigurationResponseList{}
 	endpoint := api.Routes.Path("Configurations", namespace)
 
-	return getDecoded(c, endpoint, v)
+	return Get(c, endpoint, v)
 }
 
 // AllConfigurations returns a list of all configurations, across all namespaces
@@ -35,7 +35,7 @@ func (c *Client) AllConfigurations() (models.ConfigurationResponseList, error) {
 	v := models.ConfigurationResponseList{}
 	endpoint := api.Routes.Path("AllConfigurations")
 
-	return getDecoded(c, endpoint, v)
+	return Get(c, endpoint, v)
 }
 
 // ConfigurationBindingCreate creates a binding from an app to a configurationclass
@@ -168,7 +168,7 @@ func (c *Client) ConfigurationShow(namespace string, name string) (models.Config
 	v := models.ConfigurationResponse{}
 	endpoint := api.Routes.Path("ConfigurationShow", namespace, name)
 
-	return getDecoded(c, endpoint, v)
+	return Get(c, endpoint, v)
 }
 
 // ConfigurationApps lists all the apps by configurations
@@ -176,7 +176,7 @@ func (c *Client) ConfigurationApps(namespace string) (models.ConfigurationAppsRe
 	v := models.ConfigurationAppsResponse{}
 	endpoint := api.Routes.Path("ConfigurationApps", namespace)
 
-	return getDecoded(c, endpoint, v)
+	return Get(c, endpoint, v)
 }
 
 // ConfigurationMatch returns all matching configurations for the prefix
@@ -184,7 +184,7 @@ func (c *Client) ConfigurationMatch(namespace, prefix string) (models.Configurat
 	v := models.ConfigurationMatchResponse{}
 	endpoint := api.Routes.Path("ConfigurationMatch", namespace, prefix)
 
-	return getDecoded(c, endpoint, v)
+	return Get(c, endpoint, v)
 }
 
 func constructConfigurationBatchDeleteURL(namespace string, names []string) string {
