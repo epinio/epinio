@@ -32,33 +32,18 @@ func (c *Client) Configurations(namespace string) (models.ConfigurationResponseL
 
 // AllConfigurations returns a list of all configurations, across all namespaces
 func (c *Client) AllConfigurations() (models.ConfigurationResponseList, error) {
-	v := models.ConfigurationResponseList{}
+	response := models.ConfigurationResponseList{}
 	endpoint := api.Routes.Path("AllConfigurations")
 
-	return Get(c, endpoint, v)
+	return Get(c, endpoint, response)
 }
 
 // ConfigurationBindingCreate creates a binding from an app to a configurationclass
-func (c *Client) ConfigurationBindingCreate(req models.BindRequest, namespace string, appName string) (models.BindResponse, error) {
-	resp := models.BindResponse{}
+func (c *Client) ConfigurationBindingCreate(request models.BindRequest, namespace string, appName string) (models.BindResponse, error) {
+	response := models.BindResponse{}
+	endpoint := api.Routes.Path("ConfigurationBindingCreate", namespace, appName)
 
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, nil
-	}
-
-	data, err := c.post(api.Routes.Path("ConfigurationBindingCreate", namespace, appName), string(b))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, errors.Wrap(err, "response body is not JSON")
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Post(c, endpoint, request, response)
 }
 
 // ConfigurationBindingDelete deletes a binding from an app to a configurationclass
@@ -110,57 +95,19 @@ func (c *Client) ConfigurationDelete(req models.ConfigurationDeleteRequest, name
 }
 
 // ConfigurationCreate creates a configuration by invoking the associated API endpoint
-func (c *Client) ConfigurationCreate(req models.ConfigurationCreateRequest, namespace string) (models.Response, error) {
-	resp := models.Response{}
+func (c *Client) ConfigurationCreate(request models.ConfigurationCreateRequest, namespace string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ConfigurationCreate", namespace)
 
-	c.log.V(5).WithValues("request", req, "namespace", namespace).Info("requesting ConfigurationCreate")
-
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, nil
-	}
-
-	data, err := c.post(api.Routes.Path("ConfigurationCreate", namespace), string(b))
-	if err != nil {
-		return resp, err
-	}
-
-	c.log.V(5).WithValues("response", req, "namespace", namespace).Info("received ConfigurationCreate")
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, errors.Wrap(err, "response body is not JSON")
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Post(c, endpoint, request, response)
 }
 
 // ConfigurationUpdate updates a configuration by invoking the associated API endpoint
-func (c *Client) ConfigurationUpdate(req models.ConfigurationUpdateRequest, namespace, name string) (models.Response, error) {
-	resp := models.Response{}
+func (c *Client) ConfigurationUpdate(request models.ConfigurationUpdateRequest, namespace, name string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ConfigurationUpdate", namespace, name)
 
-	c.log.V(5).WithValues("request", req, "namespace", namespace, "configuration", name).Info("requesting ConfigurationUpdate")
-
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, nil
-	}
-
-	data, err := c.patch(api.Routes.Path("ConfigurationUpdate", namespace, name), string(b))
-	if err != nil {
-		return resp, err
-	}
-
-	c.log.V(5).WithValues("response", req, "namespace", namespace, "configuration", name).Info("received ConfigurationUpdate")
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, errors.Wrap(err, "response body is not JSON")
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Post(c, endpoint, request, response)
 }
 
 // ConfigurationShow shows a configuration

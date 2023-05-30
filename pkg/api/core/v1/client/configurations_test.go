@@ -88,6 +88,49 @@ var _ = Describe("Client Configurations", func() {
 		})
 	})
 
+	Describe("creating a configuration", func() {
+		When("a 200 status code occurred with empty response", func() {
+
+			BeforeEach(func() {
+				statusCode = 200
+				responseBody = `{"status":"ok"}`
+			})
+
+			It("gets an empty list", func() {
+				resp, err := epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace-foo")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp).To(Equal(models.ResponseOK))
+			})
+		})
+
+		When("a 200 status code occurred but no JSON was returned", func() {
+
+			BeforeEach(func() {
+				statusCode = 200
+				responseBody = `<html>borken</html>`
+			})
+
+			It("returns an error", func() {
+				_, err := epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace-foo")
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		When("a 200 status code occurred with a valid JSON", func() {
+
+			BeforeEach(func() {
+				statusCode = 200
+				responseBody = `{"status":"ok"}`
+			})
+
+			It("returns some configurations", func() {
+				resp, err := epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace-foo")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp).To(Equal(models.ResponseOK))
+			})
+		})
+	})
+
 	When("a 500 status code and a JSON error was returned", func() {
 
 		BeforeEach(func() {
@@ -108,11 +151,30 @@ var _ = Describe("Client Configurations", func() {
 				_, err := call()
 				Expect(err).To(HaveOccurred())
 			},
-			Entry("configuration", func() (any, error) { return epinioClient.Configurations("namespace") }),
-			Entry("all configurations", func() (any, error) { return epinioClient.AllConfigurations() }),
-			Entry("configuration show", func() (any, error) { return epinioClient.ConfigurationShow("namespace", "config") }),
-			Entry("configuration apps", func() (any, error) { return epinioClient.ConfigurationApps("namespace") }),
-			Entry("configuration match", func() (any, error) { return epinioClient.ConfigurationMatch("namespace", "prefix") }),
+			Entry("configuration", func() (any, error) {
+				return epinioClient.Configurations("namespace")
+			}),
+			Entry("all configurations", func() (any, error) {
+				return epinioClient.AllConfigurations()
+			}),
+			Entry("configurations binding", func() (any, error) {
+				return epinioClient.ConfigurationBindingCreate(models.BindRequest{}, "namespace", "app")
+			}),
+			Entry("configuration create", func() (any, error) {
+				return epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace")
+			}),
+			Entry("configuration update", func() (any, error) {
+				return epinioClient.ConfigurationUpdate(models.ConfigurationUpdateRequest{}, "namespace", "prefix")
+			}),
+			Entry("configuration show", func() (any, error) {
+				return epinioClient.ConfigurationShow("namespace", "config")
+			}),
+			Entry("configuration apps", func() (any, error) {
+				return epinioClient.ConfigurationApps("namespace")
+			}),
+			Entry("configuration match", func() (any, error) {
+				return epinioClient.ConfigurationMatch("namespace", "prefix")
+			}),
 		)
 	})
 })

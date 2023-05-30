@@ -58,23 +58,45 @@ func (c *Client) VersionWarningEnabled() bool {
 	return !c.noVersionWarning
 }
 
-func Get[T any](c *Client, endpoint string, v T) (T, error) {
+func Get[T any](c *Client, endpoint string, response T) (T, error) {
 	data, err := c.get(endpoint)
 	if err != nil {
-		return v, err
+		return response, err
 	}
 
-	if err := json.Unmarshal(data, &v); err != nil {
-		return v, err
+	if err := json.Unmarshal(data, &response); err != nil {
+		return response, err
 	}
 
-	c.log.V(1).Info("response decoded", "response", v)
+	c.log.V(1).Info("response decoded", "response", response)
 
-	return v, nil
+	return response, nil
 }
 
 func (c *Client) get(endpoint string) ([]byte, error) {
 	return c.do(endpoint, "GET", "")
+}
+
+func Post[T any](c *Client, endpoint string, request any, response T) (T, error) {
+	c.log.V(1).Info("sending POST request", "endpoint", endpoint, "body", request)
+
+	b, err := json.Marshal(request)
+	if err != nil {
+		return response, errors.Wrap(err, "encoding JSON requestBody")
+	}
+
+	data, err := c.post(endpoint, string(b))
+	if err != nil {
+		return response, err
+	}
+
+	if err := json.Unmarshal(data, &response); err != nil {
+		return response, errors.Wrap(err, "decoding JSON response")
+	}
+
+	c.log.V(1).Info("response decoded", "response", response)
+
+	return response, nil
 }
 
 func (c *Client) post(endpoint string, data string) ([]byte, error) {
