@@ -15,6 +15,7 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/proxy"
 	"github.com/epinio/epinio/internal/application"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
@@ -95,5 +96,5 @@ func Exec(c *gin.Context) apierror.APIErrors {
 			Command: []string{"/bin/sh", "-c", "TERM=xterm-256color; export TERM; exec /bin/bash"},
 		}, scheme.ParameterCodec).URL()
 
-	return runProxy(ctx, c.Writer, c.Request, attachURL)
+	return proxy.RunProxy(ctx, c.Writer, c.Request, attachURL)
 }
