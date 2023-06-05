@@ -26,7 +26,7 @@ openssl req -x509 -new -nodes \
     -key CA.key \
     -sha256 \
     -days 3650 \
-    -out CA2.pem
+    -out CA.pem
 ```
 ### Create private key, CSR and signed certificate for external registry service
 
@@ -74,6 +74,7 @@ Transfer the CA.pem file to all kubernetes nodes and perform:
 ```bash
 sudo cp CA.pem /etc/pki/trust/anchors/
 sudo update-ca-certificates
+sudo systemctl restart k3s[-agent].service
 ```
 
 **Note:** This applies to openSUSE/SLE distributions and k3s. The method for distributing the CA cert may vary depending on the operating system and/or Kubernetes distribution being used.
@@ -88,7 +89,7 @@ docker run --entrypoint htpasswd httpd:2 -Bbn opensuse password > auth/htpasswd
 
 Run the registry in docker:
 ```bash
-docker run -d --restart=always --name=registry -v certs/auth:/auth -v certs:/certs \
+docker run -d --restart=always --name=registry -v $PWD/auth:/auth -v $PWD:/certs \
     -e "REGISTRY_AUTH=htpasswd" \
     -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
     -e "REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd" \
@@ -101,7 +102,7 @@ docker run -d --restart=always --name=registry -v certs/auth:/auth -v certs:/cer
 **Note:** Check the certificate with:
 
 ```bash
-curl -L --cacert CA.pem -u opensuse:password  https://registry.suse.dev/v2/_catalog
+curl --cacert CA.pem -u opensuse:password https://registry.suse.dev/v2/_catalog
 ```
 
 ### Install/Upgrade Epinio
@@ -136,5 +137,5 @@ epinio app push -n sample -p assets/golang-sample-app
 and we should see that the image were pushed into the external registry:
 
 ```bash
-curl -L [--cacert CA.pem] -u opensuse:password  https://registry.suse.dev/v2/_catalog
+curl [--cacert CA.pem] -u opensuse:password https://registry.suse.dev/v2/_catalog
 ```
