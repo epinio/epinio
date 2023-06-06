@@ -15,6 +15,7 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/proxy"
 	"github.com/epinio/epinio/internal/application"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
@@ -80,5 +81,5 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 		SubResource("portforward").
 		URL()
 
-	return runProxy(ctx, c.Writer, c.Request, forwardURL)
+	return proxy.RunProxy(ctx, c.Writer, c.Request, forwardURL)
 }
