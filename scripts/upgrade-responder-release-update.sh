@@ -44,7 +44,7 @@ function UpgradeResponderResponseJSON
   fi
 
   cat /tmp/epinio_releases.json | \
-  jq '.[] | {
+  jq '.[] | select(.draft | not) | {
     Name: (.name | split(" ")[0]),
     ReleaseDate: .published_at,
     MinUpgradableVersion: "",
