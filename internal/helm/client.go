@@ -2,13 +2,13 @@ package helm
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	hc "github.com/mittwald/go-helm-client"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/release"
-	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 )
 
@@ -47,7 +47,7 @@ func (c *SynchronizedClient) GetChart(chartName string, chartPathOptions *action
 }
 
 // GetRelease implements helmclient.Client
-func (c *SynchronizedClient) GetRelease(name string) (*helmrelease.Release, error) {
+func (c *SynchronizedClient) GetRelease(name string) (*release.Release, error) {
 	return c.helmClient.GetRelease(name)
 }
 
@@ -57,7 +57,7 @@ func (c *SynchronizedClient) GetReleaseValues(name string, allValues bool) (map[
 }
 
 // InstallChart implements helmclient.Client
-func (c *SynchronizedClient) InstallChart(ctx context.Context, spec *hc.ChartSpec, opts *hc.GenericHelmOptions) (*helmrelease.Release, error) {
+func (c *SynchronizedClient) InstallChart(ctx context.Context, spec *hc.ChartSpec, opts *hc.GenericHelmOptions) (*release.Release, error) {
 	anyMutex, _ := c.mutexMap.LoadOrStore(spec.ReleaseName, &sync.Mutex{})
 	if m, ok := anyMutex.(*sync.Mutex); ok {
 		m.Lock()
@@ -73,17 +73,17 @@ func (c *SynchronizedClient) LintChart(spec *hc.ChartSpec) error {
 }
 
 // ListDeployedReleases implements helmclient.Client
-func (c *SynchronizedClient) ListDeployedReleases() ([]*helmrelease.Release, error) {
+func (c *SynchronizedClient) ListDeployedReleases() ([]*release.Release, error) {
 	return c.helmClient.ListDeployedReleases()
 }
 
 // ListReleaseHistory implements helmclient.Client
-func (c *SynchronizedClient) ListReleaseHistory(name string, max int) ([]*helmrelease.Release, error) {
+func (c *SynchronizedClient) ListReleaseHistory(name string, max int) ([]*release.Release, error) {
 	return c.helmClient.ListReleaseHistory(name, max)
 }
 
 // ListReleasesByStateMask implements helmclient.Client
-func (c *SynchronizedClient) ListReleasesByStateMask(actions action.ListStates) ([]*helmrelease.Release, error) {
+func (c *SynchronizedClient) ListReleasesByStateMask(actions action.ListStates) ([]*release.Release, error) {
 	return c.helmClient.ListReleasesByStateMask(actions)
 }
 
@@ -125,7 +125,7 @@ func (c *SynchronizedClient) UpdateChartRepos() error {
 }
 
 // UpgradeChart implements helmclient.Client
-func (c *SynchronizedClient) UpgradeChart(ctx context.Context, spec *hc.ChartSpec, opts *hc.GenericHelmOptions) (*helmrelease.Release, error) {
+func (c *SynchronizedClient) UpgradeChart(ctx context.Context, spec *hc.ChartSpec, opts *hc.GenericHelmOptions) (*release.Release, error) {
 	anyMutex, _ := c.mutexMap.LoadOrStore(spec.ReleaseName, &sync.Mutex{})
 	if m, ok := anyMutex.(*sync.Mutex); ok {
 		m.Lock()
@@ -133,4 +133,15 @@ func (c *SynchronizedClient) UpgradeChart(ctx context.Context, spec *hc.ChartSpe
 	}
 
 	return c.helmClient.UpgradeChart(ctx, spec, opts)
+}
+
+func (c *SynchronizedClient) GetReleaseStatus(name string) (*release.Release, error) {
+	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
+	if !ok {
+		return nil, fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
+	}
+
+	statusAction := action.NewStatus(concreteHelmClient.ActionConfig)
+	statusAction.ShowResources = true
+	return statusAction.Run("epinio")
 }

@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -35,9 +36,12 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
+	"helm.sh/helm/v3/pkg/kube"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
 )
 
@@ -119,6 +123,60 @@ func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.A
 		logger.Info("release deletion issue", "error", err)
 	}
 	return nil
+}
+
+func GetStatus(logger logr.Logger, cluster *kubernetes.Cluster, releaseName, namespace string) error {
+	client, err := GetHelmClient(cluster.RestConfig, logger, namespace)
+	if err != nil {
+		return errors.Wrap(err, "create a helm client")
+	}
+
+	synchClient, ok := client.(*SynchronizedClient)
+	if !ok {
+		return fmt.Errorf("helm client is not of the right type. Expected *SynchronizedClient but got %T", client)
+	}
+
+	var resourceList kube.ResourceList
+
+	release, err := synchClient.GetReleaseStatus(releaseName)
+	if err != nil {
+		return errors.Wrap(err, "error getting release status")
+	}
+
+	for k, objectList := range release.Info.Resources {
+		fmt.Println(k)
+		for _, obj := range objectList {
+			resourceList = append(resourceList, &resource.Info{
+				Object: obj,
+			})
+			fmt.Printf("%T - %s\n", obj, obj.GetObjectKind().GroupVersionKind().String())
+		}
+	}
+
+	fmtLogger := func(msg string, args ...interface{}) {
+		fmt.Println(msg)
+		fmt.Println(args...)
+	}
+
+	checker := kube.NewReadyChecker(cluster.Kubectl, fmtLogger, kube.PausedAsReady(true))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+	defer cancel()
+
+	err = wait.PollUntilWithContext(ctx, 2*time.Second, func(ctx context.Context) (bool, error) {
+		fmt.Println("start polling")
+
+		for _, v := range resourceList {
+			fmt.Println("polling v", v.Name)
+
+			ready, err := checker.IsReady(ctx, v)
+			if !ready || err != nil {
+				return false, err
+			}
+		}
+		return true, nil
+	})
+
+	return err
 }
 
 func DeployService(ctx context.Context, parameters ServiceParameters) error {

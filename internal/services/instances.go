@@ -216,6 +216,8 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string,
 		}
 	}
 
+	err = helm.GetStatus(requestctx.Logger(ctx), s.kubeClient, "epinio", "epinio")
+
 	return errors.Wrap(err, "error deploying service helm chart")
 }
 
