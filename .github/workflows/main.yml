@@ -613,6 +613,7 @@ jobs:
           files: ./unittests/coverprofile.out
           flags: unittests
           verbose: true
+          fail_ci_if_error: true
 
       - name: Upload acceptance-api coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -621,6 +622,7 @@ jobs:
           files: ./acceptance-api/coverprofile.out,./acceptance-api-apps/coverprofile.out,./acceptance-api-services/coverprofile.out
           flags: acceptance-api
           verbose: true
+          fail_ci_if_error: true
 
       - name: Upload acceptance-cli coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -629,6 +631,7 @@ jobs:
           files: ./acceptance-cli/coverprofile.out,./acceptance-cli-apps/coverprofile.out,./acceptance-cli-services/coverprofile.out
           flags: acceptance-cli
           verbose: true
+          fail_ci_if_error: true
 
       - name: Upload acceptance-apps coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -637,3 +640,4 @@ jobs:
           files: ./acceptance-apps/coverprofile.out
           flags: acceptance-apps
           verbose: true
+          fail_ci_if_error: true
