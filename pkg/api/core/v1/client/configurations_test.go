@@ -40,93 +40,73 @@ var _ = Describe("Client Configurations", func() {
 	})
 
 	Describe("getting a configuration list", func() {
-		When("a 200 status code occurred with empty response", func() {
+		Context("with a 200 status code", func() {
 
 			BeforeEach(func() {
 				statusCode = 200
-				responseBody = `[]`
 			})
 
-			It("gets an empty list", func() {
-				configs, err := epinioClient.Configurations("namespace-foo")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(configs).To(Equal(models.ConfigurationResponseList{}))
-			})
-		})
+			When("returns an empty response", func() {
+				It("gets an empty list", func() {
+					responseBody = `[]`
 
-		When("a 200 status code occurred but no JSON was returned", func() {
-
-			BeforeEach(func() {
-				statusCode = 200
-				responseBody = `<html>borken</html>`
+					configs, err := epinioClient.Configurations("namespace-foo")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(configs).To(Equal(models.ConfigurationResponseList{}))
+				})
 			})
 
-			It("returns an error", func() {
-				_, err := epinioClient.Configurations("namespace-foo")
-				Expect(err).To(HaveOccurred())
-			})
-		})
+			When("no JSON was returned", func() {
+				It("returns an error", func() {
+					responseBody = `<html>borken</html>`
 
-		When("a 200 status code occurred with a valid JSON", func() {
-
-			BeforeEach(func() {
-				statusCode = 200
-				responseBody = `[{},{}]`
+					_, err := epinioClient.Configurations("namespace-foo")
+					Expect(err).To(HaveOccurred())
+				})
 			})
 
-			It("returns some configurations", func() {
-				configs, err := epinioClient.Configurations("namespace-foo")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(configs).To(HaveLen(2))
+			When("a valid JSON is returned", func() {
+				It("returns some configurations", func() {
+					responseBody = `[{},{}]`
 
-				resp := []models.ConfigurationResponse{
-					{Meta: models.ConfigurationRef{}, Configuration: models.ConfigurationShowResponse{}},
-					{Meta: models.ConfigurationRef{}, Configuration: models.ConfigurationShowResponse{}},
-				}
-				Expect(configs).To(Equal(models.ConfigurationResponseList(resp)))
+					configs, err := epinioClient.Configurations("namespace-foo")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(configs).To(HaveLen(2))
+
+					resp := []models.ConfigurationResponse{
+						{Meta: models.ConfigurationRef{}, Configuration: models.ConfigurationShowResponse{}},
+						{Meta: models.ConfigurationRef{}, Configuration: models.ConfigurationShowResponse{}},
+					}
+					Expect(configs).To(Equal(models.ConfigurationResponseList(resp)))
+				})
 			})
 		})
 	})
 
 	Describe("creating a configuration", func() {
-		When("a 200 status code occurred with empty response", func() {
+		Context("with a 200 status code", func() {
 
 			BeforeEach(func() {
 				statusCode = 200
-				responseBody = `{"status":"ok"}`
 			})
 
-			It("gets an empty list", func() {
-				resp, err := epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace-foo")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(resp).To(Equal(models.ResponseOK))
-			})
-		})
+			When("returns a valid response", func() {
+				It("gets a successful response", func() {
+					responseBody = `{"status":"ok"}`
 
-		When("a 200 status code occurred but no JSON was returned", func() {
-
-			BeforeEach(func() {
-				statusCode = 200
-				responseBody = `<html>borken</html>`
+					resp, err := epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace-foo")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(resp).To(Equal(models.ResponseOK))
+				})
 			})
 
-			It("returns an error", func() {
-				_, err := epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace-foo")
-				Expect(err).To(HaveOccurred())
-			})
-		})
+			When("no JSON was returned", func() {
+				It("returns an error", func() {
+					responseBody = `<html>borken</html>`
 
-		When("a 200 status code occurred with a valid JSON", func() {
-
-			BeforeEach(func() {
-				statusCode = 200
-				responseBody = `{"status":"ok"}`
-			})
-
-			It("returns some configurations", func() {
-				resp, err := epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace-foo")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(resp).To(Equal(models.ResponseOK))
+					_, err := epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace-foo")
+					Expect(err).To(HaveOccurred())
+				})
 			})
 		})
 	})
