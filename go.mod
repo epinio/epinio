@@ -43,7 +43,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/ginkgo/v2 v2.9.5
 	github.com/onsi/gomega v1.27.7
-	github.com/paketo-buildpacks/ca-certificates/v3 v3.6.2
+	github.com/paketo-buildpacks/ca-certificates v1.0.1
 	github.com/panjf2000/ants/v2 v2.7.1
 	github.com/pkg/errors v0.9.1
 	github.com/schollz/progressbar/v3 v3.13.1
