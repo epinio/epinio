@@ -208,8 +208,8 @@ func (c *Cluster) IsJobFailed(ctx context.Context, jobName, namespace string) (b
 
 // IsJobDone returns a condition function that indicates whether the given
 // Job is done (Completed or Failed), or not
-func (c *Cluster) IsJobDone(ctx context.Context, client *typedbatchv1.BatchV1Client, jobName, namespace string) wait.ConditionFunc {
-	return func() (bool, error) {
+func (c *Cluster) IsJobDone(ctx context.Context, client *typedbatchv1.BatchV1Client, jobName, namespace string) wait.ConditionWithContextFunc {
+	return func(ctx context.Context) (bool, error) {
 		job, err := client.Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
@@ -226,15 +226,15 @@ func (c *Cluster) IsJobDone(ctx context.Context, client *typedbatchv1.BatchV1Cli
 	}
 }
 
-func (c *Cluster) NamespaceDoesNotExist(ctx context.Context, namespaceName string) wait.ConditionFunc {
-	return func() (bool, error) {
+func (c *Cluster) NamespaceDoesNotExist(ctx context.Context, namespaceName string) wait.ConditionWithContextFunc {
+	return func(ctx context.Context) (bool, error) {
 		exists, err := c.NamespaceExists(ctx, namespaceName)
 		return !exists, err
 	}
 }
 
-func (c *Cluster) PodDoesNotExist(ctx context.Context, namespace, selector string) wait.ConditionFunc {
-	return func() (bool, error) {
+func (c *Cluster) PodDoesNotExist(ctx context.Context, namespace, selector string) wait.ConditionWithContextFunc {
+	return func(ctx context.Context) (bool, error) {
 		podList, err := c.ListPods(ctx, namespace, selector)
 		if err != nil {
 			return true, nil
@@ -252,7 +252,7 @@ func (c *Cluster) PodDoesNotExist(ctx context.Context, namespace, selector strin
 // needs to wait until that happens.
 func (c *Cluster) WaitForSecret(ctx context.Context, namespace, secretName string, timeout time.Duration) (*v1.Secret, error) {
 	var secret *v1.Secret
-	waitErr := wait.PollImmediate(time.Second, timeout, func() (bool, error) {
+	waitErr := wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 		var err error
 		secret, err = c.GetSecret(ctx, namespace, secretName)
 		if err != nil {
@@ -272,7 +272,8 @@ func (c *Cluster) WaitForJobDone(ctx context.Context, namespace, jobName string,
 	if err != nil {
 		return err
 	}
-	return wait.PollImmediate(time.Second, timeout, c.IsJobDone(ctx, client, jobName, namespace))
+
+	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, c.IsJobDone(ctx, client, jobName, namespace))
 }
 
 // ListPods returns the list of currently scheduled or running pods in `namespace` with the given selector
@@ -326,13 +327,13 @@ func (c *Cluster) WaitForNamespaceMissing(ctx context.Context, ui *termui.UI, na
 		defer s.Stop()
 	}
 
-	return wait.PollImmediate(time.Second, timeout, c.NamespaceDoesNotExist(ctx, namespace))
+	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, c.NamespaceDoesNotExist(ctx, namespace))
 }
 
 // Wait up to timeout for pod to be removed.
 // Returns an error if the pod is not removed within the allotted time.
 func (c *Cluster) WaitForPodBySelectorMissing(ctx context.Context, namespace, selector string, timeout time.Duration) error {
-	return wait.PollImmediate(time.Second, timeout, c.PodDoesNotExist(ctx, namespace, selector))
+	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, c.PodDoesNotExist(ctx, namespace, selector))
 }
 
 // GetConfigMap gets a configmap's values

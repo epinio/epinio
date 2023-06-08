@@ -12,6 +12,7 @@
 package application
 
 import (
+	"context"
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -67,7 +68,7 @@ func Running(c *gin.Context) apierror.APIErrors {
 	// Check app readiness based on app pods. Wait only if we have non-ready pods.
 
 	if app.Workload.DesiredReplicas != app.Workload.ReadyReplicas {
-		err := wait.PollImmediate(time.Second, duration.ToAppBuilt(), func() (bool, error) {
+		err := wait.PollUntilContextTimeout(ctx, time.Second, duration.ToAppBuilt(), true, func(ctx context.Context) (bool, error) {
 			podList, err := application.NewWorkload(cluster, app.Meta, app.Workload.DesiredReplicas).Pods(ctx)
 			if err != nil {
 				return false, err
