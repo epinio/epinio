@@ -59,18 +59,7 @@ func (c *Client) VersionWarningEnabled() bool {
 }
 
 func Get[T any](c *Client, endpoint string, response T) (T, error) {
-	data, err := c.get(endpoint)
-	if err != nil {
-		return response, err
-	}
-
-	if err := json.Unmarshal(data, &response); err != nil {
-		return response, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", response)
-
-	return response, nil
+	return Do(c, endpoint, http.MethodGet, nil, response)
 }
 
 func (c *Client) get(endpoint string) ([]byte, error) {
@@ -78,29 +67,15 @@ func (c *Client) get(endpoint string) ([]byte, error) {
 }
 
 func Post[T any](c *Client, endpoint string, request any, response T) (T, error) {
-	c.log.V(1).Info("sending POST request", "endpoint", endpoint, "body", request)
-
-	b, err := json.Marshal(request)
-	if err != nil {
-		return response, errors.Wrap(err, "encoding JSON requestBody")
-	}
-
-	data, err := c.post(endpoint, string(b))
-	if err != nil {
-		return response, err
-	}
-
-	if err := json.Unmarshal(data, &response); err != nil {
-		return response, errors.Wrap(err, "decoding JSON response")
-	}
-
-	c.log.V(1).Info("response decoded", "response", response)
-
-	return response, nil
+	return Do(c, endpoint, http.MethodPost, request, response)
 }
 
 func (c *Client) post(endpoint string, data string) ([]byte, error) {
 	return c.do(endpoint, "POST", data)
+}
+
+func Patch[T any](c *Client, endpoint string, request any, response T) (T, error) {
+	return Do(c, endpoint, http.MethodPatch, request, response)
 }
 
 func (c *Client) patch(endpoint string, data string) ([]byte, error) {
@@ -172,6 +147,32 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 
 	// object was not created, but status was ok?
 	return bodyBytes, nil
+}
+
+func Do[T any](c *Client, endpoint string, method string, request any, response T) (T, error) {
+	c.log.V(1).Info("sending "+method+" request", "endpoint", endpoint, "body", request)
+
+	var requestBody string
+	if request != nil {
+		b, err := json.Marshal(request)
+		if err != nil {
+			return response, errors.Wrap(err, "encoding JSON requestBody")
+		}
+		requestBody = string(b)
+	}
+
+	data, err := c.do(endpoint, method, requestBody)
+	if err != nil {
+		return response, err
+	}
+
+	if err := json.Unmarshal(data, &response); err != nil {
+		return response, errors.Wrap(err, "decoding JSON response")
+	}
+
+	c.log.V(1).Info("response decoded", "response", response)
+
+	return response, nil
 }
 
 func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {

@@ -107,7 +107,7 @@ func (c *Client) ConfigurationUpdate(request models.ConfigurationUpdateRequest, 
 	response := models.Response{}
 	endpoint := api.Routes.Path("ConfigurationUpdate", namespace, name)
 
-	return Post(c, endpoint, request, response)
+	return Patch(c, endpoint, request, response)
 }
 
 // ConfigurationShow shows a configuration
