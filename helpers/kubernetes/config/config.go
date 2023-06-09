@@ -38,5 +38,7 @@ func KubeConfig() (*rest.Config, error) {
 	if err := NewChecker().Check(restConfig); err != nil {
 		return nil, errors.Wrap(err, "couldn't check kubeconfig; ensure kubeconfig is correct to continue")
 	}
+	restConfig.QPS = 1000
+	restConfig.Burst = 2000
 	return restConfig, nil
 }
