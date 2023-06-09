@@ -164,14 +164,14 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	if !parameters.Wait {
 		go func() {
 			if _, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil); err != nil {
-				logger.Error(err, "installing or upgrading service ASYNCH")
+				logger.Error(err, "installing or upgrading service ASYNC")
 			}
 		}()
 		return nil
 	}
 
 	_, err = client.InstallOrUpgradeChart(ctx, &chartSpec, nil)
-	return errors.Wrap(err, "installing or upgrading service SYNCH")
+	return errors.Wrap(err, "installing or upgrading service SYNC")
 }
 
 func Deploy(logger logr.Logger, parameters ChartParameters) error {
