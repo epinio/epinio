@@ -451,7 +451,6 @@ var _ = Describe("Services", LService, func() {
 					WithRow("Created", WithDate()),
 					WithRow("Catalog Service", catalogService.Meta.Name),
 					WithRow("Status", "(not-ready|deployed)"),
-					WithRow("Internal Routes", fmt.Sprintf(`.*\.%s\.svc\.cluster\.local`, namespace)),
 				),
 			)
 
@@ -463,6 +462,7 @@ var _ = Describe("Services", LService, func() {
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
+					WithRow("Internal Routes", fmt.Sprintf(`.*\.%s\.svc\.cluster\.local`, namespace)),
 				),
 			)
 
@@ -521,7 +521,6 @@ var _ = Describe("Services", LService, func() {
 					WithRow("Created", WithDate()),
 					WithRow("Catalog Service", catalogService.Meta.Name),
 					WithRow("Status", "(not-ready|deployed)"),
-					WithRow("Internal Routes", fmt.Sprintf(`.*\.%s\.svc\.cluster\.local`, namespace)),
 				),
 			)
 
@@ -533,6 +532,7 @@ var _ = Describe("Services", LService, func() {
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
+					WithRow("Internal Routes", fmt.Sprintf(`.*\.%s\.svc\.cluster\.local`, namespace)),
 				),
 			)
 
