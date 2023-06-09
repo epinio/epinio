@@ -323,7 +323,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	}
 
 	helmChart := appChart.HelmChart
-	helmVersion := ""
+	helmVersion := appChart.ChartVersion
 
 	// See also part.go, fetchAppChart
 	if appChart.HelmRepo != "" {

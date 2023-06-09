@@ -110,6 +110,11 @@ func toChart(chart *unstructured.Unstructured) (*models.AppChartFull, error) {
 		return nil, errors.New("helm chart should be string")
 	}
 
+	chartVersion, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "chartVersion")
+	if err != nil {
+		return nil, errors.New("chart version should be string")
+	}
+
 	helmRepo, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "helmRepo")
 	if err != nil {
 		return nil, errors.New("helm repo should be string")
@@ -163,6 +168,7 @@ func toChart(chart *unstructured.Unstructured) (*models.AppChartFull, error) {
 			Description:      description,
 			ShortDescription: short,
 			HelmChart:        helmChart,
+			ChartVersion:     chartVersion,
 			HelmRepo:         helmRepo,
 			Settings:         settings,
 		},
