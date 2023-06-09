@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
@@ -49,77 +50,77 @@ var _ = Describe("Epinio upgrade with running app", func() {
 
 	AfterEach(func() {
 		// After upgrade ...
-		env.DeleteApp(appName)
-		env.DeleteApp(appAfter)
-		env.DeleteService(service)
+		// env.DeleteApp(appName)
+		// env.DeleteApp(appAfter)
+		// env.DeleteService(service)
 		env.DeleteNamespace(namespace)
 	})
 
-	// It("can upgrade epinio", func() {
-	// 	// Note current versions of client and server
-	// 	By("Versions before upgrade")
-	// 	env.Versions()
+	It("can upgrade epinio", func() {
+		// Note current versions of client and server
+		By("Versions before upgrade")
+		env.Versions()
 
-	// 	// Deploy a simple application before upgrading Epinio
-	// 	out := env.MakeGolangApp(appName, 1, true)
-	// 	routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
-	// 	route := string(routeRegexp.Find([]byte(out)))
+		// Deploy a simple application before upgrading Epinio
+		out := env.MakeGolangApp(appName, 1, true)
+		routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
+		route := string(routeRegexp.Find([]byte(out)))
 
-	// 	// Check that the app is reachable
-	// 	Eventually(func() int {
-	// 		resp, err := env.Curl("GET", route, strings.NewReader(""))
-	// 		Expect(err).ToNot(HaveOccurred())
-	// 		return resp.StatusCode
-	// 	}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+		// Check that the app is reachable
+		Eventually(func() int {
+			resp, err := env.Curl("GET", route, strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			return resp.StatusCode
+		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
-	// 	// Upgrade to current as found in checkout
-	// 	epinioHelper.Upgrade()
+		// Upgrade to current as found in checkout
+		epinioHelper.Upgrade()
 
-	// 	// Note post-upgrade versions of client and server
-	// 	By("Versions after upgrade")
-	// 	env.Versions()
+		// Note post-upgrade versions of client and server
+		By("Versions after upgrade")
+		env.Versions()
 
-	// 	// Check that the app is still reachable
-	// 	By("Checking reachability ...")
-	// 	Eventually(func() int {
-	// 		resp, err := env.Curl("GET", route, strings.NewReader(""))
-	// 		Expect(err).ToNot(HaveOccurred())
-	// 		return resp.StatusCode
-	// 	}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+		// Check that the app is still reachable
+		By("Checking reachability ...")
+		Eventually(func() int {
+			resp, err := env.Curl("GET", route, strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			return resp.StatusCode
+		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
-	// 	// Check that we can create a service after the upgrade
-	// 	By("Creating a service post-upgrade")
+		// Check that we can create a service after the upgrade
+		By("Creating a service post-upgrade")
 
-	// 	out, err := env.Epinio("", "service", "create", "mysql-dev", service)
-	// 	Expect(err).ToNot(HaveOccurred(), out)
+		out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+		Expect(err).ToNot(HaveOccurred(), out)
 
-	// 	By("wait for deployment")
-	// 	Eventually(func() string {
-	// 		out, _ := env.Epinio("", "service", "show", service)
-	// 		return out
-	// 	}, "2m", "5s").Should(
-	// 		HaveATable(
-	// 			WithHeaders("KEY", "VALUE"),
-	// 			WithRow("Status", "deployed"),
-	// 		),
-	// 	)
+		By("wait for deployment")
+		Eventually(func() string {
+			out, _ := env.Epinio("", "service", "show", service)
+			return out
+		}, "2m", "5s").Should(
+			HaveATable(
+				WithHeaders("KEY", "VALUE"),
+				WithRow("Status", "deployed"),
+			),
+		)
 
-	// 	// Check that we can create an application after the upgrade
-	// 	By("Creating an application post-upgrade")
+		// Check that we can create an application after the upgrade
+		By("Creating an application post-upgrade")
 
-	// 	out = env.MakeGolangApp(appAfter, 1, true)
-	// 	route = string(routeRegexp.Find([]byte(out)))
+		out = env.MakeGolangApp(appAfter, 1, true)
+		route = string(routeRegexp.Find([]byte(out)))
 
-	// 	// Check that the app is reachable
-	// 	Eventually(func() int {
-	// 		resp, err := env.Curl("GET", route, strings.NewReader(""))
-	// 		Expect(err).ToNot(HaveOccurred())
-	// 		return resp.StatusCode
-	// 	}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+		// Check that the app is reachable
+		Eventually(func() int {
+			resp, err := env.Curl("GET", route, strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			return resp.StatusCode
+		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
-	// 	// We can think about adding more checks later like application with
-	// 	// environment vars or configurations
-	// })
+		// We can think about adding more checks later like application with
+		// environment vars or configurations
+	})
 
 	It("Can upgrade epinio binded to a custom service", func() {
 		// Test variables
