@@ -25,6 +25,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/appchart"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/names"
@@ -42,7 +43,6 @@ import (
 
 type ServiceParameters struct {
 	models.AppRef                     // Service: name & namespace
-	Context       context.Context     // Operation context
 	Cluster       *kubernetes.Cluster // Cluster to talk to.
 	Chart         string              // Name of helm chart to deploy
 	Version       string              // Version of helm chart to deploy
@@ -121,7 +121,8 @@ func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.A
 	return nil
 }
 
-func DeployService(logger logr.Logger, parameters ServiceParameters) error {
+func DeployService(ctx context.Context, parameters ServiceParameters) error {
+	logger := requestctx.Logger(ctx)
 	logger.Info("service helm setup", "parameters", parameters)
 
 	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
@@ -160,9 +161,17 @@ func DeployService(logger logr.Logger, parameters ServiceParameters) error {
 		ReuseValues: true,
 	}
 
-	_, err = client.InstallOrUpgradeChart(parameters.Context, &chartSpec, nil)
+	if !parameters.Wait {
+		go func() {
+			if _, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil); err != nil {
+				logger.Error(err, "installing or upgrading service ASYNC")
+			}
+		}()
+		return nil
+	}
 
-	return err
+	_, err = client.InstallOrUpgradeChart(ctx, &chartSpec, nil)
+	return errors.Wrap(err, "installing or upgrading service SYNC")
 }
 
 func Deploy(logger logr.Logger, parameters ChartParameters) error {

@@ -12,6 +12,7 @@
 package v1_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -88,7 +89,6 @@ var _ = Describe("ServiceCreate Endpoint", LService, func() {
 	})
 
 	When("service exists", func() {
-		var requestBody, serviceName string
 		var catalogService models.CatalogService
 
 		BeforeEach(func() {
@@ -107,16 +107,6 @@ var _ = Describe("ServiceCreate Endpoint", LService, func() {
 				Values: "{'service': {'type': 'ClusterIP'}}",
 			}
 			catalog.CreateCatalogService(catalogService)
-
-			serviceName = catalog.NewServiceName()
-			service := models.ServiceCreateRequest{
-				CatalogService: catalogService.Meta.Name,
-				Name:           serviceName,
-			}
-
-			b, err := json.Marshal(service)
-			Expect(err).ToNot(HaveOccurred())
-			requestBody = string(b)
 		})
 
 		AfterEach(func() {
@@ -124,17 +114,72 @@ var _ = Describe("ServiceCreate Endpoint", LService, func() {
 			env.DeleteNamespace(namespace)
 		})
 
-		It("returns success", func() {
-			endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace)
-			response, err := env.Curl("POST", endpoint, strings.NewReader(requestBody))
+		It("returns success immediately if waiting", func() {
+			serviceCreateRequest := models.ServiceCreateRequest{
+				CatalogService: catalogService.Meta.Name,
+				Name:           catalog.NewServiceName(),
+				Wait:           true,
+			}
+
+			requestBody := &bytes.Buffer{}
+			err := json.NewEncoder(requestBody).Encode(serviceCreateRequest)
 			Expect(err).ToNot(HaveOccurred())
-			defer catalog.DeleteService(serviceName, namespace)
+
+			endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace)
+			response, err := env.Curl("POST", endpoint, requestBody)
+			Expect(err).ToNot(HaveOccurred())
+
+			b, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			response.Body.Close()
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(b))
+
+			endpoint = fmt.Sprintf("%s%s/namespaces/%s/services/%s", serverURL, v1.Root, namespace, serviceCreateRequest.Name)
+			response, err = env.Curl("GET", endpoint, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			var service models.Service
+			err = json.NewDecoder(response.Body).Decode(&service)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(service.Status.String()).To(BeEquivalentTo(models.ServiceStatusDeployed))
+
+			catalog.DeleteService(serviceCreateRequest.Name, namespace)
+		})
+
+		It("returns success after the deploy is ok if not waiting", func() {
+			serviceCreateRequest := models.ServiceCreateRequest{
+				CatalogService: catalogService.Meta.Name,
+				Name:           catalog.NewServiceName(),
+				Wait:           false,
+			}
+
+			requestBody := &bytes.Buffer{}
+			err := json.NewEncoder(requestBody).Encode(serviceCreateRequest)
+			Expect(err).ToNot(HaveOccurred())
+
+			endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace)
+			response, err := env.Curl("POST", endpoint, requestBody)
+			Expect(err).ToNot(HaveOccurred())
 
 			b, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			response.Body.Close()
 
 			Expect(response.StatusCode).To(Equal(http.StatusOK), string(b))
+
+			Eventually(func() string {
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/%s", serverURL, v1.Root, namespace, serviceCreateRequest.Name)
+				response, err := env.Curl("GET", endpoint, nil)
+				Expect(err).ToNot(HaveOccurred())
+
+				var service models.Service
+				err = json.NewDecoder(response.Body).Decode(&service)
+				Expect(err).ToNot(HaveOccurred())
+
+				return service.Status.String()
+			}, "1m", "1s").Should(BeEquivalentTo(models.ServiceStatusDeployed))
+
+			catalog.DeleteService(serviceCreateRequest.Name, namespace)
 		})
 	})
 })

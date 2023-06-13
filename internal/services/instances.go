@@ -157,10 +157,9 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, wait
 	}
 
 	err = helm.DeployService(
-		requestctx.Logger(ctx),
+		ctx,
 		helm.ServiceParameters{
 			AppRef:     models.NewAppRef(name, namespace),
-			Context:    ctx,
 			Cluster:    s.kubeClient,
 			Chart:      catalogService.HelmChart,
 			Version:    catalogService.ChartVersion,
