@@ -47,7 +47,7 @@ var _ = Describe("Routes", func() {
 			unknownRoute := func() {
 				_ = nr.Path("c")
 			}
-			Expect(unknownRoute).To(Panic())
+			Expect(unknownRoute).To(PanicWith("route not found for 'c'"))
 		})
 	})
 })
