@@ -42,8 +42,7 @@ func NewRoute(method string, path string, h gin.HandlerFunc) Route {
 // https://github.com/gorilla/mux#registered-urls
 type NamedRoutes map[string]Route
 
-// Path returns a route's path with params substituted, panics if
-// used inproperly.
+// Path returns a route's path with params substituted, and panics for unknown routes
 func (n NamedRoutes) Path(name string, params ...interface{}) string {
 	r, ok := n[name]
 	if !ok {
