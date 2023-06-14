@@ -34,6 +34,21 @@ func (m *Machine) MakeConfiguration(configurationName string) {
 	ExpectWithOffset(1, out).To(MatchRegexp(configurationName))
 }
 
+func (m *Machine) MakeConfigurationFromFiles(configurationName, path string) {
+	By("creating configuration " + configurationName)
+
+	out, err := m.Epinio("", "configuration", "create", configurationName,
+		"--from-file", "file="+path,
+	)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+	// And check presence
+
+	out, err = m.Epinio("", "configuration", "list")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp(configurationName))
+}
+
 func (m *Machine) HaveConfiguration(configurationName string) {
 	out, err := m.Epinio("", "configuration", "list")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)

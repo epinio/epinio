@@ -15,6 +15,7 @@ import (
 	"os"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/names"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
@@ -388,16 +389,13 @@ var _ = Describe("Configurations", LConfiguration, func() {
 	})
 
 	Describe("configuration show", func() {
-
-		BeforeEach(func() {
-			env.MakeConfiguration(configurationName1)
-		})
-
 		AfterEach(func() {
 			env.CleanupConfiguration(configurationName1)
 		})
 
 		It("it shows configuration details", func() {
+			env.MakeConfiguration(configurationName1)
+
 			out, err := env.Epinio("", "configuration", "show", configurationName1)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Configuration Details"))
@@ -410,7 +408,27 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			)
 		})
 
+		It("reads from files, and truncates large configuration details", func() {
+			env.MakeConfigurationFromFiles(configurationName1, testenv.TestAssetPath("config.yaml"))
+
+			out, err := env.Epinio("", "configuration", "show", configurationName1)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Configuration Details"))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
+					WithRow("file", `# Copyright © 2021 - 2023 SUS`, "\\/configurations\\/"+configurationName1+"\\/file"),
+					WithRow("", "[(]hiding 1758 additional bytes[)]", ""),
+				),
+			)
+		})
+
 		Context("command completion", func() {
+			BeforeEach(func() {
+				env.MakeConfiguration(configurationName1)
+			})
+
 			It("matches empty prefix", func() {
 				out, err := env.Epinio("", "__complete", "configuration", "show", "")
 				Expect(err).ToNot(HaveOccurred(), out)
