@@ -457,14 +457,31 @@ func cleanupReleaseIfNeeded(l logr.Logger, c hc.Client, name string) error {
 		return errors.Wrap(err, "getting the helm release")
 	}
 
-	if r.Info.Status != helmrelease.StatusDeployed {
-		l.Info("Will remove existing release with status: " + string(r.Info.Status))
-		err := c.UninstallRelease(&hc.ChartSpec{
-			ReleaseName: name, Wait: true,
-		})
-		if err != nil {
-			return errors.Wrapf(err, "uninstalling the release with status: %s", r.Info.Status)
+	if r.Info.Status == helmrelease.StatusDeployed {
+		return nil
+	}
+
+	l.Info("Will remove existing release with status: " + string(r.Info.Status))
+	err = c.UninstallRelease(&hc.ChartSpec{
+		ReleaseName: name,
+		Wait:        true,
+	})
+
+	if err != nil {
+		l.Error(err, fmt.Sprintf("uninstalling the release with status: %s", r.Info.Status))
+
+		// Sometimes we get an error but the release was uninstalled anyway.
+		// Check again if the release exists.
+		r, errGet := c.GetRelease(name)
+		if errGet != nil {
+			if errGet == helmdriver.ErrReleaseNotFound {
+				return nil
+			}
+			return errors.Wrap(errGet, "getting the helm release after uninstall")
 		}
+
+		// The release still exists, return the original error
+		return errors.Wrapf(err, "uninstalling the release with status: %s", r.Info.Status)
 	}
 	return nil
 }
