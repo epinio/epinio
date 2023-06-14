@@ -30,6 +30,7 @@ import (
 	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
+	"k8s.io/client-go/rest"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -109,6 +110,18 @@ func init() {
 	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
 	checkErr(err)
 	err = viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS")
+	checkErr(err)
+
+	flags.Float32("kube-api-qps", rest.DefaultQPS, "(KUBE_API_QPS) The QPS indicates the maximum QPS of the Kubernetes client.")
+	err = viper.BindPFlag("kube-api-qps", flags.Lookup("kube-api-qps"))
+	checkErr(err)
+	err = viper.BindEnv("kube-api-qps", "KUBE_API_QPS")
+	checkErr(err)
+
+	flags.Int("kube-api-burst", rest.DefaultBurst, "(KUBE_API_BURST) Maximum burst for throttle of the Kubernetes client.")
+	err = viper.BindPFlag("kube-api-burst", flags.Lookup("kube-api-burst"))
+	checkErr(err)
+	err = viper.BindEnv("kube-api-burst", "KUBE_API_BURST")
 	checkErr(err)
 
 	version.ChartVersion = os.Getenv("CHART_VERSION")
