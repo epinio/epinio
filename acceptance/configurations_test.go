@@ -12,6 +12,8 @@
 package acceptance_test
 
 import (
+	"os"
+
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/internal/names"
 
@@ -141,6 +143,48 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			out, err := env.Epinio("", "configuration", "create", "BOGUS", "dummy", "value")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("name must consist of lower case alphanumeric"))
+		})
+
+		It("fails for missing arguments, not enough, no files", func() {
+			out, err := env.Epinio("", "configuration", "create")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Not enough arguments, expected name, key, and value"))
+		})
+
+		It("fails for missing arguments, not enough, with files", func() {
+			out, err := env.Epinio("", "configuration", "create", "--from-file", "dummy")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Not enough arguments, expected name"))
+		})
+
+		It("fails for missing arguments, key without value", func() {
+			out, err := env.Epinio("", "configuration", "create", "foo", "a", "b", "c")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Last Key has no value"))
+		})
+
+		It("fails for a missing path", func() {
+			out, err := env.Epinio("", "configuration", "create", "foo", "--from-file", "MISSING")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("filesystem error: open MISSING: no such file or directory"))
+		})
+
+		Describe("directory", func() {
+			BeforeEach(func() {
+				err := os.MkdirAll("DIR", 0755)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			AfterEach(func() {
+				err := os.RemoveAll("DIR")
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("fails for a directory", func() {
+				out, err := env.Epinio("", "configuration", "create", "foo", "--from-file", "DIR")
+				Expect(err).To(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("filesystem error: read DIR: is a directory"))
+			})
 		})
 	})
 
