@@ -13,6 +13,8 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"strings"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
@@ -34,6 +36,8 @@ func init() {
 	CmdConfigurationDelete.Flags().Bool("all", false, "delete all configurations")
 
 	changeOptions(CmdConfigurationUpdate)
+
+	CmdConfigurationCreate.Flags().StringSliceP("from-file", "f", []string{}, "values from files")
 }
 
 // CmdConfiguration implements the command: epinio configuration
@@ -69,8 +73,18 @@ var CmdConfigurationCreate = &cobra.Command{
 	Short: "Create a configuration",
 	Long:  `Create configuration by name and key/value dictionary.`,
 	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 3 {
-			return errors.New("Not enough arguments, expected name, key, and value")
+		kvFromFiles, err := cmd.Flags().GetStringSlice("from-file")
+		if err != nil {
+			return errors.Wrap(err, "failed to read option --from-file")
+		}
+		if len(kvFromFiles) == 0 {
+			if len(args) < 3 {
+				return errors.New("Not enough arguments, expected name, key, and value")
+			}
+		} else {
+			if len(args) < 1 {
+				return errors.New("Not enough arguments, expected name")
+			}
 		}
 		if len(args)%2 == 0 {
 			return errors.New("Last Key has no value")
@@ -184,7 +198,40 @@ func ConfigurationCreate(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = client.CreateConfiguration(args[0], args[1:])
+	kvFromFiles, err := cmd.Flags().GetStringSlice("from-file")
+	if err != nil {
+		return errors.Wrap(err, "failed to read option --from-file")
+	}
+
+	// regular key/value assignments from the command line
+	kvDict := args[1:]
+
+	// extend with key/value assignments from files (--from-file option).
+	if len(kvFromFiles) > 0 {
+		for _, spec := range kvFromFiles {
+			pieces := strings.SplitN(spec, "=", 2)
+			var key string
+			var valuefile string
+			if len(pieces) < 2 {
+				// Argument is path only. Set key as last element of that path
+				valuefile = pieces[0]
+				_, key = path.Split(valuefile)
+			} else {
+				// Argument is key=path
+				key = pieces[0]
+				valuefile = pieces[1]
+			}
+			// Read file content ...
+			content, err := os.ReadFile(valuefile)
+			if err != nil {
+				return errors.Wrapf(err, "filesystem error")
+			}
+			// ... and add to command line
+			kvDict = append(kvDict, key, string(content))
+		}
+	}
+
+	err = client.CreateConfiguration(args[0], kvDict)
 	if err != nil {
 		return errors.Wrap(err, "error creating configuration")
 	}
