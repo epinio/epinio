@@ -12,8 +12,6 @@
 package configuration
 
 import (
-	"time"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -86,8 +84,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 			// references/uses changed, i.e. the configuration. We still have to
 			// trigger the restart somehow, so that the pod mounting the
 			// configuration remounts it for the new/changed keys.
-			nano := time.Now().UnixNano()
-			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, &nano)
+			_, apierr := deploy.DeployAppWithRestart(ctx, cluster, app.Meta, username, "")
 			if apierr != nil {
 				return apierr
 			}

@@ -265,7 +265,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	if app.Workload != nil || desired > 0 {
 		log.Info("updating app -- redeploy")
 
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 		if apierr != nil {
 			return apierr
 		}

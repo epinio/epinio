@@ -36,7 +36,7 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, 
 	}
 
 	if app.Workload != nil {
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 		if apierr != nil {
 			return apierr
 		}
