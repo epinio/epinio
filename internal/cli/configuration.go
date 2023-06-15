@@ -93,11 +93,12 @@ var CmdConfigurationCreate = &cobra.Command{
 
 // CmdConfigurationUpdate implements the command: epinio configuration create
 var CmdConfigurationUpdate = &cobra.Command{
-	Use:   "update NAME [flags]",
-	Short: "Update a configuration",
-	Long:  `Update configuration by name and change instructions through flags.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  ConfigurationUpdate,
+	Use:               "update NAME [flags]",
+	Short:             "Update a configuration",
+	Long:              `Update configuration by name and change instructions through flags.`,
+	Args:              cobra.ExactArgs(1),
+	RunE:              ConfigurationUpdate,
+	ValidArgsFunction: matchingConfigurationFinder,
 }
 
 // CmdConfigurationDelete implements the command: epinio configuration delete
