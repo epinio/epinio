@@ -38,5 +38,9 @@ func KubeConfig() (*rest.Config, error) {
 	if err := NewChecker().Check(restConfig); err != nil {
 		return nil, errors.Wrap(err, "couldn't check kubeconfig; ensure kubeconfig is correct to continue")
 	}
+
+	restConfig.QPS = float32(viper.GetFloat64("kube-api-qps"))
+	restConfig.Burst = viper.GetInt("kube-api-burst")
+
 	return restConfig, nil
 }

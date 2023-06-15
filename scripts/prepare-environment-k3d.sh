@@ -72,6 +72,8 @@ function deploy_epinio_latest_released {
   helm repo update
   helm upgrade --wait --install -n epinio --create-namespace epinio epinio/epinio \
     --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
+    --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
+    --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
     --set server.disableTracking="true"
 }
 
@@ -99,6 +101,8 @@ else
     --set image.epinio.tag="${IMAGE_TAG}" \
     --set image.bash.tag="${IMAGE_TAG}" \
     --set server.disableTracking="true" \
+    --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
+    --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
     epinio helm-charts/chart/epinio --wait "$@"
 
   # compile coverage binary and add required env var
