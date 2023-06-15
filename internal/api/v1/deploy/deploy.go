@@ -42,7 +42,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 
 // DeployAppWithRestart is the same as DeployApp but it will also force Helm to perform a restart of the deployment
 func DeployAppWithRestart(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) ([]string, apierror.APIErrors) {
-	return deployApp(ctx, cluster, app, username, expectedStageID, false)
+	return deployApp(ctx, cluster, app, username, expectedStageID, true)
 }
 
 func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, restart bool) ([]string, apierror.APIErrors) {
