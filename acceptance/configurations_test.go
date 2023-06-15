@@ -146,20 +146,26 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			Expect(out).To(ContainSubstring("name must consist of lower case alphanumeric"))
 		})
 
-		It("fails for missing arguments, not enough, no files", func() {
+		It("fails for missing arguments, not enough, no files, no name", func() {
 			out, err := env.Epinio("", "configuration", "create")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Not enough arguments, expected name"))
+		})
+
+		It("fails for missing arguments, not enough, no files, just name", func() {
+			out, err := env.Epinio("", "configuration", "create", "foo")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Not enough arguments, expected name, key, and value"))
 		})
 
-		It("fails for missing arguments, not enough, with files", func() {
+		It("fails for missing arguments, not enough, with files, no name", func() {
 			out, err := env.Epinio("", "configuration", "create", "--from-file", "dummy")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Not enough arguments, expected name"))
 		})
 
 		It("fails for missing arguments, key without value", func() {
-			out, err := env.Epinio("", "configuration", "create", "foo", "a", "b", "c")
+			out, err := env.Epinio("", "configuration", "create", "foo", "a")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Last Key has no value"))
 		})

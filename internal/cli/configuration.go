@@ -73,21 +73,18 @@ var CmdConfigurationCreate = &cobra.Command{
 	Short: "Create a configuration",
 	Long:  `Create configuration by name and key/value dictionary.`,
 	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("Not enough arguments, expected name")
+		}
+		if len(args)%2 == 0 {
+			return errors.New("Last Key has no value")
+		}
 		kvFromFiles, err := cmd.Flags().GetStringSlice("from-file")
 		if err != nil {
 			return errors.Wrap(err, "failed to read option --from-file")
 		}
-		if len(kvFromFiles) == 0 {
-			if len(args) < 3 {
-				return errors.New("Not enough arguments, expected name, key, and value")
-			}
-		} else {
-			if len(args) < 1 {
-				return errors.New("Not enough arguments, expected name")
-			}
-		}
-		if len(args)%2 == 0 {
-			return errors.New("Last Key has no value")
+		if len(kvFromFiles) == 0 && len(args) < 3 {
+			return errors.New("Not enough arguments, expected name, key, and value")
 		}
 		return nil
 	},
@@ -198,40 +195,21 @@ func ConfigurationCreate(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
+	// Merge plain argument key/value data with k/v from options, i.e. files.
+	kvAssigments := args[1:]
 	kvFromFiles, err := cmd.Flags().GetStringSlice("from-file")
 	if err != nil {
 		return errors.Wrap(err, "failed to read option --from-file")
 	}
-
-	// regular key/value assignments from the command line
-	kvDict := args[1:]
-
-	// extend with key/value assignments from files (--from-file option).
 	if len(kvFromFiles) > 0 {
-		for _, spec := range kvFromFiles {
-			pieces := strings.SplitN(spec, "=", 2)
-			var key string
-			var valuefile string
-			if len(pieces) < 2 {
-				// Argument is path only. Set key as last element of that path
-				valuefile = pieces[0]
-				_, key = path.Split(valuefile)
-			} else {
-				// Argument is key=path
-				key = pieces[0]
-				valuefile = pieces[1]
-			}
-			// Read file content ...
-			content, err := os.ReadFile(valuefile)
-			if err != nil {
-				return errors.Wrapf(err, "filesystem error")
-			}
-			// ... and add to command line
-			kvDict = append(kvDict, key, string(content))
+		err, kvFiles := assignmentsFromFiles(kvFromFiles)
+		if err != nil {
+			return err
 		}
+		kvAssigments = append(kvAssigments, kvFiles...)
 	}
 
-	err = client.CreateConfiguration(args[0], kvDict)
+	err = client.CreateConfiguration(args[0], kvAssigments)
 	if err != nil {
 		return errors.Wrap(err, "error creating configuration")
 	}
@@ -377,4 +355,33 @@ func findConfigurationApp(cmd *cobra.Command, args []string, toComplete string) 
 
 	matches := app.ConfigurationMatching(toComplete)
 	return matches, cobra.ShellCompDirectiveNoFileComp
+}
+
+func assignmentsFromFiles(fromFileSpecs []string) (error, []string) {
+	results := []string{}
+	for _, spec := range fromFileSpecs {
+		var key string
+		var valuefile string
+
+		// The argument has two possible forms: `key=path`, or `path`.
+		// The latter uses the filename part of the path as key.
+
+		if strings.Contains(spec, "=") {
+			pieces := strings.SplitN(spec, "=", 2)
+			key = pieces[0]
+			valuefile = pieces[1]
+		} else {
+			_, key = path.Split(spec)
+			valuefile = spec
+		}
+
+		content, err := os.ReadFile(valuefile)
+		if err != nil {
+			return errors.Wrapf(err, "filesystem error"), nil
+		}
+
+		results = append(results, key, string(content))
+	}
+
+	return nil, results
 }
