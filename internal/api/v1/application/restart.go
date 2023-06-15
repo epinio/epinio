@@ -14,7 +14,6 @@ package application
 import (
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
@@ -76,8 +75,7 @@ func Restart(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	nano := time.Now().UnixNano()
-	_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, &nano)
+	_, apierr := deploy.DeployAppWithRestart(ctx, cluster, app.Meta, username, "")
 	if apierr != nil {
 		return apierr
 	}

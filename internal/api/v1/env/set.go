@@ -61,7 +61,7 @@ func Set(c *gin.Context) apierror.APIErrors {
 	}
 
 	if app.Workload != nil {
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 		if apierr != nil {
 			return apierr
 		}

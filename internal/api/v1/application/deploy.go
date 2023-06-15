@@ -92,9 +92,14 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 		return apierr
 	}
 
-	routes, apierr := deploy.DeployApp(ctx, cluster, req.App, username, req.Stage.ID, &req.Origin, nil)
+	routes, apierr := deploy.DeployApp(ctx, cluster, req.App, username, req.Stage.ID)
 	if apierr != nil {
 		return apierr
+	}
+
+	err = application.SetOrigin(ctx, cluster, req.App, req.Origin)
+	if err != nil {
+		return apierror.InternalError(err, "saving the app origin")
 	}
 
 	response.OKReturn(c, models.DeployResponse{

@@ -16,6 +16,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -32,11 +33,19 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// DeployApp deploys the referenced application via helm, based on the state held by CRD
-// and associated secrets. It is the backend for the API deploypoint, as well as all the
-// mutating endpoints, i.e. configuration and app changes (bindings, environment,
-// scaling).
-func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, origin *models.ApplicationOrigin, start *int64) ([]string, apierror.APIErrors) {
+// DeployApp deploys the referenced application via helm, based on the state held by CRD and associated secrets.
+// It is the backend for the API deploypoint, as well as all the mutating endpoints,
+// i.e. configuration and app changes (bindings, environment, scaling).
+func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) ([]string, apierror.APIErrors) {
+	return deployApp(ctx, cluster, app, username, expectedStageID, false)
+}
+
+// DeployAppWithRestart is the same as DeployApp but it will also force Helm to perform a restart of the deployment
+func DeployAppWithRestart(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) ([]string, apierror.APIErrors) {
+	return deployApp(ctx, cluster, app, username, expectedStageID, true)
+}
+
+func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, restart bool) ([]string, apierror.APIErrors) {
 	log := requestctx.Logger(ctx)
 
 	appObj, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
@@ -118,6 +127,12 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	}
 	maplog.Info("domain map end")
 
+	var start *int64
+	if restart {
+		now := time.Now().UnixNano()
+		start = &now
+	}
+
 	deployParams := helm.ChartParameters{
 		Context:        ctx,
 		Cluster:        cluster,
@@ -154,16 +169,6 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		if err := application.Unstage(ctx, cluster, app, stageID); err != nil {
 			return nil, apierror.InternalError(err)
 		}
-	}
-
-	if origin != nil {
-		err = application.SetOrigin(ctx, cluster,
-			models.NewAppRef(app.Name, app.Namespace), *origin)
-		if err != nil {
-			return nil, apierror.InternalError(err, "saving the app origin")
-		}
-
-		log.Info("saved app origin", "namespace", app.Namespace, "app", app.Name, "origin", *origin)
 	}
 
 	return routes, nil
