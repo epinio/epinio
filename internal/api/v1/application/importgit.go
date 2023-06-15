@@ -110,10 +110,19 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	defer os.RemoveAll(gitRepo)
 
 	// clone/fetch/checkout
-	err = getRepository(ctx, log, gitRepo, url, revision)
+	repo, err := getRepository(ctx, log, gitRepo, url, revision)
 	if err != nil {
 		return apierror.InternalError(err,
 			fmt.Sprintf("cloning the git repository: %s @ %s", url, revision))
+	}
+
+	var branch string
+	resolvedBranch, err := repo.Branch(revision)
+	if err != nil {
+		log.Info("cannot resolve branch from revision", "revision", revision)
+	}
+	if resolvedBranch != nil {
+		branch = resolvedBranch.Name
 	}
 
 	// Create a tarball
@@ -153,29 +162,29 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{
 		BlobUID: blobUID,
+		Branch:  branch,
 	})
 	return nil
 }
 
-func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision string) error {
+func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision string) (*git.Repository, error) {
 	if revision == "" {
 		// Input A: repository, no revision.
 		log.Info("importgit, cloning simple", "url", url)
-		_, err := shallowClone(ctx, gitRepo, url)
-		return err
+		return shallowClone(ctx, gitRepo, url)
 	}
 
 	// Input B or C: Attempt to treat as B (revision is branch name)
 
 	log.Info("importgit, cloning branch", "url", url, "revision", revision)
-	_, err := branchClone(ctx, gitRepo, url, revision)
+	repo, err := branchClone(ctx, gitRepo, url, revision)
 	if err == nil {
 		// Was branch name, done.
-		return nil
+		return repo, nil
 	}
-	if !errors.Is(err, git.NoMatchingRefSpecError{}) || !plumbing.IsHash(revision) {
+	if !errors.Is(err, git.NoMatchingRefSpecError{}) {
 		// Some other error, or the revision does not look like a commit id (C)
-		return err
+		return nil, err
 	}
 
 	// Attempt input C: revision might be commit id.
@@ -184,28 +193,33 @@ func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision 
 	log.Info("importgit, cloning simple, commit id", "url", url)
 	repository, err := generalClone(ctx, gitRepo, url)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("importgit, resolve", "revision", revision)
 	hash, err := repository.ResolveRevision(plumbing.Revision(revision))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("importgit, resolved", "revision", hash)
 
 	checkout, err := repository.Worktree()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("importgit, checking out", "url", url, "revision", hash)
 
-	return checkout.Checkout(&git.CheckoutOptions{
+	err = checkout.Checkout(&git.CheckoutOptions{
 		Hash:  *hash,
 		Force: true,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return repo, nil
 }
 
 func branchClone(ctx context.Context, gitRepo, url, revision string) (*git.Repository, error) {
