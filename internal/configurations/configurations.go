@@ -173,6 +173,10 @@ func UpdateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, confi
 			return err
 		}
 
+		if secret.Data == nil {
+			secret.Data = map[string][]byte{}
+		}
+
 		for _, remove := range changes.Remove {
 			delete(secret.Data, remove)
 		}

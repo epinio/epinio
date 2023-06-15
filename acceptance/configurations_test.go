@@ -137,6 +137,22 @@ var _ = Describe("Configurations", LConfiguration, func() {
 		It("creates a configuration", func() {
 			env.MakeConfiguration(configurationName1)
 		})
+
+		It("creates an empty configuration", func() {
+			out, err := env.Epinio("", "configuration", "create", configurationName1)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			// Check presence
+			out, err = env.Epinio("", "configuration", "list")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp(configurationName1))
+
+			// No parameter
+			out, err = env.Epinio("", "configuration", "show", configurationName1)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Configuration Details"))
+			Expect(out).To(ContainSubstring("No parameters"))
+		})
 	})
 
 	Describe("configuration create failures", func() {
@@ -146,19 +162,13 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			Expect(out).To(ContainSubstring("name must consist of lower case alphanumeric"))
 		})
 
-		It("fails for missing arguments, not enough, no files, no name", func() {
+		It("fails for missing arguments, not enough, no files", func() {
 			out, err := env.Epinio("", "configuration", "create")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Not enough arguments, expected name"))
 		})
 
-		It("fails for missing arguments, not enough, no files, just name", func() {
-			out, err := env.Epinio("", "configuration", "create", "foo")
-			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Not enough arguments, expected name, key, and value"))
-		})
-
-		It("fails for missing arguments, not enough, with files, no name", func() {
+		It("fails for missing arguments, not enough, with files", func() {
 			out, err := env.Epinio("", "configuration", "create", "--from-file", "dummy")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Not enough arguments, expected name"))

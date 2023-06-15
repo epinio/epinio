@@ -501,12 +501,13 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		}
 
 		msg.Msg("")
+
+		c.ui.Exclamation().
+			Msg("Beware, the shown access paths are only available in the application's container")
 	} else {
 		msg.Msg("No parameters")
 	}
 
-	c.ui.Exclamation().
-		Msg("Beware, the shown access paths are only available in the application's container")
 	return nil
 }
 

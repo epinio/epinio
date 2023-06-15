@@ -44,10 +44,6 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestErrorf("Configuration's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
 	}
 
-	if len(createRequest.Data) < 1 {
-		return apierror.NewBadRequestError("cannot create configuration without data")
-	}
-
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)

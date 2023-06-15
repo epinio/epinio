@@ -79,13 +79,6 @@ var CmdConfigurationCreate = &cobra.Command{
 		if len(args)%2 == 0 {
 			return errors.New("Last Key has no value")
 		}
-		kvFromFiles, err := cmd.Flags().GetStringSlice("from-file")
-		if err != nil {
-			return errors.Wrap(err, "failed to read option --from-file")
-		}
-		if len(kvFromFiles) == 0 && len(args) < 3 {
-			return errors.New("Not enough arguments, expected name, key, and value")
-		}
 		return nil
 	},
 	RunE: ConfigurationCreate,
