@@ -49,6 +49,8 @@ type stageParam struct {
 	DownloadImage       string
 	UnpackImage         string
 	ServiceAccountName  string
+	CPURequest          string
+	MemoryRequest       string
 	Environment         models.EnvVariableList
 	Owner               metav1.OwnerReference
 	RegistryURL         string
@@ -220,6 +222,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	}
 
 	serviceAccountName := viper.GetString("staging-service-account-name")
+	cpuRequest := viper.GetString("staging-resource-cpu")
+	memoryRequest := viper.GetString("staging-resource-memory")
 
 	params := stageParam{
 		AppRef:              req.App,
@@ -227,6 +231,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		DownloadImage:       downloadImage,
 		UnpackImage:         unpackImage,
 		ServiceAccountName:  serviceAccountName,
+		CPURequest:          cpuRequest,
+		MemoryRequest:       memoryRequest,
 		BlobUID:             blobUID,
 		Environment:         environment.List(),
 		Owner:               owner,
@@ -365,7 +371,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	previous.Stage = models.NewStage(app.PreviousStageID)
 
 	// TODO: Simplify env setup -- https://github.com/epinio/epinio/issues/1176
-
 	// Note: `source` is required because the mounted files are not executable.
 
 	// runtime: AWSCLIImage
@@ -385,7 +390,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		protocol = "https"
 	}
 	stageEnv = appendEnvVar(stageEnv, "PROTOCOL", protocol)
-
 	stageEnv = appendEnvVar(stageEnv, "ENDPOINT", app.S3ConnectionDetails.Endpoint)
 	stageEnv = appendEnvVar(stageEnv, "BUCKET", app.S3ConnectionDetails.Bucket)
 	stageEnv = appendEnvVar(stageEnv, "BLOBID", app.BlobUID)
@@ -606,7 +610,34 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		},
 	}
 
+	addResourceRequests(job, app)
 	return job, jobenv
+}
+
+func addResourceRequests(job *batchv1.Job, app stageParam) {
+	cpu := app.CPURequest
+	memory := app.MemoryRequest
+
+	if cpu == "" && memory == "" {
+		return
+	}
+
+	rr := corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{},
+	}
+
+	// NOTE: Using `MustParse` is ok here, despite panicking on bad values.  The server startup
+	// code (See internal.cli/server.go, CmdServer.RunE) already verified that any non-empty
+	// values are valid. Invalid values cause the server to not start.
+
+	if cpu != "" {
+		rr.Requests[corev1.ResourceCPU] = resource.MustParse(cpu)
+	}
+	if memory != "" {
+		rr.Requests[corev1.ResourceMemory] = resource.MustParse(memory)
+	}
+
+	job.Spec.Template.Spec.Containers[0].Resources = rr
 }
 
 func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, error) {
