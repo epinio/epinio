@@ -156,6 +156,8 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, wait
 		return errors.Wrap(err, "error creating service secret")
 	}
 
+	catalogService.Values = concatenateCatalogServiceValues(catalogService, name)
+
 	err = helm.DeployService(
 		ctx,
 		helm.ServiceParameters{
@@ -533,4 +535,26 @@ func convertUnstructuredListIntoHelmCharts(unstructuredList *unstructured.Unstru
 	}
 
 	return helmChartList, nil
+}
+
+func concatenateCatalogServiceValues(catalogService models.CatalogService, name string) string {
+
+	type FixedValues struct {
+		ServiceName string `json:"serviceName,omitempty"`
+	}
+	var fixedValues FixedValues
+	var builder strings.Builder
+
+	fixedValues.ServiceName = name
+	// Build the concatenated string
+
+	builder.WriteString("\nserviceName: ")
+	builder.WriteString(fixedValues.ServiceName)
+	builder.WriteString("\n")
+
+	// Assign the result to catalogService.Values
+	catalogService.Values += builder.String()
+
+	// Return the resulting concatenated string
+	return catalogService.Values
 }
