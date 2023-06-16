@@ -68,6 +68,27 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 			return env.Client().Do(request)
 		}
 
+		It("imports the git repo in the blob store without specifying revision", func() {
+			revision := ""
+
+			response, err := doImportGitRequest(namespace, app, gitURL, revision)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var importResponse models.ImportGitResponse
+			err = json.Unmarshal(bodyBytes, &importResponse)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(importResponse.BlobUID).ToNot(BeEmpty())
+			Expect(importResponse.BlobUID).To(BeUUID())
+			Expect(importResponse.Branch).ToNot(BeEmpty())
+			Expect(importResponse.Branch).To(Equal("main"))
+		})
+
 		It("imports the git repo in the blob store from a branch", func() {
 			revision := "main"
 
@@ -106,7 +127,7 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
-			Expect(importResponse.Branch).To(BeEmpty())
+			Expect(importResponse.Branch).ToNot(BeEmpty())
 		})
 
 		It("imports the git repo in the blob store from a short commit revision", func() {
@@ -126,7 +147,7 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
-			Expect(importResponse.Branch).To(BeEmpty())
+			Expect(importResponse.Branch).ToNot(BeEmpty())
 		})
 	})
 })
