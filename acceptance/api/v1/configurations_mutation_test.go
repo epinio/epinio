@@ -94,26 +94,6 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", LConfigu
 				Equal("cannot create configuration without a name"))
 		})
 
-		It("returns a 'bad request' for JSON object empty `data` key", func() {
-			response, err := env.Curl("POST",
-				fmt.Sprintf("%s%s/namespaces/%s/configurations",
-					serverURL, api.Root, namespace),
-				strings.NewReader(`{
-				    "name": "meh"
-				}`))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
-
-			defer response.Body.Close()
-			bodyBytes, err := io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody map[string][]errors.APIError
-			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0].Title).To(
-				Equal("cannot create configuration without data"))
-		})
-
 		It("returns a 'not found' when the namespace does not exist", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/bogus/configurations",
@@ -188,6 +168,23 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", LConfigu
 					    "name": "%s",
 					    "data": {"host":"localhost", "port":"9999"}
 					}`, configuration)))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+
+				defer response.Body.Close()
+				bodyBytes, err := io.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+				Expect(string(bodyBytes)).To(Equal(jsOK))
+			})
+
+			It("creates configurations without data", func() {
+				response, err := env.Curl("POST",
+					fmt.Sprintf("%s%s/namespaces/%s/configurations",
+						serverURL, api.Root, namespace),
+					strings.NewReader(`{
+				    "name": "meh"
+				}`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 

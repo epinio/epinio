@@ -388,7 +388,7 @@ func (c *EpinioClient) CreateConfiguration(name string, dict []string) error {
 		key := dict[i]
 		value := dict[i+1]
 		path := fmt.Sprintf("/configurations/%s/%s", name, key)
-		msg = msg.WithTableRow(key, value, path)
+		msg = msg.WithTableRow(key, transformForDisplay(value), path)
 		data[key] = value
 	}
 	msg.Msg("Create Configuration")
@@ -496,16 +496,32 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			msg = msg.WithTableRow(k, configurationDetails[k],
-				fmt.Sprintf("/configurations/%s/%s", path, k))
+			value := transformForDisplay(configurationDetails[k])
+			msg = msg.WithTableRow(k, value, fmt.Sprintf("/configurations/%s/%s", path, k))
 		}
 
 		msg.Msg("")
+
+		c.ui.Exclamation().
+			Msg("Beware, the shown access paths are only available in the application's container")
 	} else {
 		msg.Msg("No parameters")
 	}
 
-	c.ui.Exclamation().
-		Msg("Beware, the shown access paths are only available in the application's container")
 	return nil
+}
+
+func transformForDisplay(v string) string {
+	// Consider: Count and truncate by runes, not bytes.
+	// - https://pkg.go.dev/unicode/utf8@go1.20.5#RuneCountInString
+	// - https://go.dev/blog/strings (Libraries, foreach/range)
+	limit := 30
+
+	// Pass short strings as-is
+	if len(v) <= limit {
+		return v
+	}
+
+	// and truncate long strings
+	return fmt.Sprintf("%s (hiding %d additional bytes)", v[:limit], len(v)-limit)
 }

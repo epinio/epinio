@@ -13,6 +13,8 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"strings"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
@@ -34,6 +36,8 @@ func init() {
 	CmdConfigurationDelete.Flags().Bool("all", false, "delete all configurations")
 
 	changeOptions(CmdConfigurationUpdate)
+
+	CmdConfigurationCreate.Flags().StringSliceP("from-file", "f", []string{}, "values from files")
 }
 
 // CmdConfiguration implements the command: epinio configuration
@@ -69,8 +73,8 @@ var CmdConfigurationCreate = &cobra.Command{
 	Short: "Create a configuration",
 	Long:  `Create configuration by name and key/value dictionary.`,
 	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 3 {
-			return errors.New("Not enough arguments, expected name, key, and value")
+		if len(args) < 1 {
+			return errors.New("Not enough arguments, expected name")
 		}
 		if len(args)%2 == 0 {
 			return errors.New("Last Key has no value")
@@ -82,11 +86,12 @@ var CmdConfigurationCreate = &cobra.Command{
 
 // CmdConfigurationUpdate implements the command: epinio configuration create
 var CmdConfigurationUpdate = &cobra.Command{
-	Use:   "update NAME [flags]",
-	Short: "Update a configuration",
-	Long:  `Update configuration by name and change instructions through flags.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  ConfigurationUpdate,
+	Use:               "update NAME [flags]",
+	Short:             "Update a configuration",
+	Long:              `Update configuration by name and change instructions through flags.`,
+	Args:              cobra.ExactArgs(1),
+	RunE:              ConfigurationUpdate,
+	ValidArgsFunction: matchingConfigurationFinder,
 }
 
 // CmdConfigurationDelete implements the command: epinio configuration delete
@@ -184,7 +189,21 @@ func ConfigurationCreate(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = client.CreateConfiguration(args[0], args[1:])
+	// Merge plain argument key/value data with k/v from options, i.e. files.
+	kvAssigments := args[1:]
+	kvFromFiles, err := cmd.Flags().GetStringSlice("from-file")
+	if err != nil {
+		return errors.Wrap(err, "failed to read option --from-file")
+	}
+	if len(kvFromFiles) > 0 {
+		err, kvFiles := assignmentsFromFiles(kvFromFiles)
+		if err != nil {
+			return err
+		}
+		kvAssigments = append(kvAssigments, kvFiles...)
+	}
+
+	err = client.CreateConfiguration(args[0], kvAssigments)
 	if err != nil {
 		return errors.Wrap(err, "error creating configuration")
 	}
@@ -330,4 +349,33 @@ func findConfigurationApp(cmd *cobra.Command, args []string, toComplete string) 
 
 	matches := app.ConfigurationMatching(toComplete)
 	return matches, cobra.ShellCompDirectiveNoFileComp
+}
+
+func assignmentsFromFiles(fromFileSpecs []string) (error, []string) {
+	results := []string{}
+	for _, spec := range fromFileSpecs {
+		var key string
+		var valuefile string
+
+		// The argument has two possible forms: `key=path`, or `path`.
+		// The latter uses the filename part of the path as key.
+
+		if strings.Contains(spec, "=") {
+			pieces := strings.SplitN(spec, "=", 2)
+			key = pieces[0]
+			valuefile = pieces[1]
+		} else {
+			_, key = path.Split(spec)
+			valuefile = spec
+		}
+
+		content, err := os.ReadFile(valuefile)
+		if err != nil {
+			return errors.Wrapf(err, "filesystem error"), nil
+		}
+
+		results = append(results, key, string(content))
+	}
+
+	return nil, results
 }

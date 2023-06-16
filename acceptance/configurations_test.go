@@ -12,7 +12,10 @@
 package acceptance_test
 
 import (
+	"os"
+
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/names"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
@@ -134,6 +137,22 @@ var _ = Describe("Configurations", LConfiguration, func() {
 		It("creates a configuration", func() {
 			env.MakeConfiguration(configurationName1)
 		})
+
+		It("creates an empty configuration", func() {
+			out, err := env.Epinio("", "configuration", "create", configurationName1)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			// Check presence
+			out, err = env.Epinio("", "configuration", "list")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp(configurationName1))
+
+			// No parameter
+			out, err = env.Epinio("", "configuration", "show", configurationName1)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Configuration Details"))
+			Expect(out).To(ContainSubstring("No parameters"))
+		})
 	})
 
 	Describe("configuration create failures", func() {
@@ -141,6 +160,48 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			out, err := env.Epinio("", "configuration", "create", "BOGUS", "dummy", "value")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("name must consist of lower case alphanumeric"))
+		})
+
+		It("fails for missing arguments, not enough, no files", func() {
+			out, err := env.Epinio("", "configuration", "create")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Not enough arguments, expected name"))
+		})
+
+		It("fails for missing arguments, not enough, with files", func() {
+			out, err := env.Epinio("", "configuration", "create", "--from-file", "dummy")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Not enough arguments, expected name"))
+		})
+
+		It("fails for missing arguments, key without value", func() {
+			out, err := env.Epinio("", "configuration", "create", "foo", "a")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Last Key has no value"))
+		})
+
+		It("fails for a missing path", func() {
+			out, err := env.Epinio("", "configuration", "create", "foo", "--from-file", "MISSING")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("filesystem error: open MISSING: no such file or directory"))
+		})
+
+		Describe("directory", func() {
+			BeforeEach(func() {
+				err := os.MkdirAll("DIR", 0755)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			AfterEach(func() {
+				err := os.RemoveAll("DIR")
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("fails for a directory", func() {
+				out, err := env.Epinio("", "configuration", "create", "foo", "--from-file", "DIR")
+				Expect(err).To(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("filesystem error: read DIR: is a directory"))
+			})
 		})
 	})
 
@@ -344,16 +405,13 @@ var _ = Describe("Configurations", LConfiguration, func() {
 	})
 
 	Describe("configuration show", func() {
-
-		BeforeEach(func() {
-			env.MakeConfiguration(configurationName1)
-		})
-
 		AfterEach(func() {
 			env.CleanupConfiguration(configurationName1)
 		})
 
 		It("it shows configuration details", func() {
+			env.MakeConfiguration(configurationName1)
+
 			out, err := env.Epinio("", "configuration", "show", configurationName1)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Configuration Details"))
@@ -366,7 +424,27 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			)
 		})
 
+		It("reads from files, and truncates large configuration details", func() {
+			env.MakeConfigurationFromFiles(configurationName1, testenv.TestAssetPath("config.yaml"))
+
+			out, err := env.Epinio("", "configuration", "show", configurationName1)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Configuration Details"))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
+					WithRow("file", `# Copyright © 2021 - 2023 SUS`, "\\/configurations\\/"+configurationName1+"\\/file"),
+					WithRow("", "[(]hiding 1758 additional bytes[)]", ""),
+				),
+			)
+		})
+
 		Context("command completion", func() {
+			BeforeEach(func() {
+				env.MakeConfiguration(configurationName1)
+			})
+
 			It("matches empty prefix", func() {
 				out, err := env.Epinio("", "__complete", "configuration", "show", "")
 				Expect(err).ToNot(HaveOccurred(), out)
