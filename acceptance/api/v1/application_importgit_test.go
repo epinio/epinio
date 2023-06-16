@@ -50,7 +50,7 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 
 	Describe("POST /namespaces/:namespace/applications/:app/import-git", func() {
 
-		doImportGitRequest := func(namespace, app, gitURL, revision string) (*http.Response, error) {
+		doImportGitRequest := func(namespace, app, revision string) (*http.Response, error) {
 			data := url.Values{}
 			data.Set("giturl", gitURL)
 			data.Set("gitrev", revision)
@@ -71,7 +71,7 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 		It("imports the git repo in the blob store without specifying revision", func() {
 			revision := ""
 
-			response, err := doImportGitRequest(namespace, app, gitURL, revision)
+			response, err := doImportGitRequest(namespace, app, revision)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -92,7 +92,7 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 		It("imports the git repo in the blob store from a branch", func() {
 			revision := "main"
 
-			response, err := doImportGitRequest(namespace, app, gitURL, revision)
+			response, err := doImportGitRequest(namespace, app, revision)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -113,7 +113,7 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 		It("imports the git repo in the blob store from a revision", func() {
 			revision := "48c02bd5766061c0ea9875ca1fd9908e3a20aeb8"
 
-			response, err := doImportGitRequest(namespace, app, gitURL, revision)
+			response, err := doImportGitRequest(namespace, app, revision)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -133,7 +133,7 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 		It("imports the git repo in the blob store from a short commit revision", func() {
 			revision := "48c02bd"
 
-			response, err := doImportGitRequest(namespace, app, gitURL, revision)
+			response, err := doImportGitRequest(namespace, app, revision)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
