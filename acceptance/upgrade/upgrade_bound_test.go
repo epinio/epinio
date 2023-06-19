@@ -57,7 +57,6 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 		}
 	})
 
-
 	It("Can upgrade epinio bound to a custom service", func() {
 
 		// Note current versions of client and server
