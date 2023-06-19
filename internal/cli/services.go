@@ -14,7 +14,6 @@ package cli
 import (
 	"fmt"
 
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -54,19 +53,14 @@ var CmdServiceCatalog = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		if len(args) == 0 {
-			err = client.ServiceCatalog()
+			err := client.ServiceCatalog()
 			return errors.Wrap(err, "error listing Epinio catalog services")
 		}
 
 		if len(args) == 1 {
 			serviceName := args[0]
-			err = client.ServiceCatalogShow(serviceName)
+			err := client.ServiceCatalogShow(serviceName)
 			return errors.Wrap(err, fmt.Sprintf("error showing %s Epinio catalog service", serviceName))
 		}
 
@@ -87,11 +81,6 @@ var CmdServiceCreate = &cobra.Command{
 			return errors.Wrap(err, "error reading option --wait")
 		}
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		catalogServiceName := args[0]
 		serviceName := args[1]
 
@@ -108,14 +97,9 @@ var CmdServiceShow = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		serviceName := args[0]
 
-		err = client.ServiceShow(serviceName)
+		err := client.ServiceShow(serviceName)
 		return errors.Wrap(err, "error showing service")
 	},
 }
@@ -124,14 +108,10 @@ var CmdServiceDelete = &cobra.Command{
 	Use:   "delete SERVICENAME1 [SERVICENAME2 ...]",
 	Short: "Delete one or more services",
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		app, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
 
-		app.API.DisableVersionWarning()
+		client.API.DisableVersionWarning()
 
-		matches := filteredMatchingFinder(args, toComplete, app.ServiceMatching)
+		matches := filteredMatchingFinder(args, toComplete, client.ServiceMatching)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -154,11 +134,6 @@ var CmdServiceDelete = &cobra.Command{
 			return errors.New("No services specified for deletion")
 		}
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		err = client.ServiceDelete(args, unbind, all)
 		return errors.Wrap(err, "error deleting service")
 	},
@@ -171,15 +146,10 @@ var CmdServiceBind = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		serviceName := args[0]
 		appName := args[1]
 
-		err = client.ServiceBind(serviceName, appName)
+		err := client.ServiceBind(serviceName, appName)
 		return errors.Wrap(err, "error binding service")
 	},
 }
@@ -192,15 +162,10 @@ var CmdServiceUnbind = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		serviceName := args[0]
 		appName := args[1]
 
-		err = client.ServiceUnbind(serviceName, appName)
+		err := client.ServiceUnbind(serviceName, appName)
 		return errors.Wrap(err, "error unbinding service")
 	},
 }
@@ -211,11 +176,6 @@ var CmdServiceList = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
 
 		all, err := cmd.Flags().GetBool("all")
 		if err != nil {
@@ -237,21 +197,17 @@ func findServiceApp(cmd *cobra.Command, args []string, toComplete string) ([]str
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	app, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-	app.API.DisableVersionWarning()
+	client.API.DisableVersionWarning()
 
 	if len(args) == 1 {
 		// #args == 1: app name.
-		matches := app.AppsMatching(toComplete)
+		matches := client.AppsMatching(toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
 
 	// #args == 0: configuration name.
 
-	matches := app.ServiceMatching(toComplete)
+	matches := client.ServiceMatching(toComplete)
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 
@@ -268,15 +224,10 @@ var CmdServicePortForward = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		serviceName := args[0]
 		ports := args[1:]
 
-		err = client.ServicePortForward(cmd.Context(), serviceName, servicePortForwardAddress, ports)
+		err := client.ServicePortForward(cmd.Context(), serviceName, servicePortForwardAddress, ports)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error port forwarding to service")
 	},

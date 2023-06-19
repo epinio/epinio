@@ -34,6 +34,8 @@ import (
 )
 
 var (
+	client *usercmd.EpinioClient
+
 	flagSettingsFile string
 )
 
@@ -97,7 +99,7 @@ func NewRootCmd() (*cobra.Command, error) {
 
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
-	client, err := usercmd.New(context.Background())
+	client, err = usercmd.New(context.Background())
 	if err != nil {
 		return nil, errors.New("error initializing cli")
 	}

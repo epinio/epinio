@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/internal/api/v1/application"
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/spf13/cobra"
 )
 
@@ -46,15 +45,10 @@ func bindOption(cmd *cobra.Command) {
 			// We are responsible for splitting into segments, and expanding only the last
 			// segment.
 
-			app, err := usercmd.New(cmd.Context())
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveNoFileComp
-			}
-
 			values := strings.Split(toComplete, ",")
 			if len(values) == 0 {
 				// Nothing. Report all possible matches
-				matches := app.ConfigurationMatching(toComplete)
+				matches := client.ConfigurationMatching(toComplete)
 				return matches, cobra.ShellCompDirectiveNoFileComp
 			}
 
@@ -63,7 +57,7 @@ func bindOption(cmd *cobra.Command) {
 			// expansions for that segment.
 
 			matches := []string{}
-			for _, match := range app.ConfigurationMatching(values[len(values)-1]) {
+			for _, match := range client.ConfigurationMatching(values[len(values)-1]) {
 				values[len(values)-1] = match
 				matches = append(matches, strings.Join(values, ","))
 			}

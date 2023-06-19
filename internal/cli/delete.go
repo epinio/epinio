@@ -12,7 +12,6 @@
 package cli
 
 import (
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -24,12 +23,8 @@ var CmdAppDelete = &cobra.Command{
 	Use:   "delete NAME1 [NAME2 ...]",
 	Short: "Deletes one or more applications",
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		epinioClient, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
 
-		filteredMatches := filteredMatchingFinder(args, toComplete, epinioClient.AppsMatching)
+		filteredMatches := filteredMatchingFinder(args, toComplete, client.AppsMatching)
 		return filteredMatches, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,11 +40,6 @@ var CmdAppDelete = &cobra.Command{
 		}
 		if !all && len(args) == 0 {
 			return errors.New("No applications specified for deletion")
-		}
-
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
 		}
 
 		err = client.Delete(cmd.Context(), args, all)

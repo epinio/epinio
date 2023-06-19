@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -61,12 +60,7 @@ var CmdNamespaceList = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.Namespaces()
+		err := client.Namespaces()
 		if err != nil {
 			return errors.Wrap(err, "error listing epinio-controlled namespaces")
 		}
@@ -83,12 +77,7 @@ var CmdNamespaceCreate = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.CreateNamespace(args[0])
+		err := client.CreateNamespace(args[0])
 		if err != nil {
 			return errors.Wrap(err, "error creating epinio-controlled namespace")
 		}
@@ -105,12 +94,7 @@ var CmdNamespaceDelete = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.DeleteNamespace(args, gForceFlag, gAllFlag)
+		err := client.DeleteNamespace(args, gForceFlag, gAllFlag)
 		if err != nil {
 			// Cancellation is not an "error" in deletion.
 			if !strings.Contains(err.Error(), "Cancelled") {
@@ -132,12 +116,7 @@ var CmdNamespaceShow = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.ShowNamespace(args[0])
+		err := client.ShowNamespace(args[0])
 		if err != nil {
 			return errors.Wrap(err, "error showing epinio-controlled namespace")
 		}
