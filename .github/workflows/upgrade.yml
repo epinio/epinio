@@ -86,6 +86,8 @@ jobs:
           scripts/get-latest-epinio.sh
 
       - name: Upgrade Epinio with latest code
+        env:
+          REGEX: Upgrade1 
         run: |
           export EPINIO_CURRENT_TAG="$(git describe --tags)"
           # We have to export the EPINIO_SYSTEM_DOMAIN
