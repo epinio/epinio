@@ -34,6 +34,7 @@ func init() {
 	CmdServiceDelete.Flags().Bool("unbind", false, "Unbind from applications before deleting")
 	CmdServiceList.Flags().Bool("all", false, "List all services")
 	CmdServiceDelete.Flags().Bool("all", false, "delete all services")
+	CmdServicePortForward.Flags().StringSliceVar(&servicePortForwardAddress, "address", []string{"localhost"}, "Addresses to listen on (comma separated). Only accepts IP addresses or localhost as a value. When localhost is supplied, kubectl will try to bind on both 127.0.0.1 and ::1 and will fail if neither of these addresses are available to bind.")
 
 	CmdServices.AddCommand(CmdServiceCatalog)
 	CmdServices.AddCommand(CmdServiceCreate)
@@ -42,6 +43,7 @@ func init() {
 	CmdServices.AddCommand(CmdServiceShow)
 	CmdServices.AddCommand(CmdServiceDelete)
 	CmdServices.AddCommand(CmdServiceList)
+	CmdServices.AddCommand(CmdServicePortForward)
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -251,4 +253,31 @@ func findServiceApp(cmd *cobra.Command, args []string, toComplete string) ([]str
 
 	matches := app.ServiceMatching(toComplete)
 	return matches, cobra.ShellCompDirectiveNoFileComp
+}
+
+var (
+	servicePortForwardAddress []string
+)
+
+// CmdServicePortForward implements the command: epinio service port-forward
+var CmdServicePortForward = &cobra.Command{
+	Use:               "port-forward SERVICENAME [LOCAL_PORT] [...[LOCAL_PORT_N]]",
+	Short:             "forward one or more local ports to a service SERVICENAME",
+	Args:              cobra.MinimumNArgs(2),
+	ValidArgsFunction: matchingServiceFinder,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New(cmd.Context())
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		serviceName := args[0]
+		ports := args[1:]
+
+		err = client.ServicePortForward(cmd.Context(), serviceName, servicePortForwardAddress, ports)
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error port forwarding to service")
+	},
 }

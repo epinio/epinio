@@ -1634,6 +1634,34 @@
         }
       }
     },
+    "/namespaces/{Namespace}/services/{Service}/portforward": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Get a shell to the `Service` in the `Namespace`.",
+        "operationId": "ServicePortForward",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServicePortForwardResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/staging/{StageID}/complete": {
       "get": {
         "tags": [
@@ -3103,6 +3131,9 @@
       "schema": {
         "$ref": "#/definitions/Response"
       }
+    },
+    "ServicePortForwardResponse": {
+      "description": ""
     },
     "StagingCompleteResponse": {
       "description": "",

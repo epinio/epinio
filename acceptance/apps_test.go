@@ -1979,7 +1979,7 @@ userConfig:
 		})
 	}
 
-	var _ = Describe("Custom chart-value", func() {
+	var _ = Describe("Custom chart-value", Label("appListeningPort"), func() {
 		var (
 			namespace string
 			appName   string

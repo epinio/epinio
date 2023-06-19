@@ -52,6 +52,28 @@ func CreateCatalogServiceNginx() models.CatalogService {
 	return catalogService
 }
 
+func ApacheCatalogService(name string) models.CatalogService {
+	return models.CatalogService{
+		Meta: models.MetaLite{
+			Name: name,
+		},
+		HelmChart: "apache",
+		HelmRepo: models.HelmRepo{
+			Name: "",
+			URL:  "https://charts.bitnami.com/bitnami",
+		},
+		Values: "{'service': {'type': 'ClusterIP'}}",
+	}
+}
+
+func CreateCatalogServiceApache() models.CatalogService {
+	catalogService := ApacheCatalogService("apache-test")
+
+	CreateCatalogService(catalogService)
+
+	return catalogService
+}
+
 func CreateCatalogService(catalogService models.CatalogService) {
 	CreateCatalogServiceInNamespace("epinio", catalogService)
 }

@@ -763,6 +763,19 @@ type FakeAPIClient struct {
 	serviceUnbindReturnsOnCall map[int]struct {
 		result1 error
 	}
+	ServicePortForwardStub        func(string, string, *client.PortForwardOpts) error
+	servicePortForwardMutex       sync.RWMutex
+	servicePortForwardArgsForCall []struct {
+		arg1 string
+		arg2 string
+		arg3 *client.PortForwardOpts
+	}
+	servicePortForwardReturns struct {
+		result1 error
+	}
+	servicePortForwardReturnsOnCall map[int]struct {
+		result1 error
+	}
 	StagingCompleteStub        func(string, string) (models.Response, error)
 	stagingCompleteMutex       sync.RWMutex
 	stagingCompleteArgsForCall []struct {
@@ -4257,6 +4270,27 @@ func (fake *FakeAPIClient) ServiceUnbindReturnsOnCall(i int, result1 error) {
 	fake.serviceUnbindReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeAPIClient) ServicePortForward(arg1 string, arg2 string, arg3 *client.PortForwardOpts) error {
+	fake.servicePortForwardMutex.Lock()
+	ret, specificReturn := fake.servicePortForwardReturnsOnCall[len(fake.servicePortForwardArgsForCall)]
+	fake.servicePortForwardArgsForCall = append(fake.servicePortForwardArgsForCall, struct {
+		arg1 string
+		arg2 string
+		arg3 *client.PortForwardOpts
+	}{arg1, arg2, arg3})
+	stub := fake.ServicePortForwardStub
+	fakeReturns := fake.servicePortForwardReturns
+	fake.recordInvocation("ServicePortForward", []interface{}{arg1, arg2, arg3})
+	fake.servicePortForwardMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
 }
 
 func (fake *FakeAPIClient) StagingComplete(arg1 string, arg2 string) (models.Response, error) {

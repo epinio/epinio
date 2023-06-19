@@ -14,11 +14,14 @@ package proxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +31,102 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/rest"
 )
+
+type ListenAddress struct {
+	Address     string
+	Protocol    string
+	FailureMode string
+}
+
+type ForwardedPort struct {
+	Local  uint16
+	Remote uint16
+}
+
+func ParseAddresses(addressesToParse []string) ([]ListenAddress, error) {
+	var addresses []ListenAddress
+	parsed := make(map[string]ListenAddress)
+	for _, address := range addressesToParse {
+		if address == "localhost" {
+			if _, exists := parsed["127.0.0.1"]; !exists {
+				ip := ListenAddress{Address: "127.0.0.1", Protocol: "tcp4", FailureMode: "all"}
+				parsed[ip.Address] = ip
+			}
+			if _, exists := parsed["::1"]; !exists {
+				ip := ListenAddress{Address: "::1", Protocol: "tcp6", FailureMode: "all"}
+				parsed[ip.Address] = ip
+			}
+		} else if net.ParseIP(address).To4() != nil {
+			parsed[address] = ListenAddress{Address: address, Protocol: "tcp4", FailureMode: "any"}
+		} else if net.ParseIP(address) != nil {
+			parsed[address] = ListenAddress{Address: address, Protocol: "tcp6", FailureMode: "any"}
+		} else {
+			return nil, fmt.Errorf("%s is not a valid IP", address)
+		}
+	}
+	addresses = make([]ListenAddress, len(parsed))
+	id := 0
+	for _, v := range parsed {
+		addresses[id] = v
+		id++
+	}
+	// Sort addresses before returning to get a stable order
+	sort.Slice(addresses, func(i, j int) bool { return addresses[i].Address < addresses[j].Address })
+
+	return addresses, nil
+}
+
+/*
+valid port specifications:
+
+5000
+- forwards from localhost:5000 to pod:5000
+
+8888:5000
+- forwards from localhost:8888 to pod:5000
+
+0:5000
+:5000
+  - selects a random available local port,
+    forwards from localhost:<random port> to pod:5000
+*/
+func ParsePorts(ports []string) ([]ForwardedPort, error) {
+	var forwards []ForwardedPort
+	for _, portString := range ports {
+		parts := strings.Split(portString, ":")
+		var localString, remoteString string
+		if len(parts) == 1 {
+			localString = parts[0]
+			remoteString = parts[0]
+		} else if len(parts) == 2 {
+			localString = parts[0]
+			if localString == "" {
+				// support :5000
+				localString = "0"
+			}
+			remoteString = parts[1]
+		} else {
+			return nil, fmt.Errorf("invalid port format '%s'", portString)
+		}
+
+		localPort, err := strconv.ParseUint(localString, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing local port '%s': %s", localString, err)
+		}
+
+		remotePort, err := strconv.ParseUint(remoteString, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing remote port '%s': %s", remoteString, err)
+		}
+		if remotePort == 0 {
+			return nil, fmt.Errorf("remote port must be > 0")
+		}
+
+		forwards = append(forwards, ForwardedPort{uint16(localPort), uint16(remotePort)})
+	}
+
+	return forwards, nil
+}
 
 func RunProxy(ctx context.Context, rw http.ResponseWriter, req *http.Request, destination *url.URL) apierror.APIErrors {
 	clientSetHTTP1, err := kubernetes.GetHTTP1Client(ctx)
