@@ -100,8 +100,8 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 			"-e", "BP_PHP_WEB_DIR=wordpress",
 			"-e", "BP_PHP_VERSION=8.0.x",
 			"-e", "BP_PHP_SERVER=nginx",
-			"-e", "DB_HOST=" + svcRoute,
-			"-e", "SERVICE_NAME=" + service)
+			"-e", "DB_HOST="+svcRoute,
+			"-e", "SERVICE_NAME="+service)
 		Expect(err).ToNot(HaveOccurred(), pushLog)
 
 		routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
