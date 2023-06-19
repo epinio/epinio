@@ -17,7 +17,7 @@ package application
 //
 //   - (A) repository, no revision (empty string)
 //   - (B) repository, branch name
-//   - (C) repository, commit id
+//   - (C) repository, commit id (short/long), tags or any supported ref
 //
 // ## Considerations:
 //
@@ -63,6 +63,9 @@ package application
 // optimization.  When that fails fall back to regular cloning and checkout.  This fall
 // back should happen only for (C).
 //
+// Finding the matching reference for the specified revision it's a "complex" operation, and it's done only with the last option.
+// With option A and B we already know about the matching branch, and we can early return
+//
 // ## Decision
 //
 // Going with the second solution. While there is more complexity it is not that much
@@ -78,6 +81,7 @@ import (
 	"github.com/gin-gonic/gin"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-logr/logr"
 
 	"github.com/epinio/epinio/helpers"
@@ -110,10 +114,15 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	defer os.RemoveAll(gitRepo)
 
 	// clone/fetch/checkout
-	err = getRepository(ctx, log, gitRepo, url, revision)
+	ref, err := checkoutRepository(ctx, log, gitRepo, url, revision)
 	if err != nil {
 		return apierror.InternalError(err,
 			fmt.Sprintf("cloning the git repository: %s @ %s", url, revision))
+	}
+
+	var branch string
+	if ref != nil {
+		branch = ref.Name().Short()
 	}
 
 	// Create a tarball
@@ -153,80 +162,177 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{
 		BlobUID: blobUID,
+		Branch:  branch,
 	})
 	return nil
 }
 
-func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision string) error {
+var (
+	errDone              = errors.New("iteration done")
+	errReferenceNotFound = errors.New("reference not found")
+)
+
+// checkoutRepository will clone the repository and it will checkout the revision
+// It will also try to find the matching branch/reference, and if found this will be returned
+func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision string) (*plumbing.Reference, error) {
 	if revision == "" {
 		// Input A: repository, no revision.
 		log.Info("importgit, cloning simple", "url", url)
-		_, err := shallowClone(ctx, gitRepo, url)
-		return err
+		return shallowCheckout(ctx, gitRepo, url)
 	}
 
-	// Input B or C: Attempt to treat as B (revision is branch name)
-
-	log.Info("importgit, cloning branch", "url", url, "revision", revision)
-	_, err := branchClone(ctx, gitRepo, url, revision)
+	ref, err := branchCheckout(ctx, gitRepo, url, revision)
+	// it was a branch, and everything went fine
 	if err == nil {
-		// Was branch name, done.
-		return nil
+		return ref, nil
 	}
-	if !errors.Is(err, git.NoMatchingRefSpecError{}) || !plumbing.IsHash(revision) {
-		// Some other error, or the revision does not look like a commit id (C)
-		return err
+	// some other error occurred
+	if !errors.Is(err, git.NoMatchingRefSpecError{}) {
+		return nil, err
 	}
 
-	// Attempt input C: revision might be commit id.
-	// 2 stage process - A simple clone followed by a checkout
-
-	log.Info("importgit, cloning simple, commit id", "url", url)
-	repository, err := generalClone(ctx, gitRepo, url)
+	// we are left we the full clone option
+	log.Info("importgit, cloning plain", "url", url)
+	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{URL: url})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("importgit, resolve", "revision", revision)
-	hash, err := repository.ResolveRevision(plumbing.Revision(revision))
+	hash, err := repo.ResolveRevision(plumbing.Revision(revision))
 	if err != nil {
-		return err
+		return nil, err
 	}
-
 	log.Info("importgit, resolved", "revision", hash)
 
-	checkout, err := repository.Worktree()
+	ref, err = findReferenceForRevision(repo, *hash)
+	if err != nil && !errors.Is(err, errReferenceNotFound) {
+		return nil, err
+	}
+
+	checkout, err := repo.Worktree()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("importgit, checking out", "url", url, "revision", hash)
 
-	return checkout.Checkout(&git.CheckoutOptions{
+	err = checkout.Checkout(&git.CheckoutOptions{
 		Hash:  *hash,
 		Force: true,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return ref, nil
 }
 
-func branchClone(ctx context.Context, gitRepo, url, revision string) (*git.Repository, error) {
-	// Note, it is shallow too
-	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
+func shallowCheckout(ctx context.Context, gitRepo, url string) (*plumbing.Reference, error) {
+	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
+		URL:   url,
+		Depth: 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return repo.Head()
+}
+
+func branchCheckout(ctx context.Context, gitRepo, url, revision string) (*plumbing.Reference, error) {
+	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
 		URL:           url,
 		SingleBranch:  true,
 		ReferenceName: plumbing.NewBranchReferenceName(revision),
 		Depth:         1,
 	})
+	if err == nil {
+		return repo.Head()
+	}
+
+	return nil, err
 }
 
-func shallowClone(ctx context.Context, gitRepo, url string) (*git.Repository, error) {
-	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
-		URL:   url,
-		Depth: 1,
+// findReferenceForRevision will loop through all the available refs (branches, tags, ...) and it will try
+// to see if any of those contains the specified revision.
+func findReferenceForRevision(repo *git.Repository, revision plumbing.Hash) (*plumbing.Reference, error) {
+	// this map will be used to stop the iteration when we have reached already seen commits
+	commitMap := map[string]struct{}{}
+
+	w, err := repo.Worktree()
+	if err != nil {
+		return nil, err
+	}
+
+	refIter, err := repo.References()
+	if err != nil {
+		return nil, err
+	}
+
+	var matchingRef *plumbing.Reference
+
+	// we are going to loop on every refs and check if one of them contain the revision
+	err = refIter.ForEach(func(r *plumbing.Reference) error {
+		err = w.Checkout(&git.CheckoutOptions{
+			Branch: r.Name(),
+			Force:  true,
+		})
+		if err != nil {
+			return err
+		}
+
+		found, err := containsRevision(repo, revision, commitMap)
+		if err != nil {
+			return err
+		}
+		if found {
+			matchingRef = r
+			return errDone
+		}
+
+		return nil
 	})
+	// if something bad happened, return
+	if err != nil && !errors.Is(err, errDone) {
+		return nil, err
+	}
+	// no matching reference found, return a specific error
+	if matchingRef == nil {
+		return nil, errReferenceNotFound
+	}
+
+	return matchingRef, nil
 }
 
-func generalClone(ctx context.Context, gitRepo, url string) (*git.Repository, error) {
-	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
-		URL: url,
+// containsRevision will look for all the commits in the current repo to check for the revision.
+// It will look only in the current working tree, and it will return an errDone when the iteration was completed.
+// The passed commitMap is used to stop when we have reached an already checked commit, so we don't need to look back to the previous history.
+func containsRevision(repo *git.Repository, revision plumbing.Hash, commitMap map[string]struct{}) (bool, error) {
+	var found bool
+
+	commitIter, err := repo.Log(&git.LogOptions{Order: git.LogOrderCommitterTime})
+	if err != nil {
+		return found, err
+	}
+
+	err = commitIter.ForEach(func(c *object.Commit) error {
+		if c.Hash.String() == revision.String() {
+			found = true
+			return errDone
+		}
+
+		if _, found := commitMap[c.Hash.String()]; found {
+			return errDone
+		}
+
+		commitMap[c.Hash.String()] = struct{}{}
+		return nil
 	})
+
+	if err != nil && !errors.Is(err, errDone) {
+		return found, err
+
+	}
+	return found, nil
 }

@@ -185,6 +185,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		}
 
 		blobUID = response.BlobUID
+		// if the server resolved the branch use that in the Git Origin
+		if response.Branch != "" {
+			params.Origin.Git.Branch = response.Branch
+		}
 
 	case models.OriginContainer:
 		// Nothing to upload (nor stage)

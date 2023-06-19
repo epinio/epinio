@@ -15,8 +15,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -57,4 +59,32 @@ func tableRow(args ...string) string {
 	b.WriteString(`[|]`)
 
 	return b.String()
+}
+
+func BeUUID() types.GomegaMatcher {
+	return &beUUIDMatcher{}
+}
+
+type beUUIDMatcher struct{}
+
+func (matcher *beUUIDMatcher) Match(actual interface{}) (success bool, err error) {
+	uuidString, ok := actual.(string)
+	if !ok {
+		return false, fmt.Errorf("BeUUID matcher expects a string")
+	}
+
+	_, err = uuid.Parse(uuidString)
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to parse UUID from string")
+	}
+
+	return true, nil
+}
+
+func (matcher *beUUIDMatcher) FailureMessage(actual interface{}) (message string) {
+	return fmt.Sprintf("Expected\n\t%#v\nto be a valid UUID\n\t", actual)
+}
+
+func (matcher *beUUIDMatcher) NegatedFailureMessage(actual interface{}) (message string) {
+	return fmt.Sprintf("Expected\n\t%#v\nnot to be a valid UUID\n\t", actual)
 }

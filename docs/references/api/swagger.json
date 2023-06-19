@@ -2427,6 +2427,10 @@
         "blobuid": {
           "type": "string",
           "x-go-name": "BlobUID"
+        },
+        "branch": {
+          "type": "string",
+          "x-go-name": "Branch"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
