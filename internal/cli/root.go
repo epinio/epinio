@@ -37,6 +37,7 @@ var (
 	client *usercmd.EpinioClient
 
 	flagSettingsFile string
+	flagHeaders      []string
 )
 
 // NewRootCmd returns the rootCmd, that is the main `epinio` cli.
@@ -77,19 +78,24 @@ func NewRootCmd() (*cobra.Command, error) {
 	tracelog.LoggerFlags(pf, argToEnv)
 	duration.Flags(pf, argToEnv)
 
-	pf.IntP("verbosity", "", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
+	pf.Int("verbosity", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
 	if err = viper.BindPFlag("verbosity", pf.Lookup("verbosity")); err != nil {
 		return nil, err
 	}
 	argToEnv["verbosity"] = "VERBOSITY"
 
-	pf.BoolP("skip-ssl-verification", "", false, "Skip the verification of TLS certificates")
+	pf.Bool("skip-ssl-verification", false, "Skip the verification of TLS certificates")
 	if err = viper.BindPFlag("skip-ssl-verification", pf.Lookup("skip-ssl-verification")); err != nil {
 		return nil, err
 	}
 	argToEnv["skip-ssl-verification"] = "SKIP_SSL_VERIFICATION"
 
-	pf.BoolP("no-colors", "", false, "Suppress colorized output")
+	pf.StringSliceVarP("header", "H", flagHeaders, "Skip the verification of TLS certificates")
+	if err = viper.BindPFlag("header", pf.Lookup("header")); err != nil {
+		return nil, err
+	}
+
+	pf.Bool("no-colors", false, "Suppress colorized output")
 	if err = viper.BindPFlag("no-colors", pf.Lookup("no-colors")); err != nil {
 		return nil, err
 	}

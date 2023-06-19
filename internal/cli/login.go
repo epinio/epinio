@@ -12,6 +12,9 @@
 package cli
 
 import (
+	"strings"
+
+	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/spf13/cobra"
 )
 
@@ -69,6 +72,14 @@ var CmdLogin = &cobra.Command{
 		prompt, err := cmd.Flags().GetBool("prompt")
 		if err != nil {
 			return err
+		}
+
+		apiClient, ok := client.API.(*epinioapi.Client)
+		if ok {
+			for _, h := range flagHeaders {
+				keyVal := strings.Split(h, ":")
+				apiClient.SetHeader(keyVal[0], keyVal[1])
+			}
 		}
 
 		if oidc {

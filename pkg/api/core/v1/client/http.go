@@ -128,6 +128,10 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 		return []byte{}, err
 	}
 
+	for key, value := range c.customHeaders {
+		request.Header.Add(key, value)
+	}
+
 	response, err := c.HttpClient.Do(request)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to POST to upload")
@@ -190,6 +194,10 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	err = c.handleAuthorization(request)
 	if err != nil {
 		return []byte{}, err
+	}
+
+	for key, value := range c.customHeaders {
+		request.Header.Add(key, value)
 	}
 
 	response, err := c.HttpClient.Do(request)
@@ -266,6 +274,10 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	err = c.handleAuthorization(request)
 	if err != nil {
 		return []byte{}, err
+	}
+
+	for key, value := range c.customHeaders {
+		request.Header.Add(key, value)
 	}
 
 	response, err := c.HttpClient.Do(request)

@@ -31,6 +31,7 @@ type Client struct {
 	log              logr.Logger
 	Settings         *epiniosettings.Settings
 	HttpClient       *http.Client
+	customHeaders    map[string]string
 	noVersionWarning bool
 }
 
@@ -70,8 +71,15 @@ func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 	}
 
 	return &Client{
-		log:        log,
-		Settings:   settings,
-		HttpClient: oauth2.NewClient(ctx, tokenSource),
+		log:           log,
+		Settings:      settings,
+		HttpClient:    oauth2.NewClient(ctx, tokenSource),
+		customHeaders: make(map[string]string),
+	}
+}
+
+func (c *Client) SetHeader(key, value string) {
+	if c.customHeaders != nil {
+		c.customHeaders[key] = value
 	}
 }
