@@ -142,7 +142,7 @@ test-acceptance-cli-other: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "!application && !service" acceptance/.
 
 test-acceptance-upgrade: showfocus
-	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/upgrade/.
+	ginkgo ${STANDARD_TEST_OPTIONS} --focus "${REGEX}" acceptance/upgrade/.
 
 test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2
