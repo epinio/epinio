@@ -310,16 +310,17 @@ type ServiceCreateRequest struct {
 // CatalogService mostly matches github.com/epinio/application/api/v1 ServiceSpec
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type CatalogService struct {
-	Meta             MetaLite `json:"meta,omitempty"`
-	SecretTypes      []string `json:"secretTypes,omitempty"`
-	Description      string   `json:"description,omitempty"`
-	ShortDescription string   `json:"short_description,omitempty"`
-	HelmChart        string   `json:"chart,omitempty"`
-	ChartVersion     string   `json:"chartVersion,omitempty"`
-	ServiceIcon      string   `json:"serviceIcon,omitempty"`
-	AppVersion       string   `json:"appVersion,omitempty"`
-	HelmRepo         HelmRepo `json:"helm_repo,omitempty"`
-	Values           string   `json:"values,omitempty"`
+	Meta             MetaLite                `json:"meta,omitempty"`
+	SecretTypes      []string                `json:"secretTypes,omitempty"`
+	Description      string                  `json:"description,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
+	HelmChart        string                  `json:"chart,omitempty"`
+	ChartVersion     string                  `json:"chartVersion,omitempty"`
+	ServiceIcon      string                  `json:"serviceIcon,omitempty"`
+	AppVersion       string                  `json:"appVersion,omitempty"`
+	HelmRepo         HelmRepo                `json:"helm_repo,omitempty"`
+	Values           string                  `json:"values,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
 }
 
 // HelmRepo matches github.com/epinio/application/api/v1 HelmRepo
@@ -400,12 +401,12 @@ func (s ServiceStatus) String() string { return string(s) }
 //   - Field `Values` is not made public here. It contains server-internal information the
 //     user has no need for.
 type AppChart struct {
-	Meta             MetaLite                   `json:"meta,omitempty"`
-	Description      string                     `json:"description,omitempty"`
-	ShortDescription string                     `json:"short_description,omitempty"`
-	HelmChart        string                     `json:"helm_chart,omitempty"`
-	HelmRepo         string                     `json:"helm_repo,omitempty"`
-	Settings         map[string]AppChartSetting `json:"settings,omitempty"`
+	Meta             MetaLite                `json:"meta,omitempty"`
+	Description      string                  `json:"description,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
+	HelmChart        string                  `json:"helm_chart,omitempty"`
+	HelmRepo         string                  `json:"helm_repo,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
 }
 
 type AppChartFull struct {
@@ -413,9 +414,10 @@ type AppChartFull struct {
 	Values map[string]string
 }
 
-// AppChartSetting matches github.com/epinio/application/api/v1 AppChartSettings
+// ChartSetting matches github.com/epinio/application/api/v1 AppChartSettings
+// It also matches      github.com/epinio/application/api/v1 ServiceSettings
 // Reason for existence: Do not expose the internal CRD struct in the API.
-type AppChartSetting struct {
+type ChartSetting struct {
 	// Type of the setting (string, bool, number, or integer)
 	Type string `json:"type"`
 

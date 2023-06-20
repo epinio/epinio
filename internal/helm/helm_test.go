@@ -21,7 +21,7 @@ import (
 var _ = Describe("ValidateField()", func() {
 
 	It("is ok for unconstrained integer", func() {
-		val, err := ValidateField("field", "1", models.AppChartSetting{
+		val, err := ValidateField("field", "1", models.ChartSetting{
 			Type: "integer",
 		})
 		Expect(err).ToNot(HaveOccurred(), val)
@@ -29,7 +29,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for unconstrained number", func() {
-		val, err := ValidateField("field", "3.1415926", models.AppChartSetting{
+		val, err := ValidateField("field", "3.1415926", models.ChartSetting{
 			Type: "number",
 		})
 		Expect(err).ToNot(HaveOccurred(), val)
@@ -37,7 +37,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for unconstrained string", func() {
-		val, err := ValidateField("field", "hallodria", models.AppChartSetting{
+		val, err := ValidateField("field", "hallodria", models.ChartSetting{
 			Type: "string",
 		})
 		Expect(err).ToNot(HaveOccurred(), val)
@@ -45,7 +45,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for boolean", func() {
-		val, err := ValidateField("field", "true", models.AppChartSetting{
+		val, err := ValidateField("field", "true", models.ChartSetting{
 			Type: "bool",
 		})
 		Expect(err).ToNot(HaveOccurred(), val)
@@ -53,7 +53,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for constrained integer in range", func() {
-		val, err := ValidateField("field", "50", models.AppChartSetting{
+		val, err := ValidateField("field", "50", models.ChartSetting{
 			Type:    "integer",
 			Minimum: "0",
 			Maximum: "100",
@@ -63,7 +63,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for constrained number in range", func() {
-		val, err := ValidateField("field", "50", models.AppChartSetting{
+		val, err := ValidateField("field", "50", models.ChartSetting{
 			Type:    "number",
 			Minimum: "0",
 			Maximum: "100",
@@ -73,7 +73,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for constrained string in enum", func() {
-		val, err := ValidateField("field", "cat", models.AppChartSetting{
+		val, err := ValidateField("field", "cat", models.ChartSetting{
 			Type: "string",
 			Enum: []string{
 				"cat",
@@ -85,7 +85,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for unconstrained integer, enum ignored", func() {
-		val, err := ValidateField("field", "100", models.AppChartSetting{
+		val, err := ValidateField("field", "100", models.ChartSetting{
 			Type: "integer",
 			Enum: []string{
 				"cat",
@@ -97,7 +97,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for unconstrained number, enum ignored", func() {
-		val, err := ValidateField("field", "100", models.AppChartSetting{
+		val, err := ValidateField("field", "100", models.ChartSetting{
 			Type: "number",
 			Enum: []string{
 				"cat",
@@ -109,7 +109,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for unconstrained string, range ignored", func() {
-		val, err := ValidateField("field", "foo", models.AppChartSetting{
+		val, err := ValidateField("field", "foo", models.ChartSetting{
 			Type:    "string",
 			Minimum: "0",
 			Maximum: "100",
@@ -119,7 +119,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for unconstrained bool, range ignored", func() {
-		val, err := ValidateField("field", "false", models.AppChartSetting{
+		val, err := ValidateField("field", "false", models.ChartSetting{
 			Type:    "bool",
 			Minimum: "0",
 			Maximum: "100",
@@ -129,7 +129,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("is ok for unconstrained bool, enum ignored", func() {
-		val, err := ValidateField("field", "true", models.AppChartSetting{
+		val, err := ValidateField("field", "true", models.ChartSetting{
 			Type: "bool",
 			Enum: []string{
 				"cat",
@@ -141,7 +141,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("fails for an unknown field type", func() {
-		_, err := ValidateField("field", "dummy", models.AppChartSetting{
+		_, err := ValidateField("field", "dummy", models.ChartSetting{
 			Type: "foofara",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
@@ -149,7 +149,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("fails for an integer field with a bad minimum", func() {
-		_, err := ValidateField("field", "1", models.AppChartSetting{
+		_, err := ValidateField("field", "1", models.ChartSetting{
 			Type:    "integer",
 			Minimum: "hello",
 		})
@@ -158,7 +158,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("fails for an integer field with a bad maximum", func() {
-		_, err := ValidateField("field", "1", models.AppChartSetting{
+		_, err := ValidateField("field", "1", models.ChartSetting{
 			Type:    "integer",
 			Maximum: "hello",
 		})
@@ -167,7 +167,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("fails for a value out of range (< min)", func() {
-		_, err := ValidateField("field", "-2", models.AppChartSetting{
+		_, err := ValidateField("field", "-2", models.ChartSetting{
 			Type:    "integer",
 			Minimum: "0",
 		})
@@ -176,7 +176,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("fails for a value out of range (> max)", func() {
-		_, err := ValidateField("field", "1000", models.AppChartSetting{
+		_, err := ValidateField("field", "1000", models.ChartSetting{
 			Type:    "integer",
 			Maximum: "100",
 		})
@@ -185,7 +185,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("fails for a value out of range (not in enum)", func() {
-		_, err := ValidateField("field", "fox", models.AppChartSetting{
+		_, err := ValidateField("field", "fox", models.ChartSetting{
 			Type: "string",
 			Enum: []string{
 				"cat",
@@ -197,7 +197,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("fails for a non-integer value where integer required", func() {
-		_, err := ValidateField("field", "hound", models.AppChartSetting{
+		_, err := ValidateField("field", "hound", models.ChartSetting{
 			Type: "integer",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
@@ -205,7 +205,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("fails for a non-numeric value where numeric required", func() {
-		_, err := ValidateField("field", "hound", models.AppChartSetting{
+		_, err := ValidateField("field", "hound", models.ChartSetting{
 			Type: "number",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
@@ -213,7 +213,7 @@ var _ = Describe("ValidateField()", func() {
 	})
 
 	It("fails for a non-boolean value where boolean required", func() {
-		_, err := ValidateField("field", "hound", models.AppChartSetting{
+		_, err := ValidateField("field", "hound", models.ChartSetting{
 			Type: "bool",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())

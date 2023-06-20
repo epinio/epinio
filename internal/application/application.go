@@ -50,7 +50,7 @@ type JobLister interface {
 }
 
 // ValidateCV checks the custom values against the declarations. It reports as many issues as it can find.
-func ValidateCV(cv models.AppSettings, decl map[string]models.AppChartSetting) []error {
+func ValidateCV(cv models.AppSettings, decl map[string]models.ChartSetting) []error {
 	// See also internal/helm Deploy(). A last-minute check to catch any changes possibly
 	// landing in the time window between the check here and the actual deployment.
 

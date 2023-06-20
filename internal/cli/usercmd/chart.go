@@ -160,7 +160,7 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 	return nil
 }
 
-func details(spec models.AppChartSetting) string {
+func details(spec models.ChartSetting) string {
 	// Type expected to be in (string, bool, number, integer)
 	if spec.Type == "bool" {
 		return ""

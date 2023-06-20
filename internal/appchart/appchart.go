@@ -125,7 +125,7 @@ func toChart(chart *unstructured.Unstructured) (*models.AppChartFull, error) {
 		return nil, errors.New("spec settings should be map")
 	}
 
-	settings := make(map[string]models.AppChartSetting)
+	settings := make(map[string]models.ChartSetting)
 	for key := range theSettings {
 		fieldType, _, err := unstructured.NestedString(theSettings, key, "type")
 		if err != nil {
@@ -144,7 +144,7 @@ func toChart(chart *unstructured.Unstructured) (*models.AppChartFull, error) {
 			return nil, errors.New("settings enum should be string slice")
 		}
 
-		settings[key] = models.AppChartSetting{
+		settings[key] = models.ChartSetting{
 			Type:    fieldType,
 			Minimum: fieldMin,
 			Maximum: fieldMax,

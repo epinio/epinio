@@ -487,7 +487,7 @@ func cleanupReleaseIfNeeded(l logr.Logger, c hc.Client, name string) error {
 }
 
 // validateField checks a single custom value against its declaration.
-func ValidateField(key, value string, spec models.AppChartSetting) (interface{}, error) {
+func ValidateField(key, value string, spec models.ChartSetting) (interface{}, error) {
 	if spec.Type == "string" {
 		if len(spec.Enum) > 0 {
 			for _, allowed := range spec.Enum {
