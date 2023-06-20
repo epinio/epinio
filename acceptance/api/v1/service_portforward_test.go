@@ -16,10 +16,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/acceptance/helpers/epinio"
-	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gorilla/websocket"
@@ -28,22 +27,22 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ServicePortForward Endpoint", Label("ServicePortForward"), func() {
-	var epinioHelper epinio.Epinio
+var _ = FDescribe("ServicePortForward Endpoint", LService, func() {
 	var namespace string
 	var catalogService models.CatalogService
 
 	Context("With ensured namespace", func() {
+
 		BeforeEach(func() {
-			epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 			namespace = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespace)
-			catalogService = catalog.CreateCatalogServiceApache()
-		})
 
-		AfterEach(func() {
-			catalog.DeleteCatalogService(catalogService.Meta.Name)
-			env.DeleteNamespace(namespace)
+			catalogService = catalog.CreateCatalogServiceNginx()
+
+			DeferCleanup(func() {
+				catalog.DeleteCatalogService(catalogService.Meta.Name)
+				env.DeleteNamespace(namespace)
+			})
 		})
 
 		Context("With ensured service", func() {
@@ -51,14 +50,14 @@ var _ = Describe("ServicePortForward Endpoint", Label("ServicePortForward"), fun
 
 			BeforeEach(func() {
 				serviceName = catalog.NewServiceName()
-				By("Deploying Apache with service", func() {
-					out, err := epinioHelper.Run("service", "create", "apache-test", serviceName, "--wait")
-					Expect(err).ToNot(HaveOccurred(), out)
-				})
-			})
+				catalog.CreateService(serviceName, namespace, catalogService)
 
-			AfterEach(func() {
-				catalog.DeleteService(serviceName, namespace)
+				// wait for the service to be ready
+				time.Sleep(10 * time.Second)
+
+				DeferCleanup(func() {
+					catalog.DeleteService(serviceName, namespace)
+				})
 			})
 
 			It("tests the port-forward API", func() {
@@ -85,7 +84,8 @@ var _ = Describe("ServicePortForward Endpoint", Label("ServicePortForward"), fun
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
-				defer c.Close()
+				err = c.Close()
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 	})
