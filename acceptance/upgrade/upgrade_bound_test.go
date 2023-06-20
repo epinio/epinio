@@ -16,9 +16,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-
-	//"strings"
-	"time"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/epinio"
@@ -83,7 +81,7 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 				WithRow("Status", "deployed"),
 			),
 		)
-		// store the service route
+		// Store the service route
 		svcRouteRegexp := regexp.MustCompile(`\b(\w{29}-mysql)`)
 		svcRoute := string(svcRouteRegexp.Find([]byte(outValue)))
 		fmt.Fprintf(GinkgoWriter, "The service table content: %v\n", outValue)
@@ -121,8 +119,6 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 		By("Bind it")
 		out, err = env.Epinio("", "service", "bind", service, appName)
 		Expect(err).ToNot(HaveOccurred(), out)
-		// This should be done as Eventually block
-		time.Sleep(10 * time.Second)
 
 		By("Verify binding")
 		appShowOut, err := env.Epinio("", "app", "show", appName)
@@ -143,11 +139,13 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 
 			bodyBytes, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-			Expect(string(bodyBytes)).To(ContainSubstring("WordPress"))
 
-			return resp.StatusCode
-		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+			if resp.StatusCode == http.StatusOK && strings.Contains(string(bodyBytes), "WordPress") {
+				return resp.StatusCode
+			}
+
+			return 0
+		}, "1m", "5s").Should(Equal(http.StatusOK))
 
 		// Upgrade to current as found in checkout
 		epinioHelper.Upgrade()
@@ -159,7 +157,6 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 		// Restarting app
 		By("Restarting app")
 		out, err = env.Epinio("", "app", "restart", appName)
-		time.Sleep(15 * time.Second)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Check that the app is still reachable and expected page tile is reached
@@ -170,10 +167,12 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 
 			bodyBytes, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-			Expect(string(bodyBytes)).To(ContainSubstring("WordPress"))
 
-			return resp.StatusCode
-		}, "2m", "5s").Should(Equal(http.StatusOK))
+			if resp.StatusCode == http.StatusOK && strings.Contains(string(bodyBytes), "WordPress") {
+				return resp.StatusCode
+			}
+
+			return 0
+		}, "1m", "5s").Should(Equal(http.StatusOK))
 	})
 })
