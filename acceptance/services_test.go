@@ -18,7 +18,6 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"os/exec"
 	"strconv"
 	"time"
 
@@ -985,7 +984,7 @@ var _ = Describe("Services", LService, func() {
 		})
 	})
 
-	FDescribe("Port-forward", func() {
+	Describe("Port-forward", func() {
 
 		var namespace, serviceName string
 
@@ -1027,78 +1026,74 @@ var _ = Describe("Services", LService, func() {
 			Expect(string(body)).To(ContainSubstring("Welcome to nginx!"))
 		}
 
-		Context("port-forwarding", func() {
-			var cmd *exec.Cmd
+		It("port-forward a service with a single listening port", func() {
+			port := randomPort()
 
-			It("port-forward a service with a single listening port", func() {
-				port := randomPort()
+			By("Forwarding on port " + port)
+			cmd := env.EpinioCmd("service", "port-forward", serviceName, port)
 
-				By("Forwarding on port " + port)
-				cmd = env.EpinioCmd("service", "port-forward", serviceName, port)
+			go func() {
+				defer GinkgoRecover()
+				cmd.Run()
+			}()
 
-				go func() {
-					defer GinkgoRecover()
-					cmd.Run()
-				}()
-
-				DeferCleanup(func() {
-					err := cmd.Process.Kill()
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				// wait for the service to be ready
-				time.Sleep(10 * time.Second)
-
-				executePortForwardRequest("localhost", port)
+			DeferCleanup(func() {
+				err := cmd.Process.Kill()
+				Expect(err).ToNot(HaveOccurred())
 			})
 
-			It("port-forward a service with multiple listening ports", func() {
-				port1, port2 := randomPort(), randomPort()
+			// wait for the service to be ready
+			time.Sleep(10 * time.Second)
 
-				By(fmt.Sprintf("Forwarding on port %s and %s", port1, port2))
-				cmd = env.EpinioCmd("service", "port-forward", serviceName, port1, port2)
+			executePortForwardRequest("localhost", port)
+		})
 
-				go func() {
-					defer GinkgoRecover()
-					cmd.Run()
-				}()
+		It("port-forward a service with multiple listening ports", func() {
+			port1, port2 := randomPort(), randomPort()
 
-				DeferCleanup(func() {
-					err := cmd.Process.Kill()
-					Expect(err).ToNot(HaveOccurred())
-				})
+			By(fmt.Sprintf("Forwarding on port %s and %s", port1, port2))
+			cmd := env.EpinioCmd("service", "port-forward", serviceName, port1, port2)
 
-				// wait for the service to be ready
-				time.Sleep(10 * time.Second)
+			go func() {
+				defer GinkgoRecover()
+				cmd.Run()
+			}()
 
-				executePortForwardRequest("localhost", port1)
-				executePortForwardRequest("localhost", port2)
+			DeferCleanup(func() {
+				err := cmd.Process.Kill()
+				Expect(err).ToNot(HaveOccurred())
 			})
 
-			It("port-forward a service with multiple listening ports and multiple addresses", func() {
-				port1, port2 := randomPort(), randomPort()
+			// wait for the service to be ready
+			time.Sleep(10 * time.Second)
 
-				By(fmt.Sprintf("Forwarding on port %s and %s", port1, port2))
-				cmd = env.EpinioCmd("service", "port-forward", serviceName, port1, port2, "--address", "localhost,127.0.0.1")
+			executePortForwardRequest("localhost", port1)
+			executePortForwardRequest("localhost", port2)
+		})
 
-				go func() {
-					defer GinkgoRecover()
-					cmd.Run()
-				}()
+		It("port-forward a service with multiple listening ports and multiple addresses", func() {
+			port1, port2 := randomPort(), randomPort()
 
-				DeferCleanup(func() {
-					err := cmd.Process.Kill()
-					Expect(err).ToNot(HaveOccurred())
-				})
+			By(fmt.Sprintf("Forwarding on port %s and %s", port1, port2))
+			cmd := env.EpinioCmd("service", "port-forward", serviceName, port1, port2, "--address", "localhost,127.0.0.1")
 
-				// wait for the service to be ready
-				time.Sleep(10 * time.Second)
+			go func() {
+				defer GinkgoRecover()
+				cmd.Run()
+			}()
 
-				executePortForwardRequest("localhost", port1)
-				executePortForwardRequest("127.0.0.1", port1)
-				executePortForwardRequest("localhost", port2)
-				executePortForwardRequest("127.0.0.1", port2)
+			DeferCleanup(func() {
+				err := cmd.Process.Kill()
+				Expect(err).ToNot(HaveOccurred())
 			})
+
+			// wait for the service to be ready
+			time.Sleep(10 * time.Second)
+
+			executePortForwardRequest("localhost", port1)
+			executePortForwardRequest("127.0.0.1", port1)
+			executePortForwardRequest("localhost", port2)
+			executePortForwardRequest("127.0.0.1", port2)
 		})
 
 		Context("command completion", func() {
