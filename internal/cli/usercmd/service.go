@@ -56,7 +56,7 @@ func (c *EpinioClient) ServiceCatalog() error {
 }
 
 // ServiceCatalogShow shows a service
-func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
+func (c *EpinioClient) ServiceCatalogShow(ctx context.Context, serviceName string) error {
 	log := c.Log.WithName("ServiceCatalog")
 	log.Info("start")
 	defer log.Info("return")
@@ -76,7 +76,11 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 		WithTableRow("Version", catalogService.AppVersion).
 		WithTableRow("Short Description", catalogService.ShortDescription).
 		WithTableRow("Description", catalogService.Description).
+		WithTableRow("Helm Repository", catalogService.HelmRepo.URL).
+		WithTableRow("Helm Chart", catalogService.HelmChart).
 		Msg("Epinio Service:")
+
+	c.ChartSettingsShow(ctx, catalogService.Settings)
 
 	return nil
 }

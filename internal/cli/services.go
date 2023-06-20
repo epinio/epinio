@@ -60,7 +60,7 @@ var CmdServiceCatalog = &cobra.Command{
 
 		if len(args) == 1 {
 			serviceName := args[0]
-			err := client.ServiceCatalogShow(serviceName)
+			err := client.ServiceCatalogShow(cmd.Context(), serviceName)
 			return errors.Wrap(err, fmt.Sprintf("error showing %s Epinio catalog service", serviceName))
 		}
 
