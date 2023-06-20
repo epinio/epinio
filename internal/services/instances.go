@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -156,8 +157,7 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, wait
 		return errors.Wrap(err, "error creating service secret")
 	}
 
-	catalogService.Values += concatenateCatalogServiceValues(name)
-
+	catalogService.Values += fixedCatalogServiceValues(name, catalogService.Meta.Name)
 	err = helm.DeployService(
 		ctx,
 		helm.ServiceParameters{
@@ -537,22 +537,25 @@ func convertUnstructuredListIntoHelmCharts(unstructuredList *unstructured.Unstru
 	return helmChartList, nil
 }
 
-func concatenateCatalogServiceValues(name string) string {
+func fixedCatalogServiceValues(serviceName, catalogServiceName string) string {
 
 	type FixedValues struct {
-		ServiceName string `json:"serviceName,omitempty"`
+		ServiceName        string `yaml:"serviceName,omitempty"`
+		CatalogServiceName string `yaml:"catalogServiceName,omitempty"`
 	}
 
-	var fixedValues FixedValues
-	var builder strings.Builder
+	fixedValues := FixedValues{
+		ServiceName:        serviceName,
+		CatalogServiceName: catalogServiceName,
+	}
 
-	fixedValues.ServiceName = name
+	yamlData, err := yaml.Marshal(&fixedValues)
+	if err != nil {
+		return ""
+	}
 
-	// Build the concatenated string
-	builder.WriteString("\nserviceName: ")
-	builder.WriteString(fixedValues.ServiceName)
-	builder.WriteString("\n")
+	yamlString := "\n" + string(yamlData)
 
-	// Return the resulting concatenated string
-	return builder.String()
+	// Return the fixed values
+	return yamlString
 }
