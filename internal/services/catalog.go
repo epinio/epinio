@@ -87,6 +87,11 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 		return nil, errors.Wrap(err, "error converting catalog service")
 	}
 
+	settings, err := helmchart.SettingsToChart(&unstructured)
+	if err != nil {
+		return nil, err
+	}
+
 	secretTypes := []string{}
 	secretTypesAnnotationValue := catalogService.GetAnnotations()[CatalogServiceSecretTypesAnnotation]
 	if len(secretTypesAnnotationValue) > 0 {
@@ -109,6 +114,7 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 			Name: catalogService.Spec.HelmRepo.Name,
 			URL:  catalogService.Spec.HelmRepo.URL,
 		},
-		Values: catalogService.Spec.Values,
+		Values:   catalogService.Spec.Values,
+		Settings: settings,
 	}, nil
 }
