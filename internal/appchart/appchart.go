@@ -117,12 +117,12 @@ func toChart(chart *unstructured.Unstructured) (*models.AppChartFull, error) {
 
 	theValues, _, err := unstructured.NestedStringMap(chart.UnstructuredContent(), "spec", "values")
 	if err != nil {
-		return nil, errors.New("spec values should be string")
+		return nil, errors.New("spec values should be map")
 	}
 
 	theSettings, _, err := unstructured.NestedMap(chart.UnstructuredContent(), "spec", "settings")
 	if err != nil {
-		return nil, errors.New("spec settings should be string")
+		return nil, errors.New("spec settings should be map")
 	}
 
 	settings := make(map[string]models.AppChartSetting)
