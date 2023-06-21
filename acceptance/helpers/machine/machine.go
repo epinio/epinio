@@ -125,14 +125,16 @@ func (m *Machine) SetupAndTargetNamespace(namespace string) {
 }
 
 func (m *Machine) DeleteNamespace(namespace string) {
+	GinkgoHelper()
+
 	By(fmt.Sprintf("deleting a namespace: %s", namespace))
 
 	out, err := m.Epinio("", "namespace", "delete", "-f", namespace)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 
-	out, err = m.Epinio("", "namespace", "show", namespace)
-	ExpectWithOffset(1, err).To(HaveOccurred())
-	ExpectWithOffset(1, out).To(MatchRegexp(".*Not Found: namespace '" + namespace + "' does not exist.*"))
+	out, err = proc.Kubectl("get", "namespace", namespace)
+	Expect(err).To(HaveOccurred())
+	Expect(out).To(ContainSubstring("not found"))
 }
 
 func (m *Machine) VerifyNamespaceNotExist(namespace string) {

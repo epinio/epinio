@@ -146,7 +146,7 @@ func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
 
 			// Check that a custom catalog entry is visible
 			By("Create custom catalog entry pre-upgrade")
-			catalog.CreateCatalogService(catalog.NginxCatalogService(beforeCatalog))
+			catalog.CreateCatalogService(catalog.NginxCatalogService(beforeCatalog, ""))
 			out, err = env.Epinio("", "service", "catalog")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring(beforeCatalog))
@@ -209,7 +209,7 @@ func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
 			env.MakeServiceInstance(afterService, catentry)
 
 			By("Create custom catalog entry post-upgrade")
-			catalog.CreateCatalogService(catalog.NginxCatalogService(afterCatalog))
+			catalog.CreateCatalogService(catalog.NginxCatalogService(afterCatalog, ""))
 			out, err = env.Epinio("", "service", "catalog")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring(afterCatalog))

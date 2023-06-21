@@ -14,6 +14,7 @@ package catalog
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 
@@ -30,7 +31,24 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func NginxCatalogService(name string) models.CatalogService {
+func NginxCatalogService(name, hostname string) models.CatalogService {
+	values := `{"service": {"type": "ClusterIP"}}`
+
+	if hostname != "" {
+		values = fmt.Sprintf(
+			`{
+				"service": {
+					"type": "ClusterIP"
+				},
+				"ingress": {
+					"enabled": true,
+					"hostname":"%s"
+				}
+			}`,
+			hostname,
+		)
+	}
+
 	return models.CatalogService{
 		Meta: models.MetaLite{
 			Name: name,
@@ -40,34 +58,12 @@ func NginxCatalogService(name string) models.CatalogService {
 			Name: "",
 			URL:  "https://charts.bitnami.com/bitnami",
 		},
-		Values: "{'service': {'type': 'ClusterIP'}}",
+		Values: values,
 	}
 }
 
 func CreateCatalogServiceNginx() models.CatalogService {
-	catalogService := NginxCatalogService(NewCatalogServiceName())
-
-	CreateCatalogService(catalogService)
-
-	return catalogService
-}
-
-func ApacheCatalogService(name string) models.CatalogService {
-	return models.CatalogService{
-		Meta: models.MetaLite{
-			Name: name,
-		},
-		HelmChart: "apache",
-		HelmRepo: models.HelmRepo{
-			Name: "",
-			URL:  "https://charts.bitnami.com/bitnami",
-		},
-		Values: "{'service': {'type': 'ClusterIP'}}",
-	}
-}
-
-func CreateCatalogServiceApache() models.CatalogService {
-	catalogService := ApacheCatalogService("apache-test")
+	catalogService := NginxCatalogService(NewCatalogServiceName(), "")
 
 	CreateCatalogService(catalogService)
 

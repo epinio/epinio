@@ -16,9 +16,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/acceptance/helpers/epinio"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -28,22 +28,33 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ServicePortForward Endpoint", Label("ServicePortForward"), func() {
-	var epinioHelper epinio.Epinio
+var _ = Describe("ServicePortForward Endpoint", LService, func() {
 	var namespace string
+
 	var catalogService models.CatalogService
+	var catalogServiceURL string
 
 	Context("With ensured namespace", func() {
+
 		BeforeEach(func() {
-			epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 			namespace = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespace)
-			catalogService = catalog.CreateCatalogServiceApache()
-		})
 
-		AfterEach(func() {
-			catalog.DeleteCatalogService(catalogService.Meta.Name)
-			env.DeleteNamespace(namespace)
+			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+			Expect(err).ToNot(HaveOccurred())
+
+			catalogServiceName := catalog.NewCatalogServiceName()
+			catalogServiceHostname := strings.Replace(settings.API, `https://epinio`, catalogServiceName, 1)
+
+			catalogService = catalog.NginxCatalogService(catalogServiceName, catalogServiceHostname)
+			catalog.CreateCatalogService(catalogService)
+
+			catalogServiceURL = "http://" + catalogServiceHostname
+
+			DeferCleanup(func() {
+				catalog.DeleteCatalogService(catalogService.Meta.Name)
+				env.DeleteNamespace(namespace)
+			})
 		})
 
 		Context("With ensured service", func() {
@@ -51,14 +62,18 @@ var _ = Describe("ServicePortForward Endpoint", Label("ServicePortForward"), fun
 
 			BeforeEach(func() {
 				serviceName = catalog.NewServiceName()
-				By("Deploying Apache with service", func() {
-					out, err := epinioHelper.Run("service", "create", "apache-test", serviceName, "--wait")
-					Expect(err).ToNot(HaveOccurred(), out)
-				})
-			})
+				catalog.CreateService(serviceName, namespace, catalogService)
 
-			AfterEach(func() {
-				catalog.DeleteService(serviceName, namespace)
+				// wait for the service to be ready
+				Eventually(func() int {
+					resp, err := http.Get(catalogServiceURL)
+					Expect(err).ToNot(HaveOccurred())
+					return resp.StatusCode
+				}, "1m", "1s").Should(Equal(http.StatusOK))
+
+				DeferCleanup(func() {
+					catalog.DeleteService(serviceName, namespace)
+				})
 			})
 
 			It("tests the port-forward API", func() {
@@ -85,7 +100,8 @@ var _ = Describe("ServicePortForward Endpoint", Label("ServicePortForward"), fun
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
-				defer c.Close()
+				err = c.Close()
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 	})
