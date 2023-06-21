@@ -49,9 +49,9 @@ var _ = Describe("<Upgrade1> Epinio upgrade with running app", func() {
 
 	AfterEach(func() {
 		// After upgrade ...
-		env.DeleteApp(appName)
-		env.DeleteApp(appAfter)
-		env.DeleteService(service)
+		// env.DeleteApp(appName)
+		// env.DeleteApp(appAfter)
+		// env.DeleteService(service)
 		env.DeleteNamespace(namespace)
 	})
 
