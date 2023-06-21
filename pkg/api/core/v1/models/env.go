@@ -11,7 +11,7 @@
 
 package models
 
-// __ATTENTION__ Functionally identical to AppSettings, AppSettingList
+// __ATTENTION__ Functionally identical to CVSettings, CVSettingList
 // Identical structures
 
 import (

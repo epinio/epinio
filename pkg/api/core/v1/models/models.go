@@ -190,7 +190,7 @@ type ApplicationUpdateRequest struct {
 	Environment    EnvVariableMap `json:"environment"        yaml:"environment,omitempty"`
 	Routes         []string       `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string         `json:"appchart,omitempty" yaml:"appchart,omitempty"`
-	Settings       AppSettings    `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Settings       CVSettings     `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
 
 type ImportGitResponse struct {
