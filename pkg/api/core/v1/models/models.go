@@ -302,9 +302,10 @@ type CatalogMatchResponse struct {
 }
 
 type ServiceCreateRequest struct {
-	CatalogService string `json:"catalog_service,omitempty"`
-	Name           string `json:"name,omitempty"`
-	Wait           bool   `json:"wait,omitempty"`
+	CatalogService string     `json:"catalog_service,omitempty"`
+	Name           string     `json:"name,omitempty"`
+	Wait           bool       `json:"wait,omitempty"`
+	Settings       CVSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
 
 // CatalogService mostly matches github.com/epinio/application/api/v1 ServiceSpec

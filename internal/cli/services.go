@@ -13,7 +13,9 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -43,6 +45,8 @@ func init() {
 	CmdServices.AddCommand(CmdServiceDelete)
 	CmdServices.AddCommand(CmdServiceList)
 	CmdServices.AddCommand(CmdServicePortForward)
+
+	chartValueOption(CmdServiceCreate)
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -81,10 +85,23 @@ var CmdServiceCreate = &cobra.Command{
 			return errors.Wrap(err, "error reading option --wait")
 		}
 
+		cvAssignments, err := cmd.Flags().GetStringSlice("chart-value")
+		if err != nil {
+			return errors.Wrap(err, "failed to read option --chart-value")
+		}
+		chartValues := models.CVSettings{}
+		for _, assignment := range cvAssignments {
+			pieces := strings.SplitN(assignment, "=", 2)
+			if len(pieces) < 2 {
+				return errors.New("Bad --chart-value `" + assignment + "`, expected `name=value` as value")
+			}
+			chartValues[pieces[0]] = pieces[1]
+		}
+
 		catalogServiceName := args[0]
 		serviceName := args[1]
 
-		err = client.ServiceCreate(catalogServiceName, serviceName, wait)
+		err = client.ServiceCreate(catalogServiceName, serviceName, wait, chartValues)
 		return errors.Wrap(err, "error creating service")
 	},
 }
