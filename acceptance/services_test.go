@@ -19,10 +19,11 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -36,9 +37,19 @@ const mysqlVersion = "8.0.31" // Doesn't change too often
 
 var _ = Describe("Services", LService, func() {
 	var catalogService models.CatalogService
+	var catalogServiceURL string
 
 	BeforeEach(func() {
-		catalogService = catalog.CreateCatalogServiceNginx()
+		settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+		Expect(err).ToNot(HaveOccurred())
+
+		catalogServiceName := catalog.NewCatalogServiceName()
+		catalogServiceHostname := strings.Replace(settings.API, `https://epinio`, catalogServiceName, 1)
+
+		catalogService = catalog.NginxCatalogService(catalogServiceName, catalogServiceHostname)
+		catalog.CreateCatalogService(catalogService)
+
+		catalogServiceURL = "http://" + catalogServiceHostname
 	})
 
 	AfterEach(func() {
@@ -992,13 +1003,15 @@ var _ = Describe("Services", LService, func() {
 			namespace = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespace)
 
-			catalogService = catalog.CreateCatalogServiceNginx()
-
 			serviceName = catalog.NewServiceName()
 			catalog.CreateService(serviceName, namespace, catalogService)
 
 			// wait for the service to be ready
-			time.Sleep(10 * time.Second)
+			Eventually(func() int {
+				resp, err := http.Get(catalogServiceURL)
+				Expect(err).ToNot(HaveOccurred())
+				return resp.StatusCode
+			}, "1m", "1s").Should(Equal(http.StatusOK))
 
 			DeferCleanup(func() {
 				catalog.DeleteService(serviceName, namespace)
@@ -1011,8 +1024,14 @@ var _ = Describe("Services", LService, func() {
 		}
 
 		executePortForwardRequest := func(host, port string) {
-			conn, err := net.Dial("tcp", host+":"+port)
-			Expect(err).ToNot(HaveOccurred())
+			var conn net.Conn
+
+			// try to open the connection (we retry to wait for the tunnel to be ready)
+			Eventually(func() error {
+				var dialErr error
+				conn, dialErr = net.Dial("tcp", host+":"+port)
+				return dialErr
+			}, "10s", "1s").ShouldNot(HaveOccurred())
 
 			req, _ := http.NewRequest(http.MethodGet, "http://localhost", nil)
 			Expect(req.Write(conn)).ToNot(HaveOccurred())
@@ -1030,20 +1049,15 @@ var _ = Describe("Services", LService, func() {
 			port := randomPort()
 
 			By("Forwarding on port " + port)
-			cmd := env.EpinioCmd("service", "port-forward", serviceName, port)
 
-			go func() {
-				defer GinkgoRecover()
-				cmd.Run()
-			}()
+			cmd := env.EpinioCmd("service", "port-forward", serviceName, port)
+			err := cmd.Start()
+			Expect(err).ToNot(HaveOccurred())
 
 			DeferCleanup(func() {
 				err := cmd.Process.Kill()
 				Expect(err).ToNot(HaveOccurred())
 			})
-
-			// wait for the service to be ready
-			time.Sleep(10 * time.Second)
 
 			executePortForwardRequest("localhost", port)
 		})
@@ -1052,20 +1066,15 @@ var _ = Describe("Services", LService, func() {
 			port1, port2 := randomPort(), randomPort()
 
 			By(fmt.Sprintf("Forwarding on port %s and %s", port1, port2))
-			cmd := env.EpinioCmd("service", "port-forward", serviceName, port1, port2)
 
-			go func() {
-				defer GinkgoRecover()
-				cmd.Run()
-			}()
+			cmd := env.EpinioCmd("service", "port-forward", serviceName, port1, port2)
+			err := cmd.Start()
+			Expect(err).ToNot(HaveOccurred())
 
 			DeferCleanup(func() {
 				err := cmd.Process.Kill()
 				Expect(err).ToNot(HaveOccurred())
 			})
-
-			// wait for the service to be ready
-			time.Sleep(10 * time.Second)
 
 			executePortForwardRequest("localhost", port1)
 			executePortForwardRequest("localhost", port2)
@@ -1075,20 +1084,15 @@ var _ = Describe("Services", LService, func() {
 			port1, port2 := randomPort(), randomPort()
 
 			By(fmt.Sprintf("Forwarding on port %s and %s", port1, port2))
-			cmd := env.EpinioCmd("service", "port-forward", serviceName, port1, port2, "--address", "localhost,127.0.0.1")
 
-			go func() {
-				defer GinkgoRecover()
-				cmd.Run()
-			}()
+			cmd := env.EpinioCmd("service", "port-forward", serviceName, port1, port2, "--address", "localhost,127.0.0.1")
+			err := cmd.Start()
+			Expect(err).ToNot(HaveOccurred())
 
 			DeferCleanup(func() {
 				err := cmd.Process.Kill()
 				Expect(err).ToNot(HaveOccurred())
 			})
-
-			// wait for the service to be ready
-			time.Sleep(10 * time.Second)
 
 			executePortForwardRequest("localhost", port1)
 			executePortForwardRequest("127.0.0.1", port1)
