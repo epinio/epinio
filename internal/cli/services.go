@@ -47,6 +47,9 @@ func init() {
 	CmdServices.AddCommand(CmdServicePortForward)
 
 	chartValueOption(CmdServiceCreate)
+	err := CmdServiceCreate.RegisterFlagCompletionFunc("chart-value",
+		matchingServiceChartValueFinder)
+	checkErr(err)
 }
 
 var CmdServiceCatalog = &cobra.Command{
