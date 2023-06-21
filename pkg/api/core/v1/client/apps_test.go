@@ -12,9 +12,72 @@
 package client_test
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+
+	"github.com/epinio/epinio/internal/cli/settings"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Client Apps unit tests", func() {
+var _ = Describe("Client Apps", func() {
 	Describe("AppRestart", DescribeAppRestart)
+	Describe("Apps Errors", DescribeAppsErrors)
 })
+
+func DescribeAppsErrors() {
+
+	var epinioClient *client.Client
+	var statusCode int
+	var responseBody string
+
+	JustBeforeEach(func() {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(statusCode)
+			fmt.Fprint(w, responseBody)
+		}))
+
+		epinioClient = client.New(context.Background(), &settings.Settings{API: srv.URL})
+	})
+
+	When("a 500 status code and a JSON error was returned", func() {
+
+		BeforeEach(func() {
+			statusCode = 500
+			responseBody = `{
+					"errors": [
+						{
+							"status": 500,
+							"title": "Error title",
+							"details": "something bad happened"
+						}
+					]
+				}`
+		})
+
+		DescribeTable("the APIs are returning an error",
+			func(call func() (any, error)) {
+				_, err := call()
+				Expect(err).To(HaveOccurred())
+			},
+			Entry("apps", func() (any, error) {
+				return epinioClient.Apps("namespace")
+			}),
+			Entry("all apps", func() (any, error) {
+				return epinioClient.AllApps()
+			}),
+			Entry("app show", func() (any, error) {
+				return epinioClient.AppShow("namespace", "appname")
+			}),
+			Entry("app match", func() (any, error) {
+				return epinioClient.AppMatch("namespace", "appprefix")
+			}),
+			Entry("app validate CV", func() (any, error) {
+				return epinioClient.AppValidateCV("namespace", "appname")
+			}),
+		)
+	})
+}
