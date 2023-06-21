@@ -157,7 +157,13 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, wait
 		return errors.Wrap(err, "error creating service secret")
 	}
 
-	catalogService.Values += fixedCatalogServiceValues(name, catalogService.Meta.Name)
+	epinioValues, err := getEpinioValues(name, catalogService.Meta.Name)
+	if err != nil {
+		logger := tracelog.NewLogger().WithName("Create")
+		logger.Error(err, "getting epinio values")
+	}
+	catalogService.Values += epinioValues
+
 	err = helm.DeployService(
 		ctx,
 		helm.ServiceParameters{
@@ -537,25 +543,27 @@ func convertUnstructuredListIntoHelmCharts(unstructuredList *unstructured.Unstru
 	return helmChartList, nil
 }
 
-func fixedCatalogServiceValues(serviceName, catalogServiceName string) string {
+func getEpinioValues(serviceName, catalogServiceName string) (string, error) {
+	//epinio:
+	//  serviceName: serviceName
+	//  catalogServiceName: catalogServiceName
 
-	type FixedValues struct {
+	type epinioValues struct {
 		ServiceName        string `yaml:"serviceName,omitempty"`
 		CatalogServiceName string `yaml:"catalogServiceName,omitempty"`
 	}
 
-	fixedValues := FixedValues{
+	extraValues := epinioValues{
 		ServiceName:        serviceName,
 		CatalogServiceName: catalogServiceName,
 	}
 
-	yamlData, err := yaml.Marshal(&fixedValues)
+	yamlData, err := yaml.Marshal(&struct {
+		Epinio epinioValues `yaml:"epinio,omitempty"`
+	}{extraValues})
 	if err != nil {
-		return ""
+		return "", err
 	}
 
-	yamlString := "\n" + string(yamlData)
-
-	// Return the fixed values
-	return yamlString
+	return "\n" + string(yamlData), nil
 }
