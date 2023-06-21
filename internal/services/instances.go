@@ -29,7 +29,9 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
+	"helm.sh/helm/v3/pkg/chartutil"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v3/pkg/strvals"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -130,7 +132,8 @@ func GetInternalRoutes(ctx context.Context, servicesGetter v1.ServiceInterface, 
 	return internalRoutes, nil
 }
 
-func (s *ServiceClient) Create(ctx context.Context, namespace, name string, wait bool, catalogService models.CatalogService) error {
+func (s *ServiceClient) Create(ctx context.Context, namespace, name string,
+	wait bool, settings models.CVSettings, catalogService models.CatalogService) error {
 	// Resources, and names
 	//
 	// |Kind	|Name		|Notes			|
@@ -162,7 +165,37 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, wait
 		logger := tracelog.NewLogger().WithName("Create")
 		logger.Error(err, "getting epinio values")
 	}
-	catalogService.Values += epinioValues
+
+	// Ingest the service class YAML data into a proper values table
+	classValues, err := chartutil.ReadValues([]byte(catalogService.Values + epinioValues))
+	if err != nil {
+		return errors.Wrap(err, "failed to read service class values")
+	}
+
+	// Create proper values table from the --chart-value option data
+	userValues := chartutil.Values{}
+	for key, value := range settings {
+		err := strvals.ParseInto(key+"="+value, userValues)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse `"+key+"="+value+"`")
+		}
+	}
+
+	// Merge class and user values, then serialize back to YAML.
+	//
+	// NOTE: Class values have priority over user values, under the assumption that these are
+	// needed to (1) have the service chart working with Epinio (*), or (2) are chosen by the
+	// operator for their environment.
+	//
+	// (*) See the `extraDeploy` setting found in dev service classes.
+	//
+	// ATTENTION: This priority order is reversed from what is said in the application CRD PR.
+	// FIX:       application CRD PR to match here.
+
+	values, err := chartutil.Values(chartutil.CoalesceTables(classValues, userValues)).YAML()
+	if err != nil {
+		return errors.Wrap(err, "failed to merge class and user values")
+	}
 
 	err = helm.DeployService(
 		ctx,
@@ -172,7 +205,7 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, wait
 			Chart:      catalogService.HelmChart,
 			Version:    catalogService.ChartVersion,
 			Repository: catalogService.HelmRepo.URL,
-			Values:     catalogService.Values,
+			Values:     values,
 			Wait:       wait,
 		})
 

@@ -79,7 +79,8 @@ func Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Now we can (attempt to) create the desired service
-	err = kubeServiceClient.Create(ctx, namespace, createRequest.Name, createRequest.Wait, *catalogService)
+	err = kubeServiceClient.Create(ctx, namespace, createRequest.Name, createRequest.Wait,
+		createRequest.Settings, *catalogService)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
