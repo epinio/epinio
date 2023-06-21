@@ -349,7 +349,7 @@ var _ = Describe("Services", LService, func() {
 			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
 
-		FIt("list only the services in the user namespace", func() {
+		It("list only the services in the user namespace", func() {
 			By("create them in different namespaces")
 
 			// impersonate user1 and target namespace1
