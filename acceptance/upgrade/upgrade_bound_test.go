@@ -49,8 +49,6 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 	AfterEach(func() {
 		if !CurrentSpecReport().Failed() {
 			// After upgrade ...
-			env.DeleteApp(appName)
-			env.DeleteService(service)
 			env.DeleteNamespace(namespace)
 		}
 	})
