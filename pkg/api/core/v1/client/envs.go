@@ -22,20 +22,10 @@ import (
 
 // EnvList returns a map of all env vars for an app
 func (c *Client) EnvList(namespace string, appName string) (models.EnvVariableMap, error) {
-	var resp models.EnvVariableMap
+	response := models.EnvVariableMap{}
+	endpoint := api.Routes.Path("EnvList", namespace, appName)
 
-	data, err := c.get(api.Routes.Path("EnvList", namespace, appName))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // EnvSet set env vars for an app
@@ -63,20 +53,10 @@ func (c *Client) EnvSet(req models.EnvVariableMap, namespace string, appName str
 
 // EnvShow shows an env variable
 func (c *Client) EnvShow(namespace string, appName string, envName string) (models.EnvVariable, error) {
-	resp := models.EnvVariable{}
+	response := models.EnvVariable{}
+	endpoint := api.Routes.Path("EnvShow", namespace, appName, envName)
 
-	data, err := c.get(api.Routes.Path("EnvShow", namespace, appName, envName))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // EnvUnset removes an env var
@@ -99,18 +79,8 @@ func (c *Client) EnvUnset(namespace string, appName string, envName string) (mod
 
 // EnvMatch returns all env vars matching the prefix
 func (c *Client) EnvMatch(namespace string, appName string, prefix string) (models.EnvMatchResponse, error) {
-	resp := models.EnvMatchResponse{}
+	response := models.EnvMatchResponse{}
+	endpoint := api.Routes.Path("EnvMatch", namespace, appName, prefix)
 
-	data, err := c.get(api.Routes.Path("EnvMatch", namespace, appName, prefix))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
