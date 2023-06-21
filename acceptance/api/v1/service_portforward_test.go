@@ -16,9 +16,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gorilla/websocket"
@@ -27,9 +28,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("ServicePortForward Endpoint", LService, func() {
+var _ = Describe("ServicePortForward Endpoint", LService, func() {
 	var namespace string
+
 	var catalogService models.CatalogService
+	var catalogServiceURL string
 
 	Context("With ensured namespace", func() {
 
@@ -37,7 +40,16 @@ var _ = FDescribe("ServicePortForward Endpoint", LService, func() {
 			namespace = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespace)
 
-			catalogService = catalog.CreateCatalogServiceNginx()
+			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+			Expect(err).ToNot(HaveOccurred())
+
+			catalogServiceName := catalog.NewCatalogServiceName()
+			catalogServiceHostname := strings.Replace(settings.API, `https://epinio`, catalogServiceName, 1)
+
+			catalogService = catalog.NginxCatalogService(catalogServiceName, catalogServiceHostname)
+			catalog.CreateCatalogService(catalogService)
+
+			catalogServiceURL = "http://" + catalogServiceHostname
 
 			DeferCleanup(func() {
 				catalog.DeleteCatalogService(catalogService.Meta.Name)
@@ -53,7 +65,11 @@ var _ = FDescribe("ServicePortForward Endpoint", LService, func() {
 				catalog.CreateService(serviceName, namespace, catalogService)
 
 				// wait for the service to be ready
-				time.Sleep(10 * time.Second)
+				Eventually(func() int {
+					resp, err := http.Get(catalogServiceURL)
+					Expect(err).ToNot(HaveOccurred())
+					return resp.StatusCode
+				}, "1m", "1s").Should(Equal(http.StatusOK))
 
 				DeferCleanup(func() {
 					catalog.DeleteService(serviceName, namespace)
