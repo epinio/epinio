@@ -12,7 +12,6 @@
 package cli
 
 import (
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -40,18 +39,13 @@ var CmdAppChartDefault = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		if len(args) == 1 {
-			err = client.ChartDefaultSet(cmd.Context(), args[0])
+			err := client.ChartDefaultSet(cmd.Context(), args[0])
 			if err != nil {
 				return errors.Wrap(err, "error setting app chart default")
 			}
 		} else {
-			err = client.ChartDefaultShow(cmd.Context())
+			err := client.ChartDefaultShow(cmd.Context())
 			if err != nil {
 				return errors.Wrap(err, "error showing app chart default")
 			}
@@ -70,12 +64,7 @@ var CmdAppChartList = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.ChartList(cmd.Context())
+		err := client.ChartList(cmd.Context())
 		if err != nil {
 			return errors.Wrap(err, "error listing app charts")
 		}
@@ -93,12 +82,7 @@ var CmdAppChartShow = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.ChartShow(cmd.Context(), args[0])
+		err := client.ChartShow(cmd.Context(), args[0])
 		if err != nil {
 			return errors.Wrap(err, "error showing app chart")
 		}

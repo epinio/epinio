@@ -12,7 +12,6 @@
 package cli
 
 import (
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/manifest"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
@@ -86,11 +85,6 @@ var CmdAppList = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		all, err := cmd.Flags().GetBool("all")
 		if err != nil {
 			return errors.Wrap(err, "error reading option --all")
@@ -109,11 +103,6 @@ var CmdAppCreate = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
 
 		m, err := manifest.UpdateICE(models.ApplicationManifest{}, cmd)
 		if err != nil {
@@ -145,12 +134,7 @@ var CmdAppShow = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.AppShow(args[0])
+		err := client.AppShow(args[0])
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error showing app")
 	},
@@ -165,12 +149,7 @@ var CmdAppExport = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.AppExport(args[0], args[1])
+		err := client.AppExport(args[0], args[1])
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error exporting app")
 	},
@@ -184,11 +163,6 @@ var CmdAppLogs = &cobra.Command{
 	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
 
 		follow, err := cmd.Flags().GetBool("follow")
 		if err != nil {
@@ -223,11 +197,6 @@ var CmdAppExec = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		instance, err := cmd.Flags().GetString("instance")
 		if err != nil {
 			cmd.SilenceUsage = false
@@ -254,15 +223,10 @@ var CmdAppPortForward = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
 		appName := args[0]
 		ports := args[1:]
 
-		err = client.AppPortForward(cmd.Context(), appName, portForwardInstance, portForwardAddress, ports)
+		err := client.AppPortForward(cmd.Context(), appName, portForwardInstance, portForwardAddress, ports)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error port forwarding to application")
 	},
@@ -278,11 +242,6 @@ var CmdAppUpdate = &cobra.Command{
 	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
 
 		m, err := manifest.UpdateICE(models.ApplicationManifest{}, cmd)
 		if err != nil {
@@ -314,12 +273,7 @@ var CmdAppManifest = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.AppManifest(args[0], args[1])
+		err := client.AppManifest(args[0], args[1])
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error getting app manifest")
 	},
@@ -334,12 +288,7 @@ var CmdAppRestart = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.AppRestart(args[0])
+		err := client.AppRestart(args[0])
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error restarting app")
 	},
@@ -353,11 +302,6 @@ var CmdAppRestage = &cobra.Command{
 	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
 
 		norestart, err := cmd.Flags().GetBool("no-restart")
 		if err != nil {

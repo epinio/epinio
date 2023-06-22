@@ -17,7 +17,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -101,13 +100,9 @@ var CmdConfigurationDelete = &cobra.Command{
 	Long:  `Delete configurations by name.`,
 	RunE:  ConfigurationDelete,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		epinioClient, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-		epinioClient.API.DisableVersionWarning()
+		client.API.DisableVersionWarning()
 
-		matches := filteredMatchingFinder(args, toComplete, epinioClient.ConfigurationMatching)
+		matches := filteredMatchingFinder(args, toComplete, client.ConfigurationMatching)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -145,12 +140,7 @@ var CmdConfigurationList = &cobra.Command{
 func ConfigurationShow(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
-
-	err = client.ConfigurationDetails(args[0])
+	err := client.ConfigurationDetails(args[0])
 	if err != nil {
 		return errors.Wrap(err, "error retrieving configuration")
 	}
@@ -161,11 +151,6 @@ func ConfigurationShow(cmd *cobra.Command, args []string) error {
 // ConfigurationList is the backend of command: epinio configuration list
 func ConfigurationList(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
-
-	client, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
 
 	all, err := cmd.Flags().GetBool("all")
 	if err != nil {
@@ -183,11 +168,6 @@ func ConfigurationList(cmd *cobra.Command, args []string) error {
 // ConfigurationCreate is the backend of command: epinio configuration create
 func ConfigurationCreate(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
-
-	client, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
 
 	// Merge plain argument key/value data with k/v from options, i.e. files.
 	kvAssigments := args[1:]
@@ -214,11 +194,6 @@ func ConfigurationCreate(cmd *cobra.Command, args []string) error {
 // ConfigurationUpdate is the backend of command: epinio configuration update
 func ConfigurationUpdate(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
-
-	client, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
 
 	// Process the --remove and --set options into operations (removals, assignments)
 
@@ -270,11 +245,6 @@ func ConfigurationDelete(cmd *cobra.Command, args []string) error {
 		return errors.New("No configurations specified for deletion")
 	}
 
-	client, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
-
 	err = client.DeleteConfiguration(args, unbind, all)
 	if err != nil {
 		return errors.Wrap(err, "error deleting configuration")
@@ -287,12 +257,7 @@ func ConfigurationDelete(cmd *cobra.Command, args []string) error {
 func ConfigurationBind(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
-
-	err = client.BindConfiguration(args[0], args[1])
+	err := client.BindConfiguration(args[0], args[1])
 	if err != nil {
 		return errors.Wrap(err, "error binding configuration")
 	}
@@ -304,12 +269,7 @@ func ConfigurationBind(cmd *cobra.Command, args []string) error {
 func ConfigurationUnbind(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
-
-	err = client.UnbindConfiguration(args[0], args[1])
+	err := client.UnbindConfiguration(args[0], args[1])
 	if err != nil {
 		return errors.Wrap(err, "error unbinding configuration")
 	}
@@ -333,21 +293,17 @@ func findConfigurationApp(cmd *cobra.Command, args []string, toComplete string) 
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	app, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-	app.API.DisableVersionWarning()
+	client.API.DisableVersionWarning()
 
 	if len(args) == 1 {
 		// #args == 1: app name.
-		matches := app.AppsMatching(toComplete)
+		matches := client.AppsMatching(toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
 
 	// #args == 0: configuration name.
 
-	matches := app.ConfigurationMatching(toComplete)
+	matches := client.ConfigurationMatching(toComplete)
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 

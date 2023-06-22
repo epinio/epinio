@@ -89,6 +89,7 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 		if err != nil {
 			return err
 		}
+		client.API.DisableVersionWarning()
 
 		// we don't need anything, just checking if the namespace exist and we have permissions
 		_, err = client.API.NamespaceShow(updatedSettings.Namespace)

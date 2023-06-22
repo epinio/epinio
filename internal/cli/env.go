@@ -12,7 +12,6 @@
 package cli
 
 import (
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -41,12 +40,7 @@ var CmdEnvList = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.EnvList(cmd.Context(), args[0])
+		err := client.EnvList(cmd.Context(), args[0])
 		if err != nil {
 			return errors.Wrap(err, "error listing app environment")
 		}
@@ -65,13 +59,7 @@ var CmdEnvSet = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.EnvSet(cmd.Context(), args[0], args[1], args[2])
+		err := client.EnvSet(cmd.Context(), args[0], args[1], args[2])
 		if err != nil {
 			return errors.Wrap(err, "error setting into app environment")
 		}
@@ -88,13 +76,7 @@ var CmdEnvShow = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.EnvShow(cmd.Context(), args[0], args[1])
+		err := client.EnvShow(cmd.Context(), args[0], args[1])
 		if err != nil {
 			return errors.Wrap(err, "error accessing app environment")
 		}
@@ -113,12 +95,7 @@ var CmdEnvUnset = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.EnvUnset(cmd.Context(), args[0], args[1])
+		err := client.EnvUnset(cmd.Context(), args[0], args[1])
 		if err != nil {
 			return errors.Wrap(err, "error removing from app environment")
 		}
@@ -134,20 +111,16 @@ func matchingAppAndVarFinder(cmd *cobra.Command, args []string, toComplete strin
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	app, err := usercmd.New(cmd.Context())
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-	app.API.DisableVersionWarning()
+	client.API.DisableVersionWarning()
 
 	if len(args) == 1 {
 		// #args == 1: environment variable name (in application)
-		matches := app.EnvMatching(cmd.Context(), args[0], toComplete)
+		matches := client.EnvMatching(cmd.Context(), args[0], toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
 
 	// #args == 0: application name.
-	matches := app.AppsMatching(toComplete)
+	matches := client.AppsMatching(toComplete)
 
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }

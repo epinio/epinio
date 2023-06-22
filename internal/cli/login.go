@@ -12,7 +12,6 @@
 package cli
 
 import (
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/spf13/cobra"
 )
 
@@ -33,11 +32,6 @@ var CmdLogout = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return err
-		}
-
 		return client.Logout(cmd.Context())
 	},
 }
@@ -50,11 +44,6 @@ var CmdLogin = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-
-		client, err := usercmd.New(cmd.Context())
-		if err != nil {
-			return err
-		}
 
 		address := args[0]
 		username, err := cmd.Flags().GetString("user")

@@ -50,10 +50,10 @@ var _ = Describe("Services", LService, func() {
 		catalog.CreateCatalogService(catalogService)
 
 		catalogServiceURL = "http://" + catalogServiceHostname
-	})
 
-	AfterEach(func() {
-		catalog.DeleteCatalogService(catalogService.Meta.Name)
+		DeferCleanup(func() {
+			catalog.DeleteCatalogService(catalogService.Meta.Name)
+		})
 	})
 
 	Describe("Catalog", func() {
@@ -139,11 +139,6 @@ var _ = Describe("Services", LService, func() {
 		})
 	})
 
-	deleteServiceFromNamespace := func(namespace, service string) {
-		env.TargetNamespace(namespace)
-		env.DeleteService(service)
-	}
-
 	Describe("Show", func() {
 		var namespace, service string
 
@@ -156,12 +151,10 @@ var _ = Describe("Services", LService, func() {
 			By("create it")
 			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 			Expect(err).ToNot(HaveOccurred(), out)
-		})
 
-		AfterEach(func() {
-			By("delete it")
-			deleteServiceFromNamespace(namespace, service)
-			env.DeleteNamespace(namespace)
+			DeferCleanup(func() {
+				env.DeleteNamespace(namespace)
+			})
 		})
 
 		It("shows a service", func() {
@@ -213,12 +206,10 @@ var _ = Describe("Services", LService, func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			service = catalog.NewServiceName()
-		})
 
-		AfterEach(func() {
-			By("delete it")
-			deleteServiceFromNamespace(namespace, service)
-			env.DeleteNamespace(namespace)
+			DeferCleanup(func() {
+				env.DeleteNamespace(namespace)
+			})
 		})
 
 		It("list a service", func() {
@@ -290,22 +281,18 @@ var _ = Describe("Services", LService, func() {
 			// create users with permissions in different namespaces
 			user1, password1 = env.CreateEpinioUser("user", []string{namespace1})
 			user2, password2 = env.CreateEpinioUser("user", []string{namespace2})
-		})
 
-		AfterEach(func() {
-			By("delete it")
-			deleteServiceFromNamespace(namespace1, service1)
-			deleteServiceFromNamespace(namespace2, service2)
+			DeferCleanup(func() {
+				env.DeleteNamespace(namespace1)
+				env.DeleteNamespace(namespace2)
 
-			env.DeleteNamespace(namespace1)
-			env.DeleteNamespace(namespace2)
+				// Remove transient settings
+				out, err := proc.Run("", false, "rm", "-f", tmpSettingsPath)
+				Expect(err).ToNot(HaveOccurred(), out)
 
-			// Remove transient settings
-			out, err := proc.Run("", false, "rm", "-f", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			env.DeleteEpinioUser(user1)
-			env.DeleteEpinioUser(user2)
+				env.DeleteEpinioUser(user1)
+				env.DeleteEpinioUser(user2)
+			})
 		})
 
 		It("list all services", func() {
@@ -423,20 +410,10 @@ var _ = Describe("Services", LService, func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			service = catalog.NewServiceName()
-		})
 
-		AfterEach(func() {
-			By("delete it")
-			out, err := env.Epinio("", "service", "delete", service)
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Services Removed"))
-
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "delete", service)
-				return out
-			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
-
-			env.DeleteNamespace(namespace)
+			DeferCleanup(func() {
+				env.DeleteNamespace(namespace)
+			})
 		})
 
 		It("creates a service", func() {
@@ -474,13 +451,6 @@ var _ = Describe("Services", LService, func() {
 		})
 
 		Context("command completion", func() {
-			// A service is not really required, except the outer AfterEach expects it.
-			BeforeEach(func() {
-				out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
-				Expect(err).ToNot(HaveOccurred(), out)
-			})
-			// Outer AfterEach removes it
-
 			It("matches empty prefix", func() {
 				out, err := env.Epinio("", "__complete", "service", "create", "")
 				Expect(err).ToNot(HaveOccurred(), out)
@@ -509,42 +479,11 @@ var _ = Describe("Services", LService, func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			service = catalog.NewServiceName()
+			env.MakeServiceInstance(service, catalogService.Meta.Name)
 
-			By("create it")
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			By("show it")
-			out, err = env.Epinio("", "service", "show", service)
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			Expect(out).To(
-				HaveATable(
-					WithHeaders("KEY", "VALUE"),
-					WithRow("Name", service),
-					WithRow("Created", WithDate()),
-					WithRow("Catalog Service", catalogService.Meta.Name),
-					WithRow("Status", "(not-ready|deployed)"),
-				),
-			)
-
-			By("wait for deployment")
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "show", service)
-				return out
-			}, "2m", "5s").Should(
-				HaveATable(
-					WithHeaders("KEY", "VALUE"),
-					WithRow("Status", "deployed"),
-					WithRow("Internal Routes", fmt.Sprintf(`.*\.%s\.svc\.cluster\.local`, namespace)),
-				),
-			)
-
-			By(fmt.Sprintf("%s/%s up", namespace, service))
-		})
-
-		AfterEach(func() {
-			env.DeleteNamespace(namespace)
+			DeferCleanup(func() {
+				env.DeleteNamespace(namespace)
+			})
 		})
 
 		It("deletes a service", func() {
@@ -645,10 +584,10 @@ var _ = Describe("Services", LService, func() {
 						WithRow("Bound Configurations", chart+".*"),
 					),
 				)
-			})
 
-			AfterEach(func() {
-				env.DeleteNamespace(namespace)
+				DeferCleanup(func() {
+					env.DeleteNamespace(namespace)
+				})
 			})
 
 			It("fails to delete a bound service", func() {
@@ -737,8 +676,10 @@ var _ = Describe("Services", LService, func() {
 					WithRow("Status", "deployed"),
 				),
 			)
+
 		})
 
+		// [EC] we should have a look at this unbind. It should be part of a test probably
 		AfterEach(func() {
 			out, err := env.Epinio("", "service", "unbind", service, app)
 			Expect(err).ToNot(HaveOccurred(), out)
@@ -891,20 +832,10 @@ var _ = Describe("Services", LService, func() {
 					WithRow("Bound Configurations", chart+".*"),
 				),
 			)
-		})
 
-		AfterEach(func() {
-			By("delete it")
-			out, err := env.Epinio("", "service", "delete", service)
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Services Removed"))
-
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "delete", service)
-				return out
-			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
-
-			env.DeleteNamespace(namespace)
+			DeferCleanup(func() {
+				env.DeleteNamespace(namespace)
+			})
 		})
 
 		It("unbinds the service", func() {
