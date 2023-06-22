@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -155,6 +156,13 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, wait
 	if err != nil {
 		return errors.Wrap(err, "error creating service secret")
 	}
+
+	epinioValues, err := getEpinioValues(name, catalogService.Meta.Name)
+	if err != nil {
+		logger := tracelog.NewLogger().WithName("Create")
+		logger.Error(err, "getting epinio values")
+	}
+	catalogService.Values += epinioValues
 
 	err = helm.DeployService(
 		ctx,
@@ -533,4 +541,29 @@ func convertUnstructuredListIntoHelmCharts(unstructuredList *unstructured.Unstru
 	}
 
 	return helmChartList, nil
+}
+
+func getEpinioValues(serviceName, catalogServiceName string) (string, error) {
+	//epinio:
+	//  serviceName: serviceName
+	//  catalogServiceName: catalogServiceName
+
+	type epinioValues struct {
+		ServiceName        string `yaml:"serviceName,omitempty"`
+		CatalogServiceName string `yaml:"catalogServiceName,omitempty"`
+	}
+
+	extraValues := epinioValues{
+		ServiceName:        serviceName,
+		CatalogServiceName: catalogServiceName,
+	}
+
+	yamlData, err := yaml.Marshal(&struct {
+		Epinio epinioValues `yaml:"epinio,omitempty"`
+	}{extraValues})
+	if err != nil {
+		return "", err
+	}
+
+	return "\n" + string(yamlData), nil
 }
