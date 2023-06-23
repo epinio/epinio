@@ -42,9 +42,7 @@ var _ = Describe("Client HTTP", func() {
 	})
 
 	Describe("executing a request", func() {
-
 		When("custom headers are set", func() {
-
 			It("gets the additional headers", func() {
 				responseBody = `{"status":"ok"}`
 
@@ -68,7 +66,6 @@ var _ = Describe("Client HTTP", func() {
 		})
 
 		When("no custom headers are set", func() {
-
 			It("gets no additional headers", func() {
 				responseBody = `{"status":"ok"}`
 
@@ -87,7 +84,5 @@ var _ = Describe("Client HTTP", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
-
 	})
-
 })
