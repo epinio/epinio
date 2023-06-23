@@ -14,7 +14,6 @@ package catalog
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 
@@ -31,23 +30,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func NginxCatalogService(name, hostname string) models.CatalogService {
+func NginxCatalogService(name string) models.CatalogService {
 	values := `{"service": {"type": "ClusterIP"}}`
-
-	if hostname != "" {
-		values = fmt.Sprintf(
-			`{
-				"service": {
-					"type": "ClusterIP"
-				},
-				"ingress": {
-					"enabled": true,
-					"hostname":"%s"
-				}
-			}`,
-			hostname,
-		)
-	}
 
 	return models.CatalogService{
 		Meta: models.MetaLite{
@@ -59,11 +43,19 @@ func NginxCatalogService(name, hostname string) models.CatalogService {
 			URL:  "https://charts.bitnami.com/bitnami",
 		},
 		Values: values,
+		Settings: map[string]models.ChartSetting{
+			"ingress.enabled": models.ChartSetting{
+				Type: "bool",
+			},
+			"ingress.hostname": models.ChartSetting{
+				Type: "string",
+			},
+		},
 	}
 }
 
 func CreateCatalogServiceNginx() models.CatalogService {
-	catalogService := NginxCatalogService(NewCatalogServiceName(), "")
+	catalogService := NginxCatalogService(NewCatalogServiceName())
 
 	CreateCatalogService(catalogService)
 
@@ -99,6 +91,17 @@ func DeleteCatalogServiceFromNamespace(namespace, name string) {
 
 // Create temp file to hold the catalog service formatted as yaml, and return the path
 func SampleServiceTmpFile(namespace string, catalogService models.CatalogService) string {
+
+	settings := map[string]epinioappv1.ServiceSetting{}
+	for key, value := range catalogService.Settings {
+		settings[key] = epinioappv1.ServiceSetting{
+			Type:    value.Type,
+			Minimum: value.Minimum,
+			Maximum: value.Maximum,
+			Enum:    value.Enum,
+		}
+	}
+
 	srv := epinioappv1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: epinioappv1.GroupVersion.String(),
@@ -116,6 +119,7 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 			},
 			HelmChart: catalogService.HelmChart,
 			Values:    catalogService.Values,
+			Settings:  settings,
 		},
 	}
 
