@@ -23,12 +23,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Client Apps", func() {
-	Describe("AppRestart", DescribeAppRestart)
-	Describe("Apps Errors", DescribeAppsErrors)
+var _ = Describe("Client Environments", func() {
+	Describe("Environment Errors", DescribeEnvironmentErrors)
 })
 
-func DescribeAppsErrors() {
+func DescribeEnvironmentErrors() {
 
 	var epinioClient *client.Client
 	var statusCode int
@@ -63,20 +62,14 @@ func DescribeAppsErrors() {
 				_, err := call()
 				Expect(err).To(HaveOccurred())
 			},
-			Entry("apps", func() (any, error) {
-				return epinioClient.Apps("namespace")
+			Entry("envs", func() (any, error) {
+				return epinioClient.EnvList("namespace", "appname")
 			}),
-			Entry("all apps", func() (any, error) {
-				return epinioClient.AllApps()
+			Entry("env show", func() (any, error) {
+				return epinioClient.EnvShow("namespace", "appname", "envname")
 			}),
-			Entry("app show", func() (any, error) {
-				return epinioClient.AppShow("namespace", "appname")
-			}),
-			Entry("app match", func() (any, error) {
-				return epinioClient.AppMatch("namespace", "appprefix")
-			}),
-			Entry("app validate CV", func() (any, error) {
-				return epinioClient.AppValidateCV("namespace", "appname")
+			Entry("env match", func() (any, error) {
+				return epinioClient.EnvMatch("namespace", "appname", "envnameprefix")
 			}),
 		)
 	})

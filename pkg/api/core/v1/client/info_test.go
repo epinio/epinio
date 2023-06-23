@@ -23,12 +23,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Client Apps", func() {
-	Describe("AppRestart", DescribeAppRestart)
-	Describe("Apps Errors", DescribeAppsErrors)
+var _ = Describe("Client info", func() {
+	Describe("info Errors", DescribeInfoErrors)
 })
 
-func DescribeAppsErrors() {
+func DescribeInfoErrors() {
 
 	var epinioClient *client.Client
 	var statusCode int
@@ -63,20 +62,8 @@ func DescribeAppsErrors() {
 				_, err := call()
 				Expect(err).To(HaveOccurred())
 			},
-			Entry("apps", func() (any, error) {
-				return epinioClient.Apps("namespace")
-			}),
-			Entry("all apps", func() (any, error) {
-				return epinioClient.AllApps()
-			}),
-			Entry("app show", func() (any, error) {
-				return epinioClient.AppShow("namespace", "appname")
-			}),
-			Entry("app match", func() (any, error) {
-				return epinioClient.AppMatch("namespace", "appprefix")
-			}),
-			Entry("app validate CV", func() (any, error) {
-				return epinioClient.AppValidateCV("namespace", "appname")
+			Entry("info", func() (any, error) {
+				return epinioClient.Info()
 			}),
 		)
 	})

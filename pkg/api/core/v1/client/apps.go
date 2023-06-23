@@ -98,56 +98,26 @@ func (c *Client) AppCreate(req models.ApplicationCreateRequest, namespace string
 
 // Apps returns a list of all apps in an namespace
 func (c *Client) Apps(namespace string) (models.AppList, error) {
-	var resp models.AppList
+	response := models.AppList{}
+	endpoint := api.Routes.Path("Apps", namespace)
 
-	data, err := c.get(api.Routes.Path("Apps", namespace))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // AllApps returns a list of all apps
 func (c *Client) AllApps() (models.AppList, error) {
-	var resp models.AppList
+	response := models.AppList{}
+	endpoint := api.Routes.Path("AllApps")
 
-	data, err := c.get(api.Routes.Path("AllApps"))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // AppShow shows an app
 func (c *Client) AppShow(namespace string, appName string) (models.App, error) {
-	var resp models.App
+	response := models.App{}
+	endpoint := api.Routes.Path("AppShow", namespace, appName)
 
-	data, err := c.get(api.Routes.Path("AppShow", namespace, appName))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // AppGetPart retrieves part of an app (values.yaml, chart, image)
@@ -251,20 +221,10 @@ func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, namespace string
 
 // AppMatch returns all matching namespaces for the prefix
 func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, error) {
-	resp := models.AppMatchResponse{}
+	response := models.AppMatchResponse{}
+	endpoint := api.Routes.Path("AppMatch", namespace, prefix)
 
-	data, err := c.get(api.Routes.Path("AppMatch", namespace, prefix))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // AppDelete deletes an app
@@ -307,20 +267,10 @@ func (c *Client) AppUpload(namespace string, name string, tarball string) (model
 
 // AppValidateCV validates the chart values of the specified app against its appchart
 func (c *Client) AppValidateCV(namespace string, name string) (models.Response, error) {
-	resp := models.Response{}
+	response := models.Response{}
+	endpoint := api.Routes.Path("AppValidateCV", namespace, name)
 
-	data, err := c.get(api.Routes.Path("AppValidateCV", namespace, name))
-	if err != nil {
-		return resp, errors.Wrap(err, "can't validate app")
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, errors.Wrap(err, "response body is not JSON")
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // AppImportGit asks the server to import a git repo and put in into the blob store
