@@ -736,10 +736,23 @@ type FakeAPIClient struct {
 		result1 models.ServiceMatchResponse
 		result2 error
 	}
-	ServiceShowStub        func(*models.ServiceShowRequest, string) (*models.Service, error)
+	ServicePortForwardStub        func(string, string, *client.PortForwardOpts) error
+	servicePortForwardMutex       sync.RWMutex
+	servicePortForwardArgsForCall []struct {
+		arg1 string
+		arg2 string
+		arg3 *client.PortForwardOpts
+	}
+	servicePortForwardReturns struct {
+		result1 error
+	}
+	servicePortForwardReturnsOnCall map[int]struct {
+		result1 error
+	}
+	ServiceShowStub        func(string, string) (*models.Service, error)
 	serviceShowMutex       sync.RWMutex
 	serviceShowArgsForCall []struct {
-		arg1 *models.ServiceShowRequest
+		arg1 string
 		arg2 string
 	}
 	serviceShowReturns struct {
@@ -761,19 +774,6 @@ type FakeAPIClient struct {
 		result1 error
 	}
 	serviceUnbindReturnsOnCall map[int]struct {
-		result1 error
-	}
-	ServicePortForwardStub        func(string, string, *client.PortForwardOpts) error
-	servicePortForwardMutex       sync.RWMutex
-	servicePortForwardArgsForCall []struct {
-		arg1 string
-		arg2 string
-		arg3 *client.PortForwardOpts
-	}
-	servicePortForwardReturns struct {
-		result1 error
-	}
-	servicePortForwardReturnsOnCall map[int]struct {
 		result1 error
 	}
 	StagingCompleteStub        func(string, string) (models.Response, error)
@@ -4144,11 +4144,74 @@ func (fake *FakeAPIClient) ServiceMatchReturnsOnCall(i int, result1 models.Servi
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceShow(arg1 *models.ServiceShowRequest, arg2 string) (*models.Service, error) {
+func (fake *FakeAPIClient) ServicePortForward(arg1 string, arg2 string, arg3 *client.PortForwardOpts) error {
+	fake.servicePortForwardMutex.Lock()
+	ret, specificReturn := fake.servicePortForwardReturnsOnCall[len(fake.servicePortForwardArgsForCall)]
+	fake.servicePortForwardArgsForCall = append(fake.servicePortForwardArgsForCall, struct {
+		arg1 string
+		arg2 string
+		arg3 *client.PortForwardOpts
+	}{arg1, arg2, arg3})
+	stub := fake.ServicePortForwardStub
+	fakeReturns := fake.servicePortForwardReturns
+	fake.recordInvocation("ServicePortForward", []interface{}{arg1, arg2, arg3})
+	fake.servicePortForwardMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeAPIClient) ServicePortForwardCallCount() int {
+	fake.servicePortForwardMutex.RLock()
+	defer fake.servicePortForwardMutex.RUnlock()
+	return len(fake.servicePortForwardArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServicePortForwardCalls(stub func(string, string, *client.PortForwardOpts) error) {
+	fake.servicePortForwardMutex.Lock()
+	defer fake.servicePortForwardMutex.Unlock()
+	fake.ServicePortForwardStub = stub
+}
+
+func (fake *FakeAPIClient) ServicePortForwardArgsForCall(i int) (string, string, *client.PortForwardOpts) {
+	fake.servicePortForwardMutex.RLock()
+	defer fake.servicePortForwardMutex.RUnlock()
+	argsForCall := fake.servicePortForwardArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) ServicePortForwardReturns(result1 error) {
+	fake.servicePortForwardMutex.Lock()
+	defer fake.servicePortForwardMutex.Unlock()
+	fake.ServicePortForwardStub = nil
+	fake.servicePortForwardReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeAPIClient) ServicePortForwardReturnsOnCall(i int, result1 error) {
+	fake.servicePortForwardMutex.Lock()
+	defer fake.servicePortForwardMutex.Unlock()
+	fake.ServicePortForwardStub = nil
+	if fake.servicePortForwardReturnsOnCall == nil {
+		fake.servicePortForwardReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.servicePortForwardReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeAPIClient) ServiceShow(arg1 string, arg2 string) (*models.Service, error) {
 	fake.serviceShowMutex.Lock()
 	ret, specificReturn := fake.serviceShowReturnsOnCall[len(fake.serviceShowArgsForCall)]
 	fake.serviceShowArgsForCall = append(fake.serviceShowArgsForCall, struct {
-		arg1 *models.ServiceShowRequest
+		arg1 string
 		arg2 string
 	}{arg1, arg2})
 	stub := fake.ServiceShowStub
@@ -4170,13 +4233,13 @@ func (fake *FakeAPIClient) ServiceShowCallCount() int {
 	return len(fake.serviceShowArgsForCall)
 }
 
-func (fake *FakeAPIClient) ServiceShowCalls(stub func(*models.ServiceShowRequest, string) (*models.Service, error)) {
+func (fake *FakeAPIClient) ServiceShowCalls(stub func(string, string) (*models.Service, error)) {
 	fake.serviceShowMutex.Lock()
 	defer fake.serviceShowMutex.Unlock()
 	fake.ServiceShowStub = stub
 }
 
-func (fake *FakeAPIClient) ServiceShowArgsForCall(i int) (*models.ServiceShowRequest, string) {
+func (fake *FakeAPIClient) ServiceShowArgsForCall(i int) (string, string) {
 	fake.serviceShowMutex.RLock()
 	defer fake.serviceShowMutex.RUnlock()
 	argsForCall := fake.serviceShowArgsForCall[i]
@@ -4270,27 +4333,6 @@ func (fake *FakeAPIClient) ServiceUnbindReturnsOnCall(i int, result1 error) {
 	fake.serviceUnbindReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
-}
-
-func (fake *FakeAPIClient) ServicePortForward(arg1 string, arg2 string, arg3 *client.PortForwardOpts) error {
-	fake.servicePortForwardMutex.Lock()
-	ret, specificReturn := fake.servicePortForwardReturnsOnCall[len(fake.servicePortForwardArgsForCall)]
-	fake.servicePortForwardArgsForCall = append(fake.servicePortForwardArgsForCall, struct {
-		arg1 string
-		arg2 string
-		arg3 *client.PortForwardOpts
-	}{arg1, arg2, arg3})
-	stub := fake.ServicePortForwardStub
-	fakeReturns := fake.servicePortForwardReturns
-	fake.recordInvocation("ServicePortForward", []interface{}{arg1, arg2, arg3})
-	fake.servicePortForwardMutex.Unlock()
-	if stub != nil {
-		return stub(arg1, arg2, arg3)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fakeReturns.result1
 }
 
 func (fake *FakeAPIClient) StagingComplete(arg1 string, arg2 string) (models.Response, error) {
@@ -4520,6 +4562,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.serviceListMutex.RUnlock()
 	fake.serviceMatchMutex.RLock()
 	defer fake.serviceMatchMutex.RUnlock()
+	fake.servicePortForwardMutex.RLock()
+	defer fake.servicePortForwardMutex.RUnlock()
 	fake.serviceShowMutex.RLock()
 	defer fake.serviceShowMutex.RUnlock()
 	fake.serviceUnbindMutex.RLock()

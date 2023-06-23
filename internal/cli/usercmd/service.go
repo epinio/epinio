@@ -112,11 +112,7 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 
 	c.ui.Note().Msg("Showing Service...")
 
-	request := &models.ServiceShowRequest{
-		Name: serviceName,
-	}
-
-	service, err := c.API.ServiceShow(request, c.Settings.Namespace)
+	service, err := c.API.ServiceShow(c.Settings.Namespace, serviceName)
 	if err != nil {
 		return errors.Wrap(err, "service show failed")
 	}
