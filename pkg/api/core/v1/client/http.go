@@ -129,7 +129,7 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 	}
 
 	for key, value := range c.customHeaders {
-		request.Header.Add(key, value)
+		request.Header.Set(key, value)
 	}
 
 	response, err := c.HttpClient.Do(request)
@@ -183,11 +183,9 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 	c.log.Info(fmt.Sprintf("%s %s", method, uri))
 
-	reqLog := requestLogger(c.log, method, uri, requestBody)
-
 	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
 	if err != nil {
-		reqLog.V(1).Error(err, "cannot build request")
+		c.log.V(1).Error(err, "cannot build request")
 		return []byte{}, err
 	}
 
@@ -197,8 +195,10 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	}
 
 	for key, value := range c.customHeaders {
-		request.Header.Add(key, value)
+		request.Header.Set(key, value)
 	}
+
+	reqLog := requestLogger(c.log, request, requestBody)
 
 	response, err := c.HttpClient.Do(request)
 	if err != nil {
@@ -263,11 +263,9 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 	c.log.Info(fmt.Sprintf("%s %s", method, uri))
 
-	reqLog := requestLogger(c.log, method, uri, requestBody)
-
 	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
 	if err != nil {
-		reqLog.V(1).Error(err, "cannot build request")
+		c.log.V(1).Error(err, "cannot build request")
 		return []byte{}, err
 	}
 
@@ -277,8 +275,10 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	}
 
 	for key, value := range c.customHeaders {
-		request.Header.Add(key, value)
+		request.Header.Set(key, value)
 	}
+
+	reqLog := requestLogger(c.log, request, requestBody)
 
 	response, err := c.HttpClient.Do(request)
 	if err != nil {
@@ -319,29 +319,32 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	return bodyBytes, nil
 }
 
-func requestLogger(l logr.Logger, method string, uri string, body string) logr.Logger {
-	log := l
+func requestLogger(log logr.Logger, request *http.Request, body string) logr.Logger {
 	if log.V(5).Enabled() {
 		log = log.WithValues(
-			"method", method,
-			"uri", uri,
+			"method", request.Method,
+			"uri", request.RequestURI,
+			"body", body,
+			"header", request.Header,
 		)
 	}
-	if log.V(5).Enabled() {
-		log = log.WithValues("body", body)
-	}
+
 	return log
 }
 
-func responseLogger(l logr.Logger, response *http.Response, body string) logr.Logger {
-	log := l.WithValues("status", response.StatusCode)
+func responseLogger(log logr.Logger, response *http.Response, body string) logr.Logger {
+	log = log.WithValues("status", response.StatusCode)
+
 	if log.V(5).Enabled() {
-		log = log.WithValues("header", response.Header)
+		log = log.WithValues(
+			"body", body,
+			"header", response.Header,
+		)
 		if response.TLS != nil {
 			log = log.WithValues("TLSServerName", response.TLS.ServerName)
 		}
-		log = log.WithValues("body", body)
 	}
+
 	return log
 }
 

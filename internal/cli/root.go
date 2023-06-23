@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/termui"
@@ -28,6 +29,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
+	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/go-logr/stdr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -51,6 +53,19 @@ func NewRootCmd() (*cobra.Command, error) {
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			stdr.SetVerbosity(tracelog.TraceLevel())
+
+			if apiClient, ok := client.API.(*epinioapi.Client); ok {
+				for _, header := range flagHeaders {
+					headerKeyValue := strings.SplitN(header, ":", 2)
+
+					// empty headers are valid
+					var headerValue string
+					if len(headerKeyValue) > 1 {
+						headerValue = headerKeyValue[1]
+					}
+					apiClient.SetHeader(headerKeyValue[0], strings.TrimSpace(headerValue))
+				}
+			}
 		},
 	}
 
@@ -90,7 +105,7 @@ func NewRootCmd() (*cobra.Command, error) {
 	}
 	argToEnv["skip-ssl-verification"] = "SKIP_SSL_VERIFICATION"
 
-	pf.StringSliceVarP("header", "H", flagHeaders, "Skip the verification of TLS certificates")
+	pf.StringArrayVarP(&flagHeaders, "header", "H", []string{}, "Add custom header to every request executed")
 	if err = viper.BindPFlag("header", pf.Lookup("header")); err != nil {
 		return nil, err
 	}
