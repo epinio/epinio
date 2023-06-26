@@ -131,11 +131,9 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 	c.log.Info(fmt.Sprintf("%s %s", method, uri))
 
-	reqLog := requestLogger(c.log, method, uri, requestBody)
-
 	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
 	if err != nil {
-		reqLog.V(1).Error(err, "cannot build request")
+		c.log.V(1).Error(err, "cannot build request")
 		return err
 	}
 
@@ -143,6 +141,12 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 	if err != nil {
 		return errors.Wrap(err, "handling oauth2 request")
 	}
+
+	for key, value := range c.customHeaders {
+		request.Header.Set(key, value)
+	}
+
+	reqLog := requestLogger(c.log, request, requestBody)
 
 	response, err := c.HttpClient.Do(request)
 	if err != nil {

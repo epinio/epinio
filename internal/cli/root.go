@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/termui"
@@ -28,6 +29,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
+	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/go-logr/stdr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -37,6 +39,7 @@ var (
 	client *usercmd.EpinioClient
 
 	flagSettingsFile string
+	flagHeaders      []string
 )
 
 // NewRootCmd returns the rootCmd, that is the main `epinio` cli.
@@ -50,6 +53,19 @@ func NewRootCmd() (*cobra.Command, error) {
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			stdr.SetVerbosity(tracelog.TraceLevel())
+
+			if apiClient, ok := client.API.(*epinioapi.Client); ok {
+				for _, header := range flagHeaders {
+					headerKeyValue := strings.SplitN(header, ":", 2)
+
+					// empty headers are valid
+					var headerValue string
+					if len(headerKeyValue) > 1 {
+						headerValue = headerKeyValue[1]
+					}
+					apiClient.SetHeader(headerKeyValue[0], strings.TrimSpace(headerValue))
+				}
+			}
 		},
 	}
 
@@ -77,19 +93,24 @@ func NewRootCmd() (*cobra.Command, error) {
 	tracelog.LoggerFlags(pf, argToEnv)
 	duration.Flags(pf, argToEnv)
 
-	pf.IntP("verbosity", "", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
+	pf.Int("verbosity", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
 	if err = viper.BindPFlag("verbosity", pf.Lookup("verbosity")); err != nil {
 		return nil, err
 	}
 	argToEnv["verbosity"] = "VERBOSITY"
 
-	pf.BoolP("skip-ssl-verification", "", false, "Skip the verification of TLS certificates")
+	pf.Bool("skip-ssl-verification", false, "Skip the verification of TLS certificates")
 	if err = viper.BindPFlag("skip-ssl-verification", pf.Lookup("skip-ssl-verification")); err != nil {
 		return nil, err
 	}
 	argToEnv["skip-ssl-verification"] = "SKIP_SSL_VERIFICATION"
 
-	pf.BoolP("no-colors", "", false, "Suppress colorized output")
+	pf.StringArrayVarP(&flagHeaders, "header", "H", []string{}, "Add custom header to every request executed")
+	if err = viper.BindPFlag("header", pf.Lookup("header")); err != nil {
+		return nil, err
+	}
+
+	pf.Bool("no-colors", false, "Suppress colorized output")
 	if err = viper.BindPFlag("no-colors", pf.Lookup("no-colors")); err != nil {
 		return nil, err
 	}
