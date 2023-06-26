@@ -66,7 +66,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 	if len(createRequest.Settings) > 0 {
 		issues := application.ValidateCV(createRequest.Settings, catalogService.Settings)
 		if issues != nil {
-			// Treating all validation failures as internal errors.
+			// Treating all validation failures as a bad request.
 			// I can't find something better at the moment.
 
 			var apiIssues []apierror.APIError
