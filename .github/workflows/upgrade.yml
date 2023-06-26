@@ -78,8 +78,8 @@ jobs:
 
       - name: Deploy k3d cluster with latest release of Epinio
         env:
-          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
         run: |
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig

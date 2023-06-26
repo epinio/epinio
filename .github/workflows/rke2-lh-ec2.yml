@@ -244,8 +244,8 @@ jobs:
       - name: Installation Acceptance Tests
         env:
           REGEX: Scenario4
-          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
