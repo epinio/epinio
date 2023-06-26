@@ -103,7 +103,7 @@ else
     --set server.disableTracking="true" \
     --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
-    epinio helm-charts/chart/epinio --wait "$@"
+    epinio helm-charts/chart/epinio --wait --timeout 600 "$@"
 
   # compile coverage binary and add required env var
   if [ -n "$GOCOVERDIR" ]; then
