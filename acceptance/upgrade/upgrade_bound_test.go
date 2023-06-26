@@ -12,7 +12,6 @@
 package upgrade_test
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -31,7 +30,7 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 	var (
 		namespace string // Namespace created before upgrade
 		appName   string // Application created before upgrade
-		service   string // Service created after upgrade
+		serviceName   string // Service created after upgrade
 
 		epinioHelper epinio.Epinio
 	)
@@ -43,11 +42,11 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 		appName = catalog.NewAppName()
-		service = catalog.NewServiceName()
-	})
+		serviceName = catalog.NewServiceName()
 
-	AfterEach(func() {
-		env.DeleteNamespace(namespace)
+		DeferCleanup(func() {
+			env.DeleteNamespace(namespace)
+		})
 	})
 
 	It("Can upgrade epinio bound to a custom service", func() {
@@ -58,17 +57,14 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 
 		// Create a service
 		By("Creating a service")
-		out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+		out, err := env.Epinio("", "service", "create", "mysql-dev", serviceName)
 		Expect(err).ToNot(HaveOccurred(), out)
-
-		// Debug only
-		fmt.Fprintf(GinkgoWriter, "Service create log: %v\n", out)
 
 		By("Wait for deployment")
 		// Make outValue global variable as we'll need it later
 		var outValue string
 		Eventually(func() string {
-			outValue, _ = env.Epinio("", "service", "show", service)
+			outValue, _ = env.Epinio("", "service", "show", serviceName)
 			return outValue
 		}, "2m", "5s").Should(
 			HaveATable(
@@ -79,8 +75,6 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 		// Store the service route
 		svcRouteRegexp := regexp.MustCompile(`\b(\w{29}-mysql)`)
 		svcRoute := string(svcRouteRegexp.Find([]byte(outValue)))
-		fmt.Fprintf(GinkgoWriter, "The service table content: %v\n", outValue)
-		fmt.Fprintf(GinkgoWriter, "The service route is: %v\n", svcRoute)
 
 		// Deploy Wordpress application
 		By("Pushing Wordpress App")
@@ -94,7 +88,7 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 			"-e", "BP_PHP_VERSION=8.0.x",
 			"-e", "BP_PHP_SERVER=nginx",
 			"-e", "DB_HOST="+svcRoute,
-			"-e", "SERVICE_NAME="+service)
+			"-e", "SERVICE_NAME="+serviceName)
 		Expect(err).ToNot(HaveOccurred(), pushLog)
 
 		routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
@@ -112,7 +106,7 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 		)
 
 		By("Bind it")
-		out, err = env.Epinio("", "service", "bind", service, appName)
+		out, err = env.Epinio("", "service", "bind", serviceName, appName)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		By("Verify binding")
@@ -126,21 +120,19 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 			),
 		)
 
-		// Check that the app is reachable and expected page tile is reached
+		// Check that the app is reachable
 		Eventually(func() int {
 			resp, err := env.Curl("GET", route, nil)
 			Expect(err).ToNot(HaveOccurred())
-			defer resp.Body.Close()
-
-			bodyBytes, err := io.ReadAll(resp.Body)
-			Expect(err).ToNot(HaveOccurred())
-
-			if resp.StatusCode == http.StatusOK && strings.Contains(string(bodyBytes), "WordPress") {
-				return resp.StatusCode
-			}
-
-			return 0
+			return resp.StatusCode
 		}, "1m", "5s").Should(Equal(http.StatusOK))
+
+		// app available, check that the body contains "WordPress"
+		resp, err := env.Curl("GET", route, nil)
+		Expect(err).ToNot(HaveOccurred())
+		bodyBytes, err := io.ReadAll(resp.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(bodyBytes)).To(ContainSubstring("WordPress"))
 
 		// Upgrade to current as found in checkout
 		epinioHelper.Upgrade()
