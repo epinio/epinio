@@ -28,9 +28,9 @@ import (
 
 var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func() {
 	var (
-		namespace string // Namespace created before upgrade
-		appName   string // Application created before upgrade
-		serviceName   string // Service created after upgrade
+		namespace   string // Namespace created before upgrade
+		appName     string // Application created before upgrade
+		serviceName string // Service created after upgrade
 
 		epinioHelper epinio.Epinio
 	)
