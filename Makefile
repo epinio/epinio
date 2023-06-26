@@ -106,7 +106,7 @@ acceptance-cluster-delete-kind:
 	kind delete cluster --name epinio-acceptance
 
 acceptance-cluster-setup:
-	@./scripts/acceptance-cluster-setup.sh
+	./scripts/acceptance-cluster-setup.sh
 
 acceptance-cluster-setup-kind:
 	@./scripts/acceptance-cluster-setup-kind.sh
@@ -224,7 +224,7 @@ uninstall-upgrade-responder:
 	helm uninstall -n epinio upgrade-responder --wait || true
 
 prepare_environment_k3d: build-linux-amd64 build-images
-	@./scripts/prepare-environment-k3d.sh
+	./scripts/prepare-environment-k3d.sh
 
 unprepare_environment_k3d:
 	kubectl delete --ignore-not-found=true secret regcred
