@@ -18,12 +18,13 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+// SettingsToChart converts from an unstructured representation of the CR to the internal
+// structure.
 func SettingsToChart(chart *unstructured.Unstructured) (map[string]models.ChartSetting, error) {
 	theSettings, _, err := unstructured.NestedMap(chart.UnstructuredContent(), "spec", "settings")
 	if err != nil {
 		return nil, errors.New("spec settings should be map")
 	}
-
 	settings := make(map[string]models.ChartSetting)
 	for key := range theSettings {
 		fieldType, _, err := unstructured.NestedString(theSettings, key, "type")

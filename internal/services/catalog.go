@@ -87,9 +87,15 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 		return nil, errors.Wrap(err, "error converting catalog service")
 	}
 
-	settings, err := helmchart.SettingsToChart(&unstructured)
-	if err != nil {
-		return nil, err
+	// Convert from CRD structure to internal model
+	settings := make(map[string]models.ChartSetting)
+	for key, value := range catalogService.Spec.Settings {
+		settings[key] = models.ChartSetting{
+			Type:    value.Type,
+			Minimum: value.Minimum,
+			Maximum: value.Maximum,
+			Enum:    value.Enum,
+		}
 	}
 
 	secretTypes := []string{}

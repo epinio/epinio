@@ -415,8 +415,7 @@ type AppChartFull struct {
 	Values map[string]string
 }
 
-// ChartSetting matches github.com/epinio/application/api/v1 AppChartSettings
-// It also matches      github.com/epinio/application/api/v1 ServiceSettings
+// ChartSetting matches github.com/epinio/application/api/v1 ChartSetting
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type ChartSetting struct {
 	// Type of the setting (string, bool, number, or integer)
