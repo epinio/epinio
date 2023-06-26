@@ -11,7 +11,7 @@
 
 # Upgrade epinio from latest released version to the main branch version
 # using the latest helm chart submodule
-name: Upgrade test
+name: Upgrade test with bound apps and services
 
 on:
   push:
@@ -87,7 +87,7 @@ jobs:
 
       - name: Upgrade Epinio with latest code
         env:
-          REGEX: Upgrade1 
+          REGEX: Upgrade2
         run: |
           export EPINIO_CURRENT_TAG="$(git describe --tags)"
           # We have to export the EPINIO_SYSTEM_DOMAIN
