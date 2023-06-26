@@ -37,12 +37,15 @@ function check_dependency {
 }
 
 function create_docker_pull_secret {
-	if [[ "$REGISTRY_USERNAME" != "" && "$REGISTRY_PASSWORD" != "" && ! $(kubectl get secret regcred > /dev/null 2>&1) ]];
+	if [[ "$REGISTRY_USERNAME" != "" && "$REGISTRY_PASSWORD" != "" && ! $(kubectl get secret -n epinio regcred > /dev/null 2>&1) ]];
 	then
+		kubectl create namespace epinio
 		kubectl create secret docker-registry regcred \
+			--namespace epinio \
 			--docker-server https://index.docker.io/v1/ \
 			--docker-username $REGISTRY_USERNAME \
 			--docker-password $REGISTRY_PASSWORD
+		kubectl patch serviceaccount -n epinio default -p '{"imagePullSecrets": [{"name": "regcred"}]}'
 	fi
 }
 

@@ -33,10 +33,13 @@ func RegistryPassword() string {
 func CreateRegistrySecret() {
 	if RegistryUsername() != "" && RegistryPassword() != "" {
 		fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", GinkgoParallelProcess())
+		_, _ = proc.Kubectl("create", "namespace", "epinio")
 		_, _ = proc.Kubectl("create", "secret", "docker-registry", "regcred",
+			"--namespace", "epinio",
 			"--docker-server", "https://index.docker.io/v1/",
 			"--docker-username", RegistryUsername(),
 			"--docker-password", RegistryPassword(),
 		)
+		_, _ = proc.Kubectl("patch", "serviceaccount", "-n", "epinio", "default", "-p", `{"imagePullSecrets": [{"name": "regcred"}]}`)
 	}
 }
