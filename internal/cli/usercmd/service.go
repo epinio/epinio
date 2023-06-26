@@ -86,7 +86,8 @@ func (c *EpinioClient) ServiceCatalogShow(ctx context.Context, serviceName strin
 }
 
 // ServiceCreate creates a service
-func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wait bool, chartValues models.CVSettings) error {
+func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wait bool,
+	chartValues models.ChartValueSettings) error {
 	log := c.Log.WithName("ServiceCreate")
 	log.Info("start")
 	defer log.Info("return")

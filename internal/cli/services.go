@@ -92,7 +92,7 @@ var CmdServiceCreate = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "failed to read option --chart-value")
 		}
-		chartValues := models.CVSettings{}
+		chartValues := models.ChartValueSettings{}
 		for _, assignment := range cvAssignments {
 			pieces := strings.SplitN(assignment, "=", 2)
 			if len(pieces) < 2 {

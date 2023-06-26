@@ -70,7 +70,7 @@ type ChartParameters struct {
 	Routes         []string              // Desired application routes
 	Domains        domain.DomainMap      // Map of domains with secrets covering them
 	Start          *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
-	Settings       models.CVSettings
+	Settings       models.ChartValueSettings
 }
 
 func Values(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) ([]byte, error) {

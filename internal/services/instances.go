@@ -133,7 +133,7 @@ func GetInternalRoutes(ctx context.Context, servicesGetter v1.ServiceInterface, 
 }
 
 func (s *ServiceClient) Create(ctx context.Context, namespace, name string,
-	wait bool, settings models.CVSettings, catalogService models.CatalogService) error {
+	wait bool, settings models.ChartValueSettings, catalogService models.CatalogService) error {
 	// Resources, and names
 	//
 	// |Kind	|Name		|Notes			|

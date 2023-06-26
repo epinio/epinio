@@ -185,12 +185,12 @@ type ApplicationCreateRequest struct {
 // Note: Instances is a pointer to give us a nil value separate from
 // actual integers, as means of communicating `default`/`no change`.
 type ApplicationUpdateRequest struct {
-	Instances      *int32         `json:"instances"          yaml:"instances,omitempty"`
-	Configurations []string       `json:"configurations"     yaml:"configurations,omitempty"`
-	Environment    EnvVariableMap `json:"environment"        yaml:"environment,omitempty"`
-	Routes         []string       `json:"routes"             yaml:"routes,omitempty"`
-	AppChart       string         `json:"appchart,omitempty" yaml:"appchart,omitempty"`
-	Settings       CVSettings     `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
+	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
+	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
+	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
+	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
 
 type ImportGitResponse struct {
@@ -302,10 +302,10 @@ type CatalogMatchResponse struct {
 }
 
 type ServiceCreateRequest struct {
-	CatalogService string     `json:"catalog_service,omitempty"`
-	Name           string     `json:"name,omitempty"`
-	Wait           bool       `json:"wait,omitempty"`
-	Settings       CVSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
+	CatalogService string             `json:"catalog_service,omitempty"`
+	Name           string             `json:"name,omitempty"`
+	Wait           bool               `json:"wait,omitempty"`
+	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
 
 // CatalogService mostly matches github.com/epinio/application/api/v1 ServiceSpec
