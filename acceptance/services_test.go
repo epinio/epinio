@@ -38,17 +38,17 @@ const mysqlVersion = "8.0.31" // Doesn't change too often
 var _ = Describe("Services", LService, func() {
 	var catalogService models.CatalogService
 	var catalogServiceURL string
+	var catalogServiceHostname string
 
 	BeforeEach(func() {
 		settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
 		Expect(err).ToNot(HaveOccurred())
 
 		catalogServiceName := catalog.NewCatalogServiceName()
-		catalogServiceHostname := strings.Replace(settings.API, `https://epinio`, catalogServiceName, 1)
-
-		catalogService = catalog.NginxCatalogService(catalogServiceName, catalogServiceHostname)
+		catalogService = catalog.NginxCatalogService(catalogServiceName)
 		catalog.CreateCatalogService(catalogService)
 
+		catalogServiceHostname = strings.Replace(settings.API, `https://epinio`, catalogServiceName, 1)
 		catalogServiceURL = "http://" + catalogServiceHostname
 
 		DeferCleanup(func() {
@@ -80,6 +80,7 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(ContainSubstring("Show service details"))
+			Expect(out).To(ContainSubstring("No settings"))
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
@@ -109,6 +110,14 @@ var _ = Describe("Services", LService, func() {
 				out, err := env.Epinio("", "service", "catalog", catalogService.Meta.Name)
 				Expect(err).ToNot(HaveOccurred(), out)
 
+				Expect(out).To(ContainSubstring("Settings"))
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "TYPE", "ALLOWED VALUES"),
+						WithRow("ingress.enabled", "bool", ""),
+						WithRow("ingress.hostname", "string", ""),
+					),
+				)
 				Expect(out).To(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
@@ -132,7 +141,8 @@ var _ = Describe("Services", LService, func() {
 			})
 
 			It("does not match bogus arguments", func() {
-				out, err := env.Epinio("", "__complete", "service", "catalog", catalogService.Meta.Name, "")
+				out, err := env.Epinio("", "__complete", "service", "catalog",
+					catalogService.Meta.Name, "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).ToNot(ContainSubstring(catalogService.Meta.Name))
 			})
@@ -927,7 +937,6 @@ var _ = Describe("Services", LService, func() {
 	})
 
 	Describe("Port-forward", func() {
-
 		var namespace, serviceName string
 
 		BeforeEach(func() {
@@ -935,7 +944,12 @@ var _ = Describe("Services", LService, func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			serviceName = catalog.NewServiceName()
-			catalog.CreateService(serviceName, namespace, catalogService)
+
+			out, err := env.Epinio("", "service", "create",
+				catalogService.Meta.Name, serviceName,
+				"--chart-value", "ingress.enabled=true",
+				"--chart-value", "ingress.hostname="+catalogServiceHostname)
+			Expect(err).ToNot(HaveOccurred(), out)
 
 			// wait for the service to be ready
 			Eventually(func() int {

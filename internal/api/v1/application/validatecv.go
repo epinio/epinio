@@ -65,7 +65,7 @@ func ValidateChartValues(c *gin.Context) apierror.APIErrors {
 
 	issues := application.ValidateCV(app.Configuration.Settings, appChart.Settings)
 	if issues != nil {
-		// Treating all validation failures as internal errors.
+		// Treating all validation failures as a bad request.
 		// I can't find something better at the moment.
 
 		var apiIssues []apierror.APIError

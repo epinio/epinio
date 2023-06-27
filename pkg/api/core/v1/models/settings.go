@@ -21,23 +21,23 @@ import (
 
 // This subsection of models provides structures related to the chart values of applications.
 
-// AppSetting represents the Show Response for a chart value variable
-type AppSetting struct {
+// ChartValueSetting represents the Show Response for a chart value variable
+type ChartValueSetting struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
 
-// AppSettingList is a collection of chart value assignments
-type AppSettingList []AppSetting
+// ChartValueSettingList is a collection of chart value assignments
+type ChartValueSettingList []ChartValueSetting
 
-// AppSettings is a collection of key/value pairs describing the user's chosen settings with which
+// ChartValueSettings is a collection of key/value pairs describing the user's chosen settings with which
 // to configure the helm chart referenced by the application's appchart.
-type AppSettings map[string]string
+type ChartValueSettings map[string]string
 
-func (cvm AppSettings) List() AppSettingList {
-	result := AppSettingList{}
+func (cvm ChartValueSettings) List() ChartValueSettingList {
+	result := ChartValueSettingList{}
 	for name, value := range cvm {
-		result = append(result, AppSetting{
+		result = append(result, ChartValueSetting{
 			Name:  name,
 			Value: value,
 		})
@@ -48,25 +48,25 @@ func (cvm AppSettings) List() AppSettingList {
 
 // Implement the Sort interface for CV definition slices
 
-// Len (Sort interface) returns the length of the AppSettingList
-func (cvl AppSettingList) Len() int {
+// Len (Sort interface) returns the length of the ChartValueSettingList
+func (cvl ChartValueSettingList) Len() int {
 	return len(cvl)
 }
 
 // Swap (Sort interface) exchanges the contents of specified indices
-// in the AppSettingList
-func (cvl AppSettingList) Swap(i, j int) {
+// in the ChartValueSettingList
+func (cvl ChartValueSettingList) Swap(i, j int) {
 	cvl[i], cvl[j] = cvl[j], cvl[i]
 }
 
 // Less (Sort interface) compares the contents of the specified
-// indices in the AppSettingList and returns true if the condition
+// indices in the ChartValueSettingList and returns true if the condition
 // holds, and else false.
-func (cvl AppSettingList) Less(i, j int) bool {
+func (cvl ChartValueSettingList) Less(i, j int) bool {
 	return cvl[i].Name < cvl[j].Name
 }
 
-func (cvl AppSettingList) Assignments() []string {
+func (cvl ChartValueSettingList) Assignments() []string {
 	assignments := []string{}
 
 	for _, cv := range cvl {

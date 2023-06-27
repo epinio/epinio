@@ -117,39 +117,12 @@ func toChart(chart *unstructured.Unstructured) (*models.AppChartFull, error) {
 
 	theValues, _, err := unstructured.NestedStringMap(chart.UnstructuredContent(), "spec", "values")
 	if err != nil {
-		return nil, errors.New("spec values should be string")
+		return nil, errors.New("spec values should be map")
 	}
 
-	theSettings, _, err := unstructured.NestedMap(chart.UnstructuredContent(), "spec", "settings")
+	settings, err := helmchart.SettingsToChart(chart)
 	if err != nil {
-		return nil, errors.New("spec settings should be string")
-	}
-
-	settings := make(map[string]models.AppChartSetting)
-	for key := range theSettings {
-		fieldType, _, err := unstructured.NestedString(theSettings, key, "type")
-		if err != nil {
-			return nil, errors.New("settings type should be string")
-		}
-		fieldMin, _, err := unstructured.NestedString(theSettings, key, "minimum")
-		if err != nil {
-			return nil, errors.New("settings minimum should be string")
-		}
-		fieldMax, _, err := unstructured.NestedString(theSettings, key, "maximum")
-		if err != nil {
-			return nil, errors.New("settings maximum should be string")
-		}
-		fieldEnum, _, err := unstructured.NestedStringSlice(theSettings, key, "enum")
-		if err != nil {
-			return nil, errors.New("settings enum should be string slice")
-		}
-
-		settings[key] = models.AppChartSetting{
-			Type:    fieldType,
-			Minimum: fieldMin,
-			Maximum: fieldMax,
-			Enum:    fieldEnum,
-		}
+		return nil, err
 	}
 
 	createdAt := chart.GetCreationTimestamp()

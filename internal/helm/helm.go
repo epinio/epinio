@@ -70,7 +70,7 @@ type ChartParameters struct {
 	Routes         []string              // Desired application routes
 	Domains        domain.DomainMap      // Map of domains with secrets covering them
 	Start          *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
-	Settings       models.AppSettings
+	Settings       models.ChartValueSettings
 }
 
 func Values(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) ([]byte, error) {
@@ -487,7 +487,7 @@ func cleanupReleaseIfNeeded(l logr.Logger, c hc.Client, name string) error {
 }
 
 // validateField checks a single custom value against its declaration.
-func ValidateField(key, value string, spec models.AppChartSetting) (interface{}, error) {
+func ValidateField(key, value string, spec models.ChartSetting) (interface{}, error) {
 	if spec.Type == "string" {
 		if len(spec.Enum) > 0 {
 			for _, allowed := range spec.Enum {

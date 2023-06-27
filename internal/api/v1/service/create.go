@@ -14,6 +14,7 @@ package service
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/gin-gonic/gin"
 
@@ -61,8 +62,25 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// Validate the chart values, if any.
+	if len(createRequest.Settings) > 0 {
+		issues := application.ValidateCV(createRequest.Settings, catalogService.Settings)
+		if issues != nil {
+			// Treating all validation failures as a bad request.
+			// I can't find something better at the moment.
+
+			var apiIssues []apierror.APIError
+			for _, err := range issues {
+				apiIssues = append(apiIssues, apierror.NewBadRequestError(err.Error()))
+			}
+
+			return apierror.NewMultiError(apiIssues)
+		}
+	}
+
 	// Now we can (attempt to) create the desired service
-	err = kubeServiceClient.Create(ctx, namespace, createRequest.Name, createRequest.Wait, *catalogService)
+	err = kubeServiceClient.Create(ctx, namespace, createRequest.Name, createRequest.Wait,
+		createRequest.Settings, *catalogService)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
