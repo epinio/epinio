@@ -87,6 +87,17 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 		return nil, errors.Wrap(err, "error converting catalog service")
 	}
 
+	// Convert from CRD structure to internal model
+	settings := make(map[string]models.ChartSetting)
+	for key, value := range catalogService.Spec.Settings {
+		settings[key] = models.ChartSetting{
+			Type:    value.Type,
+			Minimum: value.Minimum,
+			Maximum: value.Maximum,
+			Enum:    value.Enum,
+		}
+	}
+
 	secretTypes := []string{}
 	secretTypesAnnotationValue := catalogService.GetAnnotations()[CatalogServiceSecretTypesAnnotation]
 	if len(secretTypesAnnotationValue) > 0 {
@@ -109,6 +120,7 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 			Name: catalogService.Spec.HelmRepo.Name,
 			URL:  catalogService.Spec.HelmRepo.URL,
 		},
-		Values: catalogService.Spec.Values,
+		Values:   catalogService.Spec.Values,
+		Settings: settings,
 	}, nil
 }

@@ -50,7 +50,7 @@ type JobLister interface {
 }
 
 // ValidateCV checks the custom values against the declarations. It reports as many issues as it can find.
-func ValidateCV(cv models.AppSettings, decl map[string]models.AppChartSetting) []error {
+func ValidateCV(cv models.ChartValueSettings, decl map[string]models.ChartSetting) []error {
 	// See also internal/helm Deploy(). A last-minute check to catch any changes possibly
 	// landing in the time window between the check here and the actual deployment.
 
@@ -76,7 +76,7 @@ func ValidateCV(cv models.AppSettings, decl map[string]models.AppChartSetting) [
 
 // Create generates a new kube app resource in the namespace of the namespace. Note that this is the
 // passive resource holding the app's configuration. It is not the active workload
-func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string, chart string, settings models.AppSettings) error {
+func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string, chart string, settings models.ChartValueSettings) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -422,10 +422,10 @@ func AppChart(app *unstructured.Unstructured) (string, error) {
 // Settings returns the app chart customization settings used for application deployment. It returns
 // an empty slice otherwise. The information is pulled out of the app resource itself, saved there
 // by the deploy endpoint.
-func Settings(app *unstructured.Unstructured) (models.AppSettings, error) {
+func Settings(app *unstructured.Unstructured) (models.ChartValueSettings, error) {
 	settings, _, err := unstructured.NestedStringMap(app.UnstructuredContent(), "spec", "settings")
 	if err != nil {
-		return models.AppSettings{}, errors.New("chartname should be string")
+		return models.ChartValueSettings{}, errors.New("chartname should be string")
 	}
 
 	return settings, nil

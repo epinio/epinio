@@ -14,10 +14,7 @@ package usercmd
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
 
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 )
@@ -136,59 +133,11 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 		WithTableRow("Helm Chart", chart.HelmChart).
 		Msg("Details:")
 
-	if len(chart.Settings) > 0 {
-		var keys []string
-		for key := range chart.Settings {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-
-		msg := c.ui.Note().WithTable("Key", "Type", "Allowed Values")
-
-		for _, key := range keys {
-			spec := chart.Settings[key]
-			msg = msg.WithTableRow(key, spec.Type, details(spec))
-		}
-
-		msg.Msg("Settings")
-	} else {
-		c.ui.Exclamation().Msg("No settings")
-	}
+	c.ChartSettingsShow(ctx, chart.Settings)
 
 	c.ui.Success().Msg("Ok")
 
 	return nil
-}
-
-func details(spec models.AppChartSetting) string {
-	// Type expected to be in (string, bool, number, integer)
-	if spec.Type == "bool" {
-		return ""
-	}
-	if spec.Type == "string" {
-		if len(spec.Enum) > 0 {
-			return strings.Join(spec.Enum, ", ")
-		}
-		return ""
-	}
-	if spec.Type == "number" || spec.Type == "integer" {
-		if len(spec.Enum) > 0 {
-			return strings.Join(spec.Enum, ", ")
-		}
-		if spec.Minimum != "" || spec.Maximum != "" {
-			min := "-inf"
-			if spec.Minimum != "" {
-				min = spec.Minimum
-			}
-			max := "+inf"
-			if spec.Maximum != "" {
-				max = spec.Maximum
-			}
-			return fmt.Sprintf(`[%s ... %s]`, min, max)
-		}
-		return ""
-	}
-	return "<unknown type>"
 }
 
 // ChartMatching retrieves all application charts in the cluster, for the given prefix

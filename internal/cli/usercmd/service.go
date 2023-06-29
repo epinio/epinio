@@ -56,7 +56,7 @@ func (c *EpinioClient) ServiceCatalog() error {
 }
 
 // ServiceCatalogShow shows a service
-func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
+func (c *EpinioClient) ServiceCatalogShow(ctx context.Context, serviceName string) error {
 	log := c.Log.WithName("ServiceCatalog")
 	log.Info("start")
 	defer log.Info("return")
@@ -76,13 +76,18 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 		WithTableRow("Version", catalogService.AppVersion).
 		WithTableRow("Short Description", catalogService.ShortDescription).
 		WithTableRow("Description", catalogService.Description).
+		WithTableRow("Helm Repository", catalogService.HelmRepo.URL).
+		WithTableRow("Helm Chart", catalogService.HelmChart).
 		Msg("Epinio Service:")
+
+	c.ChartSettingsShow(ctx, catalogService.Settings)
 
 	return nil
 }
 
 // ServiceCreate creates a service
-func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wait bool) error {
+func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wait bool,
+	chartValues models.ChartValueSettings) error {
 	log := c.Log.WithName("ServiceCreate")
 	log.Info("start")
 	defer log.Info("return")
@@ -97,6 +102,7 @@ func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wai
 		CatalogService: catalogServiceName,
 		Name:           serviceName,
 		Wait:           wait,
+		Settings:       chartValues,
 	}
 
 	err := c.API.ServiceCreate(request, c.Settings.Namespace)

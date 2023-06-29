@@ -33,6 +33,7 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 
 	var catalogService models.CatalogService
 	var catalogServiceURL string
+	var catalogServiceHostname string
 
 	Context("With ensured namespace", func() {
 
@@ -44,9 +45,9 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			catalogServiceName := catalog.NewCatalogServiceName()
-			catalogServiceHostname := strings.Replace(settings.API, `https://epinio`, catalogServiceName, 1)
+			catalogServiceHostname = strings.Replace(settings.API, `https://epinio`, catalogServiceName, 1)
 
-			catalogService = catalog.NginxCatalogService(catalogServiceName, catalogServiceHostname)
+			catalogService = catalog.NginxCatalogService(catalogServiceName)
 			catalog.CreateCatalogService(catalogService)
 
 			catalogServiceURL = "http://" + catalogServiceHostname
@@ -62,7 +63,12 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 
 			BeforeEach(func() {
 				serviceName = catalog.NewServiceName()
-				catalog.CreateService(serviceName, namespace, catalogService)
+
+				out, err := env.Epinio("", "service", "create",
+					catalogService.Meta.Name, serviceName,
+					"--chart-value", "ingress.enabled=true",
+					"--chart-value", "ingress.hostname="+catalogServiceHostname)
+				Expect(err).ToNot(HaveOccurred(), out)
 
 				// wait for the service to be ready
 				Eventually(func() int {

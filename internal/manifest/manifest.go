@@ -335,7 +335,7 @@ func UpdateChartValues(manifest models.ApplicationManifest, cmd *cobra.Command) 
 		return manifest, errors.Wrap(err, "failed to read option --chart-value")
 	}
 
-	chartValues := models.AppSettings{}
+	chartValues := models.ChartValueSettings{}
 	for _, assignment := range evAssignments {
 		pieces := strings.SplitN(assignment, "=", 2)
 		if len(pieces) < 2 {
