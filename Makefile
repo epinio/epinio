@@ -217,6 +217,12 @@ install-cert-manager:
 install-epinio-ui:
 	@./scripts/install-epinio-ui.sh
 
+install-rancher:
+	@./scripts/install-rancher.sh
+
+uninstall-rancher:
+	helm uninstall -n cattle-system rancher --wait || true
+
 install-upgrade-responder:
 	@./scripts/install-upgrade-responder.sh
 
