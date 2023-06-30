@@ -47,9 +47,18 @@ func (c *Client) NamespaceCreate(req models.NamespaceCreateRequest) (models.Resp
 func (c *Client) NamespaceDelete(namespaces []string) (models.Response, error) {
 	resp := models.Response{}
 
-	URL := constructNamespaceBatchDeleteURL(namespaces)
+	queryParams := url.Values{}
+	for _, namespace := range namespaces {
+		queryParams.Add("namespaces[]", namespace)
+	}
 
-	data, err := c.delete(URL)
+	endpoint := fmt.Sprintf(
+		"%s?%s",
+		api.Routes.Path("NamespaceBatchDelete"),
+		queryParams.Encode(),
+	)
+
+	data, err := c.delete(endpoint)
 	if err != nil {
 		return resp, err
 	}
@@ -65,66 +74,24 @@ func (c *Client) NamespaceDelete(namespaces []string) (models.Response, error) {
 
 // NamespaceShow shows a namespace
 func (c *Client) NamespaceShow(namespace string) (models.Namespace, error) {
-	resp := models.Namespace{}
+	response := models.Namespace{}
+	endpoint := api.Routes.Path("NamespaceShow", namespace)
 
-	data, err := c.get(api.Routes.Path("NamespaceShow", namespace))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // NamespacesMatch returns all matching namespaces for the prefix
 func (c *Client) NamespacesMatch(prefix string) (models.NamespacesMatchResponse, error) {
-	resp := models.NamespacesMatchResponse{}
+	response := models.NamespacesMatchResponse{}
+	endpoint := api.Routes.Path("NamespacesMatch", prefix)
 
-	data, err := c.get(api.Routes.Path("NamespacesMatch", prefix))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // Namespaces returns a list of namespaces
 func (c *Client) Namespaces() (models.NamespaceList, error) {
-	resp := models.NamespaceList{}
+	response := models.NamespaceList{}
+	endpoint := api.Routes.Path("Namespaces")
 
-	data, err := c.get(api.Routes.Path("Namespaces"))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
-}
-
-func constructNamespaceBatchDeleteURL(namespaces []string) string {
-	q := url.Values{}
-	for _, c := range namespaces {
-		q.Add("namespaces[]", c)
-	}
-	URLParams := q.Encode()
-
-	URL := api.Routes.Path("NamespaceBatchDelete")
-
-	return fmt.Sprintf("%s?%s", URL, URLParams)
+	return Get(c, endpoint, response)
 }

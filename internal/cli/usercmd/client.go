@@ -101,7 +101,7 @@ type APIClient interface {
 	ServiceCatalogMatch(prefix string) (models.CatalogMatchResponse, error)
 
 	AllServices() (models.ServiceList, error)
-	ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.Service, error)
+	ServiceShow(namespace, name string) (*models.Service, error)
 	ServiceCreate(req *models.ServiceCreateRequest, namespace string) error
 	ServiceBind(req *models.ServiceBindRequest, namespace, name string) error
 	ServiceUnbind(req *models.ServiceUnbindRequest, namespace, name string) error

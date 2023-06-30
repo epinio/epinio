@@ -349,10 +349,6 @@ type ServiceUnbindRequest struct {
 	AppName string `json:"app_name,omitempty"`
 }
 
-type ServiceShowRequest struct {
-	Name string `json:"name,omitempty"`
-}
-
 type Service struct {
 	Meta                    Meta          `json:"meta,omitempty"`
 	SecretTypes             []string      `json:"secretTypes,omitempty"`
