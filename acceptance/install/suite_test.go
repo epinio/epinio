@@ -153,6 +153,13 @@ func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
 		})
 
 		By("Upgrading actual", func() {
+			// Update CRDs prior the upgrade
+			out, err := proc.Kubectl("apply",
+				"-f", "https://raw.githubusercontent.com/epinio/helm-charts/main/chart/epinio/crds/app-crd.yaml",
+				"-f", "https://raw.githubusercontent.com/epinio/helm-charts/main/chart/epinio/crds/appcharts-crd.yaml",
+				"-f", "https://raw.githubusercontent.com/epinio/helm-charts/main/chart/epinio/crds/service-crd.yaml",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
 			// Upgrade to current as found in checkout
 			epinioHelper.Upgrade()
 		})
