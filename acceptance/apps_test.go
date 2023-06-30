@@ -405,7 +405,7 @@ var _ = Describe("Apps", LApplication, func() {
 					out, err := env.Epinio("", "app", "update", appName,
 						"--app-chart", chartName)
 					Expect(err).To(HaveOccurred(), out)
-					Expect(out).To(ContainSubstring("Bad Request: unable to change app chart of active application"))
+					Expect(out).To(ContainSubstring("unable to change app chart of active application"))
 				})
 
 				When("no workload is present", func() {
