@@ -12,13 +12,13 @@
 package usercmd
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
 
-	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -266,37 +266,36 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) err
 		return match.Names
 	})
 
-	_, err := c.API.ConfigurationDelete(request, c.Settings.Namespace, names,
-		func(response *http.Response, bodyBytes []byte, err error) error {
-			// nothing special for internal errors and the like
-			if response.StatusCode != http.StatusBadRequest {
-				return err
-			}
-
-			// A bad request happens when
-			//
-			// 1. the configuration is still bound to one or more applications, and the
-			//    response contains an array of their names.
-			//
-			// 2. the configuration is owned by a service and denied the request
-
-			var apiError apierrors.ErrorResponse
-			if err := json.Unmarshal(bodyBytes, &apiError); err != nil {
-				return err
-			}
-
-			// [BELONG] keep in sync with same markers in the server
-			if strings.Contains(apiError.Errors[0].Title, "belongs to service") {
-				// (2.)
-				return apiError.Errors[0]
-			}
-
-			// (1.)
-			bound = strings.Split(apiError.Errors[0].Details, ",")
-			return nil
-		})
+	_, err := c.API.ConfigurationDelete(request, c.Settings.Namespace, names)
 	if err != nil {
-		return err
+		epinioAPIError := &client.APIError{}
+		// something bad happened
+		if !errors.As(err, &epinioAPIError) {
+			return err
+		}
+
+		// the API error is something different from a bad request (500?). Do not handle.
+		if epinioAPIError.StatusCode != http.StatusBadRequest {
+			return err
+		}
+
+		// A bad request happens when
+		//
+		// 1. the configuration is still bound to one or more applications, and the
+		//    response contains an array of their names.
+		//
+		// 2. the configuration is owned by a service and denied the request
+
+		firstErr := epinioAPIError.Err.Errors[0]
+
+		// [BELONG] keep in sync with same markers in the server
+		if strings.Contains(firstErr.Title, "belongs to service") {
+			// (2.)
+			return firstErr
+		}
+
+		// (1.)
+		bound = strings.Split(firstErr.Details, ",")
 	}
 
 	if len(bound) > 0 {
