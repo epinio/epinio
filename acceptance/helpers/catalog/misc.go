@@ -124,6 +124,13 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 		},
 	}
 
+	out, err := proc.Kubectl("get", "crd", "services.application.epinio.io", "-o", `jsonpath='{..properties.settings}'`)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	if string(out) == "" {
+		srv.Spec.Settings = nil
+	}
+
 	if len(catalogService.SecretTypes) > 0 {
 		srv.ObjectMeta.Annotations = map[string]string{
 			services.CatalogServiceSecretTypesAnnotation: strings.Join(catalogService.SecretTypes, ","),
