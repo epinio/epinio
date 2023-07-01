@@ -63,7 +63,7 @@ jobs:
       # The system domain is managed by route53, login to delete
       # DNS records and for the EKS deletion case
       - name: Configure AWS credentials for Route53
-        uses: aws-actions/configure-aws-credentials@v2.1.0
+        uses: aws-actions/configure-aws-credentials@v2.2.0
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
