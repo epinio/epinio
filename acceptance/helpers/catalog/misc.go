@@ -130,7 +130,8 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 
 	fmt.Fprintf(GinkgoWriter, "KUBECTL OUT: %+v\n", out)
 
-	if strings.TrimSpace(out) == "" {
+	// If the out is empty it is encaps inside quotes
+	if string(out) == "''" {
 		srv.Spec.Settings = nil
 		fmt.Fprintf(GinkgoWriter, "PROBE IF THE DETECTION WORKS")
 	}
