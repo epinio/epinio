@@ -129,7 +129,7 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	if string(out) == "" {
-		fmt.Fprintf(GinkgoWriter, "PROBE IF THE DETECTION WORKS %v\n", string(jsonBytes))
+		fmt.Fprintf(GinkgoWriter, "PROBE IF THE DETECTION WORKS")
 	}
 
 	if len(catalogService.SecretTypes) > 0 {
