@@ -26,6 +26,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
@@ -117,13 +118,12 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	}, appRef.Namespace)
 	if err != nil {
 		// try to recover if it's a response type Conflict error and not a http connection error
-		rerr, ok := err.(interface{ StatusCode() int })
-
-		if !ok {
+		epinioAPIError := &client.APIError{}
+		if !errors.As(err, &epinioAPIError) {
 			return err
 		}
 
-		if rerr.StatusCode() != http.StatusConflict {
+		if epinioAPIError.StatusCode != http.StatusConflict {
 			return err
 		}
 

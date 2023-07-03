@@ -47,6 +47,18 @@ func wrapResponseError(err error, code int) *responseError {
 	return &responseError{error: err, statusCode: code}
 }
 
+type APIError struct {
+	StatusCode int
+	Err        *apierrors.ErrorResponse
+}
+
+func (e *APIError) Error() string {
+	if e.Err != nil && len(e.Err.Errors) > 0 {
+		return e.Err.Errors[0].Error()
+	}
+	return "empty"
+}
+
 func (c *Client) DisableVersionWarning() {
 	c.noVersionWarning = true
 }
@@ -80,6 +92,10 @@ func Patch[T any](c *Client, endpoint string, request any, response T) (T, error
 
 func (c *Client) patch(endpoint string, data string) ([]byte, error) {
 	return c.do(endpoint, "PATCH", data)
+}
+
+func Delete[T any](c *Client, endpoint string, request any, response T) (T, error) {
+	return Do(c, endpoint, http.MethodDelete, request, response)
 }
 
 func (c *Client) delete(endpoint string) ([]byte, error) {
@@ -186,12 +202,12 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
 	if err != nil {
 		c.log.V(1).Error(err, "cannot build request")
-		return []byte{}, err
+		return nil, err
 	}
 
 	err = c.handleAuthorization(request)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	for key, value := range c.customHeaders {
@@ -205,13 +221,13 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 		reqLog.V(1).Error(err, "request failed")
 		castedErr, ok := err.(*url.Error)
 		if !ok {
-			return []byte{}, errors.New("couldn't cast request Error!")
+			return nil, errors.New("couldn't cast request Error!")
 		}
 		if castedErr.Timeout() {
-			return []byte{}, errors.New("request cancelled or timed out")
+			return nil, errors.New("request cancelled or timed out")
 		}
 
-		return []byte{}, errors.Wrap(err, "making the request")
+		return nil, errors.Wrap(err, "making the request")
 	}
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
@@ -225,28 +241,36 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	respLog := responseLogger(c.log, response, string(bodyBytes))
 	if err != nil {
 		respLog.V(1).Error(err, "failed to read response body")
-		return []byte{}, wrapResponseError(err, response.StatusCode)
+		return nil, errors.Wrap(err, "reading response body")
 	}
 
 	respLog.V(1).Info("response received")
 
-	if response.StatusCode == http.StatusCreated {
+	// if server returns a good response it should be fine to return the body
+	if response.StatusCode < http.StatusBadRequest {
 		return bodyBytes, nil
 	}
 
-	// TODO why is != 200 an error? there are valid codes in the 2xx, 3xx range
-	if response.StatusCode != http.StatusOK {
-		err := formatError(bodyBytes, response)
-
-		if respLog.V(5).Enabled() {
-			respLog = respLog.WithValues("body", string(bodyBytes))
-		}
-		respLog.V(1).Info("response is not StatusOK: " + err.Error())
-
-		return bodyBytes, wrapResponseError(err, response.StatusCode)
+	// let's try to marshal the error
+	if respLog.V(5).Enabled() {
+		respLog = respLog.WithValues("body", string(bodyBytes))
 	}
 
-	return bodyBytes, nil
+	var responseErr apierrors.ErrorResponse
+	err = json.Unmarshal(bodyBytes, &responseErr)
+	if err != nil {
+		respLog.V(1).Error(err, "error while decoding json")
+		return nil, errors.Wrap(err, "parsing the error response")
+	}
+
+	epinioError := &APIError{
+		StatusCode: response.StatusCode,
+		Err:        &responseErr,
+	}
+
+	respLog.V(1).Info("response is not StatusOK: " + epinioError.Error())
+
+	return nil, epinioError
 }
 
 type ErrorFunc = func(response *http.Response, bodyBytes []byte, err error) error
@@ -256,7 +280,7 @@ type ErrorFunc = func(response *http.Response, bodyBytes []byte, err error) erro
 // code is not 200.
 // The ErrorFunc allows us to inspect the response, even unmarshal it into an
 // api.ErrorResponse and change the returned error.
-// Note: it's only used by ConfigurationDelete and that could be changed to transmit
+// Note: it's only used by ServiceDelete and that could be changed to transmit
 // it's data in a normal Response, instead of an error?
 func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string, f ErrorFunc) ([]byte, error) {
 

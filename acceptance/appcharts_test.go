@@ -103,7 +103,7 @@ var _ = Describe("apps chart", LAppchart, func() {
 			out, err := env.Epinio("", "apps", "chart", "show", "bogus")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show application chart details"))
-			Expect(out).To(ContainSubstring("Not Found: application chart 'bogus' does not exist"))
+			Expect(out).To(ContainSubstring("application chart 'bogus' does not exist"))
 		})
 	})
 
@@ -135,7 +135,7 @@ var _ = Describe("apps chart", LAppchart, func() {
 		It("fails to sets a bogus default", func() {
 			out, err := env.Epinio("", "apps", "chart", "default", "bogus")
 			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Not Found: application chart 'bogus' does not exist"))
+			Expect(out).To(ContainSubstring("application chart 'bogus' does not exist"))
 		})
 
 		It("unsets a default", func() {

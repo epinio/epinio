@@ -12,11 +12,8 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
-
-	"github.com/pkg/errors"
 
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -48,50 +45,28 @@ func (c *Client) ConfigurationBindingCreate(request models.BindRequest, namespac
 
 // ConfigurationBindingDelete deletes a binding from an app to a configurationclass
 func (c *Client) ConfigurationBindingDelete(namespace string, appName string, configurationName string) (models.Response, error) {
-	resp := models.Response{}
+	response := models.Response{}
+	endpoint := api.Routes.Path("ConfigurationBindingDelete", namespace, appName, configurationName)
 
-	data, err := c.delete(api.Routes.Path("ConfigurationBindingDelete", namespace, appName, configurationName))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Delete(c, endpoint, nil, response)
 }
 
 // ConfigurationDelete deletes a configuration
-func (c *Client) ConfigurationDelete(req models.ConfigurationDeleteRequest, namespace string, names []string, f ErrorFunc) (models.ConfigurationDeleteResponse, error) {
-	resp := models.ConfigurationDeleteResponse{}
+func (c *Client) ConfigurationDelete(req models.ConfigurationDeleteRequest, namespace string, names []string) (models.ConfigurationDeleteResponse, error) {
+	response := models.ConfigurationDeleteResponse{}
 
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, nil
+	queryParams := url.Values{}
+	for _, c := range names {
+		queryParams.Add("configurations[]", c)
 	}
 
-	URL := constructConfigurationBatchDeleteURL(namespace, names)
+	endpoint := fmt.Sprintf(
+		"%s?%s",
+		api.Routes.Path("ConfigurationBatchDelete", namespace),
+		queryParams.Encode(),
+	)
 
-	data, err := c.doWithCustomErrorHandling(URL, "DELETE", string(b), f)
-	if err != nil {
-		if err.Error() != "Bad Request" {
-			return resp, err
-		}
-		return resp, nil
-	}
-
-	if len(data) > 0 {
-		if err := json.Unmarshal(data, &resp); err != nil {
-			return resp, errors.Wrap(err, "response body is not JSON")
-		}
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Delete(c, endpoint, req, response)
 }
 
 // ConfigurationCreate creates a configuration by invoking the associated API endpoint
@@ -132,16 +107,4 @@ func (c *Client) ConfigurationMatch(namespace, prefix string) (models.Configurat
 	endpoint := api.Routes.Path("ConfigurationMatch", namespace, prefix)
 
 	return Get(c, endpoint, v)
-}
-
-func constructConfigurationBatchDeleteURL(namespace string, names []string) string {
-	q := url.Values{}
-	for _, c := range names {
-		q.Add("configurations[]", c)
-	}
-	URLParams := q.Encode()
-
-	URL := api.Routes.Path("ConfigurationBatchDelete", namespace)
-
-	return fmt.Sprintf("%s?%s", URL, URLParams)
 }

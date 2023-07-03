@@ -19,6 +19,7 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -111,6 +112,44 @@ var _ = Describe("Client Configurations", func() {
 		})
 	})
 
+	Describe("deleting a configuration", func() {
+		Context("with a 400 status code", func() {
+
+			BeforeEach(func() {
+				statusCode = 404
+			})
+
+			When("returns a valid response", func() {
+				It("gets a successful response", func() {
+					responseBody = `{
+						"errors": [
+							{
+								"status": 404,
+								"title": "configuration 'myconf1' does not exist",
+								"details": ""
+							}
+						]
+					}`
+
+					resp, err := epinioClient.ConfigurationBindingDelete("namespace-foo", "app", "conf")
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(&client.APIError{
+						StatusCode: 404,
+						Err: &apierrors.ErrorResponse{
+							Errors: []apierrors.APIError{
+								{
+									Status: 404,
+									Title:  "configuration 'myconf1' does not exist",
+								},
+							},
+						},
+					}))
+					Expect(resp).To(Equal(models.Response{}))
+				})
+			})
+		})
+	})
+
 	When("a 500 status code and a JSON error was returned", func() {
 
 		BeforeEach(func() {
@@ -139,6 +178,12 @@ var _ = Describe("Client Configurations", func() {
 			}),
 			Entry("configurations binding", func() (any, error) {
 				return epinioClient.ConfigurationBindingCreate(models.BindRequest{}, "namespace", "app")
+			}),
+			Entry("configurations binding delete", func() (any, error) {
+				return epinioClient.ConfigurationBindingDelete("namespace", "app", "conf")
+			}),
+			Entry("configurations delete", func() (any, error) {
+				return epinioClient.ConfigurationDelete(models.ConfigurationDeleteRequest{}, "namespace", []string{"conf1", "conf2"})
 			}),
 			Entry("configuration create", func() (any, error) {
 				return epinioClient.ConfigurationCreate(models.ConfigurationCreateRequest{}, "namespace")
