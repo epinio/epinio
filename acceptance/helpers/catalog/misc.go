@@ -124,6 +124,15 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 		},
 	}
 
+	// Check if the installed Epinio version has compatible CRD deployed
+	out, err := proc.Kubectl("get", "crd", "services.application.epinio.io", "-o", `jsonpath='{..properties.settings}'`)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// Delete the Spec.Settings key if the kubectl output is empty - the CRD is not compatible then
+	if string(out) == "''" {
+		srv.Spec.Settings = nil
+	}
+
 	if len(catalogService.SecretTypes) > 0 {
 		srv.ObjectMeta.Annotations = map[string]string{
 			services.CatalogServiceSecretTypesAnnotation: strings.Join(catalogService.SecretTypes, ","),
