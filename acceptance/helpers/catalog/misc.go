@@ -129,7 +129,9 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	if string(out) == "" {
-		srv.Spec.Settings = nil
+		//srv.Spec.Settings = nil
+		//srv.Spec.Settings =
+		delete(srv.Spec, "Settings")
 	}
 
 	if len(catalogService.SecretTypes) > 0 {
