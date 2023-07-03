@@ -121,14 +121,17 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 			},
 			HelmChart: catalogService.HelmChart,
 			Values:    catalogService.Values,
-			//Settings:  settings,
+			Settings:  settings,
 		},
 	}
-	fmt.Fprintf(GinkgoWriter, "BEFORE The catalog output is: %v\n", srv)
+	fmt.Fprintf(GinkgoWriter, "BEFORE The catalog output is: %+v\n", srv)
 	out, err := proc.Kubectl("get", "crd", "services.application.epinio.io", "-o", `jsonpath='{..properties.settings}'`)
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	if string(out) == "" {
+	fmt.Fprintf(GinkgoWriter, "KUBECTL OUT: %+v\n", out)
+
+	if strings.TrimSpace(out) == "" {
+		srv.Spec.Settings = nil
 		fmt.Fprintf(GinkgoWriter, "PROBE IF THE DETECTION WORKS")
 	}
 
@@ -141,7 +144,7 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	jsonBytes, err := json.Marshal(srv)
 	Expect(err).ToNot(HaveOccurred())
 
-	fmt.Fprintf(GinkgoWriter, "AFTER The catalog output is: %v\n", string(jsonBytes))
+	fmt.Fprintf(GinkgoWriter, "AFTER The catalog output is: %+v\n", string(jsonBytes))
 
 	filePath, err := helpers.CreateTmpFile(string(jsonBytes))
 	Expect(err).ToNot(HaveOccurred())
