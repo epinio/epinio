@@ -121,7 +121,7 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 			},
 			HelmChart: catalogService.HelmChart,
 			Values:    catalogService.Values,
-			Settings:  settings,
+			//Settings:  settings,
 		},
 	}
 	fmt.Fprintf(GinkgoWriter, "BEFORE The catalog output is: %v\n", srv)
@@ -129,9 +129,7 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	if string(out) == "" {
-		//srv.Spec.Settings = nil
-		//srv.Spec.Settings =
-		delete(srv.Spec, "Settings")
+		fmt.Fprintf(GinkgoWriter, "PROBE IF THE DETECTION WORKS %v\n", string(jsonBytes))
 	}
 
 	if len(catalogService.SecretTypes) > 0 {
