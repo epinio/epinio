@@ -135,7 +135,8 @@ func (c *SynchronizedClient) UpgradeChart(ctx context.Context, spec *hc.ChartSpe
 	return c.helmClient.UpgradeChart(ctx, spec, opts)
 }
 
-func (c *SynchronizedClient) GetReleaseStatus(name string) (*release.Release, error) {
+// Status implements the 'helm status' command, with the ShowResources flag enabled
+func (c *SynchronizedClient) Status(name string) (*release.Release, error) {
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
 		return nil, fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
@@ -143,5 +144,5 @@ func (c *SynchronizedClient) GetReleaseStatus(name string) (*release.Release, er
 
 	statusAction := action.NewStatus(concreteHelmClient.ActionConfig)
 	statusAction.ShowResources = true
-	return statusAction.Run("epinio")
+	return statusAction.Run(name)
 }

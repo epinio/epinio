@@ -104,7 +104,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		}
 	}
 
-	service.Status = models.NewServiceStatusFromHelmRelease(serviceStatus)
+	service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
 
 	return &service, nil
 }
@@ -215,8 +215,6 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string,
 			return errors.Wrap(errb, "error deploying service helm chart while undoing the secret")
 		}
 	}
-
-	err = helm.GetStatus(requestctx.Logger(ctx), s.kubeClient, "epinio", "epinio")
 
 	return errors.Wrap(err, "error deploying service helm chart")
 }
@@ -351,7 +349,7 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 			}
 		}
 
-		service.Status = models.NewServiceStatusFromHelmRelease(serviceStatus)
+		service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
 
 		serviceList = append(serviceList, service)
 	}
@@ -446,7 +444,7 @@ func (s *ServiceClient) GetForHelmController(ctx context.Context, namespace, nam
 		}
 	}
 
-	service.Status = models.NewServiceStatusFromHelmRelease(serviceStatus)
+	service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
 
 	return &service, nil
 }
@@ -554,12 +552,23 @@ func (s *ServiceClient) listForHelmController(ctx context.Context, namespace str
 			}
 		}
 
-		service.Status = models.NewServiceStatusFromHelmRelease(serviceStatus)
+		service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
 
 		serviceList = append(serviceList, service)
 	}
 
 	return serviceList, nil
+}
+
+func NewServiceStatusFromHelmRelease(status helm.ReleaseStatus) models.ServiceStatus {
+	switch status {
+	case helm.StatusReady:
+		return models.ServiceStatusDeployed
+	case helm.StatusNotReady:
+		return models.ServiceStatusNotReady
+	default:
+		return models.ServiceStatusUnknown
+	}
 }
 
 func convertUnstructuredListIntoHelmCharts(unstructuredList *unstructured.UnstructuredList) ([]helmapiv1.HelmChart, error) {

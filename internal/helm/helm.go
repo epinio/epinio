@@ -40,6 +40,7 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
@@ -125,60 +126,6 @@ func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.A
 	return nil
 }
 
-func GetStatus(logger logr.Logger, cluster *kubernetes.Cluster, releaseName, namespace string) error {
-	client, err := GetHelmClient(cluster.RestConfig, logger, namespace)
-	if err != nil {
-		return errors.Wrap(err, "create a helm client")
-	}
-
-	synchClient, ok := client.(*SynchronizedClient)
-	if !ok {
-		return fmt.Errorf("helm client is not of the right type. Expected *SynchronizedClient but got %T", client)
-	}
-
-	var resourceList kube.ResourceList
-
-	release, err := synchClient.GetReleaseStatus(releaseName)
-	if err != nil {
-		return errors.Wrap(err, "error getting release status")
-	}
-
-	for k, objectList := range release.Info.Resources {
-		fmt.Println(k)
-		for _, obj := range objectList {
-			resourceList = append(resourceList, &resource.Info{
-				Object: obj,
-			})
-			fmt.Printf("%T - %s\n", obj, obj.GetObjectKind().GroupVersionKind().String())
-		}
-	}
-
-	fmtLogger := func(msg string, args ...interface{}) {
-		fmt.Println(msg)
-		fmt.Println(args...)
-	}
-
-	checker := kube.NewReadyChecker(cluster.Kubectl, fmtLogger, kube.PausedAsReady(true))
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
-	defer cancel()
-
-	err = wait.PollUntilWithContext(ctx, 2*time.Second, func(ctx context.Context) (bool, error) {
-		fmt.Println("start polling")
-
-		for _, v := range resourceList {
-			fmt.Println("polling v", v.Name)
-
-			ready, err := checker.IsReady(ctx, v)
-			if !ready || err != nil {
-				return false, err
-			}
-		}
-		return true, nil
-	})
-
-	return err
-}
-
 func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	logger := requestctx.Logger(ctx)
 	logger.Info("service helm setup", "parameters", parameters)
@@ -229,7 +176,23 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	}
 
 	_, err = client.InstallOrUpgradeChart(ctx, &chartSpec, nil)
-	return errors.Wrap(err, "installing or upgrading service SYNC")
+	if err != nil {
+		return errors.Wrap(err, "installing or upgrading service SYNC")
+	}
+
+	// wait for the release to be in a ready state
+	timeout := duration.ToDeployment()
+	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		releaseStatus, err := Status(ctx, logger, parameters.Cluster, parameters.Namespace, releaseName)
+		if releaseStatus == StatusUnknown || err != nil {
+			return false, err
+		}
+
+		// check readyness
+		return releaseStatus == StatusReady, nil
+	})
+
+	return errors.Wrap(err, "polling release status")
 }
 
 func Deploy(logger logr.Logger, parameters ChartParameters) error {
@@ -435,22 +398,78 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	return err
 }
 
-func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, namespace, releaseName string) (helmrelease.Status, error) {
-	client, err := GetHelmClient(cluster.RestConfig, logger, namespace)
+// Status is the status of a release
+type ReleaseStatus string
+
+const (
+	// StatusUnknown indicates that a release is in an uncertain state.
+	StatusUnknown ReleaseStatus = "unknown"
+	// StatusReady indicates that all the release's resources are in a ready state.
+	StatusReady ReleaseStatus = "ready"
+	// StatusNotReady indicates that not all the release's resources are in a ready state.
+	StatusNotReady ReleaseStatus = "not-ready"
+)
+
+// Status will check for the readyness of the release returning an internal status instead of
+// the Helm release status (https://github.com/helm/helm/blob/main/pkg/release/status.go).
+// Helm is not checking for the actual status of the release and also if the resources are still
+// in deployment they will be marked as "deployed"
+func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, namespace, releaseName string) (ReleaseStatus, error) {
+	helmClient, err := GetHelmClient(cluster.RestConfig, logger, namespace)
 	if err != nil {
-		return "", err
+		return StatusUnknown, err
 	}
 
-	var r *helmrelease.Release
-	if r, err = client.GetRelease(releaseName); err != nil {
-		return "", err
+	releaseStatus, err := helmClient.Status(releaseName)
+	if err != nil {
+		return StatusUnknown, errors.Wrapf(err, "getting release status %s - %s", namespace, releaseName)
 	}
 
-	if r.Info == nil {
-		return "", errors.New("no status available")
+	resourceList := getResourceListFromRelease(releaseStatus)
+	logger.V(1).Info(fmt.Sprintf(
+		"found '%d' resources for release '%s' in namespace '%s'\n",
+		len(resourceList), releaseName, namespace),
+	)
+
+	checker := kube.NewReadyChecker(cluster.Kubectl, logger.Info, kube.PausedAsReady(true))
+	for _, v := range resourceList {
+		// IsReady checks if v is ready. It supports checking readiness for pods,
+		// deployments, persistent volume claims, services, daemon sets, custom
+		// resource definitions, stateful sets, replication controllers, and replica
+		// sets. All other resource kinds are always considered ready.
+		ready, err := checker.IsReady(ctx, v)
+
+		logger.V(1).Info(fmt.Sprintf("resource '%s' ready: '%t'\n", v.Name, ready))
+
+		if err != nil {
+			return StatusUnknown, errors.Wrapf(err, "checking readyness of resource '%s' of release '%s'", v.Name, releaseName)
+		}
+		if !ready {
+			return StatusNotReady, nil
+		}
 	}
 
-	return r.Info.Status, nil
+	return StatusReady, nil
+}
+
+// getResourcesFromRelease will look for Unstructured resources in the release and will return a list out of it
+func getResourceListFromRelease(release *helmrelease.Release) kube.ResourceList {
+	resourceList := make(kube.ResourceList, 0)
+
+	for _, objectList := range release.Info.Resources {
+		for _, obj := range objectList {
+			if v, ok := obj.(*unstructured.Unstructured); ok {
+				resourceList = append(resourceList, &resource.Info{
+					Object:    obj,
+					Name:      v.GetName(),
+					Namespace: v.GetNamespace(),
+				})
+			}
+
+		}
+	}
+
+	return resourceList
 }
 
 // syncNamespaceClientMap is holding a SynchronizedClient for each namespace
@@ -463,7 +482,7 @@ type SynchronizedClient struct {
 	helmClient hc.Client
 }
 
-func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string) (hc.Client, error) {
+func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string) (*SynchronizedClient, error) {
 	options := &hc.RestConfClientOptions{
 		RestConfig: restConfig,
 		Options: &hc.Options{
