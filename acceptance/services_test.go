@@ -758,7 +758,7 @@ var _ = Describe("Services", LService, func() {
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 
 			By("verify service deployment")
-			out, err = env.Epinio("", "service", "show", service)
+			out, err := env.Epinio("", "service", "show", service)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(out).To(
 				HaveATable(
