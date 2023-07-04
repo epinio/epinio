@@ -13,14 +13,12 @@ package usercmd
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"sort"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
-	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -216,27 +214,24 @@ func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind, all bool) er
 		return match.Names
 	})
 
-	_, err := c.API.ServiceDelete(request, c.Settings.Namespace, serviceNames,
-		func(response *http.Response, bodyBytes []byte, err error) error {
-			// nothing special for internal errors and the like
-			if response.StatusCode != http.StatusBadRequest {
-				return err
-			}
-
-			// A bad request happens when the configuration is still bound to one or
-			// more applications, and the response contains an array of their names.
-
-			var apiError apierrors.ErrorResponse
-			if err := json.Unmarshal(bodyBytes, &apiError); err != nil {
-				return err
-			}
-
-			bound = strings.Split(apiError.Errors[0].Details, ",")
-			return nil
-		})
-
+	_, err := c.API.ServiceDelete(request, c.Settings.Namespace, serviceNames)
 	if err != nil {
-		return errors.Wrap(err, "service deletion failed")
+		epinioAPIError := &client.APIError{}
+		// something bad happened
+		if !errors.As(err, &epinioAPIError) {
+			return errors.Wrap(err, "service deletion failed")
+		}
+
+		// the API error is something different from a bad request (500?). Do not handle.
+		if epinioAPIError.StatusCode != http.StatusBadRequest {
+			return err
+		}
+
+		// A bad request happens when the configuration is still bound to one or
+		// more applications, and the response contains an array of their names.
+
+		firstErr := epinioAPIError.Err.Errors[0]
+		bound = strings.Split(firstErr.Details, ",")
 	}
 
 	if len(bound) > 0 {

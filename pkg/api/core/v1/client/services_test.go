@@ -19,6 +19,8 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -40,6 +42,44 @@ func DescribeServicesErrors() {
 		}))
 
 		epinioClient = client.New(context.Background(), &settings.Settings{API: srv.URL})
+	})
+
+	Describe("deleting a service", func() {
+		Context("with a 404 status code", func() {
+
+			BeforeEach(func() {
+				statusCode = 404
+			})
+
+			When("returns a valid response", func() {
+				It("gets a successful response", func() {
+					responseBody = `{
+						"errors": [
+							{
+								"status": 404,
+								"title": "service 'srv1' does not exist",
+								"details": ""
+							}
+						]
+					}`
+
+					resp, err := epinioClient.ServiceDelete(models.ServiceDeleteRequest{}, "namespace-foo", []string{"srv1"})
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(&client.APIError{
+						StatusCode: 404,
+						Err: &apierrors.ErrorResponse{
+							Errors: []apierrors.APIError{
+								{
+									Status: 404,
+									Title:  "service 'srv1' does not exist",
+								},
+							},
+						},
+					}))
+					Expect(resp).To(Equal(models.ServiceDeleteResponse{}))
+				})
+			})
+		})
 	})
 
 	When("a 500 status code and a JSON error was returned", func() {
@@ -79,6 +119,9 @@ func DescribeServicesErrors() {
 			}),
 			Entry("service match", func() (any, error) {
 				return epinioClient.ServiceMatch("namespace", "servicenameprefix")
+			}),
+			Entry("service match", func() (any, error) {
+				return epinioClient.ServiceDelete(models.ServiceDeleteRequest{}, "namespace", nil)
 			}),
 			Entry("service apps", func() (any, error) {
 				return epinioClient.ServiceApps("namespace")

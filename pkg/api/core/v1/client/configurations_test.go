@@ -113,7 +113,7 @@ var _ = Describe("Client Configurations", func() {
 	})
 
 	Describe("deleting a configuration", func() {
-		Context("with a 400 status code", func() {
+		Context("with a 404 status code", func() {
 
 			BeforeEach(func() {
 				statusCode = 404
