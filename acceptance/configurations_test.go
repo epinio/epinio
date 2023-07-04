@@ -517,8 +517,16 @@ var _ = Describe("Configurations", LConfiguration, func() {
 
 			By("make service instance: " + service)
 			// catalogService.Meta.Name
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service, "--wait")
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
 			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
+				HaveATable(WithRow("Status", "deployed")),
+			)
 
 			appName = catalog.NewAppName()
 			By("make app: " + appName)

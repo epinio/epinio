@@ -33,7 +33,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const mysqlVersion = "8.0.31" // Doesn't change too often
+const (
+	mysqlVersion                 = "8.0.31" // Doesn't change too often
+	ServiceDeployTimeout         = "4m"
+	ServiceDeployPollingInterval = "5s"
+)
 
 var _ = Describe("Services", LService, func() {
 	var namespace string
@@ -234,7 +238,7 @@ var _ = Describe("Services", LService, func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list")
 				return out
-			}, "2m", "5s").Should(
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
 					WithRow(service, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
@@ -424,7 +428,7 @@ var _ = Describe("Services", LService, func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
-			}, "2m", "5s").Should(
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
@@ -608,8 +612,16 @@ var _ = Describe("Services", LService, func() {
 			chart = names.ServiceReleaseName(service)
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service, "--wait")
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
 			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
+				HaveATable(WithRow("Status", "deployed")),
+			)
 
 			By("create app")
 			app = catalog.NewAppName()
@@ -732,9 +744,14 @@ var _ = Describe("Services", LService, func() {
 			service = catalog.NewServiceName()
 			chart = names.ServiceReleaseName(service)
 
-			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service, "--wait")
-			Expect(err).ToNot(HaveOccurred(), out)
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).
+				Should(
+					HaveATable(WithRow("Status", "deployed")),
+				)
 
 			By("create app")
 			app = catalog.NewAppName()
