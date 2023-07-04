@@ -412,7 +412,7 @@ const (
 
 // Status will check for the readyness of the release returning an internal status instead of
 // the Helm release status (https://github.com/helm/helm/blob/main/pkg/release/status.go).
-// Helm is not checking for the actual status of the release and also if the resources are still
+// Helm is not checking for the actual status of the release and even if the resources are still
 // in deployment they will be marked as "deployed"
 func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, namespace, releaseName string) (ReleaseStatus, error) {
 	helmClient, err := GetHelmClient(cluster.RestConfig, logger, namespace)
