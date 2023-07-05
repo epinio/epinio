@@ -461,10 +461,11 @@ var _ = Describe("Services", LService, func() {
 	})
 
 	Describe("Delete", func() {
-		var service string
+		var service, chart string
 
 		BeforeEach(func() {
 			service = catalog.NewServiceName()
+			chart = names.ServiceReleaseName(service)
 			env.MakeServiceInstance(service, catalogService.Meta.Name)
 		})
 
@@ -522,17 +523,25 @@ var _ = Describe("Services", LService, func() {
 		})
 
 		When("bound to an app", func() {
-			var app, containerImageURL, chart string
+			var app, containerImageURL string
 
 			BeforeEach(func() {
 				containerImageURL = "splatform/sample-app"
+
+				service = catalog.NewServiceName()
+				chart = names.ServiceReleaseName(service)
+
+				// we need to create a new service with some secrets to create the configuration
+				By("create it")
+				out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+				Expect(err).ToNot(HaveOccurred(), out)
 
 				By("create app")
 				app = catalog.NewAppName()
 				env.MakeContainerImageApp(app, 1, containerImageURL)
 
 				By("bind it")
-				out, err := env.Epinio("", "service", "bind", service, app)
+				out, err = env.Epinio("", "service", "bind", service, app)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				By("verify binding")
@@ -744,28 +753,25 @@ var _ = Describe("Services", LService, func() {
 			service = catalog.NewServiceName()
 			chart = names.ServiceReleaseName(service)
 
+			By("create it")
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("create app")
+			app = catalog.NewAppName()
+			env.MakeContainerImageApp(app, 1, containerImageURL)
+
 			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
 			}, ServiceDeployTimeout, ServiceDeployPollingInterval).
 				Should(
-					HaveATable(WithRow("Status", "deployed")),
+					HaveATable(
+						WithRow("Status", "deployed"),
+						WithRow("Status", "deployed"),
+					),
 				)
-
-			By("create app")
-			app = catalog.NewAppName()
-			env.MakeContainerImageApp(app, 1, containerImageURL)
-
-			By("verify service deployment")
-			out, err := env.Epinio("", "service", "show", service)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(
-				HaveATable(
-					WithHeaders("KEY", "VALUE"),
-					WithRow("Status", "deployed"),
-				),
-			)
 
 			By("bind it")
 			out, err = env.Epinio("", "service", "bind", service, app)
