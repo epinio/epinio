@@ -96,14 +96,14 @@ func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wai
 		WithBoolValue("Wait For Completion", wait).
 		Msg("Creating Service...")
 
-	request := &models.ServiceCreateRequest{
+	request := models.ServiceCreateRequest{
 		CatalogService: catalogServiceName,
 		Name:           serviceName,
 		Wait:           wait,
 		Settings:       chartValues,
 	}
 
-	err := c.API.ServiceCreate(request, c.Settings.Namespace)
+	_, err := c.API.ServiceCreate(request, c.Settings.Namespace)
 	// Note: errors.Wrap (nil, "...") == nil
 	return errors.Wrap(err, "service create failed")
 }
@@ -264,11 +264,11 @@ func (c *EpinioClient) ServiceBind(name, appName string) error {
 
 	c.ui.Note().Msg("Binding Service...")
 
-	request := &models.ServiceBindRequest{
+	request := models.ServiceBindRequest{
 		AppName: appName,
 	}
 
-	err := c.API.ServiceBind(request, c.Settings.Namespace, name)
+	_, err := c.API.ServiceBind(request, c.Settings.Namespace, name)
 	// Note: errors.Wrap (nil, "...") == nil
 	return errors.Wrap(err, "service bind failed")
 }
@@ -281,11 +281,11 @@ func (c *EpinioClient) ServiceUnbind(name, appName string) error {
 
 	c.ui.Note().Msg("Unbinding Service...")
 
-	request := &models.ServiceUnbindRequest{
+	request := models.ServiceUnbindRequest{
 		AppName: appName,
 	}
 
-	err := c.API.ServiceUnbind(request, c.Settings.Namespace, name)
+	_, err := c.API.ServiceUnbind(request, c.Settings.Namespace, name)
 	return errors.Wrap(err, "service unbind failed")
 }
 

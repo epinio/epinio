@@ -19,6 +19,7 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -63,6 +64,9 @@ func DescribeAppsErrors() {
 				_, err := call()
 				Expect(err).To(HaveOccurred())
 			},
+			Entry("app create", func() (any, error) {
+				return epinioClient.AppCreate(models.ApplicationCreateRequest{}, "namespace")
+			}),
 			Entry("apps", func() (any, error) {
 				return epinioClient.Apps("namespace")
 			}),
@@ -72,11 +76,23 @@ func DescribeAppsErrors() {
 			Entry("app show", func() (any, error) {
 				return epinioClient.AppShow("namespace", "appname")
 			}),
+			Entry("app update", func() (any, error) {
+				return epinioClient.AppUpdate(models.ApplicationUpdateRequest{}, "namespace", "appname")
+			}),
+			Entry("app delete", func() (any, error) {
+				return epinioClient.AppDelete("namespace", []string{"appname"})
+			}),
 			Entry("app match", func() (any, error) {
 				return epinioClient.AppMatch("namespace", "appprefix")
 			}),
 			Entry("app validate CV", func() (any, error) {
 				return epinioClient.AppValidateCV("namespace", "appname")
+			}),
+			Entry("app stage", func() (any, error) {
+				return epinioClient.AppStage(models.StageRequest{})
+			}),
+			Entry("app deploy", func() (any, error) {
+				return epinioClient.AppDeploy(models.DeployRequest{})
 			}),
 		)
 	})

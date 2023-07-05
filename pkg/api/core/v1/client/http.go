@@ -74,32 +74,16 @@ func Get[T any](c *Client, endpoint string, response T) (T, error) {
 	return Do(c, endpoint, http.MethodGet, nil, response)
 }
 
-func (c *Client) get(endpoint string) ([]byte, error) {
-	return c.do(endpoint, "GET", "")
-}
-
 func Post[T any](c *Client, endpoint string, request any, response T) (T, error) {
 	return Do(c, endpoint, http.MethodPost, request, response)
-}
-
-func (c *Client) post(endpoint string, data string) ([]byte, error) {
-	return c.do(endpoint, "POST", data)
 }
 
 func Patch[T any](c *Client, endpoint string, request any, response T) (T, error) {
 	return Do(c, endpoint, http.MethodPatch, request, response)
 }
 
-func (c *Client) patch(endpoint string, data string) ([]byte, error) {
-	return c.do(endpoint, "PATCH", data)
-}
-
 func Delete[T any](c *Client, endpoint string, request any, response T) (T, error) {
 	return Do(c, endpoint, http.MethodDelete, request, response)
-}
-
-func (c *Client) delete(endpoint string) ([]byte, error) {
-	return c.do(endpoint, "DELETE", "")
 }
 
 // upload the given path as param "file" in a multipart form
@@ -321,7 +305,7 @@ func formatError(bodyBytes []byte, response *http.Response) error {
 }
 
 func (c *Client) AuthToken() (string, error) {
-	data, err := c.get(api.Routes.Path("AuthToken"))
+	data, err := c.do(api.Routes.Path("AuthToken"), "GET", "")
 	if err != nil {
 		return "", err
 	}

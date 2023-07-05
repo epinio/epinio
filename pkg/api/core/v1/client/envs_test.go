@@ -19,6 +19,7 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -62,11 +63,17 @@ func DescribeEnvironmentErrors() {
 				_, err := call()
 				Expect(err).To(HaveOccurred())
 			},
+			Entry("env set", func() (any, error) {
+				return epinioClient.EnvSet(models.EnvVariableMap{}, "namespace", "appname")
+			}),
 			Entry("envs", func() (any, error) {
 				return epinioClient.EnvList("namespace", "appname")
 			}),
 			Entry("env show", func() (any, error) {
 				return epinioClient.EnvShow("namespace", "appname", "envname")
+			}),
+			Entry("env unset", func() (any, error) {
+				return epinioClient.EnvUnset("namespace", "appname", "envname")
 			}),
 			Entry("env match", func() (any, error) {
 				return epinioClient.EnvMatch("namespace", "appname", "envnameprefix")

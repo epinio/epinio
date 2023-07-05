@@ -12,7 +12,6 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -21,31 +20,16 @@ import (
 )
 
 // NamespaceCreate creates a namespace
-func (c *Client) NamespaceCreate(req models.NamespaceCreateRequest) (models.Response, error) {
-	var resp models.Response
+func (c *Client) NamespaceCreate(request models.NamespaceCreateRequest) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("Namespaces")
 
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, err
-	}
-
-	data, err := c.post(api.Routes.Path("Namespaces"), string(b))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Post(c, endpoint, request, response)
 }
 
 // NamespaceDelete deletes a namespace
 func (c *Client) NamespaceDelete(namespaces []string) (models.Response, error) {
-	resp := models.Response{}
+	response := models.Response{}
 
 	queryParams := url.Values{}
 	for _, namespace := range namespaces {
@@ -58,18 +42,7 @@ func (c *Client) NamespaceDelete(namespaces []string) (models.Response, error) {
 		queryParams.Encode(),
 	)
 
-	data, err := c.delete(endpoint)
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Delete(c, endpoint, nil, response)
 }
 
 // NamespaceShow shows a namespace

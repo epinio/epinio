@@ -74,26 +74,11 @@ func NewUpgrader(cfg spdy.RoundTripperConfig) *Upgrader {
 }
 
 // AppCreate creates an application resource
-func (c *Client) AppCreate(req models.ApplicationCreateRequest, namespace string) (models.Response, error) {
-	var resp models.Response
+func (c *Client) AppCreate(request models.ApplicationCreateRequest, namespace string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("AppCreate", namespace)
 
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, nil
-	}
-
-	data, err := c.post(api.Routes.Path("AppCreate", namespace), string(b))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Post(c, endpoint, request, response)
 }
 
 // Apps returns a list of all apps in an namespace
@@ -201,26 +186,11 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 }
 
 // AppUpdate updates an app
-func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error) {
-	var resp models.Response
+func (c *Client) AppUpdate(request models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("AppUpdate", namespace, appName)
 
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, nil
-	}
-
-	data, err := c.patch(api.Routes.Path("AppUpdate", namespace, appName), string(b))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Patch(c, endpoint, request, response)
 }
 
 // AppMatch returns all matching namespaces for the prefix
@@ -233,22 +203,20 @@ func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, er
 
 // AppDelete deletes an app
 func (c *Client) AppDelete(namespace string, names []string) (models.ApplicationDeleteResponse, error) {
-	resp := models.ApplicationDeleteResponse{}
+	response := models.ApplicationDeleteResponse{}
 
-	URL := constructApplicationBatchDeleteURL(namespace, names)
-
-	data, err := c.delete(URL)
-	if err != nil {
-		return resp, err
+	queryParams := url.Values{}
+	for _, appName := range names {
+		queryParams.Add("applications[]", appName)
 	}
 
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
+	endpoint := fmt.Sprintf(
+		"%s?%s",
+		api.Routes.Path("AppBatchDelete", namespace),
+		queryParams.Encode(),
+	)
 
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Delete(c, endpoint, nil, response)
 }
 
 // AppUpload uploads a tarball for the named app, which is later used in staging
@@ -322,49 +290,19 @@ func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.
 }
 
 // AppStage stages an app
-func (c *Client) AppStage(req models.StageRequest) (*models.StageResponse, error) {
-	out, err := json.Marshal(req)
-	if err != nil {
-		return nil, errors.Wrap(err, "can't marshal stage request")
-	}
+func (c *Client) AppStage(request models.StageRequest) (*models.StageResponse, error) {
+	response := &models.StageResponse{}
+	endpoint := api.Routes.Path("AppStage", request.App.Namespace, request.App.Name)
 
-	b, err := c.post(api.Routes.Path("AppStage", req.App.Namespace, req.App.Name), string(out))
-	if err != nil {
-		return nil, errors.Wrap(err, "can't stage app")
-	}
-
-	// returns staging ID
-	resp := &models.StageResponse{}
-	if err := json.Unmarshal(b, resp); err != nil {
-		return nil, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Post(c, endpoint, request, response)
 }
 
 // AppDeploy deploys a staged app
-func (c *Client) AppDeploy(req models.DeployRequest) (*models.DeployResponse, error) {
-	out, err := json.Marshal(req)
-	if err != nil {
-		return nil, errors.Wrap(err, "can't marshal deploy request")
-	}
+func (c *Client) AppDeploy(request models.DeployRequest) (*models.DeployResponse, error) {
+	response := &models.DeployResponse{}
+	endpoint := api.Routes.Path("AppDeploy", request.App.Namespace, request.App.Name)
 
-	b, err := c.post(api.Routes.Path("AppDeploy", req.App.Namespace, req.App.Name), string(out))
-	if err != nil {
-		return nil, errors.Wrap(err, "can't deploy app")
-	}
-
-	// returns app default route
-	resp := &models.DeployResponse{}
-	if err := json.Unmarshal(b, resp); err != nil {
-		return nil, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Post(c, endpoint, request, response)
 }
 
 // AppLogs streams the logs of all the application instances, in the targeted namespace
@@ -438,7 +376,8 @@ func (c *Client) StagingComplete(namespace string, id string) (models.Response, 
 	)
 	err = retry.Do(
 		func() error {
-			data, err = c.get(api.Routes.Path("StagingComplete", namespace, id))
+			endpoint := api.Routes.Path("StagingComplete", namespace, id)
+			data, err = c.do(endpoint, "GET", "")
 			return err
 		},
 		retry.RetryIf(func(err error) bool {
@@ -487,7 +426,8 @@ func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 	)
 	err = retry.Do(
 		func() error {
-			data, err = c.get(api.Routes.Path("AppRunning", app.Namespace, app.Name))
+			endpoint := api.Routes.Path("AppRunning", app.Namespace, app.Name)
+			data, err = c.do(endpoint, "GET", "")
 			return err
 		},
 		retry.RetryIf(func(err error) bool {
@@ -650,22 +590,10 @@ func (c *Client) addAuthTokenToURL(url *url.URL) error {
 func (c *Client) AppRestart(namespace string, appName string) error {
 	endpoint := api.Routes.Path("AppRestart", namespace, appName)
 
-	if _, err := c.post(endpoint, ""); err != nil {
+	if _, err := c.do(endpoint, "POST", ""); err != nil {
 		errorMsg := fmt.Sprintf("error restarting app %s in namespace %s", appName, namespace)
 		return errors.Wrap(err, errorMsg)
 	}
 
 	return nil
-}
-
-func constructApplicationBatchDeleteURL(namespace string, names []string) string {
-	q := url.Values{}
-	for _, c := range names {
-		q.Add("applications[]", c)
-	}
-	URLParams := q.Encode()
-
-	URL := api.Routes.Path("AppBatchDelete", namespace)
-
-	return fmt.Sprintf("%s?%s", URL, URLParams)
 }

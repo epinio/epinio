@@ -12,7 +12,6 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -49,14 +48,11 @@ func (c *Client) AllServices() (models.ServiceList, error) {
 	return Get(c, endpoint, response)
 }
 
-func (c *Client) ServiceCreate(req *models.ServiceCreateRequest, namespace string) error {
-	b, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
+func (c *Client) ServiceCreate(request models.ServiceCreateRequest, namespace string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ServiceCreate", namespace)
 
-	_, err = c.post(api.Routes.Path("ServiceCreate", namespace), string(b))
-	return err
+	return Post(c, endpoint, request, response)
 }
 
 func (c *Client) ServiceShow(namespace, name string) (*models.Service, error) {
@@ -91,24 +87,18 @@ func (c *Client) ServiceDelete(request models.ServiceDeleteRequest, namespace st
 	return Delete(c, endpoint, request, response)
 }
 
-func (c *Client) ServiceBind(req *models.ServiceBindRequest, namespace, name string) error {
-	b, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
+func (c *Client) ServiceBind(request models.ServiceBindRequest, namespace, name string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ServiceBind", namespace, name)
 
-	_, err = c.post(api.Routes.Path("ServiceBind", namespace, name), string(b))
-	return err
+	return Post(c, endpoint, request, response)
 }
 
-func (c *Client) ServiceUnbind(req *models.ServiceUnbindRequest, namespace, name string) error {
-	b, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
+func (c *Client) ServiceUnbind(request models.ServiceUnbindRequest, namespace, name string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ServiceUnbind", namespace, name)
 
-	_, err = c.post(api.Routes.Path("ServiceUnbind", namespace, name), string(b))
-	return err
+	return Post(c, endpoint, request, response)
 }
 
 func (c *Client) ServiceList(namespace string) (models.ServiceList, error) {

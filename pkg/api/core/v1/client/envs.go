@@ -12,10 +12,6 @@
 package client
 
 import (
-	"encoding/json"
-
-	"github.com/pkg/errors"
-
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -29,26 +25,11 @@ func (c *Client) EnvList(namespace string, appName string) (models.EnvVariableMa
 }
 
 // EnvSet set env vars for an app
-func (c *Client) EnvSet(req models.EnvVariableMap, namespace string, appName string) (models.Response, error) {
-	resp := models.Response{}
+func (c *Client) EnvSet(request models.EnvVariableMap, namespace string, appName string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("EnvSet", namespace, appName)
 
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, nil
-	}
-
-	data, err := c.post(api.Routes.Path("EnvSet", namespace, appName), string(b))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, errors.Wrap(err, "response body is not JSON")
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Post(c, endpoint, request, response)
 }
 
 // EnvShow shows an env variable
@@ -61,20 +42,10 @@ func (c *Client) EnvShow(namespace string, appName string, envName string) (mode
 
 // EnvUnset removes an env var
 func (c *Client) EnvUnset(namespace string, appName string, envName string) (models.Response, error) {
-	resp := models.Response{}
+	response := models.Response{}
+	endpoint := api.Routes.Path("EnvUnset", namespace, appName, envName)
 
-	data, err := c.delete(api.Routes.Path("EnvUnset", namespace, appName, envName))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Delete(c, endpoint, nil, response)
 }
 
 // EnvMatch returns all env vars matching the prefix
