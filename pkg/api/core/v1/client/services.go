@@ -16,8 +16,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/pkg/errors"
-
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -76,14 +74,8 @@ func (c *Client) ServiceMatch(namespace, prefix string) (models.ServiceMatchResp
 	return Get(c, endpoint, response)
 }
 
-func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string, names []string, f ErrorFunc) (models.ServiceDeleteResponse, error) {
-
-	resp := models.ServiceDeleteResponse{}
-
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, nil
-	}
+func (c *Client) ServiceDelete(request models.ServiceDeleteRequest, namespace string, names []string) (models.ServiceDeleteResponse, error) {
+	response := models.ServiceDeleteResponse{}
 
 	queryParams := url.Values{}
 	for _, serviceName := range names {
@@ -96,23 +88,7 @@ func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string
 		queryParams.Encode(),
 	)
 
-	data, err := c.doWithCustomErrorHandling(endpoint, "DELETE", string(b), f)
-	if err != nil {
-		if err.Error() != "Bad Request" {
-			return resp, err
-		}
-		return resp, nil
-	}
-
-	if len(data) > 0 {
-		if err := json.Unmarshal(data, &resp); err != nil {
-			return resp, errors.Wrap(err, "response body is not JSON")
-		}
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Delete(c, endpoint, request, response)
 }
 
 func (c *Client) ServiceBind(req *models.ServiceBindRequest, namespace, name string) error {

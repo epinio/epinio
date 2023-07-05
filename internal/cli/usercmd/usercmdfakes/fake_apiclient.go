@@ -14,7 +14,6 @@ package usercmdfakes
 
 import (
 	"context"
-	"net/http"
 	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -692,13 +691,12 @@ type FakeAPIClient struct {
 	serviceCreateReturnsOnCall map[int]struct {
 		result1 error
 	}
-	ServiceDeleteStub        func(models.ServiceDeleteRequest, string, []string, func(response *http.Response, bodyBytes []byte, err error) error) (models.ServiceDeleteResponse, error)
+	ServiceDeleteStub        func(models.ServiceDeleteRequest, string, []string) (models.ServiceDeleteResponse, error)
 	serviceDeleteMutex       sync.RWMutex
 	serviceDeleteArgsForCall []struct {
 		arg1 models.ServiceDeleteRequest
 		arg2 string
 		arg3 []string
-		arg4 func(response *http.Response, bodyBytes []byte, err error) error
 	}
 	serviceDeleteReturns struct {
 		result1 models.ServiceDeleteResponse
@@ -3941,7 +3939,7 @@ func (fake *FakeAPIClient) ServiceCreateReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeAPIClient) ServiceDelete(arg1 models.ServiceDeleteRequest, arg2 string, arg3 []string, arg4 func(response *http.Response, bodyBytes []byte, err error) error) (models.ServiceDeleteResponse, error) {
+func (fake *FakeAPIClient) ServiceDelete(arg1 models.ServiceDeleteRequest, arg2 string, arg3 []string) (models.ServiceDeleteResponse, error) {
 	var arg3Copy []string
 	if arg3 != nil {
 		arg3Copy = make([]string, len(arg3))
@@ -3953,14 +3951,13 @@ func (fake *FakeAPIClient) ServiceDelete(arg1 models.ServiceDeleteRequest, arg2 
 		arg1 models.ServiceDeleteRequest
 		arg2 string
 		arg3 []string
-		arg4 func(response *http.Response, bodyBytes []byte, err error) error
-	}{arg1, arg2, arg3Copy, arg4})
+	}{arg1, arg2, arg3Copy})
 	stub := fake.ServiceDeleteStub
 	fakeReturns := fake.serviceDeleteReturns
-	fake.recordInvocation("ServiceDelete", []interface{}{arg1, arg2, arg3Copy, arg4})
+	fake.recordInvocation("ServiceDelete", []interface{}{arg1, arg2, arg3Copy})
 	fake.serviceDeleteMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -3974,17 +3971,17 @@ func (fake *FakeAPIClient) ServiceDeleteCallCount() int {
 	return len(fake.serviceDeleteArgsForCall)
 }
 
-func (fake *FakeAPIClient) ServiceDeleteCalls(stub func(models.ServiceDeleteRequest, string, []string, func(response *http.Response, bodyBytes []byte, err error) error) (models.ServiceDeleteResponse, error)) {
+func (fake *FakeAPIClient) ServiceDeleteCalls(stub func(models.ServiceDeleteRequest, string, []string) (models.ServiceDeleteResponse, error)) {
 	fake.serviceDeleteMutex.Lock()
 	defer fake.serviceDeleteMutex.Unlock()
 	fake.ServiceDeleteStub = stub
 }
 
-func (fake *FakeAPIClient) ServiceDeleteArgsForCall(i int) (models.ServiceDeleteRequest, string, []string, func(response *http.Response, bodyBytes []byte, err error) error) {
+func (fake *FakeAPIClient) ServiceDeleteArgsForCall(i int) (models.ServiceDeleteRequest, string, []string) {
 	fake.serviceDeleteMutex.RLock()
 	defer fake.serviceDeleteMutex.RUnlock()
 	argsForCall := fake.serviceDeleteArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeAPIClient) ServiceDeleteReturns(result1 models.ServiceDeleteResponse, result2 error) {

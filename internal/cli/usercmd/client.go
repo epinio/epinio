@@ -105,7 +105,7 @@ type APIClient interface {
 	ServiceCreate(req *models.ServiceCreateRequest, namespace string) error
 	ServiceBind(req *models.ServiceBindRequest, namespace, name string) error
 	ServiceUnbind(req *models.ServiceUnbindRequest, namespace, name string) error
-	ServiceDelete(req models.ServiceDeleteRequest, namespace string, names []string, f epinioapi.ErrorFunc) (models.ServiceDeleteResponse, error)
+	ServiceDelete(req models.ServiceDeleteRequest, namespace string, names []string) (models.ServiceDeleteResponse, error)
 	ServiceList(namespace string) (models.ServiceList, error)
 	ServiceMatch(namespace, prefix string) (models.ServiceMatchResponse, error)
 	ServicePortForward(namespace string, serviceName string, opts *epinioapi.PortForwardOpts) error
