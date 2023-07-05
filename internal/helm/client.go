@@ -2,12 +2,12 @@ package helm
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	hc "github.com/mittwald/go-helm-client"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/release"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 )
@@ -15,7 +15,7 @@ import (
 var _ hc.Client = (*SynchronizedClient)(nil)
 
 // InstallOrUpgradeChart implements helmclient.Client
-func (c *SynchronizedClient) InstallOrUpgradeChart(ctx context.Context, spec *hc.ChartSpec, opts *hc.GenericHelmOptions) (*release.Release, error) {
+func (c *SynchronizedClient) InstallOrUpgradeChart(ctx context.Context, spec *hc.ChartSpec, opts *hc.GenericHelmOptions) (*helmrelease.Release, error) {
 	anyMutex, _ := c.mutexMap.LoadOrStore(spec.ReleaseName, &sync.Mutex{})
 	if m, ok := anyMutex.(*sync.Mutex); ok {
 		m.Lock()
@@ -133,4 +133,16 @@ func (c *SynchronizedClient) UpgradeChart(ctx context.Context, spec *hc.ChartSpe
 	}
 
 	return c.helmClient.UpgradeChart(ctx, spec, opts)
+}
+
+// Status implements the 'helm status' command, with the ShowResources flag enabled
+func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
+	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
+	if !ok {
+		return nil, fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
+	}
+
+	statusAction := action.NewStatus(concreteHelmClient.ActionConfig)
+	statusAction.ShowResources = true
+	return statusAction.Run(name)
 }

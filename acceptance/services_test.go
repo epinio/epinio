@@ -33,14 +33,23 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const mysqlVersion = "8.0.31" // Doesn't change too often
+const (
+	mysqlVersion                 = "8.0.31" // Doesn't change too often
+	ServiceDeployTimeout         = "4m"
+	ServiceDeployPollingInterval = "5s"
+)
 
 var _ = Describe("Services", LService, func() {
+	var namespace string
+
 	var catalogService models.CatalogService
 	var catalogServiceURL string
 	var catalogServiceHostname string
 
 	BeforeEach(func() {
+		namespace = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace)
+
 		settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
 		Expect(err).ToNot(HaveOccurred())
 
@@ -53,6 +62,7 @@ var _ = Describe("Services", LService, func() {
 
 		DeferCleanup(func() {
 			catalog.DeleteCatalogService(catalogService.Meta.Name)
+			env.DeleteNamespace(namespace)
 		})
 	})
 
@@ -150,32 +160,22 @@ var _ = Describe("Services", LService, func() {
 	})
 
 	Describe("Show", func() {
-		var namespace, service string
+		var service string
 
 		BeforeEach(func() {
-			namespace = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace)
-
 			service = catalog.NewServiceName()
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service, "--wait")
 			Expect(err).ToNot(HaveOccurred(), out)
-
-			DeferCleanup(func() {
-				env.DeleteNamespace(namespace)
-			})
 		})
 
 		It("shows a service", func() {
 			By("show it")
-			Eventually(func() string {
-				out, err := env.Epinio("", "service", "show", service)
-				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring("Showing Service"))
-
-				return out
-			}, "2m", "5s").Should(
+			out, err := env.Epinio("", "service", "show", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Showing Service"))
+			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Name", service),
@@ -209,20 +209,10 @@ var _ = Describe("Services", LService, func() {
 	})
 
 	Describe("List", func() {
-		var namespace, service string
-
-		BeforeEach(func() {
-			namespace = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace)
-
-			service = catalog.NewServiceName()
-
-			DeferCleanup(func() {
-				env.DeleteNamespace(namespace)
-			})
-		})
 
 		It("list a service", func() {
+			service := catalog.NewServiceName()
+
 			By("create it")
 			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 			Expect(err).ToNot(HaveOccurred(), out)
@@ -237,7 +227,7 @@ var _ = Describe("Services", LService, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
-					WithRow(service, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
+					WithRow(service, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(unknown|not-ready|deployed)", ""),
 				),
 			)
 
@@ -245,7 +235,7 @@ var _ = Describe("Services", LService, func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list")
 				return out
-			}, "2m", "5s").Should(
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
 					WithRow(service, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
@@ -309,12 +299,12 @@ var _ = Describe("Services", LService, func() {
 			By("create them in different namespaces")
 			// create service1 in namespace1
 			env.TargetNamespace(namespace1)
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--wait")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// create service2 in namespace2
 			env.TargetNamespace(namespace2)
-			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2)
+			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--wait")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// show all the services (we are admin, good to go)
@@ -327,36 +317,10 @@ var _ = Describe("Services", LService, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
-					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
-				),
-			)
-
-			By("wait for deployment of " + service1)
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "list", "--all")
-				return out
-			}, "2m", "5s").Should(
-				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
 					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
-				),
-			)
-
-			By(fmt.Sprintf("%s/%s up", namespace1, service1))
-
-			By("wait for deployment of " + service2)
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "list", "--all")
-				return out
-			}, "2m", "5s").Should(
-				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
 					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
 				),
 			)
-
-			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
 
 		It("list only the services in the user namespace", func() {
@@ -366,7 +330,7 @@ var _ = Describe("Services", LService, func() {
 			updateSettings(user1, password1, namespace1)
 
 			// create service1 in namespace1
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--settings-file", tmpSettingsPath)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--settings-file", tmpSettingsPath, "--wait")
 			Expect(err).ToNot(HaveOccurred(), out, tmpSettingsPath)
 
 			// impersonate user2
@@ -374,7 +338,7 @@ var _ = Describe("Services", LService, func() {
 
 			// create service2 in namespace2
 			env.TargetNamespace(namespace2)
-			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--settings-file", tmpSettingsPath)
+			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--settings-file", tmpSettingsPath, "--wait")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// show only owned namespaces (we are user2, only namespace2)
@@ -397,36 +361,48 @@ var _ = Describe("Services", LService, func() {
 				),
 			)
 
-			By("wait for deployment")
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
-				return out
-			}, "2m", "5s").Should(
+			By("verify service deployment")
+			out, err = env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
 					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
 				),
 			)
 
-			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
 	})
 
 	Describe("Create", func() {
-		var namespace, service string
 
-		BeforeEach(func() {
-			namespace = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace)
+		It("creates a service waiting for completion", func() {
+			service := catalog.NewServiceName()
 
-			service = catalog.NewServiceName()
+			By("create it")
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service, "--wait")
+			Expect(err).ToNot(HaveOccurred(), out)
 
-			DeferCleanup(func() {
-				env.DeleteNamespace(namespace)
-			})
+			By("show it")
+			out, err = env.Epinio("", "service", "show", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", service),
+					WithRow("Created", WithDate()),
+					WithRow("Catalog Service", catalogService.Meta.Name),
+					WithRow("Status", "deployed"),
+				),
+			)
+
+			By(fmt.Sprintf("%s/%s up", namespace, service))
 		})
 
 		It("creates a service", func() {
+			service := catalog.NewServiceName()
+
 			By("create it")
 			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 			Expect(err).ToNot(HaveOccurred(), out)
@@ -441,7 +417,7 @@ var _ = Describe("Services", LService, func() {
 					WithRow("Name", service),
 					WithRow("Created", WithDate()),
 					WithRow("Catalog Service", catalogService.Meta.Name),
-					WithRow("Status", "(not-ready|deployed)"),
+					WithRow("Status", "(unknown|not-ready|deployed)"),
 				),
 			)
 
@@ -449,7 +425,7 @@ var _ = Describe("Services", LService, func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
-			}, "2m", "5s").Should(
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
@@ -482,18 +458,12 @@ var _ = Describe("Services", LService, func() {
 	})
 
 	Describe("Delete", func() {
-		var namespace, service string
+		var service, chart string
 
 		BeforeEach(func() {
-			namespace = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace)
-
 			service = catalog.NewServiceName()
+			chart = names.ServiceReleaseName(service)
 			env.MakeServiceInstance(service, catalogService.Meta.Name)
-
-			DeferCleanup(func() {
-				env.DeleteNamespace(namespace)
-			})
 		})
 
 		It("deletes a service", func() {
@@ -550,17 +520,15 @@ var _ = Describe("Services", LService, func() {
 		})
 
 		When("bound to an app", func() {
-			var namespace, service, app, containerImageURL, chart string
+			var app, containerImageURL string
 
 			BeforeEach(func() {
 				containerImageURL = "splatform/sample-app"
 
-				namespace = catalog.NewNamespaceName()
-				env.SetupAndTargetNamespace(namespace)
-
 				service = catalog.NewServiceName()
 				chart = names.ServiceReleaseName(service)
 
+				// we need to create a new service with some secrets to create the configuration
 				By("create it")
 				out, err := env.Epinio("", "service", "create", "mysql-dev", service)
 				Expect(err).ToNot(HaveOccurred(), out)
@@ -569,17 +537,6 @@ var _ = Describe("Services", LService, func() {
 				app = catalog.NewAppName()
 				env.MakeContainerImageApp(app, 1, containerImageURL)
 
-				By("wait for deployment")
-				Eventually(func() string {
-					out, _ := env.Epinio("", "service", "show", service)
-					return out
-				}, "2m", "5s").Should(
-					HaveATable(
-						WithHeaders("KEY", "VALUE"),
-						WithRow("Status", "deployed"),
-					),
-				)
-
 				By("bind it")
 				out, err = env.Epinio("", "service", "bind", service, app)
 				Expect(err).ToNot(HaveOccurred(), out)
@@ -587,17 +544,12 @@ var _ = Describe("Services", LService, func() {
 				By("verify binding")
 				appShowOut, err := env.Epinio("", "app", "show", app)
 				Expect(err).ToNot(HaveOccurred())
-
 				Expect(appShowOut).To(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Bound Configurations", chart+".*"),
 					),
 				)
-
-				DeferCleanup(func() {
-					env.DeleteNamespace(namespace)
-				})
 			})
 
 			It("fails to delete a bound service", func() {
@@ -657,13 +609,10 @@ var _ = Describe("Services", LService, func() {
 	})
 
 	Describe("Bind", func() {
-		var namespace, service, app, containerImageURL, chart string
+		var service, app, containerImageURL, chart string
 
 		BeforeEach(func() {
 			containerImageURL = "splatform/sample-app"
-
-			namespace = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace)
 
 			service = catalog.NewServiceName()
 			chart = names.ServiceReleaseName(service)
@@ -672,21 +621,17 @@ var _ = Describe("Services", LService, func() {
 			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			By("create app")
-			app = catalog.NewAppName()
-			env.MakeContainerImageApp(app, 1, containerImageURL)
-
 			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
-			}, "2m", "5s").Should(
-				HaveATable(
-					WithHeaders("KEY", "VALUE"),
-					WithRow("Status", "deployed"),
-				),
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
+				HaveATable(WithRow("Status", "deployed")),
 			)
 
+			By("create app")
+			app = catalog.NewAppName()
+			env.MakeContainerImageApp(app, 1, containerImageURL)
 		})
 
 		// [EC] we should have a look at this unbind. It should be part of a test probably
@@ -714,8 +659,6 @@ var _ = Describe("Services", LService, func() {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
 			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
-
-			env.DeleteNamespace(namespace)
 		})
 
 		It("binds the service", func() {
@@ -799,13 +742,10 @@ var _ = Describe("Services", LService, func() {
 	})
 
 	Describe("Unbind", func() {
-		var namespace, service, app, containerImageURL, chart string
+		var service, app, containerImageURL, chart string
 
 		BeforeEach(func() {
 			containerImageURL = "splatform/sample-app"
-
-			namespace = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace)
 
 			service = catalog.NewServiceName()
 			chart = names.ServiceReleaseName(service)
@@ -822,7 +762,7 @@ var _ = Describe("Services", LService, func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
-			}, "2m", "5s").Should(
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
@@ -842,10 +782,6 @@ var _ = Describe("Services", LService, func() {
 					WithRow("Bound Configurations", chart+".*"),
 				),
 			)
-
-			DeferCleanup(func() {
-				env.DeleteNamespace(namespace)
-			})
 		})
 
 		It("unbinds the service", func() {
@@ -937,31 +873,22 @@ var _ = Describe("Services", LService, func() {
 	})
 
 	Describe("Port-forward", func() {
-		var namespace, serviceName string
+		var serviceName string
 
 		BeforeEach(func() {
-			namespace = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace)
-
 			serviceName = catalog.NewServiceName()
 
 			out, err := env.Epinio("", "service", "create",
 				catalogService.Meta.Name, serviceName,
 				"--chart-value", "ingress.enabled=true",
-				"--chart-value", "ingress.hostname="+catalogServiceHostname)
+				"--chart-value", "ingress.hostname="+catalogServiceHostname,
+				"--wait",
+			)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			// wait for the service to be ready
-			Eventually(func() int {
-				resp, err := http.Get(catalogServiceURL)
-				Expect(err).ToNot(HaveOccurred())
-				return resp.StatusCode
-			}, "1m", "1s").Should(Equal(http.StatusOK))
-
-			DeferCleanup(func() {
-				catalog.DeleteService(serviceName, namespace)
-				env.DeleteNamespace(namespace)
-			})
+			resp, err := http.Get(catalogServiceURL)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 
 		randomPort := func() string {

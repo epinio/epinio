@@ -44,10 +44,10 @@ func NginxCatalogService(name string) models.CatalogService {
 		},
 		Values: values,
 		Settings: map[string]models.ChartSetting{
-			"ingress.enabled": models.ChartSetting{
+			"ingress.enabled": {
 				Type: "bool",
 			},
-			"ingress.hostname": models.ChartSetting{
+			"ingress.hostname": {
 				Type: "string",
 			},
 		},

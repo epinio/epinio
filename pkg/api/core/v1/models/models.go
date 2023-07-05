@@ -22,8 +22,6 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	helmrelease "helm.sh/helm/v3/pkg/release"
 )
 
 // Note: Meta is an extension of `ConfigurationRef` later in the file. Users of
@@ -379,15 +377,6 @@ const (
 	ServiceStatusNotReady ServiceStatus = "not-ready"
 	ServiceStatusUnknown  ServiceStatus = "unknown"
 )
-
-func NewServiceStatusFromHelmRelease(status helmrelease.Status) ServiceStatus {
-	switch status {
-	case helmrelease.StatusDeployed:
-		return ServiceStatusDeployed
-	default:
-		return ServiceStatusNotReady
-	}
-}
 
 func (s ServiceStatus) String() string { return string(s) }
 

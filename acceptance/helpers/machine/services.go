@@ -35,30 +35,31 @@ func (m *Machine) HaveServiceInstance(serviceName string) {
 }
 
 func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
+	GinkgoHelper()
+
 	By(fmt.Sprintf("creating service %s -> %s", catalogService, serviceName))
 
-	out, err := m.Epinio("", "service", "create", catalogService, serviceName)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	out, err := m.Epinio("", "service", "create", catalogService, serviceName, "--wait")
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check presence and readiness
-	Eventually(func() string {
-		out, err = m.Epinio("", "service", "show", serviceName)
-		Expect(err).ToNot(HaveOccurred(), out)
-		Expect(out).To(ContainSubstring(serviceName))
-
-		return out
-	}, "5m", "5s").Should(
+	out, err = m.Epinio("", "service", "show", serviceName)
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(ContainSubstring(serviceName))
+	Expect(out).To(
 		HaveATable(
 			WithHeaders("KEY", "VALUE"),
 			WithRow("Status", "deployed"),
 		),
-		func() string {
-			outNamespace, _ := m.Epinio(m.nodeTmpDir, "target")
-			outPods, _ := proc.Kubectl("get", "pods", "-A")
-			outHelm, _ := proc.Run("", false, "helm", "list", "-a", "-A")
-			return fmt.Sprintf("%s\nPods:\n%s\nHelm releases:\n%s\n", outNamespace, outPods, outHelm)
-		}(),
 	)
+
+	outNamespace, err := m.Epinio(m.nodeTmpDir, "target")
+	Expect(err).ToNot(HaveOccurred(), out)
+	outPods, err := proc.Kubectl("get", "pods", "-A")
+	Expect(err).ToNot(HaveOccurred(), out)
+	outHelm, err := proc.Run("", false, "helm", "list", "-a", "-A")
+	Expect(err).ToNot(HaveOccurred(), out)
+	By(fmt.Sprintf("%s\nPods:\n%s\nHelm releases:\n%s\n", outNamespace, outPods, outHelm))
 
 	By("CSI/ok")
 }
