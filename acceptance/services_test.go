@@ -172,13 +172,10 @@ var _ = Describe("Services", LService, func() {
 
 		It("shows a service", func() {
 			By("show it")
-			Eventually(func() string {
-				out, err := env.Epinio("", "service", "show", service)
-				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring("Showing Service"))
-
-				return out
-			}, "2m", "5s").Should(
+			out, err := env.Epinio("", "service", "show", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Showing Service"))
+			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Name", service),
@@ -765,13 +762,12 @@ var _ = Describe("Services", LService, func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
-			}, ServiceDeployTimeout, ServiceDeployPollingInterval).
-				Should(
-					HaveATable(
-						WithRow("Status", "deployed"),
-						WithRow("Status", "deployed"),
-					),
-				)
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "deployed"),
+				),
+			)
 
 			By("bind it")
 			out, err = env.Epinio("", "service", "bind", service, app)
@@ -890,12 +886,9 @@ var _ = Describe("Services", LService, func() {
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			// wait for the service to be ready
-			Eventually(func() int {
-				resp, err := http.Get(catalogServiceURL)
-				Expect(err).ToNot(HaveOccurred())
-				return resp.StatusCode
-			}, "1m", "1s").Should(Equal(http.StatusOK))
+			resp, err := http.Get(catalogServiceURL)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 
 		randomPort := func() string {
