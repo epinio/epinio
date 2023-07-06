@@ -139,7 +139,7 @@ jobs:
         run: make acceptance-cluster-delete
 
       - name: Clean all
-        if: always()
+        if: ${{ github.event_name == 'schedule' }}
         uses: colpal/actions-clean@v1
 
   acceptance-cli-apps:
@@ -210,7 +210,7 @@ jobs:
         run: make acceptance-cluster-delete
 
       - name: Clean all
-        if: always()
+        if: ${{ github.event_name == 'schedule' }}
         uses: colpal/actions-clean@v1
 
   acceptance-cli-services:
@@ -281,7 +281,7 @@ jobs:
         run: make acceptance-cluster-delete
 
       - name: Clean all
-        if: always()
+        if: ${{ github.event_name == 'schedule' }}
         uses: colpal/actions-clean@v1
 
   acceptance-api:
@@ -353,7 +353,7 @@ jobs:
         run: make acceptance-cluster-delete
 
       - name: Clean all
-        if: always()
+        if: ${{ github.event_name == 'schedule' }}
         uses: colpal/actions-clean@v1
 
   acceptance-api-apps:
@@ -425,7 +425,7 @@ jobs:
         run: make acceptance-cluster-delete
 
       - name: Clean all
-        if: always()
+        if: ${{ github.event_name == 'schedule' }}
         uses: colpal/actions-clean@v1
 
   acceptance-api-services:
@@ -496,7 +496,7 @@ jobs:
         run: make acceptance-cluster-delete
 
       - name: Clean all
-        if: always()
+        if: ${{ github.event_name == 'schedule' }}
         uses: colpal/actions-clean@v1
 
   acceptance-apps:
@@ -587,7 +587,7 @@ jobs:
         run: make acceptance-cluster-delete
 
       - name: Clean all
-        if: always()
+        if: ${{ github.event_name == 'schedule' }}
         uses: colpal/actions-clean@v1
 
   upload-coverage:
