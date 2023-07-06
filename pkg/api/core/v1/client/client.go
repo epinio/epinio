@@ -83,3 +83,7 @@ func (c *Client) SetHeader(key, value string) {
 		c.customHeaders[key] = value
 	}
 }
+
+func (c *Client) Headers() map[string]string {
+	return c.customHeaders
+}
