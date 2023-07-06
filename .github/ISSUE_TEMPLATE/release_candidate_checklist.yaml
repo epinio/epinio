@@ -9,16 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Release Checklist
-description: Checklist for a new Epinio release
-title: 'Release vX.Y.Z'
+name: Release Candidate Checklist
+description: Checklist for a new Epinio release candidate
+title: 'Release vX.Y.Z-rc'
 labels:
   - kind/release
 body:
   - type: markdown
     attributes:
       value: |
-        Checklist and steps to follow for an Epinio release.  
+        Checklist and steps to follow for an Epinio release candidate.  
         
         Edit the title with the proper release version number, open the issue and complete the tasks.  
 
@@ -55,8 +55,8 @@ body:
             [![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=branch%3Amain)
         - label: >
             **( 📝 Manual step )** Tag `epinio` and check the release action.
-            `git tag -a vX.Y.Z -m 'vX.Y.Z'`
-            `git push origin vX.Y.Z`
+            `git tag -a vX.Y.Z-rc -m 'vX.Y.Z-rc'`
+            `git push origin vX.Y.Z-rc`
             [LINK](https://github.com/epinio/epinio/actions/workflows/release.yml)
         - label: >
             Check the release page for the latest assets and changelog.
@@ -72,7 +72,7 @@ body:
       options:
         - label: >
             **( 📝 Manual step )** Check the `epinio/helm-charts` pull requests for the latest updates. 
-            Update the version of the Chart.yaml accordingly and set the `artifacthub.io/prerelease` annotation to `"false"`.
+            Update the version of the Chart.yaml adding the `-rc` suffix, and set the `artifacthub.io/prerelease` annotation to `"true"`.
             Merge the PR.
             [LINK](https://github.com/epinio/helm-charts/pulls?q=is%3Apr+author%3Aapp%2Fgithub-actions)
         - label: >
@@ -91,36 +91,5 @@ body:
       label: Release
       options:
         - label: >
-            **( 📝 Manual step )** Edit the latest draft release, then publish the release.
+            **( 📝 Manual step )** Edit the latest draft release, set it as "pre-relase" and publish the release.
             [LINK](https://github.com/epinio/epinio/releases)
-        - label: >
-            Check the release published action.
-            [LINK](https://github.com/epinio/epinio/actions/workflows/release-publish.yml)
-        - label: >
-            Check that the `Homebrew/homebrew-core` has an open (or already closed) PR with the latest Epinio version.
-            [LINK](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+epinio)
-
-  - type: checkboxes
-    id: docs-checklist
-    attributes:
-      label: Docs
-      options:
-        - label: >
-            **( 📝 Manual step )** Check the `epinio/docs` pull requests for the latest update, then merge the PR.
-            [LINK](https://github.com/epinio/docs/pulls?q=is:pr+author:app/github-actions)
-
-  - type: checkboxes
-    id: others-checklist
-    attributes:
-      label: Others
-      options:
-        - label: >
-            **( 📝 Manual step )** Docker Extension: check the `epinio/extension-docker-desktop` pull requests for the latest update, then merge the PR.
-            [LINK](https://github.com/epinio/extension-docker-desktop/pulls)
-            Tag the repository with the next version. [LINK](https://github.com/epinio/extension-docker-desktop/tags)
-            Check the result of the action. [LINK](https://github.com/epinio/extension-docker-desktop/actions/workflows/image.yml)
-        - label: >
-            CIVO marketplace: check that the `civo/kubernetes-marketplace` has an open (or already closed) PR with the latest Epinio version.
-            [LINK](https://github.com/civo/kubernetes-marketplace/pulls?q=is%3Apr+epinio)
-        - label: >
-            **( 📝 Manual step )** [optional] Rancher marketplace: open a PR in the [Rancher Helm Chart repository](https://github.com/rancher/charts)
