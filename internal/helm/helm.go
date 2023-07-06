@@ -44,6 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 )
 
 type ServiceParameters struct {
@@ -167,15 +168,20 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	}
 
 	if !parameters.Wait {
+		// Note: We are backgrounding the action. The incoming context cannot be used, as it
+		// is linked to the request. We will get a `context canceled` error. To avoid this a
+		// background context is used instead.
 		go func() {
-			if _, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil); err != nil {
+			err = installOrUpgradeChartWithRetry(context.Background(), logger, client, &chartSpec)
+			if err != nil {
 				logger.Error(err, "installing or upgrading service ASYNC")
 			}
 		}()
 		return nil
 	}
 
-	_, err = client.InstallOrUpgradeChart(ctx, &chartSpec, nil)
+	// Note: Steps 1: Retry only once!
+	err = installOrUpgradeChartWithRetry(ctx, logger, client, &chartSpec)
 	if err != nil {
 		return errors.Wrap(err, "installing or upgrading service SYNC")
 	}
@@ -621,4 +627,27 @@ func validateRange(v float64, key, value, min, max string) error {
 		}
 	}
 	return nil
+}
+
+func installOrUpgradeChartWithRetry(ctx context.Context, logger logr.Logger, client hc.Client,
+	chartSpec *hc.ChartSpec) error {
+
+	// This, the retry, should fix issue https://github.com/epinio/epinio/issues/2385
+
+	backoff := wait.Backoff{
+		Steps:    1, // Retry only once!
+		Duration: 10 * time.Millisecond,
+		Factor:   1.0,
+		Jitter:   0.1,
+	}
+
+	alwaysRetry := func(error) bool { return true }
+
+	return retry.OnError(backoff, alwaysRetry, func() error {
+		_, err := client.InstallOrUpgradeChart(ctx, chartSpec, nil)
+		if err != nil {
+			logger.Error(err, "installing or upgrading service, retry")
+		}
+		return err
+	})
 }
