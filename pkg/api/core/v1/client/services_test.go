@@ -108,8 +108,20 @@ func DescribeServicesErrors() {
 			Entry("service catalog show", func() (any, error) {
 				return epinioClient.ServiceCatalogShow("servicename")
 			}),
+			Entry("service all services", func() (any, error) {
+				return epinioClient.AllServices()
+			}),
+			Entry("service create", func() (any, error) {
+				return epinioClient.ServiceCreate(models.ServiceCreateRequest{}, "namespace")
+			}),
 			Entry("service catalog match", func() (any, error) {
 				return epinioClient.ServiceCatalogMatch("servicenameprefix")
+			}),
+			Entry("service bind", func() (any, error) {
+				return epinioClient.ServiceBind(models.ServiceBindRequest{}, "namespace", "servicename")
+			}),
+			Entry("service unbind", func() (any, error) {
+				return epinioClient.ServiceUnbind(models.ServiceUnbindRequest{}, "namespace", "servicename")
 			}),
 			Entry("service list", func() (any, error) {
 				return epinioClient.ServiceList("namespace")

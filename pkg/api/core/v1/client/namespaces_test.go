@@ -19,6 +19,7 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -62,6 +63,12 @@ func DescribeNamespacesErrors() {
 				_, err := call()
 				Expect(err).To(HaveOccurred())
 			},
+			Entry("namespace create", func() (any, error) {
+				return epinioClient.NamespaceCreate(models.NamespaceCreateRequest{})
+			}),
+			Entry("namespace delete", func() (any, error) {
+				return epinioClient.NamespaceDelete([]string{"namespace"})
+			}),
 			Entry("namespace show", func() (any, error) {
 				return epinioClient.NamespaceShow("namespace")
 			}),
