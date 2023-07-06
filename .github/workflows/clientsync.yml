@@ -103,5 +103,5 @@ jobs:
         run: make acceptance-cluster-delete
 
       - name: Clean all
-        if: always()
+        if: ${{ github.event_name == 'schedule' }}
         uses: colpal/actions-clean@v1

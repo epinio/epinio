@@ -272,5 +272,5 @@ jobs:
 
       # Only on RKE, as it uses a self-hosted runner
       - name: Clean all
-        if: always()
+        if: ${{ github.event_name == 'schedule' }}
         uses: colpal/actions-clean@v1
