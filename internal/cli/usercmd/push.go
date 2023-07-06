@@ -218,8 +218,9 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		c.stageLogs(appRef, stageResponse.Stage.ID)
 
 		details.Info("wait for job", "StageID", stageID)
+
 		// blocking function that wait until the staging is done
-		_, err := c.API.StagingComplete(appRef.Namespace, stageID)
+		err = stagingWithRetry(log.V(1), c.API, appRef.Namespace, stageID)
 		if err != nil {
 			c.ui.Note().Msgf(
 				"You can access the staging logs at any time, either in the UI or with the CLI using this command:\n\nepinio app logs --staging %s",

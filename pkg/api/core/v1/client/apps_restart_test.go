@@ -19,6 +19,7 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -46,8 +47,9 @@ func DescribeAppRestart() {
 		})
 
 		It("returns no error", func() {
-			err := epinioClient.AppRestart("namespace-foo", "appname")
+			res, err := epinioClient.AppRestart("namespace-foo", "appname")
 			Expect(err).ToNot(HaveOccurred())
+			Expect(res).To(Equal(models.ResponseOK))
 		})
 	})
 
@@ -67,7 +69,7 @@ func DescribeAppRestart() {
 		})
 
 		It("it returns an error", func() {
-			err := epinioClient.AppRestart("namespace-foo", "appname")
+			_, err := epinioClient.AppRestart("namespace-foo", "appname")
 			Expect(err).To(HaveOccurred())
 		})
 	})

@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/httpstream"
@@ -34,10 +33,8 @@ import (
 	"k8s.io/client-go/transport"
 	gospdy "k8s.io/client-go/transport/spdy"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	progressbar "github.com/schollz/progressbar/v3"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
@@ -367,98 +364,18 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printC
 
 // StagingComplete checks if the staging process is complete
 func (c *Client) StagingComplete(namespace string, id string) (models.Response, error) {
-	resp := models.Response{}
+	response := models.Response{}
+	endpoint := api.Routes.Path("StagingComplete", namespace, id)
 
-	details := c.log.V(1)
-	var (
-		data []byte
-		err  error
-	)
-	err = retry.Do(
-		func() error {
-			endpoint := api.Routes.Path("StagingComplete", namespace, id)
-			data, err = c.do(endpoint, "GET", "")
-			return err
-		},
-		retry.RetryIf(func(err error) bool {
-			// Bail out early when staging failed - Do not retry
-			if strings.Contains(err.Error(), "Failed to stage") {
-				return false
-			}
-			if r, ok := err.(interface{ StatusCode() int }); ok {
-				return helpers.RetryableCode(r.StatusCode())
-			}
-			retry := helpers.Retryable(err.Error())
-
-			details.Info("create error", "error", err.Error(), "retry", retry)
-			return retry
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			details.WithValues(
-				"tries", fmt.Sprintf("%d/%d", n, duration.RetryMax),
-				"error", err.Error(),
-			).Info("Retrying StagingComplete")
-		}),
-		retry.Delay(time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 // AppRunning checks if the app is running
 func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
-	resp := models.Response{}
+	response := models.Response{}
+	endpoint := api.Routes.Path("AppRunning", app.Namespace, app.Name)
 
-	details := c.log.V(1)
-	var (
-		data []byte
-		err  error
-	)
-	err = retry.Do(
-		func() error {
-			endpoint := api.Routes.Path("AppRunning", app.Namespace, app.Name)
-			data, err = c.do(endpoint, "GET", "")
-			return err
-		},
-		retry.RetryIf(func(err error) bool {
-			if r, ok := err.(interface{ StatusCode() int }); ok {
-				return helpers.RetryableCode(r.StatusCode())
-			}
-			retry := helpers.Retryable(err.Error())
-
-			details.Info("create error", "error", err.Error(), "retry", retry)
-			return retry
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			details.WithValues(
-				"tries", fmt.Sprintf("%d/%d", n, duration.RetryMax),
-				"error", err.Error(),
-			).Info("Retrying AppRunning")
-		}),
-		retry.Delay(time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return Get(c, endpoint, response)
 }
 
 func (c *Client) AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error {
@@ -587,13 +504,9 @@ func (c *Client) addAuthTokenToURL(url *url.URL) error {
 }
 
 // AppRestart restarts an app
-func (c *Client) AppRestart(namespace string, appName string) error {
+func (c *Client) AppRestart(namespace string, appName string) (models.Response, error) {
+	response := models.Response{}
 	endpoint := api.Routes.Path("AppRestart", namespace, appName)
 
-	if _, err := c.do(endpoint, "POST", ""); err != nil {
-		errorMsg := fmt.Sprintf("error restarting app %s in namespace %s", appName, namespace)
-		return errors.Wrap(err, errorMsg)
-	}
-
-	return nil
+	return Post(c, endpoint, nil, response)
 }
