@@ -43,7 +43,7 @@ func DescribeAppRestart() {
 
 		BeforeEach(func() {
 			statusCode = 200
-			responseBody = `{ "status": "OK" }`
+			responseBody = `{ "status": "ok" }`
 		})
 
 		It("returns no error", func() {

@@ -769,18 +769,19 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 
 func stagingWithRetry(logger logr.Logger, apiClient APIClient, namespace, stageID string) error {
 	retryCondition := func(err error) bool {
-		// Bail out early when staging failed - Do not retry
-		if strings.Contains(err.Error(), "Failed to stage") {
-			return false
-		}
-
 		epinioAPIError := &client.APIError{}
 		// something bad happened
 		if !errors.As(err, &epinioAPIError) {
 			return false
 		}
 
-		// retry for any Epinio error (StatusCode >= 400)
+		// do not retry for staging failures
+		errMsg := strings.ToLower(epinioAPIError.Error())
+		if strings.Contains(errMsg, "failed to stage") {
+			return true
+		}
+
+		// retry for any other Epinio error (StatusCode >= 400)
 		logger.Info("retry because of error", "error", epinioAPIError.Error())
 		return true
 	}
