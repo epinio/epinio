@@ -65,8 +65,11 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 		return errors.Wrap(err, "error updating settings")
 	}
 
+	// get the custom headers of the original client
+	customHeaders := c.API.Headers()
+
 	// verify that settings are valid
-	err = verifyCredentials(ctx, updatedSettings)
+	err = verifyCredentials(ctx, updatedSettings, customHeaders)
 	if err != nil {
 		return errors.Wrap(err, "error verifying credentials")
 	}
@@ -90,6 +93,10 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 			return err
 		}
 		client.API.DisableVersionWarning()
+
+		for k, v := range customHeaders {
+			client.API.SetHeader(k, v)
+		}
 
 		// we don't need anything, just checking if the namespace exist and we have permissions
 		_, err = client.API.NamespaceShow(updatedSettings.Namespace)
@@ -308,8 +315,13 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 	return epinioSettings, nil
 }
 
-func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings) error {
+func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, customHeaders map[string]string) error {
 	apiClient := epinioapi.New(ctx, epinioSettings)
+
+	for k, v := range customHeaders {
+		apiClient.SetHeader(k, v)
+	}
+
 	_, err := apiClient.Namespaces()
 	return errors.Wrap(err, "error while connecting to the Epinio server")
 }

@@ -29,7 +29,6 @@ import (
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
-	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/go-logr/stdr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -54,17 +53,15 @@ func NewRootCmd() (*cobra.Command, error) {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			stdr.SetVerbosity(tracelog.TraceLevel())
 
-			if apiClient, ok := client.API.(*epinioapi.Client); ok {
-				for _, header := range flagHeaders {
-					headerKeyValue := strings.SplitN(header, ":", 2)
+			for _, header := range flagHeaders {
+				headerKeyValue := strings.SplitN(header, ":", 2)
 
-					// empty headers are valid
-					var headerValue string
-					if len(headerKeyValue) > 1 {
-						headerValue = headerKeyValue[1]
-					}
-					apiClient.SetHeader(headerKeyValue[0], strings.TrimSpace(headerValue))
+				// empty headers are valid
+				var headerValue string
+				if len(headerKeyValue) > 1 {
+					headerValue = headerKeyValue[1]
 				}
+				client.API.SetHeader(headerKeyValue[0], strings.TrimSpace(headerValue))
 			}
 		},
 	}

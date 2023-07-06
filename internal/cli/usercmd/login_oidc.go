@@ -82,8 +82,11 @@ func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, p
 	updatedSettings.User = ""
 	updatedSettings.Password = ""
 
+	// get the custom headers of the original client
+	customHeaders := c.API.Headers()
+
 	// verify that settings are valid
-	err = verifyCredentials(ctx, updatedSettings)
+	err = verifyCredentials(ctx, updatedSettings, customHeaders)
 	if err != nil {
 		return errors.Wrap(err, "error verifying credentials")
 	}

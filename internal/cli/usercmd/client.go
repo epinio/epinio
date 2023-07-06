@@ -117,6 +117,9 @@ type APIClient interface {
 
 	DisableVersionWarning()
 	VersionWarningEnabled() bool
+
+	SetHeader(k, v string)
+	Headers() map[string]string
 }
 
 func New(ctx context.Context) (*EpinioClient, error) {
