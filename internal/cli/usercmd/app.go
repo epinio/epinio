@@ -278,19 +278,25 @@ func (c *EpinioClient) AppExport(appName string, directory string) error {
 	if err != nil {
 		return err
 	}
-	err = writeOut(partResponse, filepath.Join(directory, "app-chart.tar.gz"), "values")
+	err = writeOut(partResponse, filepath.Join(directory, "app-chart.tar.gz"), "chart")
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("fetching image")
 
 	partResponse, err = c.API.AppGetPart(c.Settings.Namespace, appName, "image")
 	if err != nil {
 		return err
 	}
-	err = writeOut(partResponse, filepath.Join(directory, "app-image.tar"), "values")
+	fmt.Println("writing image")
+
+	err = writeOut(partResponse, filepath.Join(directory, "app-image.tar"), "image")
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("DONE image")
 
 	return nil
 }
