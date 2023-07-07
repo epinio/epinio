@@ -94,6 +94,12 @@ func DescribeAppsErrors() {
 			Entry("app deploy", func() (any, error) {
 				return epinioClient.AppDeploy(models.DeployRequest{})
 			}),
+			Entry("app staging complete", func() (any, error) {
+				return epinioClient.StagingComplete("namespace", "stageID")
+			}),
+			Entry("app running", func() (any, error) {
+				return epinioClient.AppRunning(models.AppRef{})
+			}),
 		)
 	})
 }

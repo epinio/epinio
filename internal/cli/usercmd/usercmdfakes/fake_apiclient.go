@@ -187,17 +187,19 @@ type FakeAPIClient struct {
 	appPortForwardReturnsOnCall map[int]struct {
 		result1 error
 	}
-	AppRestartStub        func(string, string) error
+	AppRestartStub        func(string, string) (models.Response, error)
 	appRestartMutex       sync.RWMutex
 	appRestartArgsForCall []struct {
 		arg1 string
 		arg2 string
 	}
 	appRestartReturns struct {
-		result1 error
+		result1 models.Response
+		result2 error
 	}
 	appRestartReturnsOnCall map[int]struct {
-		result1 error
+		result1 models.Response
+		result2 error
 	}
 	AppRunningStub        func(models.AppRef) (models.Response, error)
 	appRunningMutex       sync.RWMutex
@@ -1578,7 +1580,7 @@ func (fake *FakeAPIClient) AppPortForwardReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeAPIClient) AppRestart(arg1 string, arg2 string) error {
+func (fake *FakeAPIClient) AppRestart(arg1 string, arg2 string) (models.Response, error) {
 	fake.appRestartMutex.Lock()
 	ret, specificReturn := fake.appRestartReturnsOnCall[len(fake.appRestartArgsForCall)]
 	fake.appRestartArgsForCall = append(fake.appRestartArgsForCall, struct {
@@ -1593,9 +1595,9 @@ func (fake *FakeAPIClient) AppRestart(arg1 string, arg2 string) error {
 		return stub(arg1, arg2)
 	}
 	if specificReturn {
-		return ret.result1
+		return ret.result1, ret.result2
 	}
-	return fakeReturns.result1
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeAPIClient) AppRestartCallCount() int {
@@ -1604,7 +1606,7 @@ func (fake *FakeAPIClient) AppRestartCallCount() int {
 	return len(fake.appRestartArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppRestartCalls(stub func(string, string) error) {
+func (fake *FakeAPIClient) AppRestartCalls(stub func(string, string) (models.Response, error)) {
 	fake.appRestartMutex.Lock()
 	defer fake.appRestartMutex.Unlock()
 	fake.AppRestartStub = stub
@@ -1617,27 +1619,30 @@ func (fake *FakeAPIClient) AppRestartArgsForCall(i int) (string, string) {
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *FakeAPIClient) AppRestartReturns(result1 error) {
+func (fake *FakeAPIClient) AppRestartReturns(result1 models.Response, result2 error) {
 	fake.appRestartMutex.Lock()
 	defer fake.appRestartMutex.Unlock()
 	fake.AppRestartStub = nil
 	fake.appRestartReturns = struct {
-		result1 error
-	}{result1}
+		result1 models.Response
+		result2 error
+	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppRestartReturnsOnCall(i int, result1 error) {
+func (fake *FakeAPIClient) AppRestartReturnsOnCall(i int, result1 models.Response, result2 error) {
 	fake.appRestartMutex.Lock()
 	defer fake.appRestartMutex.Unlock()
 	fake.AppRestartStub = nil
 	if fake.appRestartReturnsOnCall == nil {
 		fake.appRestartReturnsOnCall = make(map[int]struct {
-			result1 error
+			result1 models.Response
+			result2 error
 		})
 	}
 	fake.appRestartReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
+		result1 models.Response
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeAPIClient) AppRunning(arg1 models.AppRef) (models.Response, error) {

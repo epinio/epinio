@@ -21,11 +21,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avast/retry-go"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/helpers/bytes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/cli/logprinter"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -324,7 +327,8 @@ func (c *EpinioClient) AppRestart(appName string) error {
 
 	log.V(1).Info("restarting application")
 
-	return c.API.AppRestart(c.Settings.Namespace, appName)
+	_, err := c.API.AppRestart(c.Settings.Namespace, appName)
+	return err
 }
 
 // AppStageID returns the last stage id of the named app, in the targeted namespace
@@ -741,8 +745,13 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 	c.stageLogs(app.Meta, stageID)
 
 	log.V(1).Info("wait for job", "StageID", stageID)
+
 	// blocking function that wait until the staging is done
-	_, err = c.API.StagingComplete(app.Meta.Namespace, stageID)
+	err = stagingWithRetry(log.V(1), c.API, app.Meta.Namespace, stageID)
+	if err != nil {
+		return err
+	}
+
 	if err != nil {
 		return errors.Wrap(err, "waiting for staging failed")
 	}
@@ -751,10 +760,49 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 		c.ui.Note().Msg("Restarting application")
 		log.V(1).Info("restarting application")
 
-		return c.API.AppRestart(c.Settings.Namespace, appName)
+		_, err := c.API.AppRestart(c.Settings.Namespace, appName)
+		return err
 	}
 
 	return nil
+}
+
+func stagingWithRetry(logger logr.Logger, apiClient APIClient, namespace, stageID string) error {
+	retryCondition := func(err error) bool {
+		epinioAPIError := &client.APIError{}
+		// something bad happened
+		if !errors.As(err, &epinioAPIError) {
+			return false
+		}
+
+		// do not retry for staging failures
+		errMsg := strings.ToLower(epinioAPIError.Error())
+		if strings.Contains(errMsg, "failed to stage") {
+			return true
+		}
+
+		// retry for any other Epinio error (StatusCode >= 400)
+		logger.Info("retry because of error", "error", epinioAPIError.Error())
+		return true
+	}
+
+	retryLogger := func(n uint, err error) {
+		logger.Info("Retrying StagingComplete",
+			"tries", fmt.Sprintf("%d/%d", n, duration.RetryMax),
+			"error", err.Error(),
+		)
+	}
+
+	return retry.Do(
+		func() error {
+			_, err := apiClient.StagingComplete(namespace, stageID)
+			return err
+		},
+		retry.RetryIf(retryCondition),
+		retry.OnRetry(retryLogger),
+		retry.Delay(time.Second),
+		retry.Attempts(duration.RetryMax),
+	)
 }
 
 func formatRoutes(routes []string) string {

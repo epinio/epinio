@@ -61,7 +61,7 @@ type APIClient interface {
 	AppRunning(app models.AppRef) (models.Response, error)
 	AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error
 	AppPortForward(namespace string, appName, instance string, opts *epinioapi.PortForwardOpts) error
-	AppRestart(namespace string, appName string) error
+	AppRestart(namespace string, appName string) (models.Response, error)
 	AppGetPart(namespace, appName, part, destinationPath string) error
 	AppMatch(namespace, prefix string) (models.AppMatchResponse, error)
 	AppValidateCV(namespace string, name string) (models.Response, error)
