@@ -34,31 +34,21 @@ import (
 )
 
 const (
-	mysqlVersion                 = "8.0.31" // Doesn't change too often
 	ServiceDeployTimeout         = "4m"
 	ServiceDeployPollingInterval = "5s"
 )
 
 var _ = Describe("Services", LService, func() {
 	var namespace string
-
 	var catalogService models.CatalogService
-	var catalogServiceURL string
-	var catalogServiceHostname string
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 
-		settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
-		Expect(err).ToNot(HaveOccurred())
-
 		catalogServiceName := catalog.NewCatalogServiceName()
 		catalogService = catalog.NginxCatalogService(catalogServiceName)
 		catalog.CreateCatalogService(catalogService)
-
-		catalogServiceHostname = strings.Replace(settings.API, `https://epinio`, catalogServiceName, 1)
-		catalogServiceURL = "http://" + catalogServiceHostname
 
 		DeferCleanup(func() {
 			catalog.DeleteCatalogService(catalogService.Meta.Name)
@@ -530,7 +520,7 @@ var _ = Describe("Services", LService, func() {
 
 				// we need to create a new service with some secrets to create the configuration
 				By("create it")
-				out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+				out, err := env.Epinio("", "service", "create", "postgresql-dev", service, "--wait")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				By("create app")
@@ -618,7 +608,7 @@ var _ = Describe("Services", LService, func() {
 			chart = names.ServiceReleaseName(service)
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			out, err := env.Epinio("", "service", "create", "postgresql-dev", service)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			By("wait for deployment")
@@ -692,7 +682,7 @@ var _ = Describe("Services", LService, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
-					WithRow(service, WithDate(), "mysql-dev", mysqlVersion, "(not-ready|deployed)", app),
+					WithRow(service, WithDate(), "postgresql-dev", WithVersion(), "(not-ready|deployed)", app),
 				),
 			)
 
@@ -702,7 +692,7 @@ var _ = Describe("Services", LService, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
-					WithRow(namespace, service, WithDate(), "mysql-dev", mysqlVersion, "(not-ready|deployed)", app),
+					WithRow(namespace, service, WithDate(), "postgresql-dev", WithVersion(), "(not-ready|deployed)", app),
 				),
 			)
 		})
@@ -751,7 +741,7 @@ var _ = Describe("Services", LService, func() {
 			chart = names.ServiceReleaseName(service)
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			out, err := env.Epinio("", "service", "create", "postgresql-dev", service)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			By("create app")
@@ -812,11 +802,11 @@ var _ = Describe("Services", LService, func() {
 			By("verify unbinding /list")
 			out, err = env.Epinio("", "service", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(HaveATable(WithRow(service, WithDate(), "mysql-dev", ".*", app)))
+			Expect(out).ToNot(HaveATable(WithRow(service, WithDate(), "postgresql-dev", ".*", app)))
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
-					WithRow(service, WithDate(), "mysql-dev", mysqlVersion, "(not-ready|deployed)", ""),
+					WithRow(service, WithDate(), "postgresql-dev", WithVersion(), "(not-ready|deployed)", ""),
 				),
 			)
 
@@ -826,7 +816,7 @@ var _ = Describe("Services", LService, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
-					WithRow(namespace, service, WithDate(), "mysql-dev", mysqlVersion, "(not-ready|deployed)", ""),
+					WithRow(namespace, service, WithDate(), "postgresql-dev", WithVersion(), "(not-ready|deployed)", ""),
 				),
 			)
 		})
@@ -876,19 +866,25 @@ var _ = Describe("Services", LService, func() {
 		var serviceName string
 
 		BeforeEach(func() {
+			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+			Expect(err).ToNot(HaveOccurred())
+
 			serviceName = catalog.NewServiceName()
+			serviceHostname := strings.Replace(settings.API, `https://epinio`, serviceName, 1)
 
 			out, err := env.Epinio("", "service", "create",
 				catalogService.Meta.Name, serviceName,
 				"--chart-value", "ingress.enabled=true",
-				"--chart-value", "ingress.hostname="+catalogServiceHostname,
+				"--chart-value", "ingress.hostname="+serviceHostname,
 				"--wait",
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			resp, err := http.Get(catalogServiceURL)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			Eventually(func() int {
+				resp, _ := http.Get("http://" + serviceHostname)
+				return resp.StatusCode
+			}, "1m", "2s").Should(Equal(http.StatusOK))
+
 		})
 
 		randomPort := func() string {

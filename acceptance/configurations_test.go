@@ -516,8 +516,7 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			service = catalog.NewServiceName()
 
 			By("make service instance: " + service)
-			// catalogService.Meta.Name
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			out, err := env.Epinio("", "service", "create", "postgresql-dev", service)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			By("wait for deployment")
@@ -533,7 +532,7 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 
 			chart = names.ServiceReleaseName(service)
-			config = chart + "-mysql"
+			config = chart + "-postgresql"
 
 			By("chart: " + chart)
 			By("config: " + config)
