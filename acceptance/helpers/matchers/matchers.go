@@ -24,6 +24,9 @@ import (
 const (
 	// dateRegex will check for a date in the '2022-05-19 13:49:20 +0000' UTC format
 	dateRegex = "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [+][0-9]{4} [A-Z]{3,4}"
+
+	// semverRegex will check for a basic semantic version string
+	semverRegex = `(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)`
 )
 
 func HaveATable(args ...types.GomegaMatcher) types.GomegaMatcher {
@@ -43,6 +46,10 @@ func WithRow(args ...string) types.GomegaMatcher {
 
 func WithDate() string {
 	return dateRegex
+}
+
+func WithVersion() string {
+	return semverRegex
 }
 
 // tableRow returns a regular expression that will match a line of a CLI table
