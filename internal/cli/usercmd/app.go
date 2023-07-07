@@ -14,6 +14,7 @@ package usercmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -24,6 +25,7 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+	"github.com/schollz/progressbar/v3"
 
 	"github.com/epinio/epinio/helpers/bytes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -263,22 +265,52 @@ func (c *EpinioClient) AppExport(appName string, directory string) error {
 
 	fmt.Println()
 
-	err = c.API.AppGetPart(c.Settings.Namespace, appName, "values", filepath.Join(directory, "values.yaml"))
+	partResponse, err := c.API.AppGetPart(c.Settings.Namespace, appName, "values")
+	if err != nil {
+		return err
+	}
+	err = writeOut(partResponse, filepath.Join(directory, "values.yaml"), "values")
 	if err != nil {
 		return err
 	}
 
-	err = c.API.AppGetPart(c.Settings.Namespace, appName, "chart", filepath.Join(directory, "app-chart.tar.gz"))
+	partResponse, err = c.API.AppGetPart(c.Settings.Namespace, appName, "chart")
+	if err != nil {
+		return err
+	}
+	err = writeOut(partResponse, filepath.Join(directory, "app-chart.tar.gz"), "values")
 	if err != nil {
 		return err
 	}
 
-	err = c.API.AppGetPart(c.Settings.Namespace, appName, "image", filepath.Join(directory, "app-image.tar"))
+	partResponse, err = c.API.AppGetPart(c.Settings.Namespace, appName, "image")
+	if err != nil {
+		return err
+	}
+	err = writeOut(partResponse, filepath.Join(directory, "app-image.tar"), "values")
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func writeOut(partResponse models.AppPartResponse, destinationPath, part string) error {
+	// Create the file
+	out, err := os.Create(destinationPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	bar := progressbar.DefaultBytes(
+		partResponse.ContentLength,
+		fmt.Sprintf("Downloading app %s to '%s'", part, destinationPath),
+	)
+
+	// copy response body to file
+	_, err = io.Copy(io.MultiWriter(out, bar), partResponse.Data)
+	return err
 }
 
 // AppManifest saves the information of the named app, in the targeted namespace, into a manifest file
@@ -300,7 +332,11 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 
 	details.Info("show application")
 
-	err := c.API.AppGetPart(c.Settings.Namespace, appName, "manifest", manifestPath)
+	partResponse, err := c.API.AppGetPart(c.Settings.Namespace, appName, "manifest")
+	if err != nil {
+		return err
+	}
+	err = writeOut(partResponse, manifestPath, "manifest")
 	if err != nil {
 		return err
 	}
