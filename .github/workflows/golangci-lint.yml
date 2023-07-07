@@ -35,7 +35,7 @@ jobs:
           submodules: recursive
       
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3.4.0
+        uses: golangci/golangci-lint-action@v3.6.0
         timeout-minutes: 10
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
