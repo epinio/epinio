@@ -19,33 +19,18 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/epinio/epinio/helpers/termui"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/version"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"golang.org/x/oauth2"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 )
-
-type responseError struct {
-	error
-	statusCode int
-}
-
-func (re *responseError) Unwrap() error   { return re.error }
-func (re *responseError) StatusCode() int { return re.statusCode }
-
-func wrapResponseError(err error, code int) *responseError {
-	return &responseError{error: err, statusCode: code}
-}
 
 type APIError struct {
 	StatusCode int
@@ -136,115 +121,89 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to POST to upload")
 	}
+
+	if response.StatusCode >= http.StatusBadRequest {
+		return nil, handleError(c.log, response)
+	}
+
 	defer response.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(response.Body)
-	if response.StatusCode == http.StatusCreated {
-		return bodyBytes, nil
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading response")
 	}
-
-	if response.StatusCode != http.StatusOK {
-		return nil, wrapResponseError(fmt.Errorf("server status code: %s\n%s",
-			http.StatusText(response.StatusCode), string(bodyBytes)),
-			response.StatusCode)
-	}
-
-	// object was not created, but status was ok?
 	return bodyBytes, nil
 }
 
-func Do[T any](c *Client, endpoint string, method string, request any, response T) (T, error) {
-	c.log.V(1).Info("sending "+method+" request", "endpoint", endpoint, "body", request)
+func Do[T any](c *Client, endpoint string, method string, requestBody any, response T) (T, error) {
+	url := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 
-	var requestBody string
-	if request != nil {
-		b, err := json.Marshal(request)
+	c.log.V(1).Info("sending "+method+" request", "endpoint", endpoint, "body", requestBody, "url", url)
+
+	var bodyBytes []byte
+	if requestBody != nil {
+		b, err := json.Marshal(requestBody)
 		if err != nil {
 			return response, errors.Wrap(err, "encoding JSON requestBody")
 		}
-		requestBody = string(b)
+		bodyBytes = b
 	}
 
-	data, err := c.do(endpoint, method, requestBody)
+	request, err := http.NewRequest(method, url, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return response, err
-	}
-
-	if err := json.Unmarshal(data, &response); err != nil {
-		return response, errors.Wrap(err, "decoding JSON response")
-	}
-
-	c.log.V(1).Info("response decoded", "response", response)
-
-	return response, nil
-}
-
-func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
-	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
-	c.log.Info(fmt.Sprintf("%s %s", method, uri))
-
-	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
-	if err != nil {
-		c.log.V(1).Error(err, "cannot build request")
-		return nil, err
+		return response, errors.Wrap(err, "building request")
 	}
 
 	err = c.handleAuthorization(request)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
 	for key, value := range c.customHeaders {
 		request.Header.Set(key, value)
 	}
 
-	reqLog := requestLogger(c.log, request, requestBody)
+	reqLog := requestLogger(c.log, request, string(bodyBytes))
 
-	response, err := c.HttpClient.Do(request)
+	httpResponse, err := c.HttpClient.Do(request)
 	if err != nil {
-		reqLog.V(1).Error(err, "request failed")
-		castedErr, ok := err.(*url.Error)
-		if !ok {
-			return nil, errors.New("couldn't cast request Error!")
-		}
-		if castedErr.Timeout() {
-			return nil, errors.New("request cancelled or timed out")
-		}
-
-		return nil, errors.Wrap(err, "making the request")
+		return response, errors.Wrap(err, "making the request")
 	}
-	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
 
-	serverVersion := response.Header.Get(api.VersionHeader)
+	serverVersion := httpResponse.Header.Get(api.VersionHeader)
 	if c.VersionWarningEnabled() && serverVersion != "" {
 		c.warnAboutVersionMismatch(serverVersion)
 	}
 
+	// the server returned an error
+	if httpResponse.StatusCode >= http.StatusBadRequest {
+		return response, handleError(c.log, httpResponse)
+	}
+
+	// if OK decode and return the response
+	return handleJSONResponse(c.log, httpResponse, response)
+}
+
+func handleError(logger logr.Logger, response *http.Response) error {
+	defer response.Body.Close()
+
 	bodyBytes, err := io.ReadAll(response.Body)
-	respLog := responseLogger(c.log, response, string(bodyBytes))
+
+	if logger.V(5).Enabled() {
+		logger = logger.WithValues("body", string(bodyBytes))
+	}
+
 	if err != nil {
-		respLog.V(1).Error(err, "failed to read response body")
-		return nil, errors.Wrap(err, "reading response body")
-	}
-
-	respLog.V(1).Info("response received")
-
-	// if server returns a good response it should be fine to return the body
-	if response.StatusCode < http.StatusBadRequest {
-		return bodyBytes, nil
-	}
-
-	// let's try to marshal the error
-	if respLog.V(5).Enabled() {
-		respLog = respLog.WithValues("body", string(bodyBytes))
+		logger.Error(err, "failed to read response body")
+		return errors.Wrap(err, "reading response body")
 	}
 
 	var responseErr apierrors.ErrorResponse
 	err = json.Unmarshal(bodyBytes, &responseErr)
 	if err != nil {
-		respLog.V(1).Error(err, "error while decoding json")
-		return nil, errors.Wrap(err, "parsing the error response")
+		logger.Error(err, "decoding json error")
+		return errors.Wrap(err, "parsing error response")
 	}
 
 	epinioError := &APIError{
@@ -252,9 +211,30 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 		Err:        &responseErr,
 	}
 
-	respLog.V(1).Info("response is not StatusOK: " + epinioError.Error())
+	logger.V(1).Info("response is not StatusOK: " + epinioError.Error())
 
-	return nil, epinioError
+	return epinioError
+}
+
+func handleJSONResponse[T any](logger logr.Logger, httpResponse *http.Response, response T) (T, error) {
+	defer httpResponse.Body.Close()
+
+	bodyBytes, err := io.ReadAll(httpResponse.Body)
+	respLog := responseLogger(logger, httpResponse, string(bodyBytes))
+	if err != nil {
+		respLog.V(1).Error(err, "failed to read response body")
+		return response, errors.Wrap(err, "reading response body")
+	}
+
+	respLog.V(1).Info("response received", "status", httpResponse.StatusCode)
+
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		return response, errors.Wrap(err, "decoding JSON response")
+	}
+
+	logger.V(1).Info("response decoded", "response", response)
+
+	return response, nil
 }
 
 func requestLogger(log logr.Logger, request *http.Request, body string) logr.Logger {
@@ -266,7 +246,6 @@ func requestLogger(log logr.Logger, request *http.Request, body string) logr.Log
 			"header", request.Header,
 		)
 	}
-
 	return log
 }
 
@@ -284,35 +263,6 @@ func responseLogger(log logr.Logger, response *http.Response, body string) logr.
 	}
 
 	return log
-}
-
-func formatError(bodyBytes []byte, response *http.Response) error {
-	t := "response body is empty"
-	if len(bodyBytes) > 0 {
-		var eResponse apierrors.ErrorResponse
-		if err := json.Unmarshal(bodyBytes, &eResponse); err != nil {
-			return errors.Wrapf(err, "cannot parse JSON response: '%s'", bodyBytes)
-		}
-
-		titles := make([]string, 0, len(eResponse.Errors))
-		for _, e := range eResponse.Errors {
-			titles = append(titles, e.Title)
-		}
-		t = strings.Join(titles, ", ")
-	}
-
-	return errors.Errorf("%s: %s", http.StatusText(response.StatusCode), t)
-}
-
-func (c *Client) AuthToken() (string, error) {
-	data, err := c.do(api.Routes.Path("AuthToken"), "GET", "")
-	if err != nil {
-		return "", err
-	}
-
-	tr := &models.AuthTokenResponse{}
-	err = json.Unmarshal(data, &tr)
-	return tr.Token, err
 }
 
 func (c *Client) handleAuthorization(request *http.Request) error {

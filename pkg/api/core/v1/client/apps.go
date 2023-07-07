@@ -145,10 +145,7 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 	}
 
 	if response.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(response.Body)
-		return wrapResponseError(fmt.Errorf("server status code: %s\n%s",
-			http.StatusText(response.StatusCode), string(bodyBytes)),
-			response.StatusCode)
+		return handleError(c.log, response)
 	}
 
 	defer response.Body.Close()
@@ -333,14 +330,7 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printC
 	if err != nil {
 		// Report detailed error found in the server response
 		if resp != nil && resp.StatusCode != http.StatusOK {
-			defer resp.Body.Close()
-			bodyBytes, errBody := io.ReadAll(resp.Body)
-
-			if errBody != nil {
-				return errBody
-			}
-
-			return formatError(bodyBytes, resp)
+			return handleError(c.log, resp)
 		}
 
 		// Report the dialer error if response claimed to be OK
@@ -509,4 +499,16 @@ func (c *Client) AppRestart(namespace string, appName string) (models.Response, 
 	endpoint := api.Routes.Path("AppRestart", namespace, appName)
 
 	return Post(c, endpoint, nil, response)
+}
+
+func (c *Client) AuthToken() (string, error) {
+	response := models.AuthTokenResponse{}
+	endpoint := api.Routes.Path("AuthToken")
+
+	tokenResponse, err := Get(c, endpoint, response)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenResponse.Token, nil
 }
