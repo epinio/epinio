@@ -59,10 +59,10 @@ var _ = Describe("Apps", LApplication, func() {
 		env.SetupAndTargetNamespace(namespace)
 
 		appName = catalog.NewAppName()
-	})
 
-	AfterEach(func() {
-		env.DeleteNamespace(namespace)
+		DeferCleanup(func() {
+			env.DeleteNamespace(namespace)
+		})
 	})
 
 	Describe("application create failures", func() {
@@ -72,11 +72,8 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(out).To(ContainSubstring("name must consist of lower case alphanumeric"))
 		})
 	})
+
 	When("creating an application without a workload", func() {
-		AfterEach(func() {
-			// MakeApp... by each test (It)
-			env.DeleteApp(appName)
-		})
 
 		It("creates the app", func() {
 			out, err := env.Epinio("", "app", "create", appName)
@@ -90,11 +87,6 @@ var _ = Describe("Apps", LApplication, func() {
 			BeforeEach(func() {
 				configurationName = catalog.NewConfigurationName()
 				env.MakeConfiguration(configurationName)
-			})
-
-			AfterEach(func() {
-				env.DeleteConfigurationsUnbind(configurationName)
-				// env.DeleteApp see outer context
 			})
 
 			It("creates the app with instance count, configurations, and environment", func() {
@@ -132,12 +124,16 @@ var _ = Describe("Apps", LApplication, func() {
 			})
 
 			Context("manifest", func() {
-				destinationPath := catalog.NewTmpName("tmpManifest") + `.yaml`
+				var destinationPath string
 
-				AfterEach(func() {
-					// Remove transient manifest
-					out, err := proc.Run("", false, "rm", "-f", destinationPath)
-					Expect(err).ToNot(HaveOccurred(), out)
+				BeforeEach(func() {
+					destinationPath = catalog.NewTmpName("tmpManifest") + `.yaml`
+
+					DeferCleanup(func() {
+						// Remove transient manifest
+						out, err := proc.Run("", false, "rm", "-f", destinationPath)
+						Expect(err).ToNot(HaveOccurred(), out)
+					})
 				})
 
 				It("is possible to get a manifest", func() {
@@ -190,14 +186,13 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 
 		When("pushing a workload", func() {
-			BeforeEach(func() {
+			It("creates the workload", func() {
 				out, err := env.Epinio("", "app", "create", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
-			})
+				Expect(out).To(ContainSubstring("Ok"))
 
-			It("creates the workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.EpinioPush(appDir, appName, "--name", appName)
+				out, err = env.EpinioPush(appDir, appName, "--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("App is online"))
 			})
@@ -256,9 +251,6 @@ var _ = Describe("Apps", LApplication, func() {
 					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
 				),
 			)
-
-			By("deleting the app")
-			env.DeleteApp(appName)
 		})
 
 		It("pushes the app successfully (repository + branch name)", func() {
@@ -281,9 +273,6 @@ var _ = Describe("Apps", LApplication, func() {
 					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
 				),
 			)
-
-			By("deleting the app")
-			env.DeleteApp(appName)
 		})
 
 		It("pushes the app successfully (repository + commit id)", func() {
@@ -306,9 +295,6 @@ var _ = Describe("Apps", LApplication, func() {
 					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
 				),
 			)
-
-			By("deleting the app")
-			env.DeleteApp(appName)
 		})
 
 		Describe("update", func() {
@@ -395,10 +381,10 @@ var _ = Describe("Apps", LApplication, func() {
 				BeforeEach(func() {
 					chartName = catalog.NewTmpName("chart-")
 					tempFile = env.MakeAppchart(chartName)
-				})
 
-				AfterEach(func() {
-					env.DeleteAppchart(tempFile)
+					DeferCleanup(func() {
+						env.DeleteAppchart(tempFile)
+					})
 				})
 
 				It("fails to change the app chart of the running app", func() {
@@ -427,10 +413,6 @@ var _ = Describe("Apps", LApplication, func() {
 								WithRow("App Chart", chartName),
 							),
 						)
-					})
-
-					AfterEach(func() {
-						env.DeleteApp(appName1)
 					})
 
 					It("respects the desired app chart", func() {
@@ -469,21 +451,14 @@ var _ = Describe("Apps", LApplication, func() {
 				)
 			})
 
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
 		})
 	})
 
 	Describe("restage", func() {
 		When("restaging an existing and running app", func() {
-			BeforeEach(func() {
-				env.MakeApp(appName, 1, false)
-			})
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
 			It("will be staged again, and restarted", func() {
+				env.MakeApp(appName, 1, false)
+
 				restageLogs, err := env.Epinio("", "app", "restage", appName)
 				Expect(err).ToNot(HaveOccurred(), restageLogs)
 				Expect(restageLogs).To(ContainSubstring("Restaging and restarting application"))
@@ -492,13 +467,9 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 
 		When("restaging an existing and inactive app", func() {
-			BeforeEach(func() {
-				env.MakeApp(appName, 0, false)
-			})
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
 			It("will be staged again, and NOT restarted", func() {
+				env.MakeApp(appName, 0, false)
+
 				restageLogs, err := env.Epinio("", "app", "restage", appName)
 				Expect(err).ToNot(HaveOccurred(), restageLogs)
 				Expect(restageLogs).To(ContainSubstring("Restaging application"))
@@ -507,13 +478,9 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 
 		When("restaging an existing and running app, with restart suppressed", func() {
-			BeforeEach(func() {
-				env.MakeApp(appName, 1, false)
-			})
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
 			It("will be staged again, and NOT restarted", func() {
+				env.MakeApp(appName, 1, false)
+
 				restageLogs, err := env.Epinio("", "app", "restage", "--no-restart", appName)
 				Expect(err).ToNot(HaveOccurred(), restageLogs)
 				Expect(restageLogs).To(ContainSubstring("Restaging application"))
@@ -535,9 +502,6 @@ var _ = Describe("Apps", LApplication, func() {
 				restageLogs, err := env.Epinio("", "app", "restage", appName)
 				Expect(err).ToNot(HaveOccurred(), restageLogs)
 				Expect(restageLogs).Should(ContainSubstring("Unable to restage container-based application"))
-
-				By("deleting the app")
-				env.DeleteApp(appName)
 			})
 		})
 
@@ -550,11 +514,10 @@ var _ = Describe("Apps", LApplication, func() {
 		BeforeEach(func() {
 			chartName = catalog.NewTmpName("chart-")
 			tempFile = env.MakeAppchartStateful(chartName)
-		})
 
-		AfterEach(func() {
-			env.DeleteApp(appName)
-			env.DeleteAppchart(tempFile)
+			DeferCleanup(func() {
+				env.DeleteAppchart(tempFile)
+			})
 		})
 
 		It("pushes successfully", func() {
@@ -585,10 +548,6 @@ var _ = Describe("Apps", LApplication, func() {
 	})
 
 	When("pushing with --clear-routes flag (= no routes)", func() {
-		AfterEach(func() {
-			env.DeleteApp(appName)
-		})
-
 		It("creates no ingresses", func() {
 			pushOutput, err := env.Epinio("", "apps", "push",
 				"--name", appName,
@@ -618,10 +577,6 @@ var _ = Describe("Apps", LApplication, func() {
 	})
 
 	When("pushing with custom route flag", func() {
-		AfterEach(func() {
-			env.DeleteApp(appName)
-		})
-
 		It("creates an ingress matching the custom route", func() {
 			route := "mycustomdomain.org/api"
 			pushOutput, err := env.Epinio("", "apps", "push",
@@ -654,10 +609,6 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 	})
 	When("pushing with custom builder flag", func() {
-		AfterEach(func() {
-			env.DeleteApp(appName)
-		})
-
 		It("uses the custom builder to stage", func() {
 			By("Pushing a golang app")
 			appDir := "../assets/golang-sample-app"
@@ -684,6 +635,7 @@ var _ = Describe("Apps", LApplication, func() {
 
 		var tmpDir string
 		var err error
+
 		BeforeEach(func() {
 			By("Pushing an app that will fail")
 			tmpDir, err = os.MkdirTemp("", "epinio-failing-app")
@@ -727,11 +679,9 @@ var _ = Describe("Apps", LApplication, func() {
 				return nil
 			}, 3*time.Minute, 3*time.Second).ShouldNot(HaveOccurred())
 
-		})
-
-		AfterEach(func() {
-			env.DeleteApp(appName)
-			os.RemoveAll(tmpDir)
+			DeferCleanup(func() {
+				os.RemoveAll(tmpDir)
+			})
 		})
 
 		It("shows the proper status", func() {
@@ -791,9 +741,6 @@ var _ = Describe("Apps", LApplication, func() {
 
 			By("pushing the app again")
 			env.MakeApp(appName, 1, false)
-
-			By("deleting the app")
-			env.DeleteApp(appName)
 		})
 
 		It("honours the given instance count", func() {
@@ -838,16 +785,13 @@ var _ = Describe("Apps", LApplication, func() {
 			out, err := env.EpinioPush(appDir, appName, append([]string{"--name", appName}, arg...)...)
 			return out, err
 		}
+
 		BeforeEach(func() {
 			out, err := push()
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
 		When("pushing for the second time", func() {
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
-
 			It("is using the cache PVC", func() {
 				out, err := proc.Kubectl("get", "pvc", "--namespace",
 					testenv.Namespace, names.GenerateResourceName(namespace, appName))
@@ -859,6 +803,7 @@ var _ = Describe("Apps", LApplication, func() {
 				Expect(out).To(ContainSubstring("Reusing cached layer"))
 			})
 		})
+
 		When("deleting the app", func() {
 			It("deletes the cache PVC too", func() {
 				out, err := proc.Kubectl("get", "pvc", "--namespace",
@@ -930,17 +875,11 @@ var _ = Describe("Apps", LApplication, func() {
 				Expect(err).ToNot(HaveOccurred())
 				return resp.StatusCode
 			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
-
-			By("deleting the app")
-			env.DeleteApp(appName)
 		})
 
 		It("deploys an app from the specified dir", func() {
 			By("pushing the app in the specified app directory")
 			env.MakeApp(appName, 1, false)
-
-			By("deleting the app")
-			env.DeleteApp(appName)
 		})
 
 		Context("manifest", func() {
@@ -950,11 +889,11 @@ var _ = Describe("Apps", LApplication, func() {
 
 			BeforeEach(func() {
 				manifestPath = catalog.NewTmpName("app.yml")
-			})
 
-			AfterEach(func() {
-				err := os.Remove(manifestPath)
-				Expect(err).ToNot(HaveOccurred())
+				DeferCleanup(func() {
+					err := os.Remove(manifestPath)
+					Expect(err).ToNot(HaveOccurred())
+				})
 			})
 
 			It("deploys an app with the desired options", func() {
@@ -1001,9 +940,6 @@ configuration:
 						WithRow("r"+appName+"-.*", "true", ".*", ".*", ".*", ".*"),
 					),
 				)
-
-				By("deleting the app")
-				env.DeleteApp(appName)
 			})
 		})
 
@@ -1030,23 +966,16 @@ configuration:
 			appNameLong := "app123456789012345678901234567890123456789012345678901234567890"
 			// 3+60 characters
 			env.MakeContainerImageApp(appNameLong, 1, containerImageURL)
-
-			By("deleting the app")
-			env.DeleteApp(appNameLong)
 		})
 
 		It("should not fail for an application name with leading digits", func() {
 			appNameLeadNumeric := "12monkeys"
 			env.MakeContainerImageApp(appNameLeadNumeric, 1, containerImageURL)
-
-			By("deleting the app")
-			env.DeleteApp(appNameLeadNumeric)
 		})
 
 		It("respects the desired number of instances", func() {
 			app := catalog.NewAppName()
 			env.MakeContainerImageApp(app, 3, containerImageURL)
-			defer env.DeleteApp(app)
 
 			Eventually(func() string {
 				out, err := env.Epinio("", "app", "show", app)
@@ -1086,11 +1015,6 @@ configuration:
 			BeforeEach(func() {
 				configurationName = catalog.NewConfigurationName()
 				env.MakeConfiguration(configurationName)
-			})
-
-			AfterEach(func() {
-				env.DeleteApp(appName)
-				env.DeleteConfigurations(configurationName)
 			})
 
 			It("pushes an app with bound configurations", func() {
@@ -1140,8 +1064,6 @@ configuration:
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").ShouldNot(ContainSubstring(appName))
-
-			env.DeleteConfigurations(configurationName)
 		})
 
 		Context("with explicit domain secret", func() {
@@ -1149,12 +1071,11 @@ configuration:
 
 			BeforeEach(func() {
 				newDomainSecret = "domain" + appName
-			})
-			AfterEach(func() {
-				env.DeleteApp(appName)
 
-				out, err := proc.Kubectl("delete", "secret", "-n", namespace, "domain"+appName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				DeferCleanup(func() {
+					out, err := proc.Kubectl("delete", "secret", "-n", namespace, "domain"+appName)
+					Expect(err).ToNot(HaveOccurred(), out)
+				})
 			})
 
 			It("pushes an app", func() {
@@ -1266,10 +1187,6 @@ configuration:
 		})
 
 		Context("with environment variable", func() {
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
-
 			It("pushes an app", func() {
 				currentDir, err := os.Getwd()
 				Expect(err).ToNot(HaveOccurred())
@@ -1296,10 +1213,6 @@ configuration:
 	})
 
 	Describe("update", func() {
-		AfterEach(func() {
-			env.DeleteApp(appName)
-		})
-
 		It("respects the desired number of instances", func() {
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 
@@ -1339,12 +1252,6 @@ configuration:
 				env.MakeConfiguration(configurationName)
 			})
 
-			AfterEach(func() {
-				env.UnbindAppConfiguration(appName, configurationName, namespace)
-				env.DeleteConfigurations(configurationName)
-				// DeleteApp see outer context
-			})
-
 			It("respects the bound configurations", func() {
 				env.MakeContainerImageApp(appName, 1, containerImageURL)
 
@@ -1381,16 +1288,12 @@ configuration:
 
 	Describe("list, show, and export", func() {
 		var configurationName string
+
 		BeforeEach(func() {
 			configurationName = catalog.NewConfigurationName()
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.MakeConfiguration(configurationName)
 			env.BindAppConfiguration(appName, configurationName, namespace)
-		})
-
-		AfterEach(func() {
-			env.DeleteApp(appName)
-			env.CleanupConfiguration(configurationName)
 		})
 
 		It("lists all apps in the namespace", func() {
@@ -1442,22 +1345,20 @@ configuration:
 		Context("details customized", func() {
 			var chartName string
 			var appName string
-			var tempFile string
 
 			BeforeEach(func() {
 				chartName = catalog.NewTmpName("chart-")
-				tempFile = env.MakeAppchart(chartName)
+				tempFile := env.MakeAppchart(chartName)
 
 				appName = catalog.NewAppName()
 				out, err := env.Epinio("", "app", "create", appName,
 					"--app-chart", chartName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("Ok"))
-			})
 
-			AfterEach(func() {
-				env.DeleteApp(appName)
-				env.DeleteAppchart(tempFile)
+				DeferCleanup(func() {
+					env.DeleteAppchart(tempFile)
+				})
 			})
 
 			It("shows the details of a customized app", func() {
@@ -1483,12 +1384,12 @@ configuration:
 			})
 
 			Context("exporting customized", func() {
-				var domain, chartName, tempFile, app, exportPath, exportValues, exportChart, exportImage string
+				var domain, chartName, app, exportPath, exportValues, exportChart, exportImage string
 
 				BeforeEach(func() {
 					domain = catalog.NewTmpName("exportdomain-") + ".org"
 					chartName = catalog.NewTmpName("chart-")
-					tempFile = env.MakeAppchart(chartName)
+					tempFile := env.MakeAppchart(chartName)
 
 					app = catalog.NewAppName()
 
@@ -1501,14 +1402,13 @@ configuration:
 						"--app-chart", chartName,
 						"--chart-value", "foo=bar",
 					)
-				})
 
-				AfterEach(func() {
-					env.DeleteApp(app)
-					env.DeleteAppchart(tempFile)
+					DeferCleanup(func() {
+						env.DeleteAppchart(tempFile)
 
-					err := os.RemoveAll(exportPath)
-					Expect(err).ToNot(HaveOccurred())
+						err := os.RemoveAll(exportPath)
+						Expect(err).ToNot(HaveOccurred())
+					})
 				})
 
 				It("exports the details of a customized app", func() {
@@ -1566,13 +1466,11 @@ userConfig:
 				exportImage = path.Join(exportPath, "app-image.tar")
 
 				env.MakeRoutedContainerImageApp(app, 1, containerImageURL, domain)
-			})
 
-			AfterEach(func() {
-				env.DeleteApp(app)
-
-				err := os.RemoveAll(exportPath)
-				Expect(err).ToNot(HaveOccurred())
+				DeferCleanup(func() {
+					err := os.RemoveAll(exportPath)
+					Expect(err).ToNot(HaveOccurred())
+				})
 			})
 
 			It("exports the details of an app", func() {
@@ -1675,12 +1573,6 @@ userConfig:
 				By("pushed")
 			})
 
-			AfterEach(func() {
-				By("delete app")
-				env.DeleteApp(app)
-				By("deleted")
-			})
-
 			It("lists apps without instances", func() {
 				By("list apps")
 				out, err := env.Epinio("", "app", "list")
@@ -1741,16 +1633,11 @@ userConfig:
 
 			app2 = catalog.NewAppName()
 			env.MakeContainerImageApp(app2, 1, containerImageURL)
-		})
 
-		AfterEach(func() {
-			env.TargetNamespace(namespace2)
-			env.DeleteApp(app2)
-			env.DeleteNamespace(namespace2)
-
-			env.TargetNamespace(namespace1)
-			env.DeleteApp(app1)
-			env.DeleteNamespace(namespace1)
+			DeferCleanup(func() {
+				env.DeleteNamespace(namespace1)
+				env.DeleteNamespace(namespace2)
+			})
 		})
 
 		It("lists all applications belonging to all namespaces", func() {
@@ -1815,11 +1702,6 @@ userConfig:
 			By(fmt.Sprintf("SKIP %d lines", logLength))
 		})
 
-		AfterEach(func() {
-			By("removing the app")
-			env.DeleteApp(appName)
-		})
-
 		It("shows the staging logs", func() {
 			out, err := env.Epinio("", "app", "logs", "--staging", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
@@ -1882,10 +1764,6 @@ userConfig:
 			Expect(err).ToNot(HaveOccurred(), pushOutput)
 		})
 
-		AfterEach(func() {
-			env.DeleteApp(appName)
-		})
-
 		It("executes a command in the application's container (one of the pods)", func() {
 			var out bytes.Buffer
 			containerCmd := bytes.NewReader([]byte("echo testthis > /workspace/testfile && exit\r"))
@@ -1924,10 +1802,6 @@ userConfig:
 			appName = strconv.Itoa(randNum)
 		})
 
-		AfterEach(func() {
-			env.DeleteApp(appName)
-		})
-
 		It("deploys successfully", func() {
 			pushOutput, err := env.Epinio("", "apps", "push",
 				"--name", appName,
@@ -1955,10 +1829,6 @@ userConfig:
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
-
 			It("matches empty prefix", func() {
 				out, err := env.Epinio("", "__complete", "app", command, "")
 				Expect(err).ToNot(HaveOccurred(), out)
@@ -1979,28 +1849,14 @@ userConfig:
 		})
 	}
 
-	var _ = Describe("Custom chart-value", Label("appListeningPort"), func() {
-		var (
-			namespace string
-			appName   string
-		)
+	Describe("Custom chart-value", Label("appListeningPort"), func() {
+		var appName string
 
 		BeforeEach(func() {
-			namespace = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace)
-
 			appName = catalog.NewAppName()
 		})
 
-		AfterEach(func() {
-			env.DeleteNamespace(namespace)
-		})
-
 		Context("with chart-value:", func() {
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
-
 			It("appListeningPort, pushes an app", func() {
 				currentDir, err := os.Getwd()
 				Expect(err).ToNot(HaveOccurred())
@@ -2047,10 +1903,6 @@ userConfig:
 		})
 
 		Context("without chart-value:", func() {
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
-
 			It("appListeningPort, pushes an app", func() {
 				currentDir, err := os.Getwd()
 				Expect(err).ToNot(HaveOccurred())
