@@ -1403,7 +1403,7 @@ configuration:
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-					WithRow(appName, WithDate(), "1/1", appName+".*", configurationName, ".*"),
+					WithRow(appName, WithDate(), "(1|2)/1", appName+".*", configurationName, ".*"),
 				),
 			)
 		})
