@@ -32,6 +32,8 @@ var _ = Describe("Client HTTP", func() {
 
 	JustBeforeEach(func() {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer GinkgoRecover()
+
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, responseBody)
 
