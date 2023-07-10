@@ -447,6 +447,14 @@ func (c *EpinioClient) ServicePortForward(ctx context.Context, serviceName strin
 		return err
 	}
 
+	/*
+		We use ServiceList API to check if we can establish a connection with the Epinio backend service.
+	*/
+	_, err := c.API.ServiceList(c.Settings.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "Cannot establish a connection with Epinio server")
+	}
+
 	opts := client.NewPortForwardOpts(address, ports)
 	return c.API.ServicePortForward(c.Settings.Namespace, serviceName, opts)
 }
