@@ -223,7 +223,16 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string,
 func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) error {
 	service := serviceResourceName(name)
 
-	err := s.kubeClient.DeleteSecret(ctx, namespace, service)
+	err := helm.RemoveService(
+		requestctx.Logger(ctx),
+		s.kubeClient,
+		models.NewAppRef(name, namespace),
+	)
+	if err != nil {
+		return errors.Wrap(err, "error deleting service helm release")
+	}
+
+	err = s.kubeClient.DeleteSecret(ctx, namespace, service)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// COMPATIBILITY SUPPORT - Retry for (helm controller)-based service
@@ -232,11 +241,7 @@ func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) erro
 		return errors.Wrap(err, "error deleting service secret")
 	}
 
-	err = helm.RemoveService(requestctx.Logger(ctx),
-		s.kubeClient,
-		models.NewAppRef(name, namespace))
-
-	return errors.Wrap(err, "error deleting service helm release")
+	return nil
 }
 
 // DeleteAll deletes all helmcharts installed on the specified namespace.
