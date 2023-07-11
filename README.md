@@ -45,9 +45,26 @@ to use Kubernetes as a PaaS (Platform as a Service).
 
 ## Documentation
 
+### Installation
+
 Installation and user documentation is available at our main [docs.epinio.io](https://docs.epinio.io/) site.
 
 Our [developer documentation](./docs) explains how to build and run Epinio from a source checkout.
+
+### Quick Start Tutorial
+
+- [QuickStart](https://docs.epinio.io/tutorials/quickstart) - Tutorial on how to create a namespace and push an application.
+
+### Reach Us
+
+- Slack: #epinio on [Rancher Users](https://rancher-users.slack.com/)
+- Github: [Discuss](https://github.com/epinio/epinio/discussions/new)
+
+### Contributing
+
+`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues.
+
+Find more information in the [Contribution Guide](./CONTRIBUTING.md).
 
 ## Features
 
@@ -66,34 +83,11 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
   - CRUD operations of your configuration. A configuration can be a database, SaaS etc. A configuration can be an external component or can be created using `epinio configuration`
   - Bind configurations to apps
 
-## Usage
-
-- [QuickStart](https://docs.epinio.io/tutorials/quickstart) - Tutorial on how to create a namespace and push an application.
-
-## Buildpacks
-
-Buildpacks convert your application source code into container images in which the buildpack provides the framework, dependencies and runtime support for your app based on it's programming language.
-
-Epinio uses [Paketo Buildpacks](https://paketo.io/docs/) through kubernetes jobs to convert your source code into container images. 
-
-Epinio uses the Paketo's full [Builder Image](https://paketo.io/docs/concepts/builders/) by default.
-
-### Example apps
+## Example apps
 
 - Rails: https://github.com/epinio/example-rails
 - Java: https://github.com/spring-projects/spring-petclinic/
 - Paketo Buildpack example apps: https://github.com/paketo-buildpacks/samples
-
-## Reach Us
-
-- Slack: #epinio on [Rancher Users](https://rancher-users.slack.com/)
-- Github: [Discuss](https://github.com/epinio/epinio/discussions/new)
-
-## Contributing
-
-`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currently being worked on in the `BackLog` section.
-
-Find more information in the [Contribution Guide](./CONTRIBUTING.md).
 
 ## License
 
