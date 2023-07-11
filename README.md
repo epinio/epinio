@@ -24,20 +24,6 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 
 <img src="./docs/epinio.png" align="right" width="200" height="50%">
 
-## Contents
-
-- [Epinio](#epinio)
-  - [Contents](#contents)
-  - [What problem does Epinio solve?](#what-problem-does-epinio-solve)
-  - [Documentation](#documentation)
-  - [Features](#features)
-  - [Usage](#usage)
-  - [Buildpacks](#buildpacks)
-    - [Example apps](#example-apps)
-  - [Reach Us](#reach-us)
-  - [Contributing](#contributing)
-  - [License](#license)
-
 ## What problem does Epinio solve?
 
 Epinio makes it easy for developers to iterate on their applications running in Kubernetes. Easy means:
@@ -66,8 +52,9 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
 ## Features
 
 - **Security**
-  - mTLS: Epinio uses `linkerd` to secure all communication between epinio components inside the kubernetes cluster
+  - TLS secured API server
   - Basic Authentication to access the API
+  - __or__ OIDC-based token
 - **Epinio Clients**
   - Web UI
   - Epinio CLI
