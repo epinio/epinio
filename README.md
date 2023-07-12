@@ -50,7 +50,9 @@ Detailed installation and user documentation is available at our main
 
 ### Installation
 
-Leaving out DNS setup in the most trivial case the main installation boils down to
+The basic boilerplate requires a Kubernetes cluster, an Ingress Controller and a Cert Manager as
+detailed in the [documentation](https://docs.epinio.io/installation/install_epinio). Once this is in
+place, and leaving out DNS setup, in the most trivial case the main installation boils down to
 
 ```
 helm repo add epinio https://epinio.github.io/helm-charts
