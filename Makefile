@@ -235,3 +235,7 @@ prepare_environment_k3d: build-linux-amd64 build-images
 unprepare_environment_k3d:
 	kubectl delete --ignore-not-found=true secret regcred
 	helm uninstall epinio -n epinio --wait || true
+
+# Generate tests description file
+generate-acceptance-readme:
+	@./scripts/generate-readme acceptance > acceptance/README.md

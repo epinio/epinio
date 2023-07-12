@@ -1,0 +1,40 @@
+name: Update tests description
+
+on:
+  schedule:
+    - cron: 0 23 * * *
+  workflow_dispatch:
+
+jobs:
+  update-tests-description:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          # A token is needed to be able to push on main, maybe this can be changed later
+          # with another GHA or with some webhook?
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate tests description file
+        id: readme_generator
+        run: |
+          # Generate checksum of current file
+          FILE="acceptance/README.md"
+          OLD_CHK=$(sha512sum ${FILE} 2>/dev/null) || true
+
+          # Create new file
+          make generate-acceptance-readme
+
+          # Generate checksum of new file
+          NEW_CHK=$(sha512sum ${FILE} 2>/dev/null) || true
+
+          # Compare checksum and set generate value if needed
+          if [[ "${NEW_CHK}" != "${OLD_CHK}" ]]; then
+            echo "generate=needed" >> ${GITHUB_OUTPUT}
+          fi
+      - uses: EndBug/add-and-commit@v9
+        if: steps.readme_generator.outputs.generate == 'needed'
+        with:
+          default_author: github_actions
+          message: 'ci: update tests/README.md file'
+          add: 'acceptance/README.md'

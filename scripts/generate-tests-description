@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Small script to generated README.sh file to add a
+# basic test documentation based on the code.
+# It uses Describe/It/By syntax to extract kindof
+# useful informations.
+#
+# It currently supports these frameworks/languages:
+# - Ginkgo(Gomega)/Go
+# - Cypress/Typescript
+
+function abort() {
+  echo "$1" >&2
+  exit 1
+}
+
+# Variables
+DIR=$1
+EXT="*_test.go *.spec.ts"
+
+# Go to directory if it exists, otherwise exit
+[[ ! -d ${DIR:=$PWD} ]] && abort "Directory '${DIR}' does not exist!"
+pushd ${DIR} >/dev/null
+
+# Loop on each test file
+for TST_FILE in $(ls ${EXT} 2>/dev/null); do
+  # Set regex/fields depending of language
+  if [[ "${TST_FILE##*.}" == "go" ]]; then
+    REGEX="^[[:space:]]*(Context|It|By)|^.*=.*(Describe)"
+    FIELDS="\1\2"
+  elif [[ "${TST_FILE##*.}" == "ts" ]]; then
+    REGEX="^[[:space:]]*(describe|it|by)"
+    FIELDS="\1"
+  fi
+
+  # Extact the informations
+  TXT=$(
+    grep -h -E "${REGEX}" ${TST_FILE} \
+      | tr -d "('\"" \
+      | sed -E \
+            -e "s/${REGEX}/${FIELDS}: /" \
+            -e 's/,[[:space:]]*(func|Label).*//' \
+            -e 's/,[[:space:]]*\)[[:space:]]*=>[[:space:]]*\{//' \
+            -e 's/\{[[:space:]]*tags:.*\}//' \
+            -e 's/\)$//' \
+            -e 's/,[[:space:]]*$//' \
+            -e 's/^[Dd]escribe:/- **Describe:**/' \
+            -e 's/^[Cc]ontext:/\t- **Context:**/' \
+            -e 's/^[Ii]t:/\t\t- **It:**/' \
+            -e 's/^[Bb]y:/\t\t\t-  **By:**/'
+  )
+
+  # If empty
+  [[ -z "${TXT}" ]] && TXT="*No test defined!*"
+
+  # Show all informations (with tabs size set to 2)
+  echo -e "## \`${TST_FILE}\`\n\n${TXT}\n" | expand -t2
+done
+
+# Go back to the previous directory
+popd >/dev/null
+
+# Done!
+exit 0

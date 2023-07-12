@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Execute script on all directories
+for DIR in $(find $1 -type d); do
+  if [[ -d ${DIR} ]]; then
+    VALUE=$(scripts/generate-tests-description ${DIR})
+    if [[ -n "${VALUE}" ]]; then
+      echo -e "# Tests description for ${DIR#./}\n"
+      echo -e "${VALUE}\n"
+    fi
+  fi
+done
+
+# Done!
+exit 0
