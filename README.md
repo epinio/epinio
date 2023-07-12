@@ -23,7 +23,7 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 [![Standalone UI Chrome](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_chrome.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_chrome.yml?query=branch%3Amain)
 [![Standalone UI Firefox](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_firefox.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_firefox.yml?query=branch%3Amain)
 
-<img src="./docs/epinio.png" align="right" width="200" height="50%">
+<img src="./docs/epinio.png" align="left" width="100" height="50%">
 
 ## What problem does Epinio solve?
 
