@@ -15,7 +15,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -212,105 +211,4 @@ func listS3Blobs() []string {
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return strings.Split(string(out), "\n")
-}
-
-func appFromAPI(namespace, app string) models.App {
-	response, err := env.Curl("GET",
-		fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-			serverURL, v1.Root, namespace, app),
-		strings.NewReader(""))
-
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, response).ToNot(BeNil())
-	defer response.Body.Close()
-	ExpectWithOffset(1, response.StatusCode).To(Equal(http.StatusOK))
-	bodyBytes, err := io.ReadAll(response.Body)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-	var responseApp models.App
-	err = json.Unmarshal(bodyBytes, &responseApp)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), string(bodyBytes))
-	ExpectWithOffset(1, responseApp.Meta.Name).To(Equal(app))
-	ExpectWithOffset(1, responseApp.Meta.Namespace).To(Equal(namespace))
-
-	return responseApp
-}
-
-func updateAppInstances(namespace string, app string, instances int32) (int, []byte) {
-	desired := instances
-	data, err := json.Marshal(models.ApplicationUpdateRequest{
-		Instances: &desired,
-	})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-	response, err := env.Curl("PATCH",
-		fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-			serverURL, v1.Root, namespace, app),
-		strings.NewReader(string(data)))
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, response).ToNot(BeNil())
-
-	defer response.Body.Close()
-	bodyBytes, err := io.ReadAll(response.Body)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-	return response.StatusCode, bodyBytes
-}
-
-func updateAppInstancesNAN(namespace string, app string) (int, []byte) {
-	desired := int32(314)
-	data, err := json.Marshal(models.ApplicationUpdateRequest{
-		Instances: &desired,
-	})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-	// Hack to make the Instances value non-number
-	data = []byte(strings.Replace(string(data), "314", `"thisisnotanumber"`, 1))
-
-	response, err := env.Curl("PATCH",
-		fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-			serverURL, v1.Root, namespace, app),
-		strings.NewReader(string(data)))
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, response).ToNot(BeNil())
-
-	defer response.Body.Close()
-	bodyBytes, err := io.ReadAll(response.Body)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-	return response.StatusCode, bodyBytes
-}
-
-func createApplication(name string, namespace string, routes []string) (*http.Response, error) {
-	request := models.ApplicationCreateRequest{
-		Name: name,
-		Configuration: models.ApplicationUpdateRequest{
-			Routes: routes,
-		},
-	}
-	b, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-	body := string(b)
-
-	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppCreate", namespace)
-	return env.Curl("POST", url, strings.NewReader(body))
-}
-
-func createApplicationWithChart(name string, namespace string, chart string) (*http.Response, error) {
-	request := models.ApplicationCreateRequest{
-		Name: name,
-		Configuration: models.ApplicationUpdateRequest{
-			AppChart: chart,
-		},
-	}
-	b, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-	body := string(b)
-
-	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppCreate", namespace)
-	return env.Curl("POST", url, strings.NewReader(body))
 }

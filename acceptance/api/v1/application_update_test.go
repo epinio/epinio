@@ -41,10 +41,10 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 		containerImageURL = "splatform/sample-app"
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
-	})
 
-	AfterEach(func() {
-		env.DeleteNamespace(namespace)
+		DeferCleanup(func() {
+			env.DeleteNamespace(namespace)
+		})
 	})
 
 	When("instances is valid integer", func() {
@@ -53,14 +53,15 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 			defer env.DeleteApp(app)
 
-			appObj := appFromAPI(namespace, app)
+			appObj := appShow(namespace, app)
 			Expect(appObj.Workload.Status).To(Equal("1/1"))
 
-			status, _ := updateAppInstances(namespace, app, 3)
-			Expect(status).To(Equal(http.StatusOK))
+			request := map[string]interface{}{"instances": 3}
+			_, statusCode := appUpdate(namespace, app, toJSON(request))
+			Expect(statusCode).To(Equal(http.StatusOK))
 
 			Eventually(func() string {
-				return appFromAPI(namespace, app).Workload.Status
+				return appShow(namespace, app).Workload.Status
 			}, "1m").Should(Equal("3/3"))
 		})
 	})
@@ -70,10 +71,11 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 			app := catalog.NewAppName()
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 			defer env.DeleteApp(app)
-			Expect(appFromAPI(namespace, app).Workload.Status).To(Equal("1/1"))
+			Expect(appShow(namespace, app).Workload.Status).To(Equal("1/1"))
 
-			status, updateResponseBody := updateAppInstances(namespace, app, -3)
-			Expect(status).To(Equal(http.StatusBadRequest))
+			request := map[string]interface{}{"instances": -3}
+			updateResponseBody, statusCode := appUpdate(namespace, app, toJSON(request))
+			Expect(statusCode).To(Equal(http.StatusBadRequest))
 
 			var errorResponse apierrors.ErrorResponse
 			err := json.Unmarshal(updateResponseBody, &errorResponse)
@@ -89,9 +91,10 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 			app := catalog.NewAppName()
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 			defer env.DeleteApp(app)
-			Expect(appFromAPI(namespace, app).Workload.Status).To(Equal("1/1"))
+			Expect(appShow(namespace, app).Workload.Status).To(Equal("1/1"))
 
-			status, updateResponseBody := updateAppInstancesNAN(namespace, app)
+			request := map[string]string{"instances": "not-a-number"}
+			updateResponseBody, status := appUpdate(namespace, app, toJSON(request))
 			Expect(status).To(Equal(http.StatusBadRequest))
 
 			var errorResponse apierrors.ErrorResponse
@@ -216,7 +219,7 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 			checkCertificateDNSNames(app, namespace, defaultRoute)
 			checkSecretsForCerts(app, namespace, defaultRoute)
 
-			appObj := appFromAPI(namespace, app)
+			appObj := appShow(namespace, app)
 			Expect(appObj.Workload.Status).To(Equal("1/1"))
 
 			newRoutes := []string{"domain1.org", "domain2.org"}
@@ -251,7 +254,7 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 			checkCertificateDNSNames(app, namespace, defaultRoute)
 			checkSecretsForCerts(app, namespace, defaultRoute)
 
-			appObj := appFromAPI(namespace, app)
+			appObj := appShow(namespace, app)
 			Expect(appObj.Workload.Status).To(Equal("1/1"))
 
 			newRoutes := []string{}

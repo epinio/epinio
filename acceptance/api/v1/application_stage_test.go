@@ -44,8 +44,9 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 		appName = catalog.NewAppName()
 
 		By("creating application resource first")
-		_, err := createApplication(appName, namespace, nil)
-		Expect(err).ToNot(HaveOccurred())
+		appCreateRequest := models.ApplicationCreateRequest{Name: appName}
+		bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+		Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 	})
 
 	AfterEach(func() {
@@ -60,8 +61,9 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 			appName2 = catalog.NewAppName()
 
 			By("creating the other application resource first")
-			_, err := createApplication(appName2, namespace, nil)
-			Expect(err).ToNot(HaveOccurred())
+			appCreateRequest := models.ApplicationCreateRequest{Name: appName2}
+			_, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+			Expect(statusCode).To(Equal(http.StatusCreated))
 
 			By("uploading the code of the other")
 			uploadResponse2 = uploadApplication(appName2, namespace)
@@ -274,7 +276,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 			By("confirming at highlevel")
 			// Highlevel check and confirmation
 			Eventually(func() string {
-				return appFromAPI(namespace, appName).Workload.Status
+				return appShow(namespace, appName).Workload.Status
 			}, "5m").Should(Equal("1/1"))
 		})
 
@@ -346,7 +348,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 			By("confirming at highlevel")
 			// Highlevel check and confirmation
 			Eventually(func() string {
-				return appFromAPI(namespace, appName).Workload.Status
+				return appShow(namespace, appName).Workload.Status
 			}, "5m").Should(Equal("1/1"))
 		})
 	})
