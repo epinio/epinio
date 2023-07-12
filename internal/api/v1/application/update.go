@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
@@ -36,7 +35,6 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
-	username := requestctx.User(ctx).Username
 	log := requestctx.Logger(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -144,12 +142,10 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	}
 
 	// update instances
-	var desired int32
 	if updateRequest.Instances != nil {
-		desired = *updateRequest.Instances
+		desired := *updateRequest.Instances
 		log.Info("updating app", "instances", desired)
 
-		// Save to configuration
 		err := application.ScalingSet(ctx, cluster, appRef, desired)
 		if err != nil {
 			return apierror.InternalError(err)
@@ -196,19 +192,6 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		err := updateChartValueSettings(ctx, client, namespace, appName, updateRequest.Settings)
 		if err != nil {
 			return apierror.InternalError(err)
-		}
-	}
-
-	// With everything saved, and a workload to update, re-deploy the changed state.
-	// BEWARE if the application was scaled to zero it does not seem to have a workload
-	// (as there are no pods).
-
-	if app.Workload != nil || desired > 0 {
-		log.Info("updating app -- redeploy")
-
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
-		if apierr != nil {
-			return apierr
 		}
 	}
 
