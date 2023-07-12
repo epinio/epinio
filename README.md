@@ -45,15 +45,39 @@ to use Kubernetes as a PaaS (Platform as a Service).
 
 ## Documentation
 
+Detailed installation and user documentation is available at our main
+[docs.epinio.io](https://docs.epinio.io/) site.
+
 ### Installation
 
-Installation and user documentation is available at our main [docs.epinio.io](https://docs.epinio.io/) site.
+Leaving out DNS setup in the most trivial case the main installation boils down to
 
-Our [developer documentation](./docs) explains how to build and run Epinio from a source checkout.
+```
+helm repo add epinio https://epinio.github.io/helm-charts
+helm repo update
+
+helm install --namespace epinio --create-namespace epinio epinio/epinio \                                               --set global.domain=mydomain.example.com
+```
+
+For the details glossed over here see the
+[documentation](https://docs.epinio.io/installation/install_epinio).
+
+### Client installation
+
+Installation of the Epinio CLI can be as simple as downloading a binary from the
+[release page](https://github.com/epinio/epinio/releases), or usage of `brew`, i.e.
+
+```
+brew install epinio
+```
+
+For the details glossed over here see the
+[documentation](https://docs.epinio.io/installation/install_epinio_cli).
 
 ### Quick Start Tutorial
 
-- [QuickStart](https://docs.epinio.io/tutorials/quickstart) - Tutorial on how to create a namespace and push an application.
+- Our [QuickStart Tutorial](https://docs.epinio.io/tutorials/quickstart) explains how to create a
+  namespace and push an application.
 
 ### Reach Us
 
@@ -65,6 +89,8 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
 `Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues.
 
 Find more information in the [Contribution Guide](./CONTRIBUTING.md).
+
+Our [developer documentation](./docs) explains how to build and run Epinio from a source checkout.
 
 ## Features
 
