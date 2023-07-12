@@ -172,6 +172,9 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 		err := updateConfigurations(ctx, cluster, appRef, updateRequest.Configurations)
 		if err != nil {
+			if apiErr, ok := err.(apierror.APIError); ok {
+				return apiErr
+			}
 			return apierror.InternalError(err)
 		}
 	}
