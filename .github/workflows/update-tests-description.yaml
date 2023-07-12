@@ -14,7 +14,7 @@ jobs:
         with:
           # A token is needed to be able to push on main, maybe this can be changed later
           # with another GHA or with some webhook?
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate tests description file
         id: readme_generator
         run: |
