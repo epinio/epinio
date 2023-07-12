@@ -3,6 +3,7 @@
 Opinionated platform that runs on Kubernetes to take you from Code to URL in one step.
 
 [![godoc](https://pkg.go.dev/badge/epinio/epinio)](https://pkg.go.dev/github.com/epinio/epinio/internal/api/v1)
+[![Go Report Card](https://goreportcard.com/badge/github.com/epinio/epinio)](https://goreportcard.com/report/github.com/epinio/epinio)
 [![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=branch%3Amain)
 [![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml?query=branch%3Amain)
 [![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/aks.yml?query=branch%3Amain)
@@ -22,21 +23,7 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 [![Standalone UI Chrome](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_chrome.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_chrome.yml?query=branch%3Amain)
 [![Standalone UI Firefox](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_firefox.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_firefox.yml?query=branch%3Amain)
 
-<img src="./docs/epinio.png" align="right" width="200" height="50%">
-
-## Contents
-
-- [Epinio](#epinio)
-  - [Contents](#contents)
-  - [What problem does Epinio solve?](#what-problem-does-epinio-solve)
-  - [Documentation](#documentation)
-  - [Features](#features)
-  - [Usage](#usage)
-  - [Buildpacks](#buildpacks)
-    - [Example apps](#example-apps)
-  - [Reach Us](#reach-us)
-  - [Contributing](#contributing)
-  - [License](#license)
+<img src="./docs/epinio.png" align="left" width="100" height="50%">
 
 ## What problem does Epinio solve?
 
@@ -59,15 +46,61 @@ to use Kubernetes as a PaaS (Platform as a Service).
 
 ## Documentation
 
-Installation and user documentation is available at our main [docs.epinio.io](https://docs.epinio.io/) site.
+Detailed installation and user documentation is available at our main
+[docs.epinio.io](https://docs.epinio.io/) site.
+
+### Installation
+
+The basic boilerplate requires a Kubernetes cluster, an Ingress Controller and a Cert Manager as
+detailed in the [documentation](https://docs.epinio.io/installation/install_epinio). Once this is in
+place, and leaving out DNS setup, in the most trivial case the main installation boils down to
+
+```
+helm repo add epinio https://epinio.github.io/helm-charts
+helm repo update
+
+helm install --namespace epinio --create-namespace epinio epinio/epinio \                                               --set global.domain=mydomain.example.com
+```
+
+For the details glossed over here see the
+[documentation](https://docs.epinio.io/installation/install_epinio).
+
+### Client installation
+
+Installation of the Epinio CLI can be as simple as downloading a binary from the
+[release page](https://github.com/epinio/epinio/releases), or usage of `brew`, i.e.
+
+```
+brew install epinio
+```
+
+For the details glossed over here see the
+[documentation](https://docs.epinio.io/installation/install_epinio_cli).
+
+### Quick Start Tutorial
+
+- Our [QuickStart Tutorial](https://docs.epinio.io/tutorials/quickstart) explains how to create a
+  namespace and push an application.
+
+### Reach Us
+
+- Slack: #epinio on [Rancher Users](https://rancher-users.slack.com/)
+- Github: [Discuss](https://github.com/epinio/epinio/discussions/new)
+
+### Contributing
+
+`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues.
+
+Find more information in the [Contribution Guide](./CONTRIBUTING.md).
 
 Our [developer documentation](./docs) explains how to build and run Epinio from a source checkout.
 
 ## Features
 
 - **Security**
-  - mTLS: Epinio uses `linkerd` to secure all communication between epinio components inside the kubernetes cluster
+  - TLS secured API server
   - Basic Authentication to access the API
+  - __or__ OIDC-based token
 - **Epinio Clients**
   - Web UI
   - Epinio CLI
@@ -79,38 +112,15 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
   - CRUD operations of your configuration. A configuration can be a database, SaaS etc. A configuration can be an external component or can be created using `epinio configuration`
   - Bind configurations to apps
 
-## Usage
-
-- [QuickStart](https://docs.epinio.io/tutorials/quickstart) - Tutorial on how to create a namespace and push an application.
-
-## Buildpacks
-
-Buildpacks convert your application source code into container images in which the buildpack provides the framework, dependencies and runtime support for your app based on it's programming language.
-
-Epinio uses [Paketo Buildpacks](https://paketo.io/docs/) through kubernetes jobs to convert your source code into container images. 
-
-Epinio uses the Paketo's full [Builder Image](https://paketo.io/docs/concepts/builders/) by default.
-
-### Example apps
+## Example apps
 
 - Rails: https://github.com/epinio/example-rails
 - Java: https://github.com/spring-projects/spring-petclinic/
 - Paketo Buildpack example apps: https://github.com/paketo-buildpacks/samples
 
-## Reach Us
-
-- Slack: #epinio on [Rancher Users](https://rancher-users.slack.com/)
-- Github: [Discuss](https://github.com/epinio/epinio/discussions/new)
-
-## Contributing
-
-`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currently being worked on in the `BackLog` section.
-
-Find more information in the [Contribution Guide](./CONTRIBUTING.md).
-
 ## License
 
-Copyright (c) 2020-2021 [SUSE, LLC](http://suse.com)
+Copyright (c) 2020-2023 [SUSE, LLC](https://suse.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
