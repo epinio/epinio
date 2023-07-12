@@ -26,9 +26,9 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
 )
 
 // Update handles the API endpoint PATCH /namespaces/:namespace/applications/:app
@@ -40,6 +40,11 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	log := requestctx.Logger(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	client, err := cluster.ClientApp()
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -128,40 +133,30 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	// Save all changes to the relevant parts of the app resources (CRD, secrets, and the like).
 
+	// update appChart
 	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
-		found, err := appchart.Exists(ctx, cluster, updateRequest.AppChart)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-		if !found {
-			return apierror.AppChartIsNotKnown(updateRequest.AppChart)
-		}
+		log.Info("updating app", "appChart", updateRequest.AppChart)
 
-		client, err := cluster.ClientApp()
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-
-		// Patch
-		patch := fmt.Sprintf(`[{
-				"op": "replace",
-				"path": "/spec/chartname",
-				"value": "%s" }]`,
-			updateRequest.AppChart)
-
-		log.Info("updating app", "app chart patch", patch)
-
-		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		err := updateAppChart(ctx, cluster, client, app.Meta.Namespace, app.Meta.Name, updateRequest.AppChart)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 	}
 
-	desired, err := updateInstances(ctx, log, updateRequest.Instances, cluster, appRef)
-	if err != nil {
-		return apierror.InternalError(err)
+	// update instances
+	var desired int32
+	if updateRequest.Instances != nil {
+		desired = *updateRequest.Instances
+		log.Info("updating app", "instances", desired)
+
+		// Save to configuration
+		err := application.ScalingSet(ctx, cluster, appRef, desired)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
 	}
 
+	// update envs
 	if len(updateRequest.Environment) > 0 {
 		log.Info("updating app", "environment", updateRequest.Environment)
 
@@ -171,88 +166,34 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		}
 	}
 
+	// update configurations
 	if updateRequest.Configurations != nil {
-		var okToBind []string
-
 		log.Info("updating app", "configurations", updateRequest.Configurations)
 
-		if len(updateRequest.Configurations) > 0 {
-			for _, configurationName := range updateRequest.Configurations {
-				_, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
-				if err != nil {
-					// do not change existing configuration bindings if there is an issue
-					if err.Error() == "configuration not found" {
-						return apierror.ConfigurationIsNotKnown(configurationName)
-					}
-
-					return apierror.InternalError(err)
-				}
-
-				okToBind = append(okToBind, configurationName)
+		err := updateConfigurations(ctx, cluster, appRef, updateRequest.Configurations)
+		if err != nil {
+			if apiErr, ok := err.(apierror.APIError); ok {
+				return apiErr
 			}
-
-			err = application.BoundConfigurationsSet(ctx, cluster, app.Meta, okToBind, true)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-		} else {
-			// remove all bound configurations
-			err = application.BoundConfigurationsSet(ctx, cluster, app.Meta, []string{}, true)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
+			return apierror.InternalError(err)
 		}
 	}
 
-	// Only update the app if routes have been set, otherwise just leave it as it is.
-	// Note that an empty slice is setting routes, i.e. removing all!
-	// No change is signaled by a nil slice.
+	// update routes
 	if updateRequest.Routes != nil {
-		client, err := cluster.ClientApp()
-		if err != nil {
-			return apierror.InternalError(err)
-		}
+		log.Info("updating app", "routes", updateRequest.Routes)
 
-		routes := []string{}
-		for _, d := range updateRequest.Routes {
-			routes = append(routes, fmt.Sprintf("%q", d))
-		}
-
-		patch := fmt.Sprintf(`[{
-			"op": "replace",
-			"path": "/spec/routes",
-			"value": [%s] }]`,
-			strings.Join(routes, ","))
-
-		log.Info("updating app", "route patch", patch)
-
-		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		err := updateRoutes(ctx, client, namespace, appName, updateRequest.Routes)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 	}
 
-	// Only update the app if chart values have been set, otherwise just leave it as it is.
+	// update settings only if chart values have been set, otherwise just leave it as it is.
 	if len(updateRequest.Settings) > 0 {
-		client, err := cluster.ClientApp()
-		if err != nil {
-			return apierror.InternalError(err)
-		}
+		log.Info("updating app", "settings", updateRequest.Settings)
 
-		values := []string{}
-		for k, v := range updateRequest.Settings {
-			values = append(values, fmt.Sprintf(`%q : %q`, k, v))
-		}
-
-		patch := fmt.Sprintf(`[{
-			"op": "replace",
-			"path": "/spec/settings",
-			"value": {%s} }]`,
-			strings.Join(values, ","))
-
-		log.Info("updating app", "settings patch", patch)
-
-		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		err := updateChartValueSettings(ctx, client, namespace, appName, updateRequest.Settings)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
@@ -275,15 +216,111 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	return nil
 }
 
-func updateInstances(ctx context.Context, log logr.Logger, instances *int32, cluster *kubernetes.Cluster, app models.AppRef) (int32, error) {
-	if instances == nil {
-		return 0, nil
+func updateAppChart(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	client dynamic.NamespaceableResourceInterface,
+	namespace string,
+	appName string,
+	appChart string,
+) error {
+	found, err := appchart.Exists(ctx, cluster, appChart)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if !found {
+		return apierror.AppChartIsNotKnown(appChart)
 	}
 
-	desired := *instances
-	log.Info("updating app", "desired instances", desired)
+	// Patch
+	patch := fmt.Sprintf(`[{
+				"op": "replace",
+				"path": "/spec/chartname",
+				"value": "%s" }]`,
+		appChart)
 
-	// Save to configuration
-	err := application.ScalingSet(ctx, cluster, app, desired)
-	return desired, err
+	_, err = client.Namespace(namespace).Patch(ctx, appName, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	return nil
+}
+
+func updateConfigurations(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+	updatedConfigurations []string,
+) error {
+	// if empty remove all bound configurations
+	if len(updatedConfigurations) == 0 {
+		return application.BoundConfigurationsSet(ctx, cluster, appRef, []string{}, true)
+	}
+
+	var okToBind []string
+	for _, configurationName := range updatedConfigurations {
+		_, err := configurations.Lookup(ctx, cluster, appRef.Namespace, configurationName)
+		if err != nil {
+			// do not change existing configuration bindings if there is an issue
+			if err.Error() == "configuration not found" {
+				return apierror.ConfigurationIsNotKnown(configurationName)
+			}
+
+			return apierror.InternalError(err)
+		}
+
+		okToBind = append(okToBind, configurationName)
+	}
+
+	return application.BoundConfigurationsSet(ctx, cluster, appRef, okToBind, true)
+}
+
+func updateRoutes(
+	ctx context.Context,
+	client dynamic.NamespaceableResourceInterface,
+	namespace string,
+	appName string,
+	updateRoutes []string,
+) error {
+	// Only update the app if routes have been set, otherwise just leave it as it is.
+	// Note that an empty slice is setting routes, i.e. removing all!
+	// No change is signaled by a nil slice.
+
+	routes := []string{}
+	for _, d := range updateRoutes {
+		routes = append(routes, fmt.Sprintf("%q", d))
+	}
+
+	patch := fmt.Sprintf(`[{
+			"op": "replace",
+			"path": "/spec/routes",
+			"value": [%s] }]`,
+		strings.Join(routes, ","),
+	)
+
+	_, err := client.Namespace(namespace).Patch(ctx, appName, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	return err
+}
+
+func updateChartValueSettings(
+	ctx context.Context,
+	client dynamic.NamespaceableResourceInterface,
+	namespace string,
+	appName string,
+	settings models.ChartValueSettings,
+) error {
+	values := []string{}
+	for k, v := range settings {
+		values = append(values, fmt.Sprintf(`%q : %q`, k, v))
+	}
+
+	patch := fmt.Sprintf(`[{
+			"op": "replace",
+			"path": "/spec/settings",
+			"value": {%s} }]`,
+		strings.Join(values, ","))
+
+	_, err := client.Namespace(namespace).Patch(ctx, appName, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	return err
 }

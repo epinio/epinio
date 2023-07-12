@@ -31,6 +31,7 @@ import (
 	"github.com/epinio/epinio/internal/registry"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/pkg/errors"
 )
 
 // DeployApp deploys the referenced application via helm, based on the state held by CRD and associated secrets.
@@ -61,6 +62,11 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	if expectedStageID != "" && expectedStageID != stageID {
 		return nil, apierror.NewBadRequestError("stage id mismatch").
 			WithDetailsf("expectedStageID: [%s] - stageID: [%s]", expectedStageID, stageID)
+	}
+
+	imageURL := appObj.ImageURL
+	if imageURL == "" {
+		return nil, apierror.NewInternalError("cannot deploy app without imageURL")
 	}
 
 	// Iterate over the bound configurations to determine their mount path ...
@@ -115,7 +121,6 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		})
 	}
 
-	imageURL := appObj.ImageURL
 	routes := appObj.Configuration.Routes
 	chartName := appObj.Configuration.AppChart
 	domains := domain.MatchMapLoad(ctx, app.Namespace)
@@ -208,12 +213,12 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, imageURL string) (string, error) {
 	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
 	if err != nil {
-		return imageURL, err
+		return "", errors.Wrap(err, "getting connection details")
 	}
 
 	localURL, err := registryDetails.PrivateRegistryURL()
 	if err != nil {
-		return imageURL, err
+		return "", errors.Wrap(err, "getting private registry URL")
 	}
 
 	if localURL != "" {
