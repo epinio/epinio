@@ -120,7 +120,7 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
 
 ## License
 
-Copyright (c) 2020-2023 [SUSE, LLC](http://suse.com)
+Copyright (c) 2020-2023 [SUSE, LLC](https://suse.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
