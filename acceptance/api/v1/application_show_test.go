@@ -47,7 +47,7 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 		env.MakeContainerImageApp(app, 1, containerImageURL)
 		defer env.DeleteApp(app)
 
-		appObj := appFromAPI(namespace, app)
+		appObj := appShow(namespace, app)
 		Expect(appObj.Workload.Status).To(Equal("1/1"))
 		createdAt, err := time.Parse(time.RFC3339, appObj.Workload.CreatedAt)
 		Expect(err).ToNot(HaveOccurred())
@@ -77,7 +77,7 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 			"--", "bin/sh", "-c", "yes > /dev/null 2> /dev/null &")
 		Expect(err).ToNot(HaveOccurred(), out)
 		Eventually(func() int64 {
-			appObj := appFromAPI(namespace, app)
+			appObj := appShow(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].MilliCPUs
 		}, "240s", "1s").Should(BeNumerically(">=", 900))
 		// Kill the "yes" process to bring CPU down again
@@ -92,12 +92,12 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 			"--", "bin/bash", "-c", "cat <( </dev/zero head -c 50m) <(sleep 180) | tail")
 		Expect(err).ToNot(HaveOccurred(), out)
 		Eventually(func() int64 {
-			appObj := appFromAPI(namespace, app)
+			appObj := appShow(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].MemoryBytes
 		}, "240s", "1s").Should(BeNumerically(">=", 0))
 
 		Consistently(func() int32 {
-			appObj := appFromAPI(namespace, app)
+			appObj := appShow(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].Restarts
 		}, "10s", "1s").Should(BeNumerically("==", 0))
 
@@ -108,7 +108,7 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		Eventually(func() int32 {
-			appObj := appFromAPI(namespace, app)
+			appObj := appShow(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].Restarts
 		}, "15s", "1s").Should(BeNumerically("==", 1))
 	})

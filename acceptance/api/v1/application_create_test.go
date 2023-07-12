@@ -13,13 +13,13 @@ package v1_test
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -47,14 +47,15 @@ var _ = Describe("AppCreate Endpoint", LApplication, func() {
 		})
 
 		It("creates the app resource", func() {
-			response, err := createApplication(appName, namespace, []string{"mytestdomain.org"})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
-			defer response.Body.Close()
+			appCreateRequest := models.ApplicationCreateRequest{
+				Name: appName,
+				Configuration: models.ApplicationUpdateRequest{
+					Routes: []string{"mytestdomain.org"},
+				},
+			}
+			bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+			Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 
-			bodyBytes, err := io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 			out, err := proc.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.routes[*]}")
 			Expect(err).ToNot(HaveOccurred(), out)
 			routes := strings.Split(out, " ")
@@ -63,14 +64,15 @@ var _ = Describe("AppCreate Endpoint", LApplication, func() {
 		})
 
 		It("remembers the chart in the app resource", func() {
-			response, err := createApplicationWithChart(appName, namespace, "standard")
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
-			defer response.Body.Close()
+			appCreateRequest := models.ApplicationCreateRequest{
+				Name: appName,
+				Configuration: models.ApplicationUpdateRequest{
+					AppChart: "standard",
+				},
+			}
+			bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+			Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 
-			bodyBytes, err := io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 			out, err := proc.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.chartname}")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(Equal("standard"))
@@ -79,17 +81,18 @@ var _ = Describe("AppCreate Endpoint", LApplication, func() {
 
 	Describe("app creation failures", func() {
 		It("fails for a name not fitting kubernetes requirements", func() {
-			response, err := createApplication("BOGUS", namespace, []string{"mytestdomain.org"})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
-			defer response.Body.Close()
-			bodyBytes, err := io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+			appCreateRequest := models.ApplicationCreateRequest{
+				Name: "BOGUS",
+				Configuration: models.ApplicationUpdateRequest{
+					Routes: []string{"mytestdomain.org"},
+				},
+			}
+			bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+			Expect(statusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0].Title).To(
-				ContainSubstring("name must consist of lower case alphanumeric"))
+			Expect(responseBody["errors"][0].Title).To(ContainSubstring("name must consist of lower case alphanumeric"))
 		})
 	})
 
@@ -98,14 +101,14 @@ var _ = Describe("AppCreate Endpoint", LApplication, func() {
 			epinioHost, err := proc.Kubectl("get", "ingress", "--namespace", "epinio", "epinio", "-o", "jsonpath={.spec.rules[*].host}")
 			Expect(err).ToNot(HaveOccurred())
 
-			response, err := createApplication(appName, namespace, []string{epinioHost})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
-			defer response.Body.Close()
-
-			bodyBytes, err := io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+			appCreateRequest := models.ApplicationCreateRequest{
+				Name: appName,
+				Configuration: models.ApplicationUpdateRequest{
+					Routes: []string{epinioHost},
+				},
+			}
+			bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+			Expect(statusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 		})
 	})
 })

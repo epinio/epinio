@@ -13,6 +13,7 @@ package v1_test
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
@@ -37,8 +38,9 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 		appName = catalog.NewAppName()
 
 		By("creating application resource first")
-		_, err := createApplication(appName, namespace, nil)
-		Expect(err).ToNot(HaveOccurred())
+		appCreateRequest := models.ApplicationCreateRequest{Name: appName}
+		bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+		Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 	})
 
 	AfterEach(func() {
@@ -182,7 +184,7 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 				Expect(deployResponse.Routes[0]).To(MatchRegexp(appName + `\..*\.omg\.howdoi\.website`))
 
 				Eventually(func() string {
-					return appFromAPI(namespace, appName).Workload.Status
+					return appShow(namespace, appName).Workload.Status
 				}, "5m").Should(Equal("1/1"))
 
 				// Check if autoserviceaccounttoken is true
@@ -226,8 +228,14 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 				appName2 = catalog.NewAppName()
 
 				By("creating application resource first")
-				_, err := createApplication(appName2, namespace, []string{})
-				Expect(err).ToNot(HaveOccurred())
+				appCreateRequest := models.ApplicationCreateRequest{
+					Name: appName2,
+					Configuration: models.ApplicationUpdateRequest{
+						Routes: []string{},
+					},
+				}
+				_, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+				Expect(statusCode).To(Equal(http.StatusCreated))
 
 				routes = []string{"appdomain.org", "appdomain2.org"}
 				out, err := proc.Kubectl("patch", "apps", "--type", "json", "-n", namespace, appName, "--patch",
