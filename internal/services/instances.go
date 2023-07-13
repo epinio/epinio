@@ -98,9 +98,13 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 
 	logger := tracelog.NewLogger().WithName("ServiceStatus")
 
+	var settings map[string]models.ChartSetting
+	if catalogEntry != nil {
+		settings = catalogEntry.Settings
+	}
+
 	err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient,
-		namespace, names.ServiceReleaseName(name),
-		catalogEntry.Settings)
+		namespace, names.ServiceReleaseName(name), settings)
 
 	return &service, err
 }
