@@ -12,13 +12,12 @@
 package cli
 
 import (
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 // NewInfoCmd returns a new 'epinio info' command
-func NewInfoCmd(client *usercmd.EpinioClient) *cobra.Command {
+func NewInfoCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "info",
 		Short: "Shows information about the Epinio environment",

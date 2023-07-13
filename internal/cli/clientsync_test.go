@@ -61,7 +61,8 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 		mockUpdater = &selfupdaterfakes.FakeUpdater{}
 		epinioClient.Updater = mockUpdater
 
-		clientSyncCmd = cli.NewClientSyncCmd(epinioClient)
+		clientSyncCmd = cli.NewClientSyncCmd()
+		cli.SetClient(epinioClient)
 		clientSyncCmd.SetErr(output)
 		clientSyncCmd.SetArgs([]string{"client-sync"})
 	})

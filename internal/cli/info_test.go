@@ -46,7 +46,8 @@ var _ = Describe("Command 'epinio info'", func() {
 		output = &bytes.Buffer{}
 		epinioClient.UI().SetOutput(output)
 
-		infoCmd = cli.NewInfoCmd(epinioClient)
+		infoCmd = cli.NewInfoCmd()
+		cli.SetClient(epinioClient)
 		infoCmd.SetErr(output)
 		infoCmd.SetArgs([]string{"info"})
 	})
