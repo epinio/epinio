@@ -136,6 +136,21 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 }
 
 func Do[T any](c *Client, endpoint string, method string, requestBody any, response T) (T, error) {
+	jsonResponseHandler := NewJSONResponseHandler[T](c.log, response)
+	return DoWithResponseHandler(c, endpoint, method, requestBody, response, jsonResponseHandler)
+}
+
+func DoRaw[T *http.Response](c *Client, endpoint string, method string, requestBody any) (T, error) {
+	return DoWithResponseHandler(c, endpoint, method, requestBody, nil, NewHTTPResponseHandler())
+}
+
+func DoWithResponseHandler[T any](
+	c *Client, endpoint string, method string,
+	requestBody any,
+	response T,
+	responseHandler ResponseHandler[T],
+) (T, error) {
+
 	url := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 
 	c.log.V(1).Info("sending "+method+" request", "endpoint", endpoint, "body", requestBody, "url", url)
@@ -181,8 +196,15 @@ func Do[T any](c *Client, endpoint string, method string, requestBody any, respo
 		return response, handleError(c.log, httpResponse)
 	}
 
-	// if OK decode and return the response
-	return handleJSONResponse(c.log, httpResponse, response)
+	return responseHandler(httpResponse)
+}
+
+type ResponseHandler[T any] func(httpResponse *http.Response) (T, error)
+
+func NewHTTPResponseHandler[T *http.Response]() ResponseHandler[T] {
+	return func(httpResponse *http.Response) (T, error) {
+		return httpResponse, nil
+	}
 }
 
 func handleError(logger logr.Logger, response *http.Response) error {
@@ -216,25 +238,27 @@ func handleError(logger logr.Logger, response *http.Response) error {
 	return epinioError
 }
 
-func handleJSONResponse[T any](logger logr.Logger, httpResponse *http.Response, response T) (T, error) {
-	defer httpResponse.Body.Close()
+func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandler[T] {
+	return func(httpResponse *http.Response) (T, error) {
+		defer httpResponse.Body.Close()
 
-	bodyBytes, err := io.ReadAll(httpResponse.Body)
-	respLog := responseLogger(logger, httpResponse, string(bodyBytes))
-	if err != nil {
-		respLog.V(1).Error(err, "failed to read response body")
-		return response, errors.Wrap(err, "reading response body")
+		bodyBytes, err := io.ReadAll(httpResponse.Body)
+		respLog := responseLogger(logger, httpResponse, string(bodyBytes))
+		if err != nil {
+			respLog.V(1).Error(err, "failed to read response body")
+			return response, errors.Wrap(err, "reading response body")
+		}
+
+		respLog.V(1).Info("response received", "status", httpResponse.StatusCode)
+
+		if err := json.Unmarshal(bodyBytes, &response); err != nil {
+			return response, errors.Wrap(err, "decoding JSON response")
+		}
+
+		logger.V(1).Info("response decoded", "response", response)
+
+		return response, nil
 	}
-
-	respLog.V(1).Info("response received", "status", httpResponse.StatusCode)
-
-	if err := json.Unmarshal(bodyBytes, &response); err != nil {
-		return response, errors.Wrap(err, "decoding JSON response")
-	}
-
-	logger.V(1).Info("response decoded", "response", response)
-
-	return response, nil
 }
 
 func requestLogger(log logr.Logger, request *http.Request, body string) logr.Logger {

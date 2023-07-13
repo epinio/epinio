@@ -116,19 +116,20 @@ type FakeAPIClient struct {
 	appExecReturnsOnCall map[int]struct {
 		result1 error
 	}
-	AppGetPartStub        func(string, string, string, string) error
+	AppGetPartStub        func(string, string, string) (models.AppPartResponse, error)
 	appGetPartMutex       sync.RWMutex
 	appGetPartArgsForCall []struct {
 		arg1 string
 		arg2 string
 		arg3 string
-		arg4 string
 	}
 	appGetPartReturns struct {
-		result1 error
+		result1 models.AppPartResponse
+		result2 error
 	}
 	appGetPartReturnsOnCall map[int]struct {
-		result1 error
+		result1 models.AppPartResponse
+		result2 error
 	}
 	AppImportGitStub        func(models.AppRef, models.GitRef) (*models.ImportGitResponse, error)
 	appImportGitMutex       sync.RWMutex
@@ -1257,26 +1258,25 @@ func (fake *FakeAPIClient) AppExecReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeAPIClient) AppGetPart(arg1 string, arg2 string, arg3 string, arg4 string) error {
+func (fake *FakeAPIClient) AppGetPart(arg1 string, arg2 string, arg3 string) (models.AppPartResponse, error) {
 	fake.appGetPartMutex.Lock()
 	ret, specificReturn := fake.appGetPartReturnsOnCall[len(fake.appGetPartArgsForCall)]
 	fake.appGetPartArgsForCall = append(fake.appGetPartArgsForCall, struct {
 		arg1 string
 		arg2 string
 		arg3 string
-		arg4 string
-	}{arg1, arg2, arg3, arg4})
+	}{arg1, arg2, arg3})
 	stub := fake.AppGetPartStub
 	fakeReturns := fake.appGetPartReturns
-	fake.recordInvocation("AppGetPart", []interface{}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("AppGetPart", []interface{}{arg1, arg2, arg3})
 	fake.appGetPartMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
-		return ret.result1
+		return ret.result1, ret.result2
 	}
-	return fakeReturns.result1
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeAPIClient) AppGetPartCallCount() int {
@@ -1285,40 +1285,43 @@ func (fake *FakeAPIClient) AppGetPartCallCount() int {
 	return len(fake.appGetPartArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppGetPartCalls(stub func(string, string, string, string) error) {
+func (fake *FakeAPIClient) AppGetPartCalls(stub func(string, string, string) (models.AppPartResponse, error)) {
 	fake.appGetPartMutex.Lock()
 	defer fake.appGetPartMutex.Unlock()
 	fake.AppGetPartStub = stub
 }
 
-func (fake *FakeAPIClient) AppGetPartArgsForCall(i int) (string, string, string, string) {
+func (fake *FakeAPIClient) AppGetPartArgsForCall(i int) (string, string, string) {
 	fake.appGetPartMutex.RLock()
 	defer fake.appGetPartMutex.RUnlock()
 	argsForCall := fake.appGetPartArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
-func (fake *FakeAPIClient) AppGetPartReturns(result1 error) {
+func (fake *FakeAPIClient) AppGetPartReturns(result1 models.AppPartResponse, result2 error) {
 	fake.appGetPartMutex.Lock()
 	defer fake.appGetPartMutex.Unlock()
 	fake.AppGetPartStub = nil
 	fake.appGetPartReturns = struct {
-		result1 error
-	}{result1}
+		result1 models.AppPartResponse
+		result2 error
+	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppGetPartReturnsOnCall(i int, result1 error) {
+func (fake *FakeAPIClient) AppGetPartReturnsOnCall(i int, result1 models.AppPartResponse, result2 error) {
 	fake.appGetPartMutex.Lock()
 	defer fake.appGetPartMutex.Unlock()
 	fake.AppGetPartStub = nil
 	if fake.appGetPartReturnsOnCall == nil {
 		fake.appGetPartReturnsOnCall = make(map[int]struct {
-			result1 error
+			result1 models.AppPartResponse
+			result2 error
 		})
 	}
 	fake.appGetPartReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
+		result1 models.AppPartResponse
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeAPIClient) AppImportGit(arg1 models.AppRef, arg2 models.GitRef) (*models.ImportGitResponse, error) {

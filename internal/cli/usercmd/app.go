@@ -265,43 +265,30 @@ func (c *EpinioClient) AppExport(appName string, directory string) error {
 
 	fmt.Println()
 
-	partResponse, err := c.API.AppGetPart(c.Settings.Namespace, appName, "values")
-	if err != nil {
-		return err
-	}
-	err = writeOut(partResponse, filepath.Join(directory, "values.yaml"), "values")
+	err = c.getPartAndWriteFile(appName, "values", filepath.Join(directory, "values.yaml"))
 	if err != nil {
 		return err
 	}
 
-	partResponse, err = c.API.AppGetPart(c.Settings.Namespace, appName, "chart")
-	if err != nil {
-		return err
-	}
-	err = writeOut(partResponse, filepath.Join(directory, "app-chart.tar.gz"), "chart")
+	err = c.getPartAndWriteFile(appName, "chart", filepath.Join(directory, "app-chart.tar.gz"))
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("fetching image")
-
-	partResponse, err = c.API.AppGetPart(c.Settings.Namespace, appName, "image")
+	err = c.getPartAndWriteFile(appName, "image", filepath.Join(directory, "app-image.tar"))
 	if err != nil {
 		return err
 	}
-	fmt.Println("writing image")
-
-	err = writeOut(partResponse, filepath.Join(directory, "app-image.tar"), "image")
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("DONE image")
 
 	return nil
 }
 
-func writeOut(partResponse models.AppPartResponse, destinationPath, part string) error {
+func (c *EpinioClient) getPartAndWriteFile(appName, part, destinationPath string) error {
+	partResponse, err := c.API.AppGetPart(c.Settings.Namespace, appName, part)
+	if err != nil {
+		return err
+	}
+
 	// Create the file
 	out, err := os.Create(destinationPath)
 	if err != nil {
@@ -336,13 +323,9 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 		return err
 	}
 
-	details.Info("show application")
+	details.Info("save application manifest")
 
-	partResponse, err := c.API.AppGetPart(c.Settings.Namespace, appName, "manifest")
-	if err != nil {
-		return err
-	}
-	err = writeOut(partResponse, manifestPath, "manifest")
+	err := c.getPartAndWriteFile(appName, "manifest", manifestPath)
 	if err != nil {
 		return err
 	}

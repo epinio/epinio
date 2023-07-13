@@ -104,40 +104,11 @@ func (c *Client) AppShow(namespace string, appName string) (models.App, error) {
 // AppGetPart retrieves part of an app (values.yaml, chart, image)
 func (c *Client) AppGetPart(namespace, appName, part string) (models.AppPartResponse, error) {
 	response := models.AppPartResponse{}
+	endpoint := api.Routes.Path("AppPart", namespace, appName, part)
 
-	partURL := fmt.Sprintf(
-		"%s%s/%s",
-		c.Settings.API,
-		api.Root,
-		api.Routes.Path("AppPart", namespace, appName, part),
-	)
-
-	request, err := http.NewRequest(http.MethodGet, partURL, nil)
+	httpResponse, err := DoRaw(c, endpoint, http.MethodGet, nil)
 	if err != nil {
-		c.log.V(1).Error(err, "cannot build request")
-		return response, err
-	}
-
-	err = c.handleAuthorization(request)
-	if err != nil {
-		return response, errors.Wrap(err, "handling oauth2 request")
-	}
-
-	for key, value := range c.customHeaders {
-		request.Header.Set(key, value)
-	}
-
-	reqLog := requestLogger(c.log, request, "")
-
-	httpResponse, err := c.HttpClient.Do(request)
-	if err != nil {
-		return response, errors.Wrap(err, "making the request")
-	}
-	reqLog.V(1).Info("request finished")
-
-	// the server returned an error
-	if httpResponse.StatusCode >= http.StatusBadRequest {
-		return response, handleError(c.log, httpResponse)
+		return response, errors.Wrap(err, "executing AppPart request")
 	}
 
 	return models.AppPartResponse{
