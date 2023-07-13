@@ -288,6 +288,7 @@ func (c *EpinioClient) getPartAndWriteFile(appName, part, destinationPath string
 	if err != nil {
 		return err
 	}
+	defer partResponse.Data.Close()
 
 	// Create the file
 	out, err := os.Create(destinationPath)
