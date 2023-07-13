@@ -151,6 +151,24 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 		WithTableRow("Internal Routes", strings.Join(internalRoutes, ", ")).
 		Msg(m)
 
+	if len(service.Settings) > 0 {
+		keys := []string{}
+		for key := range service.Settings {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		msg := c.ui.Success().WithTable("Key", "Value")
+
+		for _, key := range keys {
+			msg = msg.WithTableRow(key, service.Settings[key])
+		}
+
+		msg.Msg("Settings")
+	} else {
+		c.ui.Exclamation().Msg("No settings")
+	}
+
 	return nil
 }
 
