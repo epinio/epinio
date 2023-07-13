@@ -1707,7 +1707,7 @@
   },
   "definitions": {
     "App": {
-      "description": "The main structure has identifying information.\nIt is used in the CLI and API responses.\nIf an error is hit while constructing the app object, the Error attribute\nwill be set to that.",
+      "description": "The main structure has identifying information.\nIt is used in the CLI and API responses.",
       "type": "object",
       "title": "App has all the application's properties, for at rest (Configuration), and active (Workload).",
       "properties": {
@@ -2640,6 +2640,9 @@
             "type": "string"
           },
           "x-go-name": "SecretTypes"
+        },
+        "settings": {
+          "$ref": "#/definitions/ChartValueSettings"
         },
         "status": {
           "$ref": "#/definitions/ServiceStatus"

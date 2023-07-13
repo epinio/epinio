@@ -63,7 +63,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	catalogServiceVersion := srv.GetLabels()[CatalogServiceVersionLabelKey]
 
 	var catalogServicePrefix string
-	_, err = s.GetCatalogService(ctx, catalogServiceName)
+	catalogEntry, err := s.GetCatalogService(ctx, catalogServiceName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			catalogServicePrefix = "[Missing] "
@@ -98,7 +98,9 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 
 	logger := tracelog.NewLogger().WithName("ServiceStatus")
 
-	err = setServiceStatus(&service, ctx, logger, s.kubeClient, namespace, names.ServiceReleaseName(name))
+	err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient,
+		namespace, names.ServiceReleaseName(name),
+		catalogEntry.Settings)
 
 	return &service, err
 }
@@ -339,8 +341,10 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 
 		logger := tracelog.NewLogger().WithName("ServiceStatus")
 
-		err = setServiceStatus(&service, ctx, logger, s.kubeClient,
-			srv.ObjectMeta.Namespace, names.ServiceReleaseName(serviceName))
+		err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient,
+			srv.ObjectMeta.Namespace, names.ServiceReleaseName(serviceName),
+			nil, // no settings information - TODO
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -430,7 +434,10 @@ func (s *ServiceClient) GetForHelmController(ctx context.Context, namespace, nam
 
 	logger := tracelog.NewLogger().WithName("ServiceStatus")
 
-	err = setServiceStatus(&service, ctx, logger, s.kubeClient, targetNamespace, helmChartName)
+	err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient,
+		targetNamespace, helmChartName,
+		nil, // no service settings -- HC -- Will be removed anyway
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -533,7 +540,7 @@ func (s *ServiceClient) listForHelmController(ctx context.Context, namespace str
 
 		logger := tracelog.NewLogger().WithName("ServiceStatus")
 
-		err = setServiceStatus(&service, ctx, logger, s.kubeClient, srv.Spec.TargetNamespace, srv.Name)
+		err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient, srv.Spec.TargetNamespace, srv.Name, nil /* no service settings - list, and HC, to be removed */)
 		if err != nil {
 			return nil, err
 		}
@@ -596,9 +603,11 @@ func getEpinioValues(serviceName, catalogServiceName string) (string, error) {
 	return "\n" + string(yamlData), nil
 }
 
-func setServiceStatus(service *models.Service,
+func setServiceStatusAndCustomValues(service *models.Service,
 	ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
-	namespace, releaseName string) error {
+	namespace, releaseName string,
+	settings map[string]models.ChartSetting,
+) error {
 
 	serviceRelease, err := helm.Release(ctx, logger, cluster, namespace, releaseName)
 
@@ -618,5 +627,19 @@ func setServiceStatus(service *models.Service,
 
 	service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
 
+	if len(settings) > 0 {
+		service.Settings = models.ChartValueSettings{}
+
+		configValues := chartutil.Values(serviceRelease.Config)
+
+		for key := range settings {
+			customValue, err := configValues.PathValue(key)
+			if err != nil {
+				return err
+			}
+			customValueAsString := fmt.Sprintf("%v", customValue)
+			service.Settings[key] = customValueAsString
+		}
+	}
 	return nil
 }
