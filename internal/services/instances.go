@@ -616,7 +616,7 @@ func setServiceStatusAndCustomValues(service *models.Service,
 
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-			service.Status = "Not Ready" // The installation job is still running?
+			service.Status = models.ServiceStatusNotReady // The installation job is still running?
 			return nil
 		}
 		return errors.Wrap(err, "finding helm release status")
