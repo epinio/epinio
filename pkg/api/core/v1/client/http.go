@@ -235,6 +235,39 @@ func NewJSONRequestHandler(body any) RequestHandler {
 	}
 }
 
+// NewFileUploadRequestHandler creates a multipart/form-data request to upload the provided file
+func NewFileUploadRequestHandler(file *os.File) RequestHandler {
+	return func(method, url string) (*http.Request, error) {
+		// create multipart form
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create multiform part")
+		}
+
+		_, err = io.Copy(part, file)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to write to multiform part")
+		}
+
+		err = writer.Close()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to close multiform")
+		}
+
+		// make the request
+		request, err := http.NewRequest(method, url, body)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build request")
+		}
+
+		request.Header.Add("Content-Type", writer.FormDataContentType())
+
+		return request, nil
+	}
+}
+
 // NewHTTPResponseHandler is a no-op ResponseHandler that returns the plain *http.Response that can be directly used
 func NewHTTPResponseHandler[T *http.Response]() ResponseHandler[T] {
 	return func(httpResponse *http.Response) (T, error) {

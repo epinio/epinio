@@ -153,20 +153,20 @@ func (c *Client) AppDelete(namespace string, names []string) (models.Application
 
 // AppUpload uploads a tarball for the named app, which is later used in staging
 func (c *Client) AppUpload(namespace string, name string, tarball string) (models.UploadResponse, error) {
-	resp := models.UploadResponse{}
+	response := models.UploadResponse{}
+	endpoint := api.Routes.Path("AppUpload", namespace, name)
 
-	data, err := c.upload(api.Routes.Path("AppUpload", namespace, name), tarball)
+	// open the tarball
+	file, err := os.Open(tarball)
 	if err != nil {
-		return resp, errors.Wrap(err, "can't upload archive")
+		return response, errors.Wrap(err, "failed to open tarball")
 	}
+	defer file.Close()
 
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, errors.Wrap(err, "response body is not JSON")
-	}
+	requestHandler := NewFileUploadRequestHandler(file)
+	responseHandler := NewJSONResponseHandler(c.log, response)
 
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return DoWithHandlers(c, endpoint, http.MethodPost, requestHandler, responseHandler)
 }
 
 // AppValidateCV validates the chart values of the specified app against its appchart
