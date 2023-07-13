@@ -612,7 +612,6 @@ func setServiceStatusAndCustomValues(service *models.Service,
 	namespace, releaseName string,
 	settings map[string]models.ChartSetting,
 ) error {
-
 	serviceRelease, err := helm.Release(ctx, logger, cluster, namespace, releaseName)
 
 	if err != nil {
@@ -626,23 +625,28 @@ func setServiceStatusAndCustomValues(service *models.Service,
 	serviceStatus, err := helm.Status(ctx, logger, cluster, namespace, releaseName,
 		serviceRelease)
 	if err != nil {
-		return errors.Wrap(err, "finding helm release status")
+		return errors.Wrap(err, "calculating helm release status")
 	}
 
 	service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
 
 	if len(settings) > 0 {
-		service.Settings = models.ChartValueSettings{}
-
+		customized := models.ChartValueSettings{}
 		configValues := chartutil.Values(serviceRelease.Config)
 
 		for key := range settings {
 			customValue, err := configValues.PathValue(key)
 			if err != nil {
-				return err
+				// Not found - This custom value was not customized by the user.
+				// That is ok. Nothing to report.
+				continue
 			}
 			customValueAsString := fmt.Sprintf("%v", customValue)
-			service.Settings[key] = customValueAsString
+			customized[key] = customValueAsString
+		}
+
+		if len(customized) > 0 {
+			service.Settings = customized
 		}
 	}
 	return nil
