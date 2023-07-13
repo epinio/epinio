@@ -140,17 +140,9 @@ func (c *Client) AppGetPart(namespace, appName, part string) (models.AppPartResp
 		return response, handleError(c.log, httpResponse)
 	}
 
-	contentLength := httpResponse.ContentLength
-	if httpResponse.Header.Get("X-Content-Length") != "" {
-		xContentLength, err := strconv.ParseInt(httpResponse.Header.Get("X-Content-Length"), 10, 64)
-		if err == nil {
-			contentLength = xContentLength
-		}
-	}
-
 	return models.AppPartResponse{
 		Data:          httpResponse.Body,
-		ContentLength: contentLength,
+		ContentLength: httpResponse.ContentLength,
 	}, nil
 }
 
