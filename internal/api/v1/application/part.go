@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -143,11 +142,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 
 			logger.Info("input", "chart archive", "returning file")
 
-			c.DataFromReader(http.StatusOK, contentLength, contentType, bufio.NewReader(file),
-				map[string]string{
-					"X-Content-Length": strconv.FormatInt(contentLength, 10),
-				})
-
+			c.DataFromReader(http.StatusOK, contentLength, contentType, bufio.NewReader(file), nil)
 			return nil
 		}
 	}
@@ -170,9 +165,8 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		"origin", c.Request.URL.String(),
 		"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
 	)
-	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, map[string]string{
-		"X-Content-Length": strconv.FormatInt(contentLength, 10),
-	})
+
+	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, nil)
 	return nil
 }
 
@@ -212,10 +206,7 @@ func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		return apierror.NewInternalError("failed to get file info", "error", err.Error())
 	}
 
-	c.DataFromReader(http.StatusOK, fileInfo.Size(), "application/x-tar", bufio.NewReader(file), map[string]string{
-		"X-Content-Length": strconv.FormatInt(fileInfo.Size(), 10),
-	})
-
+	c.DataFromReader(http.StatusOK, fileInfo.Size(), "application/x-tar", bufio.NewReader(file), nil)
 	return nil
 }
 

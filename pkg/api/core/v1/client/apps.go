@@ -36,7 +36,6 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	progressbar "github.com/schollz/progressbar/v3"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
 )
 
@@ -103,80 +102,19 @@ func (c *Client) AppShow(namespace string, appName string) (models.App, error) {
 }
 
 // AppGetPart retrieves part of an app (values.yaml, chart, image)
-func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) error {
-
+func (c *Client) AppGetPart(namespace, appName, part string) (models.AppPartResponse, error) {
+	response := models.AppPartResponse{}
 	endpoint := api.Routes.Path("AppPart", namespace, appName, part)
-	requestBody := ""
-	method := "GET"
 
-	// inlined c.get/c.do to the where the response is handled.
-	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
-	c.log.Info(fmt.Sprintf("%s %s", method, uri))
-
-	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
+	httpResponse, err := c.Do(endpoint, http.MethodGet, nil)
 	if err != nil {
-		c.log.V(1).Error(err, "cannot build request")
-		return err
+		return response, errors.Wrap(err, "executing AppPart request")
 	}
 
-	err = c.handleAuthorization(request)
-	if err != nil {
-		return errors.Wrap(err, "handling oauth2 request")
-	}
-
-	for key, value := range c.customHeaders {
-		request.Header.Set(key, value)
-	}
-
-	reqLog := requestLogger(c.log, request, requestBody)
-
-	response, err := c.HttpClient.Do(request)
-	if err != nil {
-		reqLog.V(1).Error(err, "request failed")
-		castedErr, ok := err.(*url.Error)
-		if !ok {
-			return errors.New("couldn't cast request Error!")
-		}
-		if castedErr.Timeout() {
-			return errors.New("request cancelled or timed out")
-		}
-
-		return errors.Wrap(err, "making the request")
-	}
-
-	if response.StatusCode != http.StatusOK {
-		return handleError(c.log, response)
-	}
-
-	defer response.Body.Close()
-	reqLog.V(1).Info("request finished")
-
-	// Create the file
-	out, err := os.Create(destinationPath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	contentLength := response.ContentLength
-	if response.Header.Get("X-Content-Length") != "" {
-		xContentLength, err := strconv.ParseInt(response.Header.Get("X-Content-Length"), 10, 64)
-		if err == nil {
-			contentLength = xContentLength
-		}
-	}
-
-	bar := progressbar.DefaultBytes(
-		contentLength,
-		fmt.Sprintf("Downloading app %s to '%s'", part, destinationPath),
-	)
-
-	// copy response body to file
-	_, err = io.Copy(io.MultiWriter(out, bar), response.Body)
-
-	c.log.V(1).Info("response stored")
-
-	return err
+	return models.AppPartResponse{
+		Data:          httpResponse.Body,
+		ContentLength: httpResponse.ContentLength,
+	}, nil
 }
 
 // AppUpdate updates an app

@@ -19,6 +19,7 @@ package models
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/epinio/epinio/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -168,6 +169,11 @@ func (o *ApplicationOrigin) String() string {
 		// Nothing
 	}
 	return "<<undefined>>"
+}
+
+type AppPartResponse struct {
+	Data          io.ReadCloser
+	ContentLength int64
 }
 
 // ApplicationCreateRequest represents and contains the data needed to
