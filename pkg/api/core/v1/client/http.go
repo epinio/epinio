@@ -19,7 +19,10 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/termui"
 	api "github.com/epinio/epinio/internal/api/v1"
@@ -208,6 +211,23 @@ func NewFileUploadRequestHandler(file FormFile) RequestHandler {
 		}
 
 		request.Header.Add("Content-Type", writer.FormDataContentType())
+
+		return request, nil
+	}
+}
+
+// NewFormURLEncodedRequestHandler creates a application/x-www-form-urlencoded request encoding the provided data
+func NewFormURLEncodedRequestHandler(data url.Values) RequestHandler {
+	return func(method, url string) (*http.Request, error) {
+		encodedData := data.Encode()
+
+		request, err := http.NewRequest(method, url, strings.NewReader(encodedData))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build request")
+		}
+
+		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Add("Content-Length", strconv.Itoa(len(encodedData)))
 
 		return request, nil
 	}

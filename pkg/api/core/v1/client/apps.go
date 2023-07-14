@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -171,47 +170,18 @@ func (c *Client) AppValidateCV(namespace string, name string) (models.Response, 
 }
 
 // AppImportGit asks the server to import a git repo and put in into the blob store
-func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.ImportGitResponse, error) {
+func (c *Client) AppImportGit(namespace string, name string, gitRef models.GitRef) (models.ImportGitResponse, error) {
+	response := models.ImportGitResponse{}
+	endpoint := api.Routes.Path("AppImportGit", namespace, name)
+
 	data := url.Values{}
 	data.Set("giturl", gitRef.URL)
 	data.Set("gitrev", gitRef.Revision)
 
-	url := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, api.Routes.Path("AppImportGit", app.Namespace, app.Name))
-	request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
-	if err != nil {
-		return nil, errors.Wrap(err, "constructing the request")
-	}
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+	requestHandler := NewFormURLEncodedRequestHandler(data)
+	responseHandler := NewJSONResponseHandler(c.log, response)
 
-	err = c.handleAuthorization(request)
-	if err != nil {
-		return nil, errors.Wrap(err, "handling oauth2 request")
-	}
-
-	response, err := c.HttpClient.Do(request)
-	if err != nil {
-		return nil, errors.Wrap(err, "making the request to import git")
-	}
-
-	defer response.Body.Close()
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "reading the response body")
-	}
-	if response.StatusCode != http.StatusCreated && response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected server status code: %s\n%s", http.StatusText(response.StatusCode),
-			string(bodyBytes))
-	}
-
-	resp := &models.ImportGitResponse{}
-	if err := json.Unmarshal(bodyBytes, resp); err != nil {
-		return nil, err
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return DoWithHandlers(c, endpoint, http.MethodPost, requestHandler, responseHandler)
 }
 
 // AppStage stages an app

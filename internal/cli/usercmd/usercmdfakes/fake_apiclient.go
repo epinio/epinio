@@ -131,18 +131,19 @@ type FakeAPIClient struct {
 		result1 models.AppPartResponse
 		result2 error
 	}
-	AppImportGitStub        func(models.AppRef, models.GitRef) (*models.ImportGitResponse, error)
+	AppImportGitStub        func(string, string, models.GitRef) (models.ImportGitResponse, error)
 	appImportGitMutex       sync.RWMutex
 	appImportGitArgsForCall []struct {
-		arg1 models.AppRef
-		arg2 models.GitRef
+		arg1 string
+		arg2 string
+		arg3 models.GitRef
 	}
 	appImportGitReturns struct {
-		result1 *models.ImportGitResponse
+		result1 models.ImportGitResponse
 		result2 error
 	}
 	appImportGitReturnsOnCall map[int]struct {
-		result1 *models.ImportGitResponse
+		result1 models.ImportGitResponse
 		result2 error
 	}
 	AppLogsStub        func(string, string, string, bool, func(tailer.ContainerLogLine)) error
@@ -1324,19 +1325,20 @@ func (fake *FakeAPIClient) AppGetPartReturnsOnCall(i int, result1 models.AppPart
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppImportGit(arg1 models.AppRef, arg2 models.GitRef) (*models.ImportGitResponse, error) {
+func (fake *FakeAPIClient) AppImportGit(arg1 string, arg2 string, arg3 models.GitRef) (models.ImportGitResponse, error) {
 	fake.appImportGitMutex.Lock()
 	ret, specificReturn := fake.appImportGitReturnsOnCall[len(fake.appImportGitArgsForCall)]
 	fake.appImportGitArgsForCall = append(fake.appImportGitArgsForCall, struct {
-		arg1 models.AppRef
-		arg2 models.GitRef
-	}{arg1, arg2})
+		arg1 string
+		arg2 string
+		arg3 models.GitRef
+	}{arg1, arg2, arg3})
 	stub := fake.AppImportGitStub
 	fakeReturns := fake.appImportGitReturns
-	fake.recordInvocation("AppImportGit", []interface{}{arg1, arg2})
+	fake.recordInvocation("AppImportGit", []interface{}{arg1, arg2, arg3})
 	fake.appImportGitMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -1350,41 +1352,41 @@ func (fake *FakeAPIClient) AppImportGitCallCount() int {
 	return len(fake.appImportGitArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppImportGitCalls(stub func(models.AppRef, models.GitRef) (*models.ImportGitResponse, error)) {
+func (fake *FakeAPIClient) AppImportGitCalls(stub func(string, string, models.GitRef) (models.ImportGitResponse, error)) {
 	fake.appImportGitMutex.Lock()
 	defer fake.appImportGitMutex.Unlock()
 	fake.AppImportGitStub = stub
 }
 
-func (fake *FakeAPIClient) AppImportGitArgsForCall(i int) (models.AppRef, models.GitRef) {
+func (fake *FakeAPIClient) AppImportGitArgsForCall(i int) (string, string, models.GitRef) {
 	fake.appImportGitMutex.RLock()
 	defer fake.appImportGitMutex.RUnlock()
 	argsForCall := fake.appImportGitArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
-func (fake *FakeAPIClient) AppImportGitReturns(result1 *models.ImportGitResponse, result2 error) {
+func (fake *FakeAPIClient) AppImportGitReturns(result1 models.ImportGitResponse, result2 error) {
 	fake.appImportGitMutex.Lock()
 	defer fake.appImportGitMutex.Unlock()
 	fake.AppImportGitStub = nil
 	fake.appImportGitReturns = struct {
-		result1 *models.ImportGitResponse
+		result1 models.ImportGitResponse
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppImportGitReturnsOnCall(i int, result1 *models.ImportGitResponse, result2 error) {
+func (fake *FakeAPIClient) AppImportGitReturnsOnCall(i int, result1 models.ImportGitResponse, result2 error) {
 	fake.appImportGitMutex.Lock()
 	defer fake.appImportGitMutex.Unlock()
 	fake.AppImportGitStub = nil
 	if fake.appImportGitReturnsOnCall == nil {
 		fake.appImportGitReturnsOnCall = make(map[int]struct {
-			result1 *models.ImportGitResponse
+			result1 models.ImportGitResponse
 			result2 error
 		})
 	}
 	fake.appImportGitReturnsOnCall[i] = struct {
-		result1 *models.ImportGitResponse
+		result1 models.ImportGitResponse
 		result2 error
 	}{result1, result2}
 }
