@@ -54,7 +54,7 @@ type APIClient interface {
 	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)
 	AppDelete(namespace string, names []string) (models.ApplicationDeleteResponse, error)
 	AppUpload(namespace string, name string, file client.FormFile) (models.UploadResponse, error)
-	AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.ImportGitResponse, error)
+	AppImportGit(namespace string, name string, gitRef models.GitRef) (models.ImportGitResponse, error)
 	AppStage(req models.StageRequest) (*models.StageResponse, error)
 	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
 	AppLogs(namespace, appName, stageID string, follow bool, callback func(tailer.ContainerLogLine)) error
