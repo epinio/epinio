@@ -175,6 +175,41 @@ var _ = Describe("Services", LService, func() {
 					WithRow("Internal Routes", fmt.Sprintf(`.*\.%s\.svc\.cluster\.local`, namespace)),
 				),
 			)
+			Expect(out).To(ContainSubstring("No settings"))
+		})
+
+		Context("customized", func() {
+			It("shows the customized elements of a service", func() {
+				settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+				Expect(err).ToNot(HaveOccurred())
+
+				serviceName := catalog.NewServiceName()
+				serviceHostname := strings.Replace(settings.API, `https://epinio`, serviceName, 1)
+
+				out, err := env.Epinio("", "service", "create",
+					catalogService.Meta.Name, serviceName,
+					"--chart-value", "ingress.enabled=true",
+					"--chart-value", "ingress.hostname="+serviceHostname,
+					"--wait",
+				)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Eventually(func() int {
+					resp, _ := http.Get("http://" + serviceHostname)
+					return resp.StatusCode
+				}, "1m", "2s").Should(Equal(http.StatusOK))
+
+				out, err = env.Epinio("", "service", "show", serviceName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Showing Service"))
+				Expect(out).To(ContainSubstring("Settings"))
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("ingress.enabled", "true"),
+						WithRow("ingress.hostname", serviceHostname),
+					),
+				)
+			})
 		})
 
 		Context("command completion", func() {
