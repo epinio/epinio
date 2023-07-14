@@ -89,6 +89,9 @@ func DescribeAppsErrors() {
 			Entry("app upload", func() (any, error) {
 				return epinioClient.AppUpload("namespace", "appname", nil)
 			}),
+			Entry("app import git", func() (any, error) {
+				return epinioClient.AppImportGit("namespace", "appname", models.GitRef{})
+			}),
 			Entry("app match", func() (any, error) {
 				return epinioClient.AppMatch("namespace", "appprefix")
 			}),
