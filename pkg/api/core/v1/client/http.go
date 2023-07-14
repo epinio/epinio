@@ -32,6 +32,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// RequestHandler is a method that will return a *http.Request from a method and url
+type RequestHandler func(method, url string) (*http.Request, error)
+
+// ResponseHandler is a method that will handle a *http.Response to return a typed struct
+type ResponseHandler[T any] func(httpResponse *http.Response) (T, error)
+
 type APIError struct {
 	StatusCode int
 	Err        *apierrors.ErrorResponse
@@ -135,36 +141,39 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 	return bodyBytes, nil
 }
 
+// Do will execute a common JSON http request, marshalling the provided body, and unmarshalling the httpResponse into the response struct
 func Do[T any](c *Client, endpoint string, method string, requestBody any, response T) (T, error) {
+	jsonRequestHandler := NewJSONRequestHandler(requestBody)
 	jsonResponseHandler := NewJSONResponseHandler[T](c.log, response)
-	return DoWithResponseHandler(c, endpoint, method, requestBody, response, jsonResponseHandler)
+	return DoWithHandlers(c, endpoint, method, jsonRequestHandler, jsonResponseHandler)
 }
 
-func DoRaw[T *http.Response](c *Client, endpoint string, method string, requestBody any) (T, error) {
-	return DoWithResponseHandler(c, endpoint, method, requestBody, nil, NewHTTPResponseHandler())
+// Do will execute a plain http request, returning the *http.Response
+func (c *Client) Do(endpoint string, method string, body io.Reader) (*http.Response, error) {
+	requestHandler := NewHTTPRequestHandler(body)
+	responseHandler := NewHTTPResponseHandler()
+	return DoWithHandlers(c, endpoint, method, requestHandler, responseHandler)
 }
 
-func DoWithResponseHandler[T any](
-	c *Client, endpoint string, method string,
-	requestBody any,
-	response T,
+// DoWithHandlers will execute the request using the provided RequestHandler and ResponseHandler.
+func DoWithHandlers[T any](
+	c *Client,
+	endpoint string,
+	method string,
+	requestHandler RequestHandler,
 	responseHandler ResponseHandler[T],
 ) (T, error) {
+	var response T
 
-	url := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
-
-	c.log.V(1).Info("sending "+method+" request", "endpoint", endpoint, "body", requestBody, "url", url)
-
-	var bodyBytes []byte
-	if requestBody != nil {
-		b, err := json.Marshal(requestBody)
-		if err != nil {
-			return response, errors.Wrap(err, "encoding JSON requestBody")
-		}
-		bodyBytes = b
+	if requestHandler == nil {
+		return response, errors.New("missing request handler")
+	}
+	if responseHandler == nil {
+		return response, errors.New("missing response handler")
 	}
 
-	request, err := http.NewRequest(method, url, bytes.NewReader(bodyBytes))
+	url := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
+	request, err := requestHandler(method, url)
 	if err != nil {
 		return response, errors.Wrap(err, "building request")
 	}
@@ -178,13 +187,13 @@ func DoWithResponseHandler[T any](
 		request.Header.Set(key, value)
 	}
 
-	reqLog := requestLogger(c.log, request, string(bodyBytes))
+	reqLog := requestLogger(c.log, request)
+	reqLog.V(1).Info("executing request")
 
 	httpResponse, err := c.HttpClient.Do(request)
 	if err != nil {
 		return response, errors.Wrap(err, "making the request")
 	}
-	reqLog.V(1).Info("request finished")
 
 	serverVersion := httpResponse.Header.Get(api.VersionHeader)
 	if c.VersionWarningEnabled() && serverVersion != "" {
@@ -199,11 +208,61 @@ func DoWithResponseHandler[T any](
 	return responseHandler(httpResponse)
 }
 
-type ResponseHandler[T any] func(httpResponse *http.Response) (T, error)
+// NewHTTPRequestHandler return a plain *http.Request with the provided body
+func NewHTTPRequestHandler(body io.Reader) RequestHandler {
+	return func(method, url string) (*http.Request, error) {
+		return http.NewRequest(method, url, body)
+	}
+}
 
+// NewJSONRequestHandler creates a request marshalling the provided body into JSON
+func NewJSONRequestHandler(body any) RequestHandler {
+	return func(method, url string) (*http.Request, error) {
+		var reader io.Reader
+		if body != nil {
+			b, err := json.Marshal(body)
+			if err != nil {
+				return nil, errors.Wrap(err, "encoding JSON requestBody")
+			}
+			reader = bytes.NewReader(b)
+		}
+
+		request, err := http.NewRequest(method, url, reader)
+		if err != nil {
+			return nil, errors.Wrap(err, "building request")
+		}
+		return request, nil
+	}
+}
+
+// NewHTTPResponseHandler is a no-op ResponseHandler that returns the plain *http.Response that can be directly used
 func NewHTTPResponseHandler[T *http.Response]() ResponseHandler[T] {
 	return func(httpResponse *http.Response) (T, error) {
 		return httpResponse, nil
+	}
+}
+
+// NewJSONResponseHandler will try to unmarshal the response body into the provided struct
+func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandler[T] {
+	return func(httpResponse *http.Response) (T, error) {
+		defer httpResponse.Body.Close()
+
+		bodyBytes, err := io.ReadAll(httpResponse.Body)
+		respLog := responseLogger(logger, httpResponse, string(bodyBytes))
+		if err != nil {
+			respLog.V(1).Error(err, "failed to read response body")
+			return response, errors.Wrap(err, "reading response body")
+		}
+
+		respLog.V(1).Info("response received", "status", httpResponse.StatusCode)
+
+		if err := json.Unmarshal(bodyBytes, &response); err != nil {
+			return response, errors.Wrap(err, "decoding JSON response")
+		}
+
+		logger.V(1).Info("response decoded", "response", response)
+
+		return response, nil
 	}
 }
 
@@ -238,38 +297,26 @@ func handleError(logger logr.Logger, response *http.Response) error {
 	return epinioError
 }
 
-func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandler[T] {
-	return func(httpResponse *http.Response) (T, error) {
-		defer httpResponse.Body.Close()
+func requestLogger(log logr.Logger, request *http.Request) logr.Logger {
+	var bodyString string
 
-		bodyBytes, err := io.ReadAll(httpResponse.Body)
-		respLog := responseLogger(logger, httpResponse, string(bodyBytes))
-		if err != nil {
-			respLog.V(1).Error(err, "failed to read response body")
-			return response, errors.Wrap(err, "reading response body")
+	if request.Body != nil {
+		if body, err := request.GetBody(); err == nil {
+			if bodyBytes, err := io.ReadAll(body); err == nil {
+				bodyString = string(bodyBytes)
+			}
 		}
-
-		respLog.V(1).Info("response received", "status", httpResponse.StatusCode)
-
-		if err := json.Unmarshal(bodyBytes, &response); err != nil {
-			return response, errors.Wrap(err, "decoding JSON response")
-		}
-
-		logger.V(1).Info("response decoded", "response", response)
-
-		return response, nil
 	}
-}
 
-func requestLogger(log logr.Logger, request *http.Request, body string) logr.Logger {
 	if log.V(5).Enabled() {
 		log = log.WithValues(
 			"method", request.Method,
 			"uri", request.RequestURI,
-			"body", body,
+			"body", bodyString,
 			"header", request.Header,
 		)
 	}
+
 	return log
 }
 

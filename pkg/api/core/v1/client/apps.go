@@ -106,7 +106,7 @@ func (c *Client) AppGetPart(namespace, appName, part string) (models.AppPartResp
 	response := models.AppPartResponse{}
 	endpoint := api.Routes.Path("AppPart", namespace, appName, part)
 
-	httpResponse, err := DoRaw(c, endpoint, http.MethodGet, nil)
+	httpResponse, err := c.Do(endpoint, http.MethodGet, nil)
 	if err != nil {
 		return response, errors.Wrap(err, "executing AppPart request")
 	}
