@@ -16,12 +16,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -61,7 +63,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	catalogServiceVersion := srv.GetLabels()[CatalogServiceVersionLabelKey]
 
 	var catalogServicePrefix string
-	_, err = s.GetCatalogService(ctx, catalogServiceName)
+	catalogEntry, err := s.GetCatalogService(ctx, catalogServiceName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			catalogServicePrefix = "[Missing] "
@@ -95,18 +97,16 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	}
 
 	logger := tracelog.NewLogger().WithName("ServiceStatus")
-	serviceStatus, err := helm.Status(ctx, logger, s.kubeClient, namespace, names.ServiceReleaseName(name))
-	if err != nil {
-		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-			serviceStatus = "Not Ready" // The installation job is still running?
-		} else {
-			return &service, errors.Wrap(err, "finding helm release status")
-		}
+
+	var settings map[string]models.ChartSetting
+	if catalogEntry != nil {
+		settings = catalogEntry.Settings
 	}
 
-	service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
+	err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient,
+		namespace, names.ServiceReleaseName(name), settings)
 
-	return &service, nil
+	return &service, err
 }
 
 // GetInternalRoutes returns the internal routes of the service, finding them from the kubernetes services of the Helm release
@@ -344,17 +344,14 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 		}
 
 		logger := tracelog.NewLogger().WithName("ServiceStatus")
-		serviceStatus, err := helm.Status(ctx, logger, s.kubeClient,
-			srv.ObjectMeta.Namespace, names.ServiceReleaseName(serviceName))
-		if err != nil {
-			if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-				serviceStatus = "Not Ready" // The installation job is still running?
-			} else {
-				return nil, errors.Wrap(err, "finding helm release status")
-			}
-		}
 
-		service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
+		err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient,
+			srv.ObjectMeta.Namespace, names.ServiceReleaseName(serviceName),
+			nil, // no settings information - TODO
+		)
+		if err != nil {
+			return nil, err
+		}
 
 		serviceList = append(serviceList, service)
 	}
@@ -440,16 +437,14 @@ func (s *ServiceClient) GetForHelmController(ctx context.Context, namespace, nam
 	}
 
 	logger := tracelog.NewLogger().WithName("ServiceStatus")
-	serviceStatus, err := helm.Status(ctx, logger, s.kubeClient, targetNamespace, helmChartName)
-	if err != nil {
-		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-			serviceStatus = "Not Ready" // The installation job is still running?
-		} else {
-			return &service, errors.Wrap(err, "finding helm release status")
-		}
-	}
 
-	service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
+	err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient,
+		targetNamespace, helmChartName,
+		nil, // no service settings -- HC -- Will be removed anyway
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	return &service, nil
 }
@@ -548,16 +543,11 @@ func (s *ServiceClient) listForHelmController(ctx context.Context, namespace str
 		}
 
 		logger := tracelog.NewLogger().WithName("ServiceStatus")
-		serviceStatus, err := helm.Status(ctx, logger, s.kubeClient, srv.Spec.TargetNamespace, srv.Name)
-		if err != nil {
-			if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-				serviceStatus = "Not Ready" // The installation job is still running?
-			} else {
-				return nil, errors.Wrap(err, "finding helm release status")
-			}
-		}
 
-		service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
+		err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient, srv.Spec.TargetNamespace, srv.Name, nil /* no service settings - list, and HC, to be removed */)
+		if err != nil {
+			return nil, err
+		}
 
 		serviceList = append(serviceList, service)
 	}
@@ -615,4 +605,50 @@ func getEpinioValues(serviceName, catalogServiceName string) (string, error) {
 	}
 
 	return "\n" + string(yamlData), nil
+}
+
+func setServiceStatusAndCustomValues(service *models.Service,
+	ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
+	namespace, releaseName string,
+	settings map[string]models.ChartSetting,
+) error {
+	serviceRelease, err := helm.Release(ctx, logger, cluster, namespace, releaseName)
+
+	if err != nil {
+		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+			service.Status = models.ServiceStatusNotReady // The installation job is still running?
+			return nil
+		}
+		return errors.Wrap(err, "finding helm release status")
+	}
+
+	service.Status = models.ServiceStatusUnknown
+
+	serviceStatus, err := helm.Status(ctx, logger, cluster, serviceRelease)
+	if err != nil {
+		return errors.Wrap(err, "calculating helm release status")
+	}
+
+	service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
+
+	if len(settings) > 0 {
+		customized := models.ChartValueSettings{}
+		configValues := chartutil.Values(serviceRelease.Config)
+
+		for key := range settings {
+			customValue, err := configValues.PathValue(key)
+			if err != nil {
+				// Not found - This custom value was not customized by the user.
+				// That is ok. Nothing to report.
+				continue
+			}
+			customValueAsString := fmt.Sprintf("%v", customValue)
+			customized[key] = customValueAsString
+		}
+
+		if len(customized) > 0 {
+			service.Settings = customized
+		}
+	}
+	return nil
 }

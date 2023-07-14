@@ -181,12 +181,16 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	// wait for the release to be in a ready state
 	timeout := duration.ToDeployment()
 	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-		releaseStatus, err := Status(ctx, logger, parameters.Cluster, parameters.Namespace, releaseName)
+		release, err := Release(ctx, logger, parameters.Cluster, parameters.Namespace, releaseName)
+		if err != nil {
+			return false, err
+		}
+		releaseStatus, err := Status(ctx, logger, parameters.Cluster, release)
 		if releaseStatus == StatusUnknown || err != nil {
 			return false, err
 		}
 
-		// check readyness
+		// check readiness
 		return releaseStatus == StatusReady, nil
 	})
 
@@ -408,25 +412,34 @@ const (
 	StatusNotReady ReleaseStatus = "not-ready"
 )
 
-// Status will check for the readyness of the release returning an internal status instead of
+// Release returns the named Helm release, including the associated resources. This is the internal
+// equivalent of the `helm status` command.
+func Release(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
+	namespace, releaseName string) (*helmrelease.Release, error) {
+
+	helmClient, err := GetHelmClient(cluster.RestConfig, logger, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	release, err := helmClient.Status(releaseName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting release status %s - %s", namespace, releaseName)
+	}
+
+	return release, err
+}
+
+// Status will check for the readiness of the release returning an internal status instead of
 // the Helm release status (https://github.com/helm/helm/blob/main/pkg/release/status.go).
 // Helm is not checking for the actual status of the release and even if the resources are still
 // in deployment they will be marked as "deployed"
-func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, namespace, releaseName string) (ReleaseStatus, error) {
-	helmClient, err := GetHelmClient(cluster.RestConfig, logger, namespace)
-	if err != nil {
-		return StatusUnknown, err
-	}
-
-	releaseStatus, err := helmClient.Status(releaseName)
-	if err != nil {
-		return StatusUnknown, errors.Wrapf(err, "getting release status %s - %s", namespace, releaseName)
-	}
-
-	resourceList := getResourceListFromRelease(releaseStatus)
+func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
+	release *helmrelease.Release) (ReleaseStatus, error) {
+	resourceList := getResourceListFromRelease(release)
 	logger.V(1).Info(fmt.Sprintf(
 		"found '%d' resources for release '%s' in namespace '%s'\n",
-		len(resourceList), releaseName, namespace),
+		len(resourceList), release.Name, release.Namespace),
 	)
 
 	checker := kube.NewReadyChecker(cluster.Kubectl, logger.Info, kube.PausedAsReady(true))
@@ -440,7 +453,9 @@ func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster
 		logger.V(1).Info(fmt.Sprintf("resource '%s' ready: '%t'\n", v.Name, ready))
 
 		if err != nil {
-			return StatusUnknown, errors.Wrapf(err, "checking readyness of resource '%s' of release '%s'", v.Name, releaseName)
+			return StatusUnknown, errors.Wrapf(err,
+				"checking readiness of resource '%s' of release '%s'",
+				v.Name, release.Name)
 		}
 		if !ready {
 			return StatusNotReady, nil
