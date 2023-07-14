@@ -968,6 +968,34 @@ var _ = Describe("Services", LService, func() {
 			executePortForwardRequest("127.0.0.1", port2)
 		})
 
+		It("Port-forward succeeds after regular login fails after logout", func() {
+			tmpSettingsPath := catalog.NewTmpName("tmpEpinio") + `.yaml`
+			defer proc.Run("", false, "rm", "-f", tmpSettingsPath)
+
+			// login with a valid user
+			ExpectGoodUserLogin(tmpSettingsPath, env.EpinioPassword, serverURL)
+
+			By("port-forward with logged in user, expect success ...")
+
+			cmd := env.EpinioCmd("service", "port-forward", serviceName, "8081", "--settings-file", tmpSettingsPath)
+			err := cmd.Start()
+			Expect(err).ToNot(HaveOccurred())
+
+			DeferCleanup(func() {
+				err := cmd.Process.Kill()
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			// logout
+			_, err = env.Epinio("", "logout", "--settings-file", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("port-forward with logged out user, expect failure ...")
+
+			_, err = env.Epinio("", "service", "port-forward", serviceName, "8082", "--settings-file", tmpSettingsPath)
+			Expect(err).To(HaveOccurred())
+		})
+
 		Context("command completion", func() {
 			It("matches empty prefix", func() {
 				out, err := env.Epinio("", "__complete", "service", "port-forward", "")
