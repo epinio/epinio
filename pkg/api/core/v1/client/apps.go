@@ -152,21 +152,14 @@ func (c *Client) AppDelete(namespace string, names []string) (models.Application
 }
 
 // AppUpload uploads a tarball for the named app, which is later used in staging
-func (c *Client) AppUpload(namespace string, name string, tarball string) (models.UploadResponse, error) {
-	resp := models.UploadResponse{}
+func (c *Client) AppUpload(namespace string, name string, file FormFile) (models.UploadResponse, error) {
+	response := models.UploadResponse{}
+	endpoint := api.Routes.Path("AppUpload", namespace, name)
 
-	data, err := c.upload(api.Routes.Path("AppUpload", namespace, name), tarball)
-	if err != nil {
-		return resp, errors.Wrap(err, "can't upload archive")
-	}
+	requestHandler := NewFileUploadRequestHandler(file)
+	responseHandler := NewJSONResponseHandler(c.log, response)
 
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, errors.Wrap(err, "response body is not JSON")
-	}
-
-	c.log.V(1).Info("response decoded", "response", resp)
-
-	return resp, nil
+	return DoWithHandlers(c, endpoint, http.MethodPost, requestHandler, responseHandler)
 }
 
 // AppValidateCV validates the chart values of the specified app against its appchart
@@ -246,7 +239,7 @@ func (c *Client) AppDeploy(request models.DeployRequest) (*models.DeployResponse
 // 2. The context is canceled (used by the caller when printing of logs should be stopped).
 func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printCallback func(tailer.ContainerLogLine)) error {
 
-	token, err := c.AuthToken()
+	tokenResponse, err := c.AuthToken()
 	if err != nil {
 		return err
 	}
@@ -254,7 +247,7 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printC
 	queryParams := url.Values{}
 	queryParams.Add("follow", strconv.FormatBool(follow))
 	queryParams.Add("stage_id", stageID)
-	queryParams.Add("authtoken", token)
+	queryParams.Add("authtoken", tokenResponse.Token)
 
 	var endpoint string
 	if stageID == "" {
@@ -419,13 +412,13 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 }
 
 func (c *Client) addAuthTokenToURL(url *url.URL) error {
-	token, err := c.AuthToken()
+	tokenResponse, err := c.AuthToken()
 	if err != nil {
 		return err
 	}
 
 	values := url.Query()
-	values.Add("authtoken", token)
+	values.Add("authtoken", tokenResponse.Token)
 	url.RawQuery = values.Encode()
 
 	return nil
@@ -439,14 +432,9 @@ func (c *Client) AppRestart(namespace string, appName string) (models.Response, 
 	return Post(c, endpoint, nil, response)
 }
 
-func (c *Client) AuthToken() (string, error) {
+func (c *Client) AuthToken() (models.AuthTokenResponse, error) {
 	response := models.AuthTokenResponse{}
 	endpoint := api.Routes.Path("AuthToken")
 
-	tokenResponse, err := Get(c, endpoint, response)
-	if err != nil {
-		return "", err
-	}
-
-	return tokenResponse.Token, nil
+	return Get(c, endpoint, response)
 }

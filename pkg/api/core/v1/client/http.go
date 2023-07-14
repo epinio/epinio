@@ -19,7 +19,6 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/epinio/epinio/helpers/termui"
@@ -75,70 +74,6 @@ func Patch[T any](c *Client, endpoint string, request any, response T) (T, error
 
 func Delete[T any](c *Client, endpoint string, request any, response T) (T, error) {
 	return Do(c, endpoint, http.MethodDelete, request, response)
-}
-
-// upload the given path as param "file" in a multipart form
-func (c *Client) upload(endpoint string, path string) ([]byte, error) {
-	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
-
-	// open the tarball
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to open tarball")
-	}
-	defer file.Close()
-
-	// create multipart form
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create multiform part")
-	}
-
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to write to multiform part")
-	}
-
-	err = writer.Close()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to close multiform")
-	}
-
-	// make the request
-	request, err := http.NewRequest("POST", uri, body)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build request")
-	}
-
-	request.Header.Add("Content-Type", writer.FormDataContentType())
-
-	err = c.handleAuthorization(request)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	for key, value := range c.customHeaders {
-		request.Header.Set(key, value)
-	}
-
-	response, err := c.HttpClient.Do(request)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to POST to upload")
-	}
-
-	if response.StatusCode >= http.StatusBadRequest {
-		return nil, handleError(c.log, response)
-	}
-
-	defer response.Body.Close()
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "reading response")
-	}
-	return bodyBytes, nil
 }
 
 // Do will execute a common JSON http request, marshalling the provided body, and unmarshalling the httpResponse into the response struct
@@ -231,6 +166,49 @@ func NewJSONRequestHandler(body any) RequestHandler {
 		if err != nil {
 			return nil, errors.Wrap(err, "building request")
 		}
+		return request, nil
+	}
+}
+
+// FormFile is a file that can be used with the FileUpload request handler
+type FormFile interface {
+	io.Reader
+	Name() string
+}
+
+// NewFileUploadRequestHandler creates a multipart/form-data request to upload the provided file
+func NewFileUploadRequestHandler(file FormFile) RequestHandler {
+	return func(method, url string) (*http.Request, error) {
+		if file == nil {
+			return nil, errors.New("cannot create multipart form without file")
+		}
+
+		// create multipart form
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create multipart form")
+		}
+
+		_, err = io.Copy(part, file)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to write to multipart form")
+		}
+
+		err = writer.Close()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to close multipart")
+		}
+
+		// make the request
+		request, err := http.NewRequest(method, url, body)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build request")
+		}
+
+		request.Header.Add("Content-Type", writer.FormDataContentType())
+
 		return request, nil
 	}
 }

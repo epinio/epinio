@@ -257,12 +257,12 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
-	AppUploadStub        func(string, string, string) (models.UploadResponse, error)
+	AppUploadStub        func(string, string, client.FormFile) (models.UploadResponse, error)
 	appUploadMutex       sync.RWMutex
 	appUploadArgsForCall []struct {
 		arg1 string
 		arg2 string
-		arg3 string
+		arg3 client.FormFile
 	}
 	appUploadReturns struct {
 		result1 models.UploadResponse
@@ -299,16 +299,16 @@ type FakeAPIClient struct {
 		result1 models.AppList
 		result2 error
 	}
-	AuthTokenStub        func() (string, error)
+	AuthTokenStub        func() (models.AuthTokenResponse, error)
 	authTokenMutex       sync.RWMutex
 	authTokenArgsForCall []struct {
 	}
 	authTokenReturns struct {
-		result1 string
+		result1 models.AuthTokenResponse
 		result2 error
 	}
 	authTokenReturnsOnCall map[int]struct {
-		result1 string
+		result1 models.AuthTokenResponse
 		result2 error
 	}
 	ChartListStub        func() ([]models.AppChart, error)
@@ -1907,13 +1907,13 @@ func (fake *FakeAPIClient) AppUpdateReturnsOnCall(i int, result1 models.Response
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppUpload(arg1 string, arg2 string, arg3 string) (models.UploadResponse, error) {
+func (fake *FakeAPIClient) AppUpload(arg1 string, arg2 string, arg3 client.FormFile) (models.UploadResponse, error) {
 	fake.appUploadMutex.Lock()
 	ret, specificReturn := fake.appUploadReturnsOnCall[len(fake.appUploadArgsForCall)]
 	fake.appUploadArgsForCall = append(fake.appUploadArgsForCall, struct {
 		arg1 string
 		arg2 string
-		arg3 string
+		arg3 client.FormFile
 	}{arg1, arg2, arg3})
 	stub := fake.AppUploadStub
 	fakeReturns := fake.appUploadReturns
@@ -1934,13 +1934,13 @@ func (fake *FakeAPIClient) AppUploadCallCount() int {
 	return len(fake.appUploadArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppUploadCalls(stub func(string, string, string) (models.UploadResponse, error)) {
+func (fake *FakeAPIClient) AppUploadCalls(stub func(string, string, client.FormFile) (models.UploadResponse, error)) {
 	fake.appUploadMutex.Lock()
 	defer fake.appUploadMutex.Unlock()
 	fake.AppUploadStub = stub
 }
 
-func (fake *FakeAPIClient) AppUploadArgsForCall(i int) (string, string, string) {
+func (fake *FakeAPIClient) AppUploadArgsForCall(i int) (string, string, client.FormFile) {
 	fake.appUploadMutex.RLock()
 	defer fake.appUploadMutex.RUnlock()
 	argsForCall := fake.appUploadArgsForCall[i]
@@ -2102,7 +2102,7 @@ func (fake *FakeAPIClient) AppsReturnsOnCall(i int, result1 models.AppList, resu
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AuthToken() (string, error) {
+func (fake *FakeAPIClient) AuthToken() (models.AuthTokenResponse, error) {
 	fake.authTokenMutex.Lock()
 	ret, specificReturn := fake.authTokenReturnsOnCall[len(fake.authTokenArgsForCall)]
 	fake.authTokenArgsForCall = append(fake.authTokenArgsForCall, struct {
@@ -2126,34 +2126,34 @@ func (fake *FakeAPIClient) AuthTokenCallCount() int {
 	return len(fake.authTokenArgsForCall)
 }
 
-func (fake *FakeAPIClient) AuthTokenCalls(stub func() (string, error)) {
+func (fake *FakeAPIClient) AuthTokenCalls(stub func() (models.AuthTokenResponse, error)) {
 	fake.authTokenMutex.Lock()
 	defer fake.authTokenMutex.Unlock()
 	fake.AuthTokenStub = stub
 }
 
-func (fake *FakeAPIClient) AuthTokenReturns(result1 string, result2 error) {
+func (fake *FakeAPIClient) AuthTokenReturns(result1 models.AuthTokenResponse, result2 error) {
 	fake.authTokenMutex.Lock()
 	defer fake.authTokenMutex.Unlock()
 	fake.AuthTokenStub = nil
 	fake.authTokenReturns = struct {
-		result1 string
+		result1 models.AuthTokenResponse
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AuthTokenReturnsOnCall(i int, result1 string, result2 error) {
+func (fake *FakeAPIClient) AuthTokenReturnsOnCall(i int, result1 models.AuthTokenResponse, result2 error) {
 	fake.authTokenMutex.Lock()
 	defer fake.authTokenMutex.Unlock()
 	fake.AuthTokenStub = nil
 	if fake.authTokenReturnsOnCall == nil {
 		fake.authTokenReturnsOnCall = make(map[int]struct {
-			result1 string
+			result1 models.AuthTokenResponse
 			result2 error
 		})
 	}
 	fake.authTokenReturnsOnCall[i] = struct {
-		result1 string
+		result1 models.AuthTokenResponse
 		result2 error
 	}{result1, result2}
 }

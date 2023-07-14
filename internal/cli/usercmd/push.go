@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 
@@ -148,29 +149,11 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	case models.OriginNone:
 		return fmt.Errorf("%s", "No application origin")
 	case models.OriginPath:
-		c.ui.Normal().Msg("Collecting the application sources ...")
-
-		tmpDir, tarball, err := helpers.Tar(source)
-		defer func() {
-			if tmpDir != "" {
-				_ = os.RemoveAll(tmpDir)
-			}
-		}()
+		uploadedSourceBlobID, err := c.uploadSources(log, appRef, source)
 		if err != nil {
 			return err
 		}
-
-		c.ui.Normal().Msg("Uploading application code ...")
-
-		details.Info("upload code")
-		upload, err := c.API.AppUpload(appRef.Namespace, appRef.Name, tarball)
-		if err != nil {
-			return err
-		}
-		log.V(3).Info("upload response", "response", upload)
-
-		blobUID = upload.BlobUID
-
+		blobUID = uploadedSourceBlobID
 	case models.OriginGit:
 		c.ui.Normal().Msg("Importing the application sources from Git ...")
 
@@ -262,6 +245,39 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 
 	c.reportOK(appRef, params.Staging.Builder, routes)
 	return nil
+}
+
+func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, source string) (string, error) {
+	c.ui.Normal().Msg("Collecting the application sources ...")
+
+	tmpDir, tarball, err := helpers.Tar(source)
+	defer func() {
+		if tmpDir != "" {
+			_ = os.RemoveAll(tmpDir)
+		}
+	}()
+	if err != nil {
+		return "", err
+	}
+
+	c.ui.Normal().Msg("Uploading application code ...")
+
+	log.V(1).Info("upload code")
+
+	// open the tarball
+	file, err := os.Open(tarball)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to open tarball")
+	}
+	defer file.Close()
+
+	upload, err := c.API.AppUpload(appRef.Namespace, appRef.Name, file)
+	if err != nil {
+		return "", err
+	}
+	log.V(3).Info("upload response", "response", upload)
+
+	return upload.BlobUID, nil
 }
 
 func (c *EpinioClient) stageLogs(appRef models.AppRef, stageID string) {

@@ -14,6 +14,7 @@ package client_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 
@@ -67,6 +68,9 @@ func DescribeAppsErrors() {
 			Entry("app create", func() (any, error) {
 				return epinioClient.AppCreate(models.ApplicationCreateRequest{}, "namespace")
 			}),
+			Entry("app get part", func() (any, error) {
+				return epinioClient.AppGetPart("namespace", "appname", "values")
+			}),
 			Entry("apps", func() (any, error) {
 				return epinioClient.Apps("namespace")
 			}),
@@ -81,6 +85,9 @@ func DescribeAppsErrors() {
 			}),
 			Entry("app delete", func() (any, error) {
 				return epinioClient.AppDelete("namespace", []string{"appname"})
+			}),
+			Entry("app upload", func() (any, error) {
+				return epinioClient.AppUpload("namespace", "appname", nil)
 			}),
 			Entry("app match", func() (any, error) {
 				return epinioClient.AppMatch("namespace", "appprefix")
@@ -100,6 +107,28 @@ func DescribeAppsErrors() {
 			Entry("app running", func() (any, error) {
 				return epinioClient.AppRunning(models.AppRef{})
 			}),
+			Entry("authtoken", func() (any, error) {
+				return epinioClient.AuthToken()
+			}),
 		)
+	})
+
+	When("the app part return something", func() {
+
+		BeforeEach(func() {
+			statusCode = 200
+			responseBody = `randomdatabytes`
+		})
+
+		It("get the response", func() {
+			response, err := epinioClient.AppGetPart("namespace", "appname", "part")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			b, err := io.ReadAll(response.Data)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(b).To(Equal([]byte("randomdatabytes")))
+			Expect(response.ContentLength).To(BeEquivalentTo(len("randomdatabytes")))
+		})
 	})
 }
