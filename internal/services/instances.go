@@ -622,8 +622,9 @@ func setServiceStatusAndCustomValues(service *models.Service,
 		return errors.Wrap(err, "finding helm release status")
 	}
 
-	serviceStatus, err := helm.Status(ctx, logger, cluster, namespace, releaseName,
-		serviceRelease)
+	service.Status = models.ServiceStatusUnknown
+
+	serviceStatus, err := helm.Status(ctx, logger, cluster, serviceRelease)
 	if err != nil {
 		return errors.Wrap(err, "calculating helm release status")
 	}

@@ -185,12 +185,12 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		if err != nil {
 			return false, err
 		}
-		releaseStatus, err := Status(ctx, logger, parameters.Cluster, parameters.Namespace, releaseName, release)
+		releaseStatus, err := Status(ctx, logger, parameters.Cluster, release)
 		if releaseStatus == StatusUnknown || err != nil {
 			return false, err
 		}
 
-		// check readyness
+		// check readiness
 		return releaseStatus == StatusReady, nil
 	})
 
@@ -430,23 +430,21 @@ func Release(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluste
 	return release, err
 }
 
-// Status will check for the readyness of the release returning an internal status instead of
+// Status will check for the readiness of the release returning an internal status instead of
 // the Helm release status (https://github.com/helm/helm/blob/main/pkg/release/status.go).
 // Helm is not checking for the actual status of the release and even if the resources are still
 // in deployment they will be marked as "deployed"
 func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
-	namespace, releaseName string,
-	release *helmrelease.Release,
-) (ReleaseStatus, error) {
+	release *helmrelease.Release) (ReleaseStatus, error) {
 	resourceList := getResourceListFromRelease(release)
 	logger.V(1).Info(fmt.Sprintf(
 		"found '%d' resources for release '%s' in namespace '%s'\n",
-		len(resourceList), releaseName, namespace),
+		len(resourceList), release.Name, release.Namespace),
 	)
 
 	checker := kube.NewReadyChecker(cluster.Kubectl, logger.Info, kube.PausedAsReady(true))
 	for _, v := range resourceList {
-		// IsReady checks if v is ready. It supports checking readyness for pods,
+		// IsReady checks if v is ready. It supports checking readiness for pods,
 		// deployments, persistent volume claims, services, daemon sets, custom
 		// resource definitions, stateful sets, replication controllers, and replica
 		// sets. All other resource kinds are always considered ready.
@@ -455,7 +453,9 @@ func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster
 		logger.V(1).Info(fmt.Sprintf("resource '%s' ready: '%t'\n", v.Name, ready))
 
 		if err != nil {
-			return StatusUnknown, errors.Wrapf(err, "checking readyness of resource '%s' of release '%s'", v.Name, releaseName)
+			return StatusUnknown, errors.Wrapf(err,
+				"checking readiness of resource '%s' of release '%s'",
+				v.Name, release.Name)
 		}
 		if !ready {
 			return StatusNotReady, nil
