@@ -103,6 +103,9 @@ func DescribeAppsErrors() {
 			Entry("app running", func() (any, error) {
 				return epinioClient.AppRunning(models.AppRef{})
 			}),
+			Entry("authtoken", func() (any, error) {
+				return epinioClient.AuthToken()
+			}),
 		)
 	})
 }

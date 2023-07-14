@@ -299,16 +299,16 @@ type FakeAPIClient struct {
 		result1 models.AppList
 		result2 error
 	}
-	AuthTokenStub        func() (string, error)
+	AuthTokenStub        func() (models.AuthTokenResponse, error)
 	authTokenMutex       sync.RWMutex
 	authTokenArgsForCall []struct {
 	}
 	authTokenReturns struct {
-		result1 string
+		result1 models.AuthTokenResponse
 		result2 error
 	}
 	authTokenReturnsOnCall map[int]struct {
-		result1 string
+		result1 models.AuthTokenResponse
 		result2 error
 	}
 	ChartListStub        func() ([]models.AppChart, error)
@@ -2102,7 +2102,7 @@ func (fake *FakeAPIClient) AppsReturnsOnCall(i int, result1 models.AppList, resu
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AuthToken() (string, error) {
+func (fake *FakeAPIClient) AuthToken() (models.AuthTokenResponse, error) {
 	fake.authTokenMutex.Lock()
 	ret, specificReturn := fake.authTokenReturnsOnCall[len(fake.authTokenArgsForCall)]
 	fake.authTokenArgsForCall = append(fake.authTokenArgsForCall, struct {
@@ -2126,34 +2126,34 @@ func (fake *FakeAPIClient) AuthTokenCallCount() int {
 	return len(fake.authTokenArgsForCall)
 }
 
-func (fake *FakeAPIClient) AuthTokenCalls(stub func() (string, error)) {
+func (fake *FakeAPIClient) AuthTokenCalls(stub func() (models.AuthTokenResponse, error)) {
 	fake.authTokenMutex.Lock()
 	defer fake.authTokenMutex.Unlock()
 	fake.AuthTokenStub = stub
 }
 
-func (fake *FakeAPIClient) AuthTokenReturns(result1 string, result2 error) {
+func (fake *FakeAPIClient) AuthTokenReturns(result1 models.AuthTokenResponse, result2 error) {
 	fake.authTokenMutex.Lock()
 	defer fake.authTokenMutex.Unlock()
 	fake.AuthTokenStub = nil
 	fake.authTokenReturns = struct {
-		result1 string
+		result1 models.AuthTokenResponse
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AuthTokenReturnsOnCall(i int, result1 string, result2 error) {
+func (fake *FakeAPIClient) AuthTokenReturnsOnCall(i int, result1 models.AuthTokenResponse, result2 error) {
 	fake.authTokenMutex.Lock()
 	defer fake.authTokenMutex.Unlock()
 	fake.AuthTokenStub = nil
 	if fake.authTokenReturnsOnCall == nil {
 		fake.authTokenReturnsOnCall = make(map[int]struct {
-			result1 string
+			result1 models.AuthTokenResponse
 			result2 error
 		})
 	}
 	fake.authTokenReturnsOnCall[i] = struct {
-		result1 string
+		result1 models.AuthTokenResponse
 		result2 error
 	}{result1, result2}
 }
