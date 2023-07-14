@@ -257,12 +257,12 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
-	AppUploadStub        func(string, string, string) (models.UploadResponse, error)
+	AppUploadStub        func(string, string, client.FormFile) (models.UploadResponse, error)
 	appUploadMutex       sync.RWMutex
 	appUploadArgsForCall []struct {
 		arg1 string
 		arg2 string
-		arg3 string
+		arg3 client.FormFile
 	}
 	appUploadReturns struct {
 		result1 models.UploadResponse
@@ -1907,13 +1907,13 @@ func (fake *FakeAPIClient) AppUpdateReturnsOnCall(i int, result1 models.Response
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppUpload(arg1 string, arg2 string, arg3 string) (models.UploadResponse, error) {
+func (fake *FakeAPIClient) AppUpload(arg1 string, arg2 string, arg3 client.FormFile) (models.UploadResponse, error) {
 	fake.appUploadMutex.Lock()
 	ret, specificReturn := fake.appUploadReturnsOnCall[len(fake.appUploadArgsForCall)]
 	fake.appUploadArgsForCall = append(fake.appUploadArgsForCall, struct {
 		arg1 string
 		arg2 string
-		arg3 string
+		arg3 client.FormFile
 	}{arg1, arg2, arg3})
 	stub := fake.AppUploadStub
 	fakeReturns := fake.appUploadReturns
@@ -1934,13 +1934,13 @@ func (fake *FakeAPIClient) AppUploadCallCount() int {
 	return len(fake.appUploadArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppUploadCalls(stub func(string, string, string) (models.UploadResponse, error)) {
+func (fake *FakeAPIClient) AppUploadCalls(stub func(string, string, client.FormFile) (models.UploadResponse, error)) {
 	fake.appUploadMutex.Lock()
 	defer fake.appUploadMutex.Unlock()
 	fake.AppUploadStub = stub
 }
 
-func (fake *FakeAPIClient) AppUploadArgsForCall(i int) (string, string, string) {
+func (fake *FakeAPIClient) AppUploadArgsForCall(i int) (string, string, client.FormFile) {
 	fake.appUploadMutex.RLock()
 	defer fake.appUploadMutex.RUnlock()
 	argsForCall := fake.appUploadArgsForCall[i]

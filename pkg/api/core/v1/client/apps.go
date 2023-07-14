@@ -152,16 +152,9 @@ func (c *Client) AppDelete(namespace string, names []string) (models.Application
 }
 
 // AppUpload uploads a tarball for the named app, which is later used in staging
-func (c *Client) AppUpload(namespace string, name string, tarball string) (models.UploadResponse, error) {
+func (c *Client) AppUpload(namespace string, name string, file FormFile) (models.UploadResponse, error) {
 	response := models.UploadResponse{}
 	endpoint := api.Routes.Path("AppUpload", namespace, name)
-
-	// open the tarball
-	file, err := os.Open(tarball)
-	if err != nil {
-		return response, errors.Wrap(err, "failed to open tarball")
-	}
-	defer file.Close()
 
 	requestHandler := NewFileUploadRequestHandler(file)
 	responseHandler := NewJSONResponseHandler(c.log, response)

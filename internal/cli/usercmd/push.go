@@ -163,7 +163,15 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		c.ui.Normal().Msg("Uploading application code ...")
 
 		details.Info("upload code")
-		upload, err := c.API.AppUpload(appRef.Namespace, appRef.Name, tarball)
+
+		// open the tarball
+		file, err := os.Open(tarball)
+		if err != nil {
+			return errors.Wrap(err, "failed to open tarball")
+		}
+		defer file.Close()
+
+		upload, err := c.API.AppUpload(appRef.Namespace, appRef.Name, file)
 		if err != nil {
 			return err
 		}

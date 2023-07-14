@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/selfupdater"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
@@ -52,7 +53,7 @@ type APIClient interface {
 	AppShow(namespace string, appName string) (models.App, error)
 	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)
 	AppDelete(namespace string, names []string) (models.ApplicationDeleteResponse, error)
-	AppUpload(namespace string, name string, tarball string) (models.UploadResponse, error)
+	AppUpload(namespace string, name string, file client.FormFile) (models.UploadResponse, error)
 	AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.ImportGitResponse, error)
 	AppStage(req models.StageRequest) (*models.StageResponse, error)
 	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
