@@ -12,13 +12,12 @@
 package cli
 
 import (
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 // NewClientSyncCmd implements the command: epinio client-sync
-func NewClientSyncCmd(client *usercmd.EpinioClient) *cobra.Command {
+func NewClientSyncCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "client-sync",
 		Short: "Downloads a client binary matching the currently logged server",

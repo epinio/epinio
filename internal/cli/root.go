@@ -14,8 +14,6 @@
 package cli
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -30,6 +28,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/go-logr/stdr"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -50,8 +49,14 @@ func NewRootCmd() (*cobra.Command, error) {
 		Long:          `epinio cli is the official command line interface for Epinio PaaS `,
 		Version:       version.Version,
 		SilenceErrors: true,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			stdr.SetVerbosity(tracelog.TraceLevel())
+
+			client, err := usercmd.New(cmd.Context())
+			if err != nil {
+				return errors.Wrap(err, "initializing cli")
+			}
+			SetClient(client)
 
 			for _, header := range flagHeaders {
 				headerKeyValue := strings.SplitN(header, ":", 2)
@@ -63,6 +68,7 @@ func NewRootCmd() (*cobra.Command, error) {
 				}
 				client.API.SetHeader(headerKeyValue[0], strings.TrimSpace(headerValue))
 			}
+			return nil
 		},
 	}
 
@@ -117,16 +123,11 @@ func NewRootCmd() (*cobra.Command, error) {
 
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
-	client, err = usercmd.New(context.Background())
-	if err != nil {
-		return nil, errors.New("error initializing cli")
-	}
-
 	rootCmd.AddCommand(
 		CmdCompletion,
 		CmdSettings,
-		NewInfoCmd(client),
-		NewClientSyncCmd(client),
+		NewInfoCmd(),
+		NewClientSyncCmd(),
 		CmdNamespace,
 		CmdAppPush, // shorthand access to `app push`
 		CmdApp,
@@ -173,4 +174,8 @@ func checkErr(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func SetClient(epinioClient *usercmd.EpinioClient) {
+	client = epinioClient
 }
