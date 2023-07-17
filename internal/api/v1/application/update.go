@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
@@ -35,6 +36,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
+	username := requestctx.User(ctx).Username
 	log := requestctx.Logger(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -192,6 +194,17 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		err := updateChartValueSettings(ctx, client, namespace, appName, updateRequest.Settings)
 		if err != nil {
 			return apierror.InternalError(err)
+		}
+	}
+
+	// backward compatibility: if no flag provided then restart the app, this time failing for no workload, or any other wrong update
+	restart := updateRequest.Restart == nil || *updateRequest.Restart
+	if restart {
+		log.Info("updating app -- restarting")
+
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+		if apierr != nil {
+			return apierr
 		}
 	}
 

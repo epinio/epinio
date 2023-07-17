@@ -189,6 +189,7 @@ type ApplicationCreateRequest struct {
 // Note: Instances is a pointer to give us a nil value separate from
 // actual integers, as means of communicating `default`/`no change`.
 type ApplicationUpdateRequest struct {
+	Restart        *bool              `json:"restart,omitempty"`
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`

@@ -131,6 +131,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		c.ui.Normal().Msg("Application exists, updating ...")
 		details.Info("app exists conflict")
 
+		// do not restart during a push
+		restart := false
+		params.Configuration.Restart = &restart
+
 		_, err := c.API.AppUpdate(params.Configuration, appRef.Namespace, appRef.Name)
 		if err != nil {
 			return err

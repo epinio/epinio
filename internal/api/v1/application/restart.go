@@ -46,8 +46,8 @@ func Restart(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	if app.Workload == nil {
-		return apierror.NewAPIError("No restart possible for an application without workload", http.StatusBadRequest)
+	if app.Configuration.Instances == nil || *app.Configuration.Instances == 0 {
+		return apierror.NewAPIError("No restart possible for an application with no instances", http.StatusBadRequest)
 	}
 
 	if !strings.Contains(app.ImageURL, app.StageID) {
