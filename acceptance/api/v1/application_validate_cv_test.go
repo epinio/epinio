@@ -90,7 +90,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 
 	It("returns ok for good chart values", func() {
 		// unknowntype, badminton, maxbad - bad spec, no good values
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"fake":  "true",
 			"foo":   "bar",
 			"bar":   "sna",
@@ -106,7 +106,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for an unknown field", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"bogus": "x",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
@@ -117,7 +117,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for an unknown field type", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"unknowntype": "x",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
@@ -128,7 +128,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for an integer field with a bad minimum", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"badminton": "0",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
@@ -139,7 +139,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for an integer field with a bad maximum", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"maxbad": "0",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
@@ -150,7 +150,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a value out of range (< min)", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"floof": "-2",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
@@ -161,7 +161,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a value out of range (> max)", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"fox": "1000",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
@@ -172,7 +172,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a value out of range (not in enum)", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"bar": "fox",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
@@ -183,7 +183,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a non-integer value where integer required", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"fox": "hound",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
@@ -194,7 +194,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a non-numeric value where numeric required", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"cat": "dog",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
@@ -205,7 +205,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a non-boolean value where boolean required", func() {
-		request := map[string]interface{}{"settings": map[string]string{
+		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
 			"fake": "news",
 		}}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
