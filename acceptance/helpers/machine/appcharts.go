@@ -16,6 +16,7 @@ import (
 	"os"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -106,6 +107,8 @@ spec:
 }
 
 func (m *Machine) DeleteAppchart(tempFile string) {
+	GinkgoHelper()
+
 	out, err := proc.Kubectl("delete", "-f", tempFile)
 	Expect(err).ToNot(HaveOccurred(), out)
 	os.Remove(tempFile)

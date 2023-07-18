@@ -12,15 +12,9 @@
 package v1_test
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
-	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -28,55 +22,13 @@ import (
 )
 
 var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
+
 	var (
 		chartName string
 		tempFile  string
 		namespace string
 		appName   string
-		request   *http.Request
 	)
-
-	ping := func(code int, body string) {
-		// request setup
-
-		uri := fmt.Sprintf("%s%s/%s", serverURL, v1.Root,
-			v1.Routes.Path("AppValidateCV", namespace, appName))
-		var err error // We want `=` below to ensure that `request` is not a local variable.
-		request, err = http.NewRequest("GET", uri, strings.NewReader(""))
-		Expect(err).ToNot(HaveOccurred())
-		request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
-
-		// fire request, get response
-
-		resp, err := env.Client().Do(request)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(resp).ToNot(BeNil())
-		defer resp.Body.Close()
-
-		// get response body
-
-		bodyBytes, err := io.ReadAll(resp.Body)
-		Expect(err).ToNot(HaveOccurred())
-
-		// check status
-
-		Expect(resp.StatusCode).To(Equal(code), string(bodyBytes))
-
-		// decode and check response
-
-		if resp.StatusCode == http.StatusOK {
-			r := &models.Response{}
-			err = json.Unmarshal(bodyBytes, &r)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(r.Status).To(Equal(body))
-			return
-		}
-
-		r := &errors.ErrorResponse{}
-		err = json.Unmarshal(bodyBytes, &r)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(r.Errors[0].Error()).To(Equal(body))
-	}
 
 	BeforeEach(func() {
 		// Appchart
@@ -89,103 +41,177 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 
 		// Application, references new chart
 		appName = catalog.NewAppName()
-		out, err := env.Epinio("", "app", "create", appName, "--app-chart", chartName)
-		Expect(err).ToNot(HaveOccurred(), out)
-		Expect(out).To(ContainSubstring("Ok"))
+
+		appCreateRequest := models.ApplicationCreateRequest{
+			Name: appName,
+			Configuration: models.ApplicationUpdateRequest{
+				AppChart: chartName,
+			},
+		}
+		bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+		Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+
+		DeferCleanup(func() {
+			env.DeleteNamespace(namespace)
+			env.DeleteAppchart(tempFile)
+		})
 	})
 
-	AfterEach(func() {
-		env.DeleteApp(appName)
-		env.DeleteNamespace(namespace)
-		env.DeleteAppchart(tempFile)
+	It("returns error when asking for a non existing app", func() {
+		_, statusCode := appValidateCV(namespace, "noapp")
+		Expect(statusCode).To(Equal(http.StatusNotFound))
+	})
+
+	It("returns error when validating for a non existing chart", func() {
+		// create a new appchart that we can safely delete
+		chartName2 := catalog.NewTmpName("chart-")
+		tempFile2 := env.MakeAppchart(chartName2)
+
+		appName2 := catalog.NewAppName()
+		appCreateRequest := models.ApplicationCreateRequest{
+			Name: appName2,
+			Configuration: models.ApplicationUpdateRequest{
+				AppChart: chartName2,
+			},
+		}
+		bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+		Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+
+		env.DeleteAppchart(tempFile2)
+
+		_, statusCode = appValidateCV(namespace, appName2)
+		Expect(statusCode).To(Equal(http.StatusNotFound))
 	})
 
 	It("returns ok when there are no chart values to validate", func() {
-		ping(http.StatusOK, "ok")
+		bodyBytes, statusCode := appValidateCV(namespace, appName)
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 	})
 
 	It("returns ok for good chart values", func() {
-		out, err := env.Epinio("", "app", "update", appName,
-			"-v", "fake=true",
-			"-v", "foo=bar",
-			"-v", "bar=sna",
-			"-v", "floof=3.1415926535",
-			"-v", "fox=99",
-			"-v", "cat=0.31415926535",
-			// unknowntype, badminton, maxbad - bad spec, no good values
-		)
-		Expect(err).ToNot(HaveOccurred(), out)
+		// unknowntype, badminton, maxbad - bad spec, no good values
+		request := map[string]interface{}{"settings": map[string]string{
+			"fake":  "true",
+			"foo":   "bar",
+			"bar":   "sna",
+			"floof": "3.1415926535",
+			"fox":   "99",
+			"cat":   "0.31415926535",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusOK, "ok")
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 	})
 
 	It("fails for an unknown field", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "bogus=x")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"bogus": "x",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "bogus": Not known`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "bogus": Not known`)
 	})
 
 	It("fails for an unknown field type", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "unknowntype=x")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"unknowntype": "x",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "unknowntype": Bad spec: Unknown type "foofara"`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "unknowntype": Bad spec: Unknown type "foofara"`)
 	})
 
 	It("fails for an integer field with a bad minimum", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "badminton=0")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"badminton": "0",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "badminton": Bad spec: Bad minimum "hello"`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "badminton": Bad spec: Bad minimum "hello"`)
 	})
 
 	It("fails for an integer field with a bad maximum", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "maxbad=0")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"maxbad": "0",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "maxbad": Bad spec: Bad maximum "world"`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "maxbad": Bad spec: Bad maximum "world"`)
 	})
 
 	It("fails for a value out of range (< min)", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "floof=-2")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"floof": "-2",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "floof": Out of bounds, "-2" too small`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "floof": Out of bounds, "-2" too small`)
 	})
 
 	It("fails for a value out of range (> max)", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "fox=1000")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"fox": "1000",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "fox": Out of bounds, "1000" too large`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "fox": Out of bounds, "1000" too large`)
 	})
 
 	It("fails for a value out of range (not in enum)", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "bar=fox")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"bar": "fox",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "bar": Illegal string "fox"`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "bar": Illegal string "fox"`)
 	})
 
 	It("fails for a non-integer value where integer required", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "fox=hound")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"fox": "hound",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "fox": Expected integer, got "hound"`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "fox": Expected integer, got "hound"`)
 	})
 
 	It("fails for a non-numeric value where numeric required", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "cat=dog")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"cat": "dog",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "cat": Expected number, got "dog"`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "cat": Expected number, got "dog"`)
 	})
 
 	It("fails for a non-boolean value where boolean required", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "fake=news")
-		Expect(err).ToNot(HaveOccurred(), out)
+		request := map[string]interface{}{"settings": map[string]string{
+			"fake": "news",
+		}}
+		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
+		ExpectResponseToBeOK(bodyBytes, statusCode)
 
-		ping(http.StatusBadRequest, `Setting "fake": Expected boolean, got "news"`)
+		bodyBytes, statusCode = appValidateCV(namespace, appName)
+		ExpectBadRequestError(bodyBytes, statusCode, `Setting "fake": Expected boolean, got "news"`)
 	})
 })
