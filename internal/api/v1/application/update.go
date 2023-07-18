@@ -197,9 +197,9 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		}
 	}
 
-	// backward compatibility: if no flag provided then restart the app, this time failing for no workload, or any other wrong update
+	// backward compatibility: if no flag provided then restart the app
 	restart := updateRequest.Restart == nil || *updateRequest.Restart
-	if restart {
+	if app.Workload != nil && restart {
 		log.Info("updating app -- restarting")
 
 		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
