@@ -13,6 +13,8 @@ package models
 
 import (
 	"errors"
+	"fmt"
+	"net/url"
 
 	"github.com/epinio/epinio/internal/names"
 )
@@ -60,6 +62,21 @@ func GitProviderFromString(provider string) (GitProvider, error) {
 		}
 	}
 	return ProviderUnknown, errors.New("unknown provider")
+}
+
+func (p GitProvider) ValidateURL(gitURL string) error {
+	// check provider URL
+	u, err := url.Parse(gitURL)
+	if err != nil {
+		return fmt.Errorf("parsing git url `%s`", gitURL)
+	}
+
+	if (u.Host == "github.com" && p != ProviderGithub) ||
+		(u.Host == "gitlab.com" && p != ProviderGitlab) {
+		return fmt.Errorf("git url and provider mismatch `%s - %s`", gitURL, p)
+	}
+
+	return nil
 }
 
 type ApplicationStatus string
