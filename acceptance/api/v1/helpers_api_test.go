@@ -19,6 +19,7 @@ import (
 	"net/http"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -79,6 +80,21 @@ func appUpdate(namespace, app string, body io.Reader) ([]byte, int) {
 	return bodyBytes, response.StatusCode
 }
 
+func appValidateCV(namespace, app string) ([]byte, int) {
+	GinkgoHelper()
+
+	endpoint := makeEndpoint(v1.Routes.Path("AppValidateCV", namespace, app))
+	response, err := env.Curl(http.MethodGet, endpoint, nil)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response).ToNot(BeNil())
+	defer response.Body.Close()
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	Expect(err).ToNot(HaveOccurred())
+
+	return bodyBytes, response.StatusCode
+}
+
 func toJSON(request any) io.Reader {
 	GinkgoHelper()
 
@@ -89,4 +105,34 @@ func toJSON(request any) io.Reader {
 
 func makeEndpoint(path string) string {
 	return fmt.Sprintf("%s%s/%s", serverURL, v1.Root, path)
+}
+
+func ExpectResponseToBeOK(bodyBytes []byte, statusCode int) {
+	GinkgoHelper()
+
+	Expect(statusCode).To(Equal(http.StatusOK))
+
+	response := models.Response{}
+	err := json.Unmarshal(bodyBytes, &response)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response).To(Equal(models.ResponseOK))
+}
+
+func ExpectBadRequestError(bodyBytes []byte, statusCode int, expectedErrorMsg string) {
+	GinkgoHelper()
+
+	Expect(statusCode).To(Equal(http.StatusBadRequest))
+
+	errorResponse := toError(bodyBytes)
+	Expect(errorResponse.Errors[0].Title).To(Equal(expectedErrorMsg))
+}
+
+func toError(bodyBytes []byte) apierrors.ErrorResponse {
+	GinkgoHelper()
+
+	var errorResponse apierrors.ErrorResponse
+	err := json.Unmarshal(bodyBytes, &errorResponse)
+	Expect(err).ToNot(HaveOccurred())
+
+	return errorResponse
 }
