@@ -642,7 +642,7 @@ func installOrUpgradeChartWithRetry(ctx context.Context, logger logr.Logger, cli
 	// This, the retry, should fix issue https://github.com/epinio/epinio/issues/2385
 
 	backoff := wait.Backoff{
-		Steps:    1, // Retry only once!
+		Steps:    2, // Retry only once (2 tries)!
 		Duration: 10 * time.Millisecond,
 		Factor:   1.0,
 		Jitter:   0.1,
