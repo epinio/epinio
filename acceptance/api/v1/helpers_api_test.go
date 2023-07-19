@@ -33,9 +33,7 @@ func appShow(namespace, app string) models.App {
 	bodyBytes, statusCode := curl(http.MethodGet, endpoint, nil)
 	Expect(statusCode).To(Equal(http.StatusOK))
 
-	var responseApp models.App
-	err := json.Unmarshal(bodyBytes, &responseApp)
-	Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+	responseApp := fromJSON[models.App](bodyBytes)
 	Expect(responseApp.Meta.Name).To(Equal(app))
 	Expect(responseApp.Meta.Namespace).To(Equal(namespace))
 
@@ -111,9 +109,7 @@ func ExpectResponseToBeOK(bodyBytes []byte, statusCode int) {
 
 	Expect(statusCode).To(Equal(http.StatusOK))
 
-	response := models.Response{}
-	err := json.Unmarshal(bodyBytes, &response)
-	Expect(err).ToNot(HaveOccurred())
+	response := fromJSON[models.Response](bodyBytes)
 	Expect(response).To(Equal(models.ResponseOK))
 }
 
