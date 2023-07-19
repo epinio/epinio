@@ -30,18 +30,11 @@ func appShow(namespace, app string) models.App {
 	GinkgoHelper()
 
 	endpoint := makeEndpoint(v1.Routes.Path("AppShow", namespace, app))
-	response, err := env.Curl(http.MethodGet, endpoint, nil)
-
-	Expect(err).ToNot(HaveOccurred())
-	Expect(response).ToNot(BeNil())
-	defer response.Body.Close()
-
-	Expect(response.StatusCode).To(Equal(http.StatusOK))
-	bodyBytes, err := io.ReadAll(response.Body)
-	Expect(err).ToNot(HaveOccurred())
+	bodyBytes, statusCode := curl(http.MethodGet, endpoint, nil)
+	Expect(statusCode).To(Equal(http.StatusOK))
 
 	var responseApp models.App
-	err = json.Unmarshal(bodyBytes, &responseApp)
+	err := json.Unmarshal(bodyBytes, &responseApp)
 	Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
 	Expect(responseApp.Meta.Name).To(Equal(app))
 	Expect(responseApp.Meta.Namespace).To(Equal(namespace))
@@ -53,38 +46,34 @@ func appCreate(namespace string, body io.Reader) ([]byte, int) {
 	GinkgoHelper()
 
 	endpoint := makeEndpoint(v1.Routes.Path("AppCreate", namespace))
-
-	response, err := env.Curl(http.MethodPost, endpoint, body)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(response).ToNot(BeNil())
-	defer response.Body.Close()
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	Expect(err).ToNot(HaveOccurred())
-
-	return bodyBytes, response.StatusCode
+	return curl(http.MethodPost, endpoint, body)
 }
 
 func appUpdate(namespace, app string, body io.Reader) ([]byte, int) {
 	GinkgoHelper()
 
 	endpoint := makeEndpoint(v1.Routes.Path("AppUpdate", namespace, app))
-	response, err := env.Curl(http.MethodPatch, endpoint, body)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(response).ToNot(BeNil())
-	defer response.Body.Close()
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	Expect(err).ToNot(HaveOccurred())
-
-	return bodyBytes, response.StatusCode
+	return curl(http.MethodPatch, endpoint, body)
 }
 
 func appValidateCV(namespace, app string) ([]byte, int) {
 	GinkgoHelper()
 
 	endpoint := makeEndpoint(v1.Routes.Path("AppValidateCV", namespace, app))
-	response, err := env.Curl(http.MethodGet, endpoint, nil)
+	return curl(http.MethodGet, endpoint, nil)
+}
+
+func appDeploy(namespace, app string, body io.Reader) ([]byte, int) {
+	GinkgoHelper()
+
+	endpoint := makeEndpoint(v1.Routes.Path("AppDeploy", namespace, app))
+	return curl(http.MethodPost, endpoint, body)
+}
+
+func curl(method, endpoint string, body io.Reader) ([]byte, int) {
+	GinkgoHelper()
+
+	response, err := env.Curl(method, endpoint, body)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(response).ToNot(BeNil())
 	defer response.Body.Close()
@@ -101,6 +90,16 @@ func toJSON(request any) io.Reader {
 	b, err := json.Marshal(request)
 	Expect(err).ToNot(HaveOccurred())
 	return bytes.NewReader(b)
+}
+
+func fromJSON[T any](bodyBytes []byte) T {
+	GinkgoHelper()
+
+	t := new(T)
+	err := json.Unmarshal(bodyBytes, t)
+	Expect(err).ToNot(HaveOccurred())
+
+	return *t
 }
 
 func makeEndpoint(path string) string {
@@ -123,16 +122,6 @@ func ExpectBadRequestError(bodyBytes []byte, statusCode int, expectedErrorMsg st
 
 	Expect(statusCode).To(Equal(http.StatusBadRequest))
 
-	errorResponse := toError(bodyBytes)
+	errorResponse := fromJSON[apierrors.ErrorResponse](bodyBytes)
 	Expect(errorResponse.Errors[0].Title).To(Equal(expectedErrorMsg))
-}
-
-func toError(bodyBytes []byte) apierrors.ErrorResponse {
-	GinkgoHelper()
-
-	var errorResponse apierrors.ErrorResponse
-	err := json.Unmarshal(bodyBytes, &errorResponse)
-	Expect(err).ToNot(HaveOccurred())
-
-	return errorResponse
 }

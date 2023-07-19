@@ -226,6 +226,16 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(out).To(ContainSubstring("Bad --git-provider `bogus`"))
 		})
 
+		FIt("rejects a bad provider specification for a wrong git url", func() {
+			out, err := env.Epinio("", "push",
+				"--name", appName,
+				"--git", wordpress,
+				"--git-provider", "gitlab")
+			Expect(err).To(HaveOccurred(), out)
+
+			Expect(out).To(ContainSubstring("git url and provider mismatch"))
+		})
+
 		It("rejects a bad specification", func() {
 			out, err := env.Epinio("", "push",
 				"--name", appName,

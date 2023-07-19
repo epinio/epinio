@@ -19,6 +19,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
+	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -41,11 +42,10 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 		appCreateRequest := models.ApplicationCreateRequest{Name: appName}
 		bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
 		Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-	})
 
-	AfterEach(func() {
-		env.DeleteApp(appName)
-		env.DeleteNamespace(namespace)
+		DeferCleanup(func() {
+			env.DeleteNamespace(namespace)
+		})
 	})
 
 	Context("with staging", func() {
@@ -107,7 +107,9 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 				By("deploying the application")
 				deployRequest.ImageURL = stageResponse.ImageURL
 				deployRequest.Stage = stageResponse.Stage
-				deployApplication(appName, namespace, deployRequest)
+
+				_, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
+				Expect(statusCode).To(Equal(http.StatusOK))
 
 				By("waiting for the old blob to be gone")
 				Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
@@ -154,7 +156,9 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 
 				deployRequest.ImageURL = stageResponse.ImageURL
 				deployRequest.Stage.ID = stageResponse.Stage.ID
-				deployApplication(appName, namespace, deployRequest)
+
+				_, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
+				Expect(statusCode).To(Equal(http.StatusOK))
 
 				Consistently(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(theOnlyBlob)))
 			})
@@ -180,7 +184,10 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 
 		When("deploying a new app", func() {
 			It("returns a success", func() {
-				deployResponse := deployApplication(appName, namespace, deployRequest)
+				bodyBytes, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
+				Expect(statusCode).To(Equal(http.StatusOK))
+
+				deployResponse := fromJSON[models.DeployResponse](bodyBytes)
 				Expect(deployResponse.Routes[0]).To(MatchRegexp(appName + `\..*\.omg\.howdoi\.website`))
 
 				Eventually(func() string {
@@ -211,7 +218,8 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 
 			It("the app Ingress matches the specified route", func() {
 				// call the deploy action. Deploy should respect the routes on the App CR.
-				deployApplication(appName, namespace, deployRequest)
+				_, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
+				Expect(statusCode).To(Equal(http.StatusOK))
 
 				out, err := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")
@@ -245,17 +253,20 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 				out, err = proc.Kubectl("patch", "apps", "--type", "json", "-n", namespace, appName2, "--patch",
 					fmt.Sprintf(`[{"op": "replace", "path": "/spec/routes", "value": [%q, %q]}]`, routes[0], routes[1]))
 				Expect(err).NotTo(HaveOccurred(), out)
-			})
 
-			AfterEach(func() {
-				env.DeleteApp(appName2)
+				DeferCleanup(func() {
+					env.DeleteApp(appName2)
+				})
 			})
 
 			It("should fail the second deployment", func() {
 				// call the deploy action. Deploy should respect the routes on the App CR.
-				deployApplication(appName, namespace, deployRequest)
+				_, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
+				Expect(statusCode).To(Equal(http.StatusOK))
+
 				deployRequest.App.Name = appName2
-				deployApplicationWithFailure(appName2, namespace, deployRequest)
+				_, statusCode = appDeploy(namespace, appName, toJSON(deployRequest))
+				Expect(statusCode).To(Equal(http.StatusBadRequest))
 
 				out, err := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")
@@ -288,8 +299,20 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 
 		It("rejects a bad provider specification", func() {
 			deployRequest.Origin.Git.Provider = "bogus"
-			response := deployApplicationWithFailure(appName, namespace, deployRequest)
-			Expect(response.Errors[0].Error()).To(ContainSubstring("bad git provider `bogus`"))
+			bodyBytes, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
+			Expect(statusCode).To(Equal(http.StatusBadRequest))
+
+			errorResponse := fromJSON[errors.ErrorResponse](bodyBytes)
+			Expect(errorResponse.Errors[0].Error()).To(ContainSubstring("bad git provider `bogus`"))
+		})
+
+		It("rejects a mismatched git provider", func() {
+			deployRequest.Origin.Git.Provider = "gitlab"
+			bodyBytes, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
+			Expect(statusCode).To(Equal(http.StatusBadRequest))
+
+			errorResponse := fromJSON[errors.ErrorResponse](bodyBytes)
+			Expect(errorResponse.Errors[0].Error()).To(ContainSubstring("git url and provider mismatch"))
 		})
 	})
 })
