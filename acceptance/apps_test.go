@@ -226,7 +226,7 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(out).To(ContainSubstring("Bad --git-provider `bogus`"))
 		})
 
-		FIt("rejects a bad provider specification for a wrong git url", func() {
+		It("rejects a bad provider specification for a wrong git url", func() {
 			out, err := env.Epinio("", "push",
 				"--name", appName,
 				"--git", wordpress,

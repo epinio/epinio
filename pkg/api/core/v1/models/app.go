@@ -71,6 +71,8 @@ func (p GitProvider) ValidateURL(gitURL string) error {
 		return fmt.Errorf("parsing git url `%s`", gitURL)
 	}
 
+	// The only assumption that we can do is that if the host is known (github or gitlab) then we know the provider,
+	// otherwise we cannot be sure about it, and we need to trust the user.
 	if (u.Host == "github.com" && p != ProviderGithub) ||
 		(u.Host == "gitlab.com" && p != ProviderGitlab) {
 		return fmt.Errorf("git url and provider mismatch `%s - %s`", gitURL, p)
