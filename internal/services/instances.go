@@ -43,6 +43,9 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 
 	srv, err := s.kubeClient.GetSecret(ctx, namespace, serviceName)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
 		return nil, errors.Wrap(err, "fetching the service instance")
 	}
 
@@ -226,6 +229,9 @@ func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) erro
 
 	err = s.kubeClient.DeleteSecret(ctx, namespace, service)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
 		return errors.Wrap(err, "error deleting service secret")
 	}
 
