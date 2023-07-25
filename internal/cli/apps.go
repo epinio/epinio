@@ -119,7 +119,8 @@ var CmdAppCreate = &cobra.Command{
 			return err
 		}
 
-		err = client.AppCreate(args[0], m.Configuration)
+		updateRequest := models.NewApplicationUpdateRequest(m)
+		err = client.AppCreate(args[0], updateRequest)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error creating app")
 	},
@@ -258,7 +259,17 @@ var CmdAppUpdate = &cobra.Command{
 			return errors.Wrap(err, "unable to update domains")
 		}
 
-		err = client.AppUpdate(args[0], m.Configuration)
+		manifestConfig := m.Configuration
+		updateRequest := models.ApplicationUpdateRequest{
+			Instances:      manifestConfig.Instances,
+			Configurations: manifestConfig.Configurations,
+			Environment:    manifestConfig.Environment,
+			Routes:         manifestConfig.Routes,
+			AppChart:       manifestConfig.AppChart,
+			Settings:       manifestConfig.Settings,
+		}
+
+		err = client.AppUpdate(args[0], updateRequest)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error updating the app")
 	},

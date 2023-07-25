@@ -43,17 +43,17 @@ type PushParams struct {
 // * wait for staging to be done (complete or fail)
 // * deploy
 // * wait for app
-func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // nolint: gocyclo // Many ifs for view purposes
+func (c *EpinioClient) Push(ctx context.Context, manifest models.ApplicationManifest) error { // nolint: gocyclo // Many ifs for view purposes
 
 	// Use settings default if user did not specify --app-chart
-	if params.Configuration.AppChart == "" {
-		params.Configuration.AppChart = c.Settings.AppChart
+	if manifest.Configuration.AppChart == "" {
+		manifest.Configuration.AppChart = c.Settings.AppChart
 	}
 
-	source := params.Origin.String()
+	source := manifest.Origin.String()
 	appRef := models.AppRef{
 		Meta: models.Meta{
-			Name:      params.Name,
+			Name:      manifest.Name,
 			Namespace: c.Settings.Namespace,
 		},
 	}
@@ -67,12 +67,12 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
 
 	msg := c.ui.Note().
-		WithStringValue("Manifest", params.Self). // This path is already platform-specific
+		WithStringValue("Manifest", manifest.Self). // This path is already platform-specific
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Source Origin", source).
-		WithStringValue("AppChart", params.Configuration.AppChart).
+		WithStringValue("AppChart", manifest.Configuration.AppChart).
 		WithStringValue("Target Namespace", appRef.Namespace)
-	for _, ev := range params.Configuration.Environment.List() {
+	for _, ev := range manifest.Configuration.Environment.List() {
 		msg = msg.WithStringValue(fmt.Sprintf("Environment '%s'", ev.Name), ev.Value)
 	}
 	// TODO ? Make this a table for nicer alignment
@@ -82,21 +82,21 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	}
 
 	// Show builder, if relevant (i.e. path/git sources, not for container)
-	if params.Origin.Kind != models.OriginContainer &&
-		params.Staging.Builder != "" {
-		msg = msg.WithStringValue("Builder", params.Staging.Builder)
+	if manifest.Origin.Kind != models.OriginContainer &&
+		manifest.Staging.Builder != "" {
+		msg = msg.WithStringValue("Builder", manifest.Staging.Builder)
 	}
 
-	if params.Configuration.Instances != nil {
+	if manifest.Configuration.Instances != nil {
 		msg = msg.WithStringValue("Instances",
-			strconv.Itoa(int(*params.Configuration.Instances)))
+			strconv.Itoa(int(*manifest.Configuration.Instances)))
 	}
-	if len(params.Configuration.Configurations) > 0 {
+	if len(manifest.Configuration.Configurations) > 0 {
 		msg = msg.WithStringValue("Configurations",
-			strings.Join(params.Configuration.Configurations, ", "))
+			strings.Join(manifest.Configuration.Configurations, ", "))
 	}
 
-	msg = routeMessage(msg, params.Configuration.Routes)
+	msg = routeMessage(msg, manifest.Configuration.Routes)
 
 	msg.Msg("About to push an application with the given setup")
 
@@ -113,9 +113,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	// AppCreate
 	c.ui.Normal().Msg("Create the application resource ...")
 
+	updateRequest := models.NewApplicationUpdateRequest(manifest)
 	_, err := c.API.AppCreate(models.ApplicationCreateRequest{
 		Name:          appRef.Name,
-		Configuration: params.Configuration,
+		Configuration: updateRequest,
 	}, appRef.Namespace)
 	if err != nil {
 		// try to recover if it's a response type Conflict error and not a http connection error
@@ -133,9 +134,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 
 		// do not restart during a push
 		restart := false
-		params.Configuration.Restart = &restart
+		updateRequest.Restart = &restart
 
-		_, err := c.API.AppUpdate(params.Configuration, appRef.Namespace, appRef.Name)
+		updateRequest := models.NewApplicationUpdateRequest(manifest)
+		_, err := c.API.AppUpdate(updateRequest, appRef.Namespace, appRef.Name)
 		if err != nil {
 			return err
 		}
@@ -149,7 +151,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 
 	// AppUpload / AppImportGit
 	var blobUID string
-	switch params.Origin.Kind {
+	switch manifest.Origin.Kind {
 	case models.OriginNone:
 		return fmt.Errorf("%s", "No application origin")
 	case models.OriginPath:
@@ -161,7 +163,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	case models.OriginGit:
 		c.ui.Normal().Msg("Importing the application sources from Git ...")
 
-		gitOrigin := params.Origin.Git
+		gitOrigin := manifest.Origin.Git
 		if gitOrigin == nil {
 			return errors.New("git origin is nil")
 		}
@@ -185,7 +187,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		blobUID = response.BlobUID
 		// if the server resolved the branch use that in the Git Origin
 		if response.Branch != "" {
-			params.Origin.Git.Branch = response.Branch
+			manifest.Origin.Git.Branch = response.Branch
 		}
 
 	case models.OriginContainer:
@@ -195,14 +197,14 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	// AppStage
 	stageID := ""
 	var stageResponse *models.StageResponse
-	if params.Origin.Kind != models.OriginContainer {
+	if manifest.Origin.Kind != models.OriginContainer {
 		c.ui.Normal().Msg("Staging application with code...")
 		c.ui.ProgressNote().Msg("Running staging")
 
 		req := models.StageRequest{
 			App:          appRef,
 			BlobUID:      blobUID,
-			BuilderImage: params.Staging.Builder,
+			BuilderImage: manifest.Staging.Builder,
 		}
 		details.Info("staging code", "Blob", blobUID)
 		stageResponse, err = c.API.AppStage(req)
@@ -231,12 +233,12 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	c.ui.Normal().Msg("Deploying application ...")
 	deployRequest := models.DeployRequest{
 		App:    appRef,
-		Origin: params.Origin,
+		Origin: manifest.Origin,
 	}
 	// If container param is specified, then we just take it into ImageURL
 	// If not, we take the one from the staging response
-	if params.Origin.Kind == models.OriginContainer {
-		deployRequest.ImageURL = params.Origin.Container
+	if manifest.Origin.Kind == models.OriginContainer {
+		deployRequest.ImageURL = manifest.Origin.Container
 	} else {
 		deployRequest.ImageURL = stageResponse.ImageURL
 		deployRequest.Stage = models.StageRef{ID: stageID}
@@ -258,7 +260,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		routes = append(routes, fmt.Sprintf("https://%s", d))
 	}
 
-	c.reportOK(appRef, params.Staging.Builder, routes)
+	c.reportOK(appRef, manifest.Staging.Builder, routes)
 	return nil
 }
 

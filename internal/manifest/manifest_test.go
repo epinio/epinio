@@ -36,10 +36,6 @@ var _ = Describe("Manifest", func() {
 				m, err := manifest.Get("missing.yml")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(m).To(Equal(models.ApplicationManifest{
-					ApplicationCreateRequest: models.ApplicationCreateRequest{
-						Name:          "",
-						Configuration: models.ApplicationUpdateRequest{},
-					},
 					Self: "<<Defaults>>",
 					Origin: models.ApplicationOrigin{
 						Kind:      models.OriginPath,
@@ -121,17 +117,15 @@ configuration:
 				Expect(err).ToNot(HaveOccurred())
 				var instances int32 = 2
 				Expect(m).To(Equal(models.ApplicationManifest{
-					ApplicationCreateRequest: models.ApplicationCreateRequest{
-						Name: "foo",
-						Configuration: models.ApplicationUpdateRequest{
-							Instances: &instances,
-							Configurations: []string{
-								"bar",
-							},
-							Environment: models.EnvVariableMap{
-								"DOGMA": "no",
-								"CREDO": "up",
-							},
+					Name: "foo",
+					Configuration: models.ApplicationConfiguration{
+						Instances: &instances,
+						Configurations: []string{
+							"bar",
+						},
+						Environment: models.EnvVariableMap{
+							"DOGMA": "no",
+							"CREDO": "up",
 						},
 					},
 					Self: path.Join(workdir, "goodyaml.yml"),

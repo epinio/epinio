@@ -96,7 +96,7 @@ type GitRef struct {
 // It is used in the CLI and API responses.
 type App struct {
 	Meta          AppRef                   `json:"meta"`
-	Configuration ApplicationUpdateRequest `json:"configuration"`
+	Configuration ApplicationConfiguration `json:"configuration"`
 	Origin        ApplicationOrigin        `json:"origin"`
 	Workload      *AppDeployment           `json:"deployment,omitempty"`
 	Staging       ApplicationStage         `json:"staging,omitempty"`
