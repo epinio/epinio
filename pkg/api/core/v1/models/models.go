@@ -354,15 +354,14 @@ type ServiceUnbindRequest struct {
 }
 
 type Service struct {
-	Meta                    Meta               `json:"meta,omitempty"`
-	SecretTypes             []string           `json:"secretTypes,omitempty"`
-	CatalogService          string             `json:"catalog_service,omitempty"`
-	CatalogServiceVersion   string             `json:"catalog_service_version,omitempty"`
-	Status                  ServiceStatus      `json:"status,omitempty"`
-	BoundApps               []string           `json:"boundapps"`
-	ManagedByHelmController bool               `json:"hcmanaged"`
-	InternalRoutes          []string           `json:"internal_routes,omitempty"`
-	Settings                ChartValueSettings `json:"settings,omitempty"`
+	Meta                  Meta               `json:"meta,omitempty"`
+	SecretTypes           []string           `json:"secretTypes,omitempty"`
+	CatalogService        string             `json:"catalog_service,omitempty"`
+	CatalogServiceVersion string             `json:"catalog_service_version,omitempty"`
+	Status                ServiceStatus      `json:"status,omitempty"`
+	BoundApps             []string           `json:"boundapps"`
+	InternalRoutes        []string           `json:"internal_routes,omitempty"`
+	Settings              ChartValueSettings `json:"settings,omitempty"`
 }
 
 func (s Service) Namespace() string {
