@@ -26,7 +26,6 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/names"
-	cerr "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 
@@ -108,49 +107,6 @@ func stageApplication(appName, namespace string, stageRequest models.StageReques
 	jobName := names.GenerateResourceName("stage", namespace, appName, stage.Stage.ID)
 	waitForStaging(jobName)
 	return stage
-}
-
-func deployApplication(appName, namespace string, request models.DeployRequest) models.DeployResponse {
-	response := deployApplicationRequest(appName, namespace, request)
-	defer response.Body.Close()
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-	deploy := &models.DeployResponse{}
-	err = json.Unmarshal(bodyBytes, deploy)
-	Expect(err).NotTo(HaveOccurred())
-
-	return *deploy
-}
-
-func deployApplicationWithFailure(appName, namespace string, request models.DeployRequest) cerr.ErrorResponse {
-	response := deployApplicationRequest(appName, namespace, request)
-	defer response.Body.Close()
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-
-	message := cerr.ErrorResponse{}
-	err = json.Unmarshal(bodyBytes, &message)
-	Expect(err).NotTo(HaveOccurred())
-
-	return message
-}
-
-func deployApplicationRequest(appName, namespace string, request models.DeployRequest) *http.Response {
-	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
-	bodyBytes, err := json.Marshal(request)
-	Expect(err).ToNot(HaveOccurred())
-	body := string(bodyBytes)
-
-	response, err := env.Curl("POST", url, strings.NewReader(body))
-	Expect(err).ToNot(HaveOccurred())
-	Expect(response).ToNot(BeNil())
-
-	return response
 }
 
 func waitForStaging(jobName string) {
