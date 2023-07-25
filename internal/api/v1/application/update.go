@@ -144,8 +144,9 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	}
 
 	// update instances
+	var desired int32
 	if updateRequest.Instances != nil {
-		desired := *updateRequest.Instances
+		desired = *updateRequest.Instances
 		log.Info("updating app", "instances", desired)
 
 		err := application.ScalingSet(ctx, cluster, appRef, desired)
@@ -199,12 +200,14 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	// backward compatibility: if no flag provided then restart the app
 	restart := updateRequest.Restart == nil || *updateRequest.Restart
-	if app.Workload != nil && restart {
-		log.Info("updating app -- restarting")
+	if restart {
+		if app.Workload != nil || desired > 0 {
+			log.Info("updating app -- restarting")
 
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
-		if apierr != nil {
-			return apierr
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+			if apierr != nil {
+				return apierr
+			}
 		}
 	}
 
