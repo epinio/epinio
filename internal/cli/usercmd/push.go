@@ -136,7 +136,6 @@ func (c *EpinioClient) Push(ctx context.Context, manifest models.ApplicationMani
 		restart := false
 		updateRequest.Restart = &restart
 
-		updateRequest := models.NewApplicationUpdateRequest(manifest)
 		_, err := c.API.AppUpdate(updateRequest, appRef.Namespace, appRef.Name)
 		if err != nil {
 			return err

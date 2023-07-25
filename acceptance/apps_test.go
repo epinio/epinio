@@ -773,6 +773,67 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 	})
 
+	When("pushing a failed staging application", func() {
+
+		var tmpDir string
+		var err error
+
+		BeforeEach(func() {
+			By("Pushing an app that will fail")
+			tmpDir, err = os.MkdirTemp("", "epinio-failing-app")
+			Expect(err).ToNot(HaveOccurred())
+
+			err = os.WriteFile(path.Join(tmpDir, "empty"), []byte(""), 0644)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Don't block because this push will only exit if it times out
+			go func() {
+				defer GinkgoRecover()
+				// Ignore any errors. When the main thread pushes the app again,
+				// this command will probably fail with an error because the helm release
+				// will be deleted by the other `push`.
+				_, _ = env.EpinioPush(tmpDir, appName, "--name", appName)
+			}()
+
+			// Wait until previous staging job is complete
+			By("waiting for the old staging job to fail")
+			Eventually(func() string {
+				statusJSON, err := proc.Kubectl(
+					"get", "jobs", "-A",
+					"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
+					"-o", "jsonpath={.items[].status['conditions'][]}",
+				)
+				if err != nil || statusJSON == "" {
+					return ""
+				}
+
+				var status map[string]string
+				err = json.Unmarshal([]byte(statusJSON), &status)
+				Expect(err).ToNot(HaveOccurred())
+
+				return status["type"]
+			}, 3*time.Minute, 3*time.Second).Should(BeEquivalentTo("Failed"))
+
+			DeferCleanup(func() {
+				os.RemoveAll(tmpDir)
+			})
+		})
+
+		It("succeeds when re-pushing a fix", func() {
+			// Fix the problem (so that the app now deploys fine) and push again
+			By("fixing the problem and pushing the application again")
+
+			os.Remove(path.Join(tmpDir, "empty"))
+			appCode := []byte("\n<?php\nphpinfo();\n?>\n")
+
+			err := os.WriteFile(path.Join(tmpDir, "index.php"), appCode, 0644)
+			Expect(err).ToNot(HaveOccurred())
+
+			out, err := env.EpinioPush(tmpDir, appName, "--name", appName, "--instances", "2")
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+	})
+
 	When("pushing an app multiple times", func() {
 		var (
 			timeout  = 30 * time.Second
