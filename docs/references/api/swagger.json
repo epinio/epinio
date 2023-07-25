@@ -2620,10 +2620,6 @@
           "type": "string",
           "x-go-name": "CatalogServiceVersion"
         },
-        "hcmanaged": {
-          "type": "boolean",
-          "x-go-name": "ManagedByHelmController"
-        },
         "internal_routes": {
           "type": "array",
           "items": {
