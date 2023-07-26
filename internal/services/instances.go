@@ -439,6 +439,24 @@ func setServiceStatusAndCustomValues(service *models.Service,
 			if err != nil {
 				// Not found - This custom value was not customized by the user.
 				// That is ok. Nothing to report.
+				// Actually, it may be customized using array syntax.
+				// Then it is not a pure nested map anymore. Trial this out.
+				// Done by checking shorter keys, starting from the longest.
+
+				pieces := strings.Split(key, ".")
+				pieces = pieces[0 : len(pieces)-1]
+
+				for len(pieces) > 0 {
+					key := strings.Join(pieces, ".")
+					customValue, err := configValues.PathValue(key)
+					if err == nil {
+						customValueAsString := fmt.Sprintf("%v", customValue)
+						customized[key] = customValueAsString
+						break
+					}
+					pieces = pieces[0 : len(pieces)-1]
+				}
+
 				continue
 			}
 			customValueAsString := fmt.Sprintf("%v", customValue)
