@@ -198,8 +198,9 @@ type ApplicationUpdateRequest struct {
 }
 
 type ImportGitResponse struct {
-	BlobUID string `json:"blobuid,omitempty"`
-	Branch  string `json:"branch,omitempty"`
+	BlobUID  string `json:"blobuid,omitempty"`
+	Branch   string `json:"branch,omitempty"`
+	Revision string `json:"revision,omitempty"`
 }
 
 // UploadRequest is a multipart form

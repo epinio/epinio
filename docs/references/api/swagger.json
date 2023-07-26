@@ -2438,6 +2438,10 @@
         "branch": {
           "type": "string",
           "x-go-name": "Branch"
+        },
+        "revision": {
+          "type": "string",
+          "x-go-name": "Revision"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
