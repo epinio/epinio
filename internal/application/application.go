@@ -56,17 +56,28 @@ func ValidateCV(cv models.ChartValueSettings, decl map[string]models.ChartSettin
 
 	var issues []error
 
+	// Pattern to strip array index syntax from the actual key to determine the underlying base
+	// setting to check against. Note that this handles inner array syntax too.
+	//
+	// Examples:	                               KEY                           KEYBASE
+	//   --set 'keycloak.ingress.hosts[0]=auth1' ~ 'keycloak.ingress.hosts[0]' ~ 'keycloak.ingress.hosts'
+	//   --set 'servers[0].port=80'              ~ 'servers[0].port'           ~ 'servers.port'
+
+	rex := regexp.MustCompile(`\[[^]]\]`)
+
 	for key, value := range cv {
-		spec, found := decl[key]
+		keybase := rex.ReplaceAllString(key, "")
+
+		spec, found := decl[keybase]
 		if !found {
-			issues = append(issues, fmt.Errorf(`Setting "%s": Not known`, key))
+			issues = append(issues, fmt.Errorf(`Setting "%s": Not known`, keybase))
 			continue
 		}
 
 		// Note: The interface{} result for the properly typed value is ignored here. We do
 		// not care about the value, just that it is ok.
 
-		_, err := helm.ValidateField(key, value, spec)
+		_, err := helm.ValidateField(keybase, value, spec)
 		if err != nil {
 			issues = append(issues, err)
 		}
