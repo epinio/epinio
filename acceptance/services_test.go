@@ -190,6 +190,9 @@ var _ = Describe("Services", LService, func() {
 					catalogService.Meta.Name, serviceName,
 					"--chart-value", "ingress.enabled=true",
 					"--chart-value", "ingress.hostname="+serviceHostname,
+					"--chart-value", "sequence[0]=alpha",
+					"--chart-value", "sequence[1]=omega",
+					"--chart-value", "other[0].sequence=delta",
 					"--wait",
 				)
 				Expect(err).ToNot(HaveOccurred(), out)
@@ -207,6 +210,8 @@ var _ = Describe("Services", LService, func() {
 						WithHeaders("KEY", "VALUE"),
 						WithRow("ingress.enabled", "true"),
 						WithRow("ingress.hostname", serviceHostname),
+						WithRow("sequence", `\[alpha omega\]`),
+						WithRow("other", `\[map\[sequence:delta\]\]`),
 					),
 				)
 			})
