@@ -267,18 +267,23 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, namespace string) error {
 
 	for _, srv := range services.Items {
 		// Inlined Delete() ... Avoids back and forth conversion between service and secret names
-		err := s.kubeClient.DeleteSecret(ctx, srv.ObjectMeta.Namespace, srv.ObjectMeta.Name)
-		if err != nil {
-			return errors.Wrap(err, "error deleting service secret")
-		}
-
 		service := srv.GetLabels()[ServiceNameLabelKey]
 
 		err = helm.RemoveService(requestctx.Logger(ctx),
 			s.kubeClient,
 			models.NewAppRef(service, srv.ObjectMeta.Namespace))
 		if err != nil {
-			return errors.Wrap(err, "error deleting service helm release")
+			// See [NF] for details
+			if !strings.Contains(err.Error(), "not found") {
+				return errors.Wrap(err, "error deleting service helm release")
+			}
+		}
+		err := s.kubeClient.DeleteSecret(ctx, srv.ObjectMeta.Namespace, srv.ObjectMeta.Name)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			return errors.Wrap(err, "error deleting service secret")
 		}
 	}
 
