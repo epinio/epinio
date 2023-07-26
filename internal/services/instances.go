@@ -224,7 +224,16 @@ func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) erro
 		models.NewAppRef(name, namespace),
 	)
 	if err != nil {
-		return errors.Wrap(err, "error deleting service helm release")
+		// [NF] NOTE: The err is some nested thing with a `not found` at the bottom.  The
+		// `apierrors.IsNotFound` does not recognize that. Its docs claim that it searches
+		// through the tree of wrapped errors. Maybe the `not found` is not a kube not
+		// found -- Helm ?
+		// ===> For now performing check by string match.
+		if !strings.Contains(err.Error(), "not found") {
+			return errors.Wrap(err, "error deleting service helm release")
+		}
+		// not found -> NAME may be a partially created service, i.e. secret exists, helm release does not.
+		// -> continue to deletion of the secret.
 	}
 
 	err = s.kubeClient.DeleteSecret(ctx, namespace, service)
