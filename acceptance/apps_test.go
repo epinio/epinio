@@ -783,6 +783,10 @@ var _ = Describe("Apps", LApplication, func() {
 			tmpDir, err = os.MkdirTemp("", "epinio-failing-app")
 			Expect(err).ToNot(HaveOccurred())
 
+			DeferCleanup(func() {
+				os.RemoveAll(tmpDir)
+			})
+
 			err = os.WriteFile(path.Join(tmpDir, "empty"), []byte(""), 0644)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -813,10 +817,6 @@ var _ = Describe("Apps", LApplication, func() {
 
 				return status["type"]
 			}, 3*time.Minute, 3*time.Second).Should(BeEquivalentTo("Failed"))
-
-			DeferCleanup(func() {
-				os.RemoveAll(tmpDir)
-			})
 		})
 
 		It("succeeds when re-pushing a fix", func() {
