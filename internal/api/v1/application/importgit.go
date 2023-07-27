@@ -125,6 +125,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	if ref != nil {
 		branch = ref.Name().Short()
 		revision = ref.Hash().String()
+		log.Info("resolved branch and revision", "branch", branch, "revision", revision)
 	}
 
 	// Create a tarball
@@ -160,13 +161,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 
-	log.Info("uploaded app",
-		"namespace", namespace,
-		"app", name,
-		"blobUID", blobUID,
-		"branch", branch,
-		"revision", revision,
-	)
+	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{
