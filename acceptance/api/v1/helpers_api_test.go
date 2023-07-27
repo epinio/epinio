@@ -17,6 +17,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -66,6 +69,32 @@ func appDeploy(namespace, app string, body io.Reader) ([]byte, int) {
 
 	endpoint := makeEndpoint(v1.Routes.Path("AppDeploy", namespace, app))
 	return curl(http.MethodPost, endpoint, body)
+}
+
+func appImportGit(namespace, app, gitURL, revision string) ([]byte, int) {
+	GinkgoHelper()
+
+	data := url.Values{}
+	data.Set("giturl", gitURL)
+	data.Set("gitrev", revision)
+
+	endpoint := makeEndpoint(v1.Routes.Path("AppImportGit", namespace, app))
+	request, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(data.Encode()))
+	Expect(err).ToNot(HaveOccurred())
+
+	request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+	response, err := env.Client().Do(request)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response).ToNot(BeNil())
+	defer response.Body.Close()
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	Expect(err).ToNot(HaveOccurred())
+
+	return bodyBytes, response.StatusCode
 }
 
 func curl(method, endpoint string, body io.Reader) ([]byte, int) {
