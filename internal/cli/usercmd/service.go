@@ -427,12 +427,17 @@ func (c *EpinioClient) ServicePortForward(ctx context.Context, serviceName strin
 		return err
 	}
 
-	/*
-		We use ServiceList API to check if we can establish a connection with the Epinio backend service.
-	*/
-	_, err := c.API.ServiceList(c.Settings.Namespace)
+	// Early client side check for service existence.
+	// This incidentally also checks that the API server is generally available.
+	//
+	// While the service port forwarding handler H does the same kind of checks, H is only
+	// invoked whenever a connection is made to the local forwarded port, i.e. late in the
+	// game. (Compare and contrast to the app port forwarding which makes an immediate web
+	// socket connection to its handler).
+
+	_, err := c.API.ServiceShow(c.Settings.Namespace, serviceName)
 	if err != nil {
-		return errors.Wrap(err, "Cannot establish a connection with Epinio server")
+		return err
 	}
 
 	opts := client.NewPortForwardOpts(address, ports)

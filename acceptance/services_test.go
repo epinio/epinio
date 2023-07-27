@@ -948,6 +948,15 @@ var _ = Describe("Services", LService, func() {
 			Expect(string(body)).To(ContainSubstring("Welcome to nginx!"))
 		}
 
+		It("fails to port-forward to an unknown service", func() {
+			port := randomPort()
+			serviceName := catalog.NewServiceName()
+
+			out, err := env.Epinio("", "service", "port-forward", serviceName, port)
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("error port forwarding to service: service '" + serviceName + "' does not exist"))
+		})
+
 		It("port-forward a service with a single listening port", func() {
 			port := randomPort()
 
