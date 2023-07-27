@@ -15,6 +15,7 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
@@ -42,6 +43,31 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 	})
 
 	Describe("POST /namespaces/:namespace/applications/:app/import-git", func() {
+
+		It("fails for no gitURL", func() {
+			bodyBytes, statusCode := appImportGit(namespace, app, "", "")
+			ExpectBadRequestError(bodyBytes, statusCode, "missing giturl")
+		})
+
+		It("fails for wrong gitURL", func() {
+			bodyBytes, statusCode := appImportGit(namespace, app, "github.com", "")
+			ExpectBadRequestError(bodyBytes, statusCode, "missing scheme or host in giturl [://]")
+
+			bodyBytes, statusCode = appImportGit(namespace, app, "//github.com", "")
+			ExpectBadRequestError(bodyBytes, statusCode, "missing scheme or host in giturl [://github.com]")
+
+			bodyBytes, statusCode = appImportGit(namespace, app, "git://", "")
+			ExpectBadRequestError(bodyBytes, statusCode, "missing scheme or host in giturl [git://]")
+		})
+
+		It("fails for wrong git revision", func() {
+			revision := "non-existing"
+
+			bodyBytes, statusCode := appImportGit(namespace, app, gitURL, revision)
+			Expect(statusCode).To(Equal(http.StatusInternalServerError), string(bodyBytes))
+			errorResponse := fromJSON[apierrors.ErrorResponse](bodyBytes)
+			Expect(errorResponse.Errors[0].Title).To(Equal("reference not found"))
+		})
 
 		It("imports the git repo in the blob store without specifying revision", func() {
 			revision := ""

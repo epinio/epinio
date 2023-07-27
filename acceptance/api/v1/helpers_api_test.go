@@ -145,7 +145,7 @@ func ExpectResponseToBeOK(bodyBytes []byte, statusCode int) {
 func ExpectBadRequestError(bodyBytes []byte, statusCode int, expectedErrorMsg string) {
 	GinkgoHelper()
 
-	Expect(statusCode).To(Equal(http.StatusBadRequest))
+	Expect(statusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 
 	errorResponse := fromJSON[apierrors.ErrorResponse](bodyBytes)
 	Expect(errorResponse.Errors[0].Title).To(Equal(expectedErrorMsg))

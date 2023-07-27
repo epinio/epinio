@@ -76,6 +76,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -105,8 +106,13 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	namespace := c.Param("namespace")
 	name := c.Param("app")
 
-	url := c.PostForm("giturl")
+	giturl := c.PostForm("giturl")
 	revision := c.PostForm("gitrev")
+
+	errGitURL := validateGitURL(giturl)
+	if errGitURL != nil {
+		return errGitURL
+	}
 
 	gitRepo, err := os.MkdirTemp("", "epinio-app")
 	if err != nil {
@@ -115,10 +121,10 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	defer os.RemoveAll(gitRepo)
 
 	// clone/fetch/checkout
-	ref, err := checkoutRepository(ctx, log, gitRepo, url, revision)
+	ref, err := checkoutRepository(ctx, log, gitRepo, giturl, revision)
 	if err != nil {
 		return apierror.InternalError(err,
-			fmt.Sprintf("cloning the git repository: %s @ %s", url, revision))
+			fmt.Sprintf("cloning the git repository: %s @ %s", giturl, revision))
 	}
 
 	var branch string
@@ -169,6 +175,23 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		Branch:   branch,
 		Revision: revision,
 	})
+	return nil
+}
+
+func validateGitURL(gitURL string) apierror.APIErrors {
+	if gitURL == "" {
+		return apierror.NewBadRequestError("missing giturl")
+	}
+
+	u, err := url.Parse(gitURL)
+	if err != nil {
+		return apierror.NewBadRequestErrorf("invalid giturl %s", err.Error())
+	}
+
+	if u.Scheme == "" || u.Host == "" {
+		return apierror.NewBadRequestErrorf("missing scheme or host in giturl [%s://%s]", u.Scheme, u.Host)
+	}
+
 	return nil
 }
 
