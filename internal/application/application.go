@@ -70,7 +70,32 @@ func ValidateCV(cv models.ChartValueSettings, decl map[string]models.ChartSettin
 
 		spec, found := decl[keybase]
 		if !found {
-			issues = append(issues, fmt.Errorf(`Setting "%s": Not known`, keybase))
+			// Shorten the key incrementally to see if a prefix exists and is a map.
+
+			nestedmap := false
+			pieces := strings.Split(keybase, ".")
+			pieces = pieces[0 : len(pieces)-1]
+
+			for len(pieces) > 0 {
+				prefix := strings.Join(pieces, ".")
+
+				spec, found := decl[prefix]
+				if found && spec.Type == "map" {
+					nestedmap = true
+					break
+				}
+
+				pieces = pieces[0 : len(pieces)-1]
+			}
+
+			if !nestedmap {
+				issues = append(issues, fmt.Errorf(`Setting "%s": Not known`, keybase))
+			}
+			continue
+		}
+
+		// Maps are not checked deeper.
+		if spec.Type == "map" {
 			continue
 		}
 

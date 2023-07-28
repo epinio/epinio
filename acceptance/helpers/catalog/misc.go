@@ -56,6 +56,9 @@ func NginxCatalogService(name string) models.CatalogService {
 			"other.sequence": {
 				Type: "string",
 			},
+			"nesting": {
+				Type: "map",
+			},
 		},
 	}
 }

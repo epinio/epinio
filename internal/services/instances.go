@@ -435,32 +435,30 @@ func setServiceStatusAndCustomValues(service *models.Service,
 		configValues := chartutil.Values(serviceRelease.Config)
 
 		for key := range settings {
-			customValue, err := configValues.PathValue(key)
-			if err != nil {
-				// Not found - This custom value was not customized by the user.
-				// That is ok. Nothing to report.
-				// Actually, it may be customized using array syntax.
-				// Then it is not a pure nested map anymore. Trial this out.
-				// Done by checking shorter keys, starting from the longest.
-
-				pieces := strings.Split(key, ".")
-				pieces = pieces[0 : len(pieces)-1]
-
-				for len(pieces) > 0 {
-					key := strings.Join(pieces, ".")
-					customValue, err := configValues.PathValue(key)
-					if err == nil {
-						customValueAsString := fmt.Sprintf("%v", customValue)
-						customized[key] = customValueAsString
-						break
-					}
-					pieces = pieces[0 : len(pieces)-1]
-				}
-
+			value, err := getValue(configValues, key, true)
+			if err == nil {
+				customized[key] = value
 				continue
 			}
-			customValueAsString := fmt.Sprintf("%v", customValue)
-			customized[key] = customValueAsString
+
+			// Not found as-is. Walk the path up to see if there is a match for a prefix
+			// of the setting. This is possible if there is an inner array keeping
+			// things from being a pure nested map.
+
+			pieces := strings.Split(key, ".")
+			pieces = pieces[0 : len(pieces)-1]
+
+			for len(pieces) > 0 {
+				key := strings.Join(pieces, ".")
+
+				value, err := getValue(configValues, key, false)
+				if err == nil {
+					customized[key] = value
+					break
+				}
+
+				pieces = pieces[0 : len(pieces)-1]
+			}
 		}
 
 		if len(customized) > 0 {
@@ -468,4 +466,20 @@ func setServiceStatusAndCustomValues(service *models.Service,
 		}
 	}
 	return nil
+}
+
+func getValue(values chartutil.Values, key string, maybetable bool) (string, error) {
+	value, err := values.PathValue(key)
+	if err == nil {
+		valueAsString := fmt.Sprintf("%v", value)
+		return valueAsString, nil
+	}
+	if maybetable {
+		tvalue, terr := values.Table(key)
+		if terr == nil {
+			valueAsString := fmt.Sprintf("%v", tvalue)
+			return valueAsString, nil
+		}
+	}
+	return "", err
 }
