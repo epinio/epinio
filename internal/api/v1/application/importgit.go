@@ -78,6 +78,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-git/plumbing/storer"
@@ -331,7 +332,9 @@ func findReferenceForRevision(repo *git.Repository, revision plumbing.Hash) (*pl
 
 	// we need to create a new reference from the one matching the revision,
 	// because it will not return the expected commit that we checked, but the last one.
-	matchingRef = plumbing.NewReferenceFromStrings(matchingRef.Name().String(), revision.String())
+	// We also need to remove the 'origin/' prefix, or the UI will not work.
+	refName := strings.TrimPrefix(matchingRef.Name().Short(), "origin/")
+	matchingRef = plumbing.NewReferenceFromStrings(refName, revision.String())
 	return matchingRef, nil
 }
 

@@ -120,5 +120,35 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 			Expect(importResponse.Branch).ToNot(BeEmpty())
 			Expect(importResponse.Revision).To(Equal("48c02bd5766061c0ea9875ca1fd9908e3a20aeb8"))
 		})
+
+		It("imports the git repo from a tag and has the right branch and commit", func() {
+			exampleGoURL := "https://github.com/epinio/example-go"
+			revision := "v0.0.2"
+
+			bodyBytes, statusCode := appImportGit(namespace, app, exampleGoURL, revision)
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			importResponse := fromJSON[models.ImportGitResponse](bodyBytes)
+			Expect(importResponse.BlobUID).ToNot(BeEmpty())
+			Expect(importResponse.BlobUID).To(BeUUID())
+			Expect(importResponse.Branch).ToNot(BeEmpty())
+			Expect(importResponse.Branch).To(Equal("main"))
+			Expect(importResponse.Revision).To(Equal("e84b2a73b2c1bb88d9cdc99ffca1a3d05b3d261b"))
+		})
+
+		It("imports the git repo from a commit and has the right branch", func() {
+			exampleGoURL := "https://github.com/epinio/example-go"
+			revision := "15e2b2690ac9b372963544384b9aa43955a2e611"
+
+			bodyBytes, statusCode := appImportGit(namespace, app, exampleGoURL, revision)
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			importResponse := fromJSON[models.ImportGitResponse](bodyBytes)
+			Expect(importResponse.BlobUID).ToNot(BeEmpty())
+			Expect(importResponse.BlobUID).To(BeUUID())
+			Expect(importResponse.Branch).ToNot(BeEmpty())
+			Expect(importResponse.Branch).To(Equal("test"))
+			Expect(importResponse.Revision).To(Equal("15e2b2690ac9b372963544384b9aa43955a2e611"))
+		})
 	})
 })
