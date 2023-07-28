@@ -12,16 +12,10 @@
 package v1_test
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	v1 "github.com/epinio/epinio/internal/api/v1"
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
@@ -50,104 +44,111 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 
 	Describe("POST /namespaces/:namespace/applications/:app/import-git", func() {
 
-		doImportGitRequest := func(namespace, app, revision string) (*http.Response, error) {
-			data := url.Values{}
-			data.Set("giturl", gitURL)
-			data.Set("gitrev", revision)
+		It("fails for no gitURL", func() {
+			bodyBytes, statusCode := appImportGit(namespace, app, "", "")
+			ExpectBadRequestError(bodyBytes, statusCode, "missing giturl")
+		})
 
-			url := fmt.Sprintf("%s%s/%s", serverURL, v1.Root, v1.Routes.Path("AppImportGit", namespace, app))
-			request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
-			if err != nil {
-				return nil, err
-			}
+		It("fails for wrong gitURL", func() {
+			bodyBytes, statusCode := appImportGit(namespace, app, "github.com", "")
+			ExpectBadRequestError(bodyBytes, statusCode, "missing scheme or host in giturl [://]")
 
-			request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
-			request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-			request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+			bodyBytes, statusCode = appImportGit(namespace, app, "//github.com", "")
+			ExpectBadRequestError(bodyBytes, statusCode, "missing scheme or host in giturl [://github.com]")
 
-			return env.Client().Do(request)
-		}
+			bodyBytes, statusCode = appImportGit(namespace, app, "git://", "")
+			ExpectBadRequestError(bodyBytes, statusCode, "missing scheme or host in giturl [git://]")
+		})
+
+		It("fails for wrong git revision", func() {
+			revision := "non-existing"
+
+			bodyBytes, statusCode := appImportGit(namespace, app, gitURL, revision)
+			Expect(statusCode).To(Equal(http.StatusInternalServerError), string(bodyBytes))
+			errorResponse := fromJSON[apierrors.ErrorResponse](bodyBytes)
+			Expect(errorResponse.Errors[0].Title).To(Equal("reference not found"))
+		})
 
 		It("imports the git repo in the blob store without specifying revision", func() {
 			revision := ""
 
-			response, err := doImportGitRequest(namespace, app, revision)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
+			bodyBytes, statusCode := appImportGit(namespace, app, gitURL, revision)
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-			defer response.Body.Close()
-			bodyBytes, err := io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
-			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-			var importResponse models.ImportGitResponse
-			err = json.Unmarshal(bodyBytes, &importResponse)
-			Expect(err).ToNot(HaveOccurred())
+			importResponse := fromJSON[models.ImportGitResponse](bodyBytes)
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
-			Expect(importResponse.Branch).ToNot(BeEmpty())
 			Expect(importResponse.Branch).To(Equal("main"))
+			Expect(importResponse.Revision).ToNot(BeEmpty())
 		})
 
 		It("imports the git repo in the blob store from a branch", func() {
 			revision := "main"
 
-			response, err := doImportGitRequest(namespace, app, revision)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
+			bodyBytes, statusCode := appImportGit(namespace, app, gitURL, revision)
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-			defer response.Body.Close()
-			bodyBytes, err := io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
-			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-			var importResponse models.ImportGitResponse
-			err = json.Unmarshal(bodyBytes, &importResponse)
-			Expect(err).ToNot(HaveOccurred())
+			importResponse := fromJSON[models.ImportGitResponse](bodyBytes)
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
-			Expect(importResponse.Branch).ToNot(BeEmpty())
 			Expect(importResponse.Branch).To(Equal("main"))
+			Expect(importResponse.Revision).ToNot(BeEmpty())
 		})
 
 		It("imports the git repo in the blob store from a revision", func() {
 			revision := "48c02bd5766061c0ea9875ca1fd9908e3a20aeb8"
 
-			response, err := doImportGitRequest(namespace, app, revision)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
+			bodyBytes, statusCode := appImportGit(namespace, app, gitURL, revision)
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-			defer response.Body.Close()
-			bodyBytes, err := io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
-			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-			var importResponse models.ImportGitResponse
-			err = json.Unmarshal(bodyBytes, &importResponse)
-			Expect(err).ToNot(HaveOccurred())
+			importResponse := fromJSON[models.ImportGitResponse](bodyBytes)
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
 			Expect(importResponse.Branch).ToNot(BeEmpty())
+			Expect(importResponse.Revision).To(Equal("48c02bd5766061c0ea9875ca1fd9908e3a20aeb8"))
 		})
 
 		It("imports the git repo in the blob store from a short commit revision", func() {
 			revision := "48c02bd"
 
-			response, err := doImportGitRequest(namespace, app, revision)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
+			bodyBytes, statusCode := appImportGit(namespace, app, gitURL, revision)
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-			defer response.Body.Close()
-			bodyBytes, err := io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
-			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-			var importResponse models.ImportGitResponse
-			err = json.Unmarshal(bodyBytes, &importResponse)
-			Expect(err).ToNot(HaveOccurred())
+			importResponse := fromJSON[models.ImportGitResponse](bodyBytes)
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
 			Expect(importResponse.Branch).ToNot(BeEmpty())
+			Expect(importResponse.Revision).To(Equal("48c02bd5766061c0ea9875ca1fd9908e3a20aeb8"))
+		})
+
+		It("imports the git repo from a tag and has the right branch and commit", func() {
+			exampleGoURL := "https://github.com/epinio/example-go"
+			revision := "v0.0.2"
+
+			bodyBytes, statusCode := appImportGit(namespace, app, exampleGoURL, revision)
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			importResponse := fromJSON[models.ImportGitResponse](bodyBytes)
+			Expect(importResponse.BlobUID).ToNot(BeEmpty())
+			Expect(importResponse.BlobUID).To(BeUUID())
+			Expect(importResponse.Branch).ToNot(BeEmpty())
+			Expect(importResponse.Branch).To(Equal("main"))
+			Expect(importResponse.Revision).To(Equal("e84b2a73b2c1bb88d9cdc99ffca1a3d05b3d261b"))
+		})
+
+		It("imports the git repo from a commit and has the right branch", func() {
+			exampleGoURL := "https://github.com/epinio/example-go"
+			revision := "15e2b2690ac9b372963544384b9aa43955a2e611"
+
+			bodyBytes, statusCode := appImportGit(namespace, app, exampleGoURL, revision)
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			importResponse := fromJSON[models.ImportGitResponse](bodyBytes)
+			Expect(importResponse.BlobUID).ToNot(BeEmpty())
+			Expect(importResponse.BlobUID).To(BeUUID())
+			Expect(importResponse.Branch).ToNot(BeEmpty())
+			Expect(importResponse.Branch).To(Equal("test"))
+			Expect(importResponse.Revision).To(Equal("15e2b2690ac9b372963544384b9aa43955a2e611"))
 		})
 	})
 })

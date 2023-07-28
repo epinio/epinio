@@ -183,6 +183,8 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		if response.Branch != "" {
 			params.Origin.Git.Branch = response.Branch
 		}
+		// update the revision with the one updated by the server
+		params.Origin.Git.Revision = response.Revision
 
 	case models.OriginContainer:
 		// Nothing to upload (nor stage)

@@ -76,9 +76,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-git/plumbing/storer"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -104,8 +107,13 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	namespace := c.Param("namespace")
 	name := c.Param("app")
 
-	url := c.PostForm("giturl")
+	giturl := c.PostForm("giturl")
 	revision := c.PostForm("gitrev")
+
+	errGitURL := validateGitURL(giturl)
+	if errGitURL != nil {
+		return errGitURL
+	}
 
 	gitRepo, err := os.MkdirTemp("", "epinio-app")
 	if err != nil {
@@ -114,15 +122,17 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	defer os.RemoveAll(gitRepo)
 
 	// clone/fetch/checkout
-	ref, err := checkoutRepository(ctx, log, gitRepo, url, revision)
+	ref, err := checkoutRepository(ctx, log, gitRepo, giturl, revision)
 	if err != nil {
 		return apierror.InternalError(err,
-			fmt.Sprintf("cloning the git repository: %s @ %s", url, revision))
+			fmt.Sprintf("cloning the git repository: %s @ %s", giturl, revision))
 	}
 
 	var branch string
 	if ref != nil {
 		branch = ref.Name().Short()
+		revision = ref.Hash().String()
+		log.Info("resolved branch and revision", "branch", branch, "revision", revision)
 	}
 
 	// Create a tarball
@@ -157,18 +167,36 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
+
 	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{
-		BlobUID: blobUID,
-		Branch:  branch,
+		BlobUID:  blobUID,
+		Branch:   branch,
+		Revision: revision,
 	})
 	return nil
 }
 
+func validateGitURL(gitURL string) apierror.APIErrors {
+	if gitURL == "" {
+		return apierror.NewBadRequestError("missing giturl")
+	}
+
+	u, err := url.Parse(gitURL)
+	if err != nil {
+		return apierror.NewBadRequestErrorf("invalid giturl %s", err.Error())
+	}
+
+	if u.Scheme == "" || u.Host == "" {
+		return apierror.NewBadRequestErrorf("missing scheme or host in giturl [%s://%s]", u.Scheme, u.Host)
+	}
+
+	return nil
+}
+
 var (
-	errDone              = errors.New("iteration done")
 	errReferenceNotFound = errors.New("reference not found")
 )
 
@@ -288,13 +316,13 @@ func findReferenceForRevision(repo *git.Repository, revision plumbing.Hash) (*pl
 		}
 		if found {
 			matchingRef = r
-			return errDone
+			return storer.ErrStop
 		}
 
 		return nil
 	})
 	// if something bad happened, return
-	if err != nil && !errors.Is(err, errDone) {
+	if err != nil && !errors.Is(err, storer.ErrStop) {
 		return nil, err
 	}
 	// no matching reference found, return a specific error
@@ -302,6 +330,11 @@ func findReferenceForRevision(repo *git.Repository, revision plumbing.Hash) (*pl
 		return nil, errReferenceNotFound
 	}
 
+	// we need to create a new reference from the one matching the revision,
+	// because it will not return the expected commit that we checked, but the last one.
+	// We also need to remove the 'origin/' prefix, or the UI will not work.
+	refName := strings.TrimPrefix(matchingRef.Name().Short(), "origin/")
+	matchingRef = plumbing.NewReferenceFromStrings(refName, revision.String())
 	return matchingRef, nil
 }
 
@@ -319,18 +352,18 @@ func containsRevision(repo *git.Repository, revision plumbing.Hash, commitMap ma
 	err = commitIter.ForEach(func(c *object.Commit) error {
 		if c.Hash.String() == revision.String() {
 			found = true
-			return errDone
+			return storer.ErrStop
 		}
 
 		if _, found := commitMap[c.Hash.String()]; found {
-			return errDone
+			return storer.ErrStop
 		}
 
 		commitMap[c.Hash.String()] = struct{}{}
 		return nil
 	})
 
-	if err != nil && !errors.Is(err, errDone) {
+	if err != nil && !errors.Is(err, storer.ErrStop) {
 		return found, err
 
 	}
