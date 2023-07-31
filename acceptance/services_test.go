@@ -210,10 +210,10 @@ var _ = Describe("Services", LService, func() {
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("ingress.enabled", "true"),
-						WithRow("ingress.hostname", serviceHostname),
-						WithRow("nesting", `map\[here:map\[hello:world\]\]`),
-						WithRow("other", `\[map\[sequence:delta\]\]`),
-						WithRow("sequence", `\[alpha omega\]`),
+						WithRow("ingress.hostname", `"`+serviceHostname+`"`),
+						WithRow("nesting", `{"here":{"hello":"world"}}`),
+						WithRow("other", `\[{"sequence":"delta"}\]`),
+						WithRow("sequence", `\["alpha","omega"\]`),
 					),
 				)
 			})

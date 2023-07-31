@@ -13,6 +13,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -471,13 +472,21 @@ func setServiceStatusAndCustomValues(service *models.Service,
 func getValue(values chartutil.Values, key string, maybetable bool) (string, error) {
 	value, err := values.PathValue(key)
 	if err == nil {
-		valueAsString := fmt.Sprintf("%v", value)
+		data, err := json.Marshal(value)
+		if err != nil {
+			return "", err
+		}
+		valueAsString := string(data)
 		return valueAsString, nil
 	}
 	if maybetable {
 		tvalue, terr := values.Table(key)
 		if terr == nil {
-			valueAsString := fmt.Sprintf("%v", tvalue)
+			data, err := json.Marshal(tvalue)
+			if err != nil {
+				return "", err
+			}
+			valueAsString := string(data)
 			return valueAsString, nil
 		}
 	}
