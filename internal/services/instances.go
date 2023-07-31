@@ -13,6 +13,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -224,7 +225,16 @@ func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) erro
 		models.NewAppRef(name, namespace),
 	)
 	if err != nil {
-		return errors.Wrap(err, "error deleting service helm release")
+		// [NF] NOTE: The err is some nested thing with a `not found` at the bottom.  The
+		// `apierrors.IsNotFound` does not recognize that. Its docs claim that it searches
+		// through the tree of wrapped errors. Maybe the `not found` is not a kube not
+		// found -- Helm ?
+		// ===> For now performing check by string match.
+		if !strings.Contains(err.Error(), "not found") {
+			return errors.Wrap(err, "error deleting service helm release")
+		}
+		// not found -> NAME may be a partially created service, i.e. secret exists, helm release does not.
+		// -> continue to deletion of the secret.
 	}
 
 	err = s.kubeClient.DeleteSecret(ctx, namespace, service)
@@ -258,18 +268,23 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, namespace string) error {
 
 	for _, srv := range services.Items {
 		// Inlined Delete() ... Avoids back and forth conversion between service and secret names
-		err := s.kubeClient.DeleteSecret(ctx, srv.ObjectMeta.Namespace, srv.ObjectMeta.Name)
-		if err != nil {
-			return errors.Wrap(err, "error deleting service secret")
-		}
-
 		service := srv.GetLabels()[ServiceNameLabelKey]
 
 		err = helm.RemoveService(requestctx.Logger(ctx),
 			s.kubeClient,
 			models.NewAppRef(service, srv.ObjectMeta.Namespace))
 		if err != nil {
-			return errors.Wrap(err, "error deleting service helm release")
+			// See [NF] for details
+			if !strings.Contains(err.Error(), "not found") {
+				return errors.Wrap(err, "error deleting service helm release")
+			}
+		}
+		err := s.kubeClient.DeleteSecret(ctx, srv.ObjectMeta.Namespace, srv.ObjectMeta.Name)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			return errors.Wrap(err, "error deleting service secret")
 		}
 	}
 
@@ -421,14 +436,30 @@ func setServiceStatusAndCustomValues(service *models.Service,
 		configValues := chartutil.Values(serviceRelease.Config)
 
 		for key := range settings {
-			customValue, err := configValues.PathValue(key)
-			if err != nil {
-				// Not found - This custom value was not customized by the user.
-				// That is ok. Nothing to report.
+			value, err := getValue(configValues, key, true)
+			if err == nil {
+				customized[key] = value
 				continue
 			}
-			customValueAsString := fmt.Sprintf("%v", customValue)
-			customized[key] = customValueAsString
+
+			// Not found as-is. Walk the path up to see if there is a match for a prefix
+			// of the setting. This is possible if there is an inner array keeping
+			// things from being a pure nested map.
+
+			pieces := strings.Split(key, ".")
+			pieces = pieces[0 : len(pieces)-1]
+
+			for len(pieces) > 0 {
+				key := strings.Join(pieces, ".")
+
+				value, err := getValue(configValues, key, false)
+				if err == nil {
+					customized[key] = value
+					break
+				}
+
+				pieces = pieces[0 : len(pieces)-1]
+			}
 		}
 
 		if len(customized) > 0 {
@@ -436,4 +467,28 @@ func setServiceStatusAndCustomValues(service *models.Service,
 		}
 	}
 	return nil
+}
+
+func getValue(values chartutil.Values, key string, maybetable bool) (string, error) {
+	value, err := values.PathValue(key)
+	if err == nil {
+		data, err := json.Marshal(value)
+		if err != nil {
+			return "", err
+		}
+		valueAsString := string(data)
+		return valueAsString, nil
+	}
+	if maybetable {
+		tvalue, terr := values.Table(key)
+		if terr == nil {
+			data, err := json.Marshal(tvalue)
+			if err != nil {
+				return "", err
+			}
+			valueAsString := string(data)
+			return valueAsString, nil
+		}
+	}
+	return "", err
 }

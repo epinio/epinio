@@ -52,6 +52,9 @@ func settingToString(spec models.ChartSetting) string {
 	if spec.Type == "bool" {
 		return ""
 	}
+	if spec.Type == "map" {
+		return ""
+	}
 	if spec.Type == "string" {
 		if len(spec.Enum) > 0 {
 			return strings.Join(spec.Enum, ", ")

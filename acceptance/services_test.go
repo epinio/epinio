@@ -190,6 +190,10 @@ var _ = Describe("Services", LService, func() {
 					catalogService.Meta.Name, serviceName,
 					"--chart-value", "ingress.enabled=true",
 					"--chart-value", "ingress.hostname="+serviceHostname,
+					"--chart-value", "sequence[0]=alpha",
+					"--chart-value", "sequence[1]=omega",
+					"--chart-value", "other[0].sequence=delta",
+					"--chart-value", "nesting.here.hello=world",
 					"--wait",
 				)
 				Expect(err).ToNot(HaveOccurred(), out)
@@ -206,7 +210,10 @@ var _ = Describe("Services", LService, func() {
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("ingress.enabled", "true"),
-						WithRow("ingress.hostname", serviceHostname),
+						WithRow("ingress.hostname", `"`+serviceHostname+`"`),
+						WithRow("nesting", `{"here":{"hello":"world"}}`),
+						WithRow("other", `\[{"sequence":"delta"}\]`),
+						WithRow("sequence", `\["alpha","omega"\]`),
 					),
 				)
 			})

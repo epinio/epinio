@@ -50,6 +50,15 @@ func NginxCatalogService(name string) models.CatalogService {
 			"ingress.hostname": {
 				Type: "string",
 			},
+			"sequence": {
+				Type: "string",
+			},
+			"other.sequence": {
+				Type: "string",
+			},
+			"nesting": {
+				Type: "map",
+			},
 		},
 	}
 }
