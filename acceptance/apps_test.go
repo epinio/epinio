@@ -197,7 +197,12 @@ var _ = Describe("Apps", LApplication, func() {
 
 			It("creates the workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.EpinioPush(appDir, appName, "--name", appName)
+				out, err := env.EpinioPush(appDir, appName, "--name", appName,
+					"--env", "CREDO=up",
+					"--env", "DOGMA=no",
+					"--env", "COMPLEX=-X foo=bar",
+					"--env", "COMPLEXB=-Xbab -Xaba",
+				)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("App is online"))
 			})
