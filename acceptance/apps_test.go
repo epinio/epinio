@@ -105,6 +105,7 @@ var _ = Describe("Apps", LApplication, func() {
 					"--env", "CREDO=up",
 					"--env", "DOGMA=no",
 					"--env", "COMPLEX=-X foo=bar",
+					"--env", "COMPLEXB=-Xbab -Xaba",
 				)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("Ok"))
@@ -125,6 +126,7 @@ var _ = Describe("Apps", LApplication, func() {
 						WithRow("Bound Configurations", configurationName),
 						WithRow("Environment", ""),
 						WithRow("- COMPLEX", "-X foo=bar"),
+						WithRow("- COMPLEXB", "-Xbab -Xaba"),
 						WithRow("- CREDO", "up"),
 						WithRow("- DOGMA", "no"),
 					),
