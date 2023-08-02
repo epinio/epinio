@@ -223,7 +223,7 @@ var (
 // checkoutRepository will clone the repository and it will checkout the revision
 // It will also try to find the matching branch/reference, and if found this will be returned
 func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
-	cloneOptions := &git.CloneOptions{URL: url}
+	cloneOptions := git.CloneOptions{URL: url}
 	cloneOptions = loadCloneOptions(cloneOptions, gitconfig)
 
 	if revision == "" {
@@ -244,7 +244,7 @@ func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revi
 
 	// we are left we the full clone option
 	log.Info("importgit, cloning plain", "url", url)
-	repo, err := git.PlainCloneContext(ctx, gitRepo, false, cloneOptions)
+	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &cloneOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -279,8 +279,8 @@ func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revi
 	return ref, nil
 }
 
-func loadCloneOptions(opts *git.CloneOptions, config *gitbridge.Configuration) *git.CloneOptions {
-	if config == nil || opts == nil {
+func loadCloneOptions(opts git.CloneOptions, config *gitbridge.Configuration) git.CloneOptions {
+	if config == nil {
 		return opts
 	}
 
@@ -300,10 +300,10 @@ func loadCloneOptions(opts *git.CloneOptions, config *gitbridge.Configuration) *
 	return opts
 }
 
-func shallowCheckout(ctx context.Context, gitRepo string, opts *git.CloneOptions) (*plumbing.Reference, error) {
+func shallowCheckout(ctx context.Context, gitRepo string, opts git.CloneOptions) (*plumbing.Reference, error) {
 	opts.Depth = 1
 
-	repo, err := git.PlainCloneContext(ctx, gitRepo, false, opts)
+	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &opts)
 	if err != nil {
 		return nil, err
 	}
@@ -311,12 +311,12 @@ func shallowCheckout(ctx context.Context, gitRepo string, opts *git.CloneOptions
 	return repo.Head()
 }
 
-func branchCheckout(ctx context.Context, gitRepo, revision string, opts *git.CloneOptions) (*plumbing.Reference, error) {
+func branchCheckout(ctx context.Context, gitRepo, revision string, opts git.CloneOptions) (*plumbing.Reference, error) {
 	opts.Depth = 1
 	opts.SingleBranch = true
 	opts.ReferenceName = plumbing.NewBranchReferenceName(revision)
 
-	repo, err := git.PlainCloneContext(ctx, gitRepo, false, opts)
+	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &opts)
 	if err != nil {
 		return nil, err
 	}
