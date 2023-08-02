@@ -173,4 +173,12 @@ var _ = Describe("Settings", LMisc, func() {
 			Expect(string(fileContents)).To(MatchRegexp(fmt.Sprintf("pass: %s", encodedPass)))
 		})
 	})
+
+	Describe("Without settings", func() {
+		It("fails accessing the server", func() {
+			out, err := env.Epinio("", "info", "--settings-file", "/tmp/empty")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("No Epinio server set. Please ensure that the cluster is running, Epinio is installed, and the client is logged in."))
+		})
+	})
 })
