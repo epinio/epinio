@@ -110,6 +110,10 @@ func DoWithHandlers[T any](
 		return response, errors.New("missing response handler")
 	}
 
+	if c.Settings.API == "" {
+		return response, errors.New("No Epinio server set. Please ensure that the cluster is running, Epinio is installed, and the client is logged in.")
+	}
+
 	url := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 	request, err := requestHandler(method, url)
 	if err != nil {
