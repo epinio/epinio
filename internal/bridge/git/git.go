@@ -48,8 +48,7 @@ type Configuration struct {
 	URL      string
 	Provider models.GitProvider
 	// Username and Password are used to perform a BasicAuth.
-	// For Github the username is the one used to generate the PAT token.
-	// For Gitlab it can be anything (see https://gitlab.com/gitlab-org/gitlab/-/issues/212953).
+	// For Github/Gitlab the username can be anything (see https://gitlab.com/gitlab-org/gitlab/-/issues/212953).
 	Username string
 	// The Personal Access Token
 	Password string

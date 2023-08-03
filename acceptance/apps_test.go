@@ -53,6 +53,7 @@ var _ = Describe("Apps", LApplication, func() {
 	)
 	containerImageURL := "splatform/sample-app"
 	wordpress := "https://github.com/epinio/example-wordpress"
+	privateRepo := "https://github.com/epinio/example-go-private"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
@@ -326,6 +327,59 @@ var _ = Describe("Apps", LApplication, func() {
 
 			By("deleting the app")
 			env.DeleteApp(appName)
+		})
+
+		When("pushing an app from a private repository", func() {
+
+			It("rejects without a token", func() {
+				out, err := env.Epinio("", "push", "--name", appName, "--git", privateRepo)
+				Expect(err).To(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("authentication required"))
+			})
+
+			It("pushes the app providing a token", func() {
+				tmpTokenDir, err := os.MkdirTemp("", "tmp-token-dir")
+				Expect(err).ToNot(HaveOccurred())
+
+				tmpTokenFile := path.Join(tmpTokenDir, "token")
+				err = os.WriteFile(tmpTokenFile, []byte(os.Getenv("PRIVATE_REPO_IMPORT_PAT")), 0644)
+				Expect(err).ToNot(HaveOccurred())
+
+				DeferCleanup(func() {
+					os.RemoveAll(tmpTokenDir)
+				})
+
+				secretGitConfigName := fmt.Sprintf("github-configuration-%d", catalog.RandInt())
+
+				// create the secret with the github configuration
+				out, err := proc.Kubectl(
+					"create", "secret", "generic", secretGitConfigName,
+					"--namespace", "epinio",
+					"--from-literal=url=https://github.com",
+					"--from-literal=username=anything",
+					"--from-file=password="+tmpTokenFile,
+				)
+				Expect(err).NotTo(HaveOccurred(), out)
+
+				DeferCleanup(func() {
+					out, err = proc.Kubectl(
+						"delete", "secret", secretGitConfigName,
+						"--namespace", "epinio",
+					)
+					Expect(err).NotTo(HaveOccurred(), out)
+				})
+
+				// label the secret
+				out, err = proc.Kubectl(
+					"label", "secret", secretGitConfigName,
+					"--namespace", "epinio",
+					"epinio.io/api-git-credentials=true",
+				)
+				Expect(err).NotTo(HaveOccurred(), out)
+
+				out, err = env.Epinio("", "push", "--name", appName, "--git", privateRepo)
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
 		})
 
 		Describe("update", func() {
