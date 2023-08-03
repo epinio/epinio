@@ -102,6 +102,7 @@ func LoadFrom(file string) (*Settings, error) {
 	}
 
 	if settingsExists {
+		cfg.Location = file
 		if err := v.ReadInConfig(); err != nil {
 			return nil, errors.Wrapf(err, "failed to read settings file '%s'", file)
 		}
@@ -114,7 +115,6 @@ func LoadFrom(file string) (*Settings, error) {
 	}
 
 	cfg.v = v
-	cfg.Location = file
 
 	if cfg.Certs != "" {
 		auth.ExtendLocalTrust(cfg.Certs)

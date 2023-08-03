@@ -176,9 +176,24 @@ var _ = Describe("Settings", LMisc, func() {
 
 	Describe("Without settings", func() {
 		It("fails accessing the server", func() {
-			out, err := env.Epinio("", "info", "--settings-file", "/tmp/empty")
+			out, err := env.Epinio("", "info", "--settings-file", "/tmp/bogus")
 			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("No Epinio server set. Please ensure that the cluster is running, Epinio is installed, and the client is logged in."))
+			Expect(out).To(ContainSubstring("Client settings not found. Please ensure that the cluster is running, Epinio is installed, and the client is logged in."))
+		})
+	})
+
+	Describe("With empty settings", func() {
+		BeforeEach(func() {
+			out, err := proc.Run("", false, "rm", "-f", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), out)
+			out, err = proc.Run("", false, "touch", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		It("fails accessing the server", func() {
+			out, err := env.Epinio("", "info", "--settings-file", tmpSettingsPath)
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("No Epinio server found in settings. Please ensure that the cluster is running, Epinio is installed, and the client is logged in."))
 		})
 	})
 })
