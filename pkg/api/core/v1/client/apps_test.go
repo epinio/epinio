@@ -42,7 +42,10 @@ func DescribeAppsErrors() {
 			fmt.Fprint(w, responseBody)
 		}))
 
-		epinioClient = client.New(context.Background(), &settings.Settings{API: srv.URL})
+		epinioClient = client.New(context.Background(), &settings.Settings{
+			API:      srv.URL,
+			Location: "fake",
+		})
 	})
 
 	When("a 500 status code and a JSON error was returned", func() {

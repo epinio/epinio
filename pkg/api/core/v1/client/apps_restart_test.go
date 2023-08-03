@@ -36,7 +36,10 @@ func DescribeAppRestart() {
 			fmt.Fprint(w, responseBody)
 		}))
 
-		epinioClient = client.New(context.Background(), &settings.Settings{API: srv.URL})
+		epinioClient = client.New(context.Background(), &settings.Settings{
+			API:      srv.URL,
+			Location: "fake",
+		})
 	})
 
 	When("app restart successfully", func() {

@@ -41,7 +41,10 @@ func DescribeServicesErrors() {
 			fmt.Fprint(w, responseBody)
 		}))
 
-		epinioClient = client.New(context.Background(), &settings.Settings{API: srv.URL})
+		epinioClient = client.New(context.Background(), &settings.Settings{
+			API:      srv.URL,
+			Location: "fake",
+		})
 	})
 
 	Describe("deleting a service", func() {
