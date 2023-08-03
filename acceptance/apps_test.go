@@ -337,7 +337,7 @@ var _ = Describe("Apps", LApplication, func() {
 				Expect(out).To(ContainSubstring("authentication required"))
 			})
 
-			It("pushes the app providing a token", func() {
+			It("pushes the app when providing a proper token", func() {
 				tmpTokenDir, err := os.MkdirTemp("", "tmp-token-dir")
 				Expect(err).ToNot(HaveOccurred())
 
