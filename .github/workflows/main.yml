@@ -191,6 +191,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup

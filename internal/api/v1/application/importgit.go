@@ -85,11 +85,13 @@ import (
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-logr/logr"
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/s3manager"
@@ -115,17 +117,39 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		return errGitURL
 	}
 
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return apierror.InternalError(err, "failed to get access to a kube client")
+	}
+
+	gitManager, err := gitbridge.NewManager(log, cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
+	if err != nil {
+		return apierror.InternalError(err, "creating git configuration manager")
+	}
+
 	gitRepo, err := os.MkdirTemp("", "epinio-app")
 	if err != nil {
 		return apierror.InternalError(err, "can't create temp directory")
 	}
 	defer os.RemoveAll(gitRepo)
 
-	// clone/fetch/checkout
-	ref, err := checkoutRepository(ctx, log, gitRepo, giturl, revision)
+	gitConfig, err := gitManager.FindConfiguration(giturl)
 	if err != nil {
-		return apierror.InternalError(err,
-			fmt.Sprintf("cloning the git repository: %s @ %s", giturl, revision))
+		errMsg := fmt.Sprintf("finding git configuration for gitURL [%s]", giturl)
+		return apierror.InternalError(err, errMsg)
+	}
+
+	if gitConfig != nil {
+		log.Info("loaded git config", "gitConfig", gitConfig.ID)
+	} else {
+		log.Info("git config not found for giturl", "giturl", giturl)
+	}
+
+	// clone/fetch/checkout
+	ref, err := checkoutRepository(ctx, log, gitRepo, giturl, revision, gitConfig)
+	if err != nil {
+		errMsg := fmt.Sprintf("cloning the git repository: %s @ %s", giturl, revision)
+		return apierror.InternalError(err, errMsg)
 	}
 
 	var branch string
@@ -147,10 +171,6 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Upload to S3
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err, "failed to get access to a kube client")
-	}
 	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), "epinio-s3-connection-details")
 	if err != nil {
 		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
@@ -202,14 +222,17 @@ var (
 
 // checkoutRepository will clone the repository and it will checkout the revision
 // It will also try to find the matching branch/reference, and if found this will be returned
-func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision string) (*plumbing.Reference, error) {
+func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
+	cloneOptions := git.CloneOptions{URL: url}
+	cloneOptions = loadCloneOptions(cloneOptions, gitconfig)
+
 	if revision == "" {
 		// Input A: repository, no revision.
 		log.Info("importgit, cloning simple", "url", url)
-		return shallowCheckout(ctx, gitRepo, url)
+		return shallowCheckout(ctx, gitRepo, cloneOptions)
 	}
 
-	ref, err := branchCheckout(ctx, gitRepo, url, revision)
+	ref, err := branchCheckout(ctx, gitRepo, revision, cloneOptions)
 	// it was a branch, and everything went fine
 	if err == nil {
 		return ref, nil
@@ -221,7 +244,7 @@ func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revi
 
 	// we are left we the full clone option
 	log.Info("importgit, cloning plain", "url", url)
-	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{URL: url})
+	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &cloneOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -256,11 +279,31 @@ func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revi
 	return ref, nil
 }
 
-func shallowCheckout(ctx context.Context, gitRepo, url string) (*plumbing.Reference, error) {
-	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
-		URL:   url,
-		Depth: 1,
-	})
+func loadCloneOptions(opts git.CloneOptions, config *gitbridge.Configuration) git.CloneOptions {
+	if config == nil {
+		return opts
+	}
+
+	opts.InsecureSkipTLS = config.SkipSSL
+
+	if config.Username != "" && config.Password != "" {
+		opts.Auth = &http.BasicAuth{
+			Username: config.Username,
+			Password: config.Password,
+		}
+	}
+
+	if len(config.Certificate) > 0 {
+		opts.CABundle = config.Certificate
+	}
+
+	return opts
+}
+
+func shallowCheckout(ctx context.Context, gitRepo string, opts git.CloneOptions) (*plumbing.Reference, error) {
+	opts.Depth = 1
+
+	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &opts)
 	if err != nil {
 		return nil, err
 	}
@@ -268,18 +311,17 @@ func shallowCheckout(ctx context.Context, gitRepo, url string) (*plumbing.Refere
 	return repo.Head()
 }
 
-func branchCheckout(ctx context.Context, gitRepo, url, revision string) (*plumbing.Reference, error) {
-	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
-		URL:           url,
-		SingleBranch:  true,
-		ReferenceName: plumbing.NewBranchReferenceName(revision),
-		Depth:         1,
-	})
-	if err == nil {
-		return repo.Head()
+func branchCheckout(ctx context.Context, gitRepo, revision string, opts git.CloneOptions) (*plumbing.Reference, error) {
+	opts.Depth = 1
+	opts.SingleBranch = true
+	opts.ReferenceName = plumbing.NewBranchReferenceName(revision)
+
+	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &opts)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, err
+	return repo.Head()
 }
 
 // findReferenceForRevision will loop through all the available refs (branches, tags, ...) and it will try
