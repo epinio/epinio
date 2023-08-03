@@ -40,7 +40,10 @@ var _ = Describe("Client HTTP", func() {
 			requestInterceptor(r)
 		}))
 
-		epinioClient = client.New(context.Background(), &settings.Settings{API: srv.URL})
+		epinioClient = client.New(context.Background(), &settings.Settings{
+			API:      srv.URL,
+			Location: "fake",
+		})
 	})
 
 	Describe("executing a request", func() {

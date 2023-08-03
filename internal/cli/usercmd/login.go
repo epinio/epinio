@@ -316,6 +316,11 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 }
 
 func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, customHeaders map[string]string) error {
+	// Ensure that the settings have a location to get passed the client's check for it.
+	// Here it is ok to not have an actual location and file, because we are logging in, and at
+	// the end of the operation the relevant file will be created. Only having an API matters,
+	// and we do.
+	epinioSettings.Location = "fake"
 	apiClient := epinioapi.New(ctx, epinioSettings)
 
 	for k, v := range customHeaders {

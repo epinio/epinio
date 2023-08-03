@@ -37,7 +37,10 @@ var _ = Describe("Client Configurations", func() {
 			fmt.Fprint(w, responseBody)
 		}))
 
-		epinioClient = client.New(context.Background(), &settings.Settings{API: srv.URL})
+		epinioClient = client.New(context.Background(), &settings.Settings{
+			API:      srv.URL,
+			Location: "fake",
+		})
 	})
 
 	Describe("getting a configuration list", func() {
