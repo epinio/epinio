@@ -159,7 +159,11 @@ var _ = Describe("Settings", LMisc, func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(newSettings.Certs).To(BeEmpty())
 
-			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
+			// WIP: (@enrichman) this should fail for the missing of the cert
+			out, err := env.Epinio("", "info", "--settings-file", tmpSettingsPath)
+			Expect(err).To(HaveOccurred(), out)
+
+			out, err = env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring(`Updating CA in the stored credentials`))
 
