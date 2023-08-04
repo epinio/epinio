@@ -73,6 +73,10 @@ func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
 		WithStringValue("Settings", helpers.AbsPath(a.Settings.Location)).
 		Msg("Updating CA in the stored credentials from the current cluster")
 
+	if a.Settings.Location == "" {
+		return errors.New("settings file not found")
+	}
+
 	details.Info("retrieving server locations")
 
 	api := a.Settings.API
