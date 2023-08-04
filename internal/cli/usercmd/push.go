@@ -189,7 +189,7 @@ func (c *EpinioClient) Push(ctx context.Context, manifest models.ApplicationMani
 			manifest.Origin.Git.Branch = response.Branch
 		}
 		// update the revision with the one updated by the server
-		params.Origin.Git.Revision = response.Revision
+		manifest.Origin.Git.Revision = response.Revision
 
 	case models.OriginContainer:
 		// Nothing to upload (nor stage)
