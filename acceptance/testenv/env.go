@@ -26,5 +26,4 @@ func SetupEnv() {
 	if os.Getenv("EPINIO_BINARY_PATH") == "" {
 		os.Setenv("EPINIO_BINARY_PATH", fmt.Sprintf("./dist/%s", ServerBinaryName()))
 	}
-	os.Setenv("SKIP_SSL_VERIFICATION", "true")
 }
