@@ -109,11 +109,12 @@ type BindResponse struct {
 // plus some auxiliary data never (un)marshalled. Namely, the file's location, and origin
 // type tag.
 type ApplicationManifest struct {
-	ApplicationCreateRequest `yaml:",inline"`
-	Self                     string            `yaml:"-"` // Hidden from yaml. The file's location.
-	Origin                   ApplicationOrigin `yaml:"origin,omitempty"`
-	Staging                  ApplicationStage  `yaml:"staging,omitempty"`
-	Namespace                string            `yaml:"namespace,omitempty"`
+	Name          string                   `yaml:"name,omitempty"`
+	Configuration ApplicationConfiguration `yaml:"configuration"`
+	Self          string                   `yaml:"-"` // Hidden from yaml. The file's location.
+	Origin        ApplicationOrigin        `yaml:"origin,omitempty"`
+	Staging       ApplicationStage         `yaml:"staging,omitempty"`
+	Namespace     string                   `yaml:"namespace,omitempty"`
 }
 
 // ApplicationStage is the part of the manifest holding information
@@ -121,6 +122,16 @@ type ApplicationManifest struct {
 // only the reference to the Paketo builder image to use.
 type ApplicationStage struct {
 	Builder string `yaml:"builder,omitempty" json:"builder,omitempty"`
+}
+
+// ApplicationConfiguration is the part of the manifest describing the configuration of the application
+type ApplicationConfiguration struct {
+	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
+	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
+	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
+	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
+	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
@@ -189,12 +200,25 @@ type ApplicationCreateRequest struct {
 // Note: Instances is a pointer to give us a nil value separate from
 // actual integers, as means of communicating `default`/`no change`.
 type ApplicationUpdateRequest struct {
+	Restart        *bool              `json:"restart,omitempty"`
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
+}
+
+func NewApplicationUpdateRequest(manifest ApplicationManifest) ApplicationUpdateRequest {
+	manifestConfig := manifest.Configuration
+	return ApplicationUpdateRequest{
+		Instances:      manifestConfig.Instances,
+		Configurations: manifestConfig.Configurations,
+		Environment:    manifestConfig.Environment,
+		Routes:         manifestConfig.Routes,
+		AppChart:       manifestConfig.AppChart,
+		Settings:       manifestConfig.Settings,
+	}
 }
 
 type ImportGitResponse struct {

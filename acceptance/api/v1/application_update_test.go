@@ -137,6 +137,8 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 		}
 
 		checkIngresses := func(appName, namespaceName string, routesStr ...string) {
+			GinkgoHelper()
+
 			routeObjects := []routes.Route{}
 			for _, route := range routesStr {
 				routeObjects = append(routeObjects, routes.FromString(route))
@@ -169,6 +171,8 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 		// has a corresponding secret. routes are used to wait until all
 		// certificates are created.
 		checkSecretsForCerts := func(appName, namespaceName string, routes ...string) {
+			GinkgoHelper()
+
 			Eventually(func() int {
 				out, err := proc.Kubectl("get", "certificates",
 					"-n", namespaceName,
@@ -195,6 +199,8 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 		}
 
 		checkRoutesOnApp := func(appName, namespaceName string, routes ...string) {
+			GinkgoHelper()
+
 			out, err := proc.Kubectl("get", "apps", "-n", namespaceName, appName, "-o", "jsonpath={.spec.routes[*]}")
 			Expect(err).ToNot(HaveOccurred(), out)
 			appRoutes := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))

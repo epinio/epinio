@@ -105,7 +105,7 @@ namespace: %s
 
 		By(string(bodyBytes))
 		By(expecting)
-		Expect(string(bodyBytes)).To(Equal(expecting))
+		Expect(string(bodyBytes)).To(Equal(expecting), string(bodyBytes))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

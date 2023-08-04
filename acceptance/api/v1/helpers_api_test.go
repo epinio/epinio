@@ -136,7 +136,7 @@ func makeEndpoint(path string) string {
 func ExpectResponseToBeOK(bodyBytes []byte, statusCode int) {
 	GinkgoHelper()
 
-	Expect(statusCode).To(Equal(http.StatusOK))
+	Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 	response := fromJSON[models.Response](bodyBytes)
 	Expect(response).To(Equal(models.ResponseOK))

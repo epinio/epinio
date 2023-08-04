@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/manifest"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
@@ -124,11 +123,7 @@ var CmdAppPush = &cobra.Command{
 			}
 		}
 
-		params := usercmd.PushParams{
-			ApplicationManifest: m,
-		}
-
-		err = client.Push(cmd.Context(), params)
+		err = client.Push(cmd.Context(), m)
 		if err != nil {
 			return errors.Wrap(err, "error pushing app to server")
 		}

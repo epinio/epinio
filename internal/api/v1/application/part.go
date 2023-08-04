@@ -334,13 +334,11 @@ func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Clus
 
 func fetchAppManifest(c *gin.Context, app *models.App) apierror.APIErrors {
 	m := models.ApplicationManifest{
-		ApplicationCreateRequest: models.ApplicationCreateRequest{
-			Name:          app.Meta.Name,
-			Configuration: app.Configuration,
-		},
-		Namespace: app.Meta.Namespace,
-		Origin:    app.Origin,
-		Staging:   app.Staging,
+		Name:          app.Meta.Name,
+		Configuration: app.Configuration,
+		Namespace:     app.Meta.Namespace,
+		Origin:        app.Origin,
+		Staging:       app.Staging,
 	}
 
 	response.OKYaml(c, m)

@@ -28,6 +28,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		tempFile  string
 		namespace string
 		appName   string
+		restart   bool
 	)
 
 	BeforeEach(func() {
@@ -90,14 +91,17 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 
 	It("returns ok for good chart values", func() {
 		// unknowntype, badminton, maxbad - bad spec, no good values
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"fake":  "true",
-			"foo":   "bar",
-			"bar":   "sna",
-			"floof": "3.1415926535",
-			"fox":   "99",
-			"cat":   "0.31415926535",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"fake":  "true",
+				"foo":   "bar",
+				"bar":   "sna",
+				"floof": "3.1415926535",
+				"fox":   "99",
+				"cat":   "0.31415926535",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -106,9 +110,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for an unknown field", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"bogus": "x",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"bogus": "x",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -117,9 +124,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for an unknown field type", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"unknowntype": "x",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"unknowntype": "x",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -128,9 +138,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for an integer field with a bad minimum", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"badminton": "0",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"badminton": "0",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -139,9 +152,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for an integer field with a bad maximum", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"maxbad": "0",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"maxbad": "0",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -150,9 +166,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a value out of range (< min)", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"floof": "-2",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"floof": "-2",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -161,9 +180,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a value out of range (> max)", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"fox": "1000",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"fox": "1000",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -172,9 +194,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a value out of range (not in enum)", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"bar": "fox",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"bar": "fox",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -183,9 +208,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a non-integer value where integer required", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"fox": "hound",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"fox": "hound",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -194,9 +222,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a non-numeric value where numeric required", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"cat": "dog",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"cat": "dog",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
@@ -205,9 +236,12 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	})
 
 	It("fails for a non-boolean value where boolean required", func() {
-		request := models.ApplicationUpdateRequest{Settings: models.ChartValueSettings{
-			"fake": "news",
-		}}
+		request := models.ApplicationUpdateRequest{
+			Restart: &restart,
+			Settings: models.ChartValueSettings{
+				"fake": "news",
+			},
+		}
 		bodyBytes, statusCode := appUpdate(namespace, appName, toJSON(request))
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 

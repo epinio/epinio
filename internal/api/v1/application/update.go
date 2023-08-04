@@ -149,7 +149,6 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		desired = *updateRequest.Instances
 		log.Info("updating app", "instances", desired)
 
-		// Save to configuration
 		err := application.ScalingSet(ctx, cluster, appRef, desired)
 		if err != nil {
 			return apierror.InternalError(err)
@@ -199,16 +198,16 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		}
 	}
 
-	// With everything saved, and a workload to update, re-deploy the changed state.
-	// BEWARE if the application was scaled to zero it does not seem to have a workload
-	// (as there are no pods).
+	// backward compatibility: if no flag provided then restart the app
+	restart := updateRequest.Restart == nil || *updateRequest.Restart
+	if restart {
+		if app.Workload != nil || desired > 0 {
+			log.Info("updating app -- restarting")
 
-	if app.Workload != nil || desired > 0 {
-		log.Info("updating app -- redeploy")
-
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
-		if apierr != nil {
-			return apierr
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+			if apierr != nil {
+				return apierr
+			}
 		}
 	}
 

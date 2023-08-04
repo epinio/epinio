@@ -1712,7 +1712,7 @@
       "title": "App has all the application's properties, for at rest (Configuration), and active (Workload).",
       "properties": {
         "configuration": {
-          "$ref": "#/definitions/ApplicationUpdateRequest"
+          "$ref": "#/definitions/ApplicationConfiguration"
         },
         "deployment": {
           "$ref": "#/definitions/AppDeployment"
@@ -1885,6 +1885,42 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "ApplicationConfiguration": {
+      "description": "ApplicationConfiguration is the part of the manifest describing the configuration of the application",
+      "type": "object",
+      "properties": {
+        "appchart": {
+          "type": "string",
+          "x-go-name": "AppChart"
+        },
+        "configurations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Configurations"
+        },
+        "environment": {
+          "$ref": "#/definitions/EnvVariableMap"
+        },
+        "instances": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Instances"
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Routes"
+        },
+        "settings": {
+          "$ref": "#/definitions/ChartValueSettings"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ApplicationCreateRequest": {
       "description": "ApplicationCreateRequest represents and contains the data needed to\ncreate an application (at rest), possibly with presets (configurations)",
       "type": "object",
@@ -1981,6 +2017,10 @@
           "type": "integer",
           "format": "int32",
           "x-go-name": "Instances"
+        },
+        "restart": {
+          "type": "boolean",
+          "x-go-name": "Restart"
         },
         "routes": {
           "type": "array",
