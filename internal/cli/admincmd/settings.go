@@ -15,15 +15,16 @@ package admincmd
 
 import (
 	"context"
-	"fmt"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
+	"net/url"
+	"strings"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/settings"
-	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/internal/helmchart"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -72,18 +73,19 @@ func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
 		WithStringValue("Settings", helpers.AbsPath(a.Settings.Location)).
 		Msg("Updating CA in the stored credentials from the current cluster")
 
+	if a.Settings.Location == "" {
+		return errors.New("settings file not found")
+	}
+
 	details.Info("retrieving server locations")
 
-	api, wss, err := getAPI(ctx, details)
-	if err != nil {
-		a.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
+	api := a.Settings.API
+	wss := a.Settings.WSS
 
 	details.Info("retrieved server locations", "api", api, "wss", wss)
 	details.Info("retrieving certs")
 
-	certs, err := getCerts(ctx, details)
+	certs, err := encodeCertificate(api)
 	if err != nil {
 		a.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -91,8 +93,6 @@ func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
 
 	details.Info("retrieved certs", "certs", certs)
 
-	a.Settings.API = api
-	a.Settings.WSS = wss
 	a.Settings.Certs = certs
 
 	details.Info("saving",
@@ -115,92 +115,63 @@ func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
 	return nil
 }
 
-func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
-	// This is called only by the admin command `settings update-ca`
-	// which has to talk to the cluster to retrieve the
-	// information. This is allowed.
+func encodeCertificate(address string) (string, error) {
+	var builder strings.Builder
 
-	cluster, err := kubernetes.GetCluster(ctx)
+	cert, err := checkCA(address)
 	if err != nil {
-		return "", "", err
+		// something bad happened while checking the certificates
+		if cert == nil {
+			return "", errors.Wrap(err, "error while checking CA")
+		}
+		// add the untrusted certificate
+		pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+		builder.Write(pemCert)
+	} else {
+		// and regularly trusted certs go directly into the result
+		// This was missing in PR #1964, and demonstrated as bug with issue #2003
+		pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+		builder.Write(pemCert)
 	}
 
-	log.Info("got cluster")
-
-	epinioURL, epinioWsURL, err := getEpinioURL(ctx, cluster)
-	if err != nil {
-		return "", "", errors.Wrap(err, "failed to resolve epinio api host")
-	}
-
-	return epinioURL, epinioWsURL, err
+	return builder.String(), nil
 }
 
-func getCerts(ctx context.Context, log logr.Logger) (string, error) {
-	// This is called only by the admin command `settings update-ca`
-	// which has to talk to the cluster to retrieve the
-	// information. This is allowed.
-
-	// Save the  CA cert into the settings. The regular client
-	// will then extend the Cert pool with the same, so that it
-	// can cerify the server cert.
-
-	cluster, err := kubernetes.GetCluster(ctx)
+// checkCA will check if the address has a trusted certificate.
+// If not trusted it returns the untrusted certificate and an error, otherwise if trusted then no error will be returned
+func checkCA(address string) (*x509.Certificate, error) {
+	parsedURL, err := url.Parse(address)
 	if err != nil {
-		return "", err
+		return nil, errors.New("error parsing the address")
 	}
 
-	log.Info("got cluster")
+	port := parsedURL.Port()
+	if port == "" {
+		port = "443"
+	}
 
-	// Waiting for the secret is better than simply trying to get
-	// it. This way we automatically handle the case where we try
-	// to pull data from a secret still under construction by some
-	// other part of the system.
-
-	// See the `auth.createCertificate` template for the created
-	// Certs, and epinio.go `apply` for the call to
-	// `auth.createCertificate`, which determines the secret's
-	// name we are using here
-
-	secret, err := cluster.WaitForSecret(ctx,
-		helmchart.Namespace(),
-		helmchart.EpinioCertificateName+"-tls",
-		duration.ToConfigurationSecret(),
-	)
-
+	tlsConfig := &tls.Config{InsecureSkipVerify: true} // nolint:gosec // We need to check the validity
+	conn, err := tls.Dial("tcp", parsedURL.Hostname()+":"+port, tlsConfig)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get API CA cert secret")
+		return nil, errors.Wrap(err, "error while dialing the server")
+	}
+	defer conn.Close()
+
+	certs := conn.ConnectionState().PeerCertificates
+	if len(certs) == 0 {
+		return nil, errors.New("no certificates to verify")
 	}
 
-	log.Info("got secret", "secret", helmchart.EpinioCertificateName+"-tls")
-
-	return string(secret.Data["tls.crt"]), nil
-}
-
-// getEpinioURL finds the URL's for epinio from the cluster
-func getEpinioURL(ctx context.Context, cluster *kubernetes.Cluster) (string, string, error) {
-	// Get the ingress
-	ingresses, err := cluster.ListIngress(ctx, helmchart.Namespace(), "app.kubernetes.io/name=epinio")
-	if err != nil {
-		return "", "", errors.Wrap(err, "failed to list ingresses for epinio api server")
+	// check if at least one certificate in the chain is valid
+	for _, cert := range certs {
+		_, err = cert.Verify(x509.VerifyOptions{})
+		// if it's valid we are good to go
+		if err == nil {
+			return cert, nil
+		}
 	}
 
-	if len(ingresses.Items) < 1 {
-		return "", "", errors.New("epinio api ingress not found")
-	}
-
-	if len(ingresses.Items) > 1 {
-		return "", "", errors.New("more than one epinio api ingress found")
-	}
-
-	if len(ingresses.Items[0].Spec.Rules) < 1 {
-		return "", "", errors.New("epinio api ingress has no rules")
-	}
-
-	if len(ingresses.Items[0].Spec.Rules) > 1 {
-		return "", "", errors.New("epinio api ingress has more than on rule")
-	}
-
-	host := ingresses.Items[0].Spec.Rules[0].Host
-
-	return fmt.Sprintf("%s://%s", epinioAPIProtocol, host), fmt.Sprintf("%s://%s", epinioWSProtocol, host), nil
+	// if none of the certificates are valid, return the leaf cert with its error
+	_, err = certs[0].Verify(x509.VerifyOptions{})
+	return certs[0], err
 }

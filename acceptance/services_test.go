@@ -18,6 +18,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -307,8 +308,10 @@ var _ = Describe("Services", LService, func() {
 
 			// create temp settings that we can use to switch users
 			tmpSettingsPath = catalog.NewTmpName("tmpEpinio") + `.yaml`
-			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out)
+			data, err := os.ReadFile(testenv.EpinioYAML())
+			Expect(err).ToNot(HaveOccurred())
+			err = os.WriteFile(tmpSettingsPath, data, 0644)
+			Expect(err).ToNot(HaveOccurred())
 
 			// create users with permissions in different namespaces
 			user1, password1 = env.CreateEpinioUser("user", []string{namespace1})

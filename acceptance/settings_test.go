@@ -140,23 +140,36 @@ var _ = Describe("Settings", LMisc, func() {
 	Describe("UpdateCA", func() {
 		oldSettingsPath := testenv.EpinioYAML()
 
-		It("regenerates certs and credentials", func() {
-			// Get back the certs and credentials
-			// Note that `namespace`, as a purely local setting, is not restored
-
-			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
+		It("regenerates the certificate", func() {
+			// create a copy of the original settings
+			data, err := os.ReadFile(oldSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(ContainSubstring(`Updating CA in the stored credentials`))
-
-			oldSettings, err := env.GetSettingsFrom(oldSettingsPath)
+			err = os.WriteFile(tmpSettingsPath, data, 0644)
 			Expect(err).ToNot(HaveOccurred())
 
+			// delete the certificate from the new settings
 			newSettings, err := env.GetSettingsFrom(tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
+			newSettings.Certs = ""
+			err = newSettings.Save()
+			Expect(err).ToNot(HaveOccurred())
 
-			Expect(newSettings.API).To(Equal(oldSettings.API))
-			Expect(newSettings.WSS).To(Equal(oldSettings.WSS))
-			Expect(newSettings.Certs).To(Equal(oldSettings.Certs))
+			// check that the new settings are saved without the certificate
+			newSettings, err = env.GetSettingsFrom(tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(newSettings.Certs).To(BeEmpty())
+
+			out, err := env.Epinio("", "info", "--settings-file", tmpSettingsPath)
+			Expect(err).To(HaveOccurred(), out)
+
+			out, err = env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring(`Updating CA in the stored credentials`))
+
+			// check that the new settings now have the certificate
+			newSettings, err = env.GetSettingsFrom(tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(newSettings.Certs).ToNot(BeEmpty())
 		})
 	})
 
