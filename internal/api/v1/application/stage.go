@@ -74,7 +74,7 @@ func (app *stageParam) ImageURL(registryURL string) string {
 // on the "upload" endpoint). It is also mounted in the staging pod, as the
 // "source" workspace.
 // The same PVC stores the application's build cache (on a separate directory).
-func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef) error {
+func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef, diskRequest string) error {
 	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.Namespace()).
 		Get(ctx, ar.MakePVCName(), metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
@@ -95,7 +95,15 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources: corev1.ResourceRequirements{
 					Requests: map[corev1.ResourceName]resource.Quantity{
-						corev1.ResourceStorage: resource.MustParse("1Gi"),
+
+						// NOTE: Using `MustParse` is ok here, despite
+						// panicking on bad values.  The server startup code
+						// (See internal/cli/server.go, CmdServer.RunE)
+						// already verified that any non-empty values are
+						// valid. Invalid values cause the server to not
+						// start.
+
+						corev1.ResourceStorage: resource.MustParse(diskRequest),
 					},
 				},
 			},
@@ -224,6 +232,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	serviceAccountName := viper.GetString("staging-service-account-name")
 	cpuRequest := viper.GetString("staging-resource-cpu")
 	memoryRequest := viper.GetString("staging-resource-memory")
+	diskRequest := viper.GetString("staging-resource-disk")
 
 	params := stageParam{
 		AppRef:              req.App,
@@ -245,9 +254,9 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		RegistryCASecret:    registryCertificateSecret,
 	}
 
-	err = ensurePVC(ctx, cluster, req.App)
+	err = ensurePVC(ctx, cluster, req.App, diskRequest)
 	if err != nil {
-		return apierror.InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
+		return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application source and cache")
 	}
 
 	job, jobenv := newJobRun(params)
@@ -627,7 +636,7 @@ func addResourceRequests(job *batchv1.Job, app stageParam) {
 	}
 
 	// NOTE: Using `MustParse` is ok here, despite panicking on bad values.  The server startup
-	// code (See internal.cli/server.go, CmdServer.RunE) already verified that any non-empty
+	// code (See internal/cli/server.go, CmdServer.RunE) already verified that any non-empty
 	// values are valid. Invalid values cause the server to not start.
 
 	if cpu != "" {

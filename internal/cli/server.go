@@ -120,6 +120,12 @@ func init() {
 	err = viper.BindEnv("staging-resource-memory", "STAGING_RESOURCE_MEMORY")
 	checkErr(err)
 
+	flags.String("staging-resource-disk", "", "(STAGING_RESOURCE_DISK)")
+	err = viper.BindPFlag("staging-resource-disk", flags.Lookup("staging-resource-disk"))
+	checkErr(err)
+	err = viper.BindEnv("staging-resource-disk", "STAGING_RESOURCE_DISK")
+	checkErr(err)
+
 	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Disable tracking of the running Epinio and Kubernetes versions")
 	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
 	checkErr(err)
@@ -167,6 +173,13 @@ var CmdServer = &cobra.Command{
 			_, err := resource.ParseQuantity(memoryRequest)
 			if err != nil {
 				return errors.Wrap(err, "bad memory request for staging job")
+			}
+		}
+		diskRequest := viper.GetString("staging-resource-disk")
+		if diskRequest != "" {
+			_, err := resource.ParseQuantity(diskRequest)
+			if err != nil {
+				return errors.Wrap(err, "bad disk size request for staging job")
 			}
 		}
 
