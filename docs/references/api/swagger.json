@@ -169,6 +169,56 @@
         }
       }
     },
+    "/exportregistries": {
+      "get": {
+        "description": "Return list of all export registries",
+        "tags": [
+          "exportregistry"
+        ],
+        "operationId": "Exportregistries",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ExportregistriesResponse"
+          }
+        }
+      }
+    },
+    "/exportregistrymatches": {
+      "get": {
+        "description": "Return list of names for all controlled exportregistries (No prefix = empty prefix = match everything)",
+        "tags": [
+          "exportregistry"
+        ],
+        "operationId": "ExportregistryMatch0",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ExportregistryMatchResponse"
+          }
+        }
+      }
+    },
+    "/exportregistrymatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "exportregistry"
+        ],
+        "summary": "Return list of names for all controlled exportregistries whose name matches the prefix `Pattern`.",
+        "operationId": "ExportregistryMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ExportregistryMatchResponse"
+          }
+        }
+      }
+    },
     "/gitconfigmatches": {
       "get": {
         "description": "Return list of names for all controlled gitconfigs (No prefix = empty prefix = match everything)",
@@ -1017,6 +1067,41 @@
         "responses": {
           "200": {
             "$ref": "#/responses/AppExecResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/applications/{App}/export": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Export the named `App` in the `Namespace`.",
+        "operationId": "AppExport",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/AppExportRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppExportResponse"
           }
         }
       }
@@ -2044,6 +2129,32 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "AppExportRequest": {
+      "type": "object",
+      "properties": {
+        "chart-name": {
+          "type": "string",
+          "x-go-name": "ChartName"
+        },
+        "chart-version": {
+          "type": "string",
+          "x-go-name": "ChartVersion"
+        },
+        "destination": {
+          "type": "string",
+          "x-go-name": "Destination"
+        },
+        "image-name": {
+          "type": "string",
+          "x-go-name": "ImageName"
+        },
+        "image-tag": {
+          "type": "string",
+          "x-go-name": "ImageTag"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "AppList": {
       "description": "AppList is a collection of app references",
       "type": "array",
@@ -2624,6 +2735,43 @@
       "type": "object",
       "additionalProperties": {
         "type": "string"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ExportregistriesListResponse": {
+      "description": "ExportregistriesListResponse contains the list of all known export registries",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ExportregistryResponse"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ExportregistriesMatchResponse": {
+      "description": "ExportregistriesMatchResponse contains the list of names for matching export registries",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ExportregistryResponse": {
+      "description": "ExportregistryResponse contains the information for a single known export registry",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
@@ -3212,6 +3360,12 @@
     "AppExecResponse": {
       "description": ""
     },
+    "AppExportResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
     "AppImportGitResponse": {
       "description": "",
       "schema": {
@@ -3397,6 +3551,18 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/Response"
+      }
+    },
+    "ExportregistriesResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ExportregistriesListResponse"
+      }
+    },
+    "ExportregistryMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ExportregistriesMatchResponse"
       }
     },
     "GitconfigCreateResponse": {

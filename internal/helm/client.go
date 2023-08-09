@@ -147,12 +147,27 @@ func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
 	return statusAction.Run(name)
 }
 
-func (c *SynchronizedClient) RegistryLogin(hostname, username, password string) error {
+func (c *SynchronizedClient) RegistryLogin(hostname, username, password string, opts ...action.RegistryLoginOpt) error {
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
 		return fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
 	}
 
 	registryLoginAction := action.NewRegistryLogin(concreteHelmClient.ActionConfig)
-	return registryLoginAction.Run(nil, hostname, username, password)
+	return registryLoginAction.Run(nil, hostname, username, password, opts...)
+}
+
+func (c *SynchronizedClient) Push(chartref, remote string, opts ...action.PushOpt) (string, error) {
+	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
+	if !ok {
+		return "", fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
+	}
+
+	ac := concreteHelmClient.ActionConfig
+	ac.RegistryClient = nil
+
+	opts = append(opts, action.WithPushConfig(ac))
+
+	registryPushAction := action.NewPushWithOpts(opts...)
+	return registryPushAction.Run(chartref, remote)
 }

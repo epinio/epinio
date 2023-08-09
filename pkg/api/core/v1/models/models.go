@@ -374,3 +374,25 @@ type AppChartList []AppChart
 type ChartMatchResponse struct {
 	Names []string `json:"names,omitempty"`
 }
+
+// ExportregistriesListResponse contains the list of all known export registries
+type ExportregistriesListResponse []ExportregistryResponse
+
+// ExportregistryResponse contains the information for a single known export registry
+type ExportregistryResponse struct {
+	Name string `json:"name,omitempty"`
+	URL  string `json:"url,omitempty"`
+}
+
+// ExportregistriesMatchResponse contains the list of names for matching export registries
+type ExportregistriesMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
+
+type AppExportRequest struct {
+	Destination  string `json:"destination,omitempty"`
+	ImageName    string `json:"image-name,omitempty"`
+	ChartName    string `json:"chart-name,omitempty"`
+	ImageTag     string `json:"image-tag,omitempty"`
+	ChartVersion string `json:"chart-version,omitempty"`
+}

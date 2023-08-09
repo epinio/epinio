@@ -66,6 +66,7 @@ type APIClient interface {
 	AppGetPart(namespace, appName, part string) (models.AppPartResponse, error)
 	AppMatch(namespace, prefix string) (models.AppMatchResponse, error)
 	AppValidateCV(namespace string, name string) (models.Response, error)
+	AppExport(namespace, appName string, param models.AppExportRequest) (models.Response, error)
 
 	// env
 	EnvList(namespace string, appName string) (models.EnvVariableMap, error)
@@ -125,6 +126,10 @@ type APIClient interface {
 	GitconfigShow(gitconfig string) (models.Gitconfig, error)
 	Gitconfigs() (models.GitconfigList, error)
 	GitconfigsMatch(prefix string) (models.GitconfigsMatchResponse, error)
+
+	// export registries
+	ExportregistryList() ([]models.ExportregistryResponse, error)
+	ExportregistryMatch(prefix string) (models.ExportregistriesMatchResponse, error)
 
 	DisableVersionWarning()
 	VersionWarningEnabled() bool

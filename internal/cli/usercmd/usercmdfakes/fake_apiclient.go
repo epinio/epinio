@@ -116,6 +116,21 @@ type FakeAPIClient struct {
 	appExecReturnsOnCall map[int]struct {
 		result1 error
 	}
+	AppExportStub        func(string, string, models.AppExportRequest) (models.Response, error)
+	appExportMutex       sync.RWMutex
+	appExportArgsForCall []struct {
+		arg1 string
+		arg2 string
+		arg3 models.AppExportRequest
+	}
+	appExportReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	appExportReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
 	AppGetPartStub        func(string, string, string) (models.AppPartResponse, error)
 	appGetPartMutex       sync.RWMutex
 	appGetPartArgsForCall []struct {
@@ -554,6 +569,31 @@ type FakeAPIClient struct {
 	}
 	envUnsetReturnsOnCall map[int]struct {
 		result1 models.Response
+		result2 error
+	}
+	ExportregistryListStub        func() ([]models.ExportregistryResponse, error)
+	exportregistryListMutex       sync.RWMutex
+	exportregistryListArgsForCall []struct {
+	}
+	exportregistryListReturns struct {
+		result1 []models.ExportregistryResponse
+		result2 error
+	}
+	exportregistryListReturnsOnCall map[int]struct {
+		result1 []models.ExportregistryResponse
+		result2 error
+	}
+	ExportregistryMatchStub        func(string) (models.ExportregistriesMatchResponse, error)
+	exportregistryMatchMutex       sync.RWMutex
+	exportregistryMatchArgsForCall []struct {
+		arg1 string
+	}
+	exportregistryMatchReturns struct {
+		result1 models.ExportregistriesMatchResponse
+		result2 error
+	}
+	exportregistryMatchReturnsOnCall map[int]struct {
+		result1 models.ExportregistriesMatchResponse
 		result2 error
 	}
 	GitconfigCreateStub        func(models.GitconfigCreateRequest) (models.Response, error)
@@ -1336,6 +1376,72 @@ func (fake *FakeAPIClient) AppExecReturnsOnCall(i int, result1 error) {
 	fake.appExecReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeAPIClient) AppExport(arg1 string, arg2 string, arg3 models.AppExportRequest) (models.Response, error) {
+	fake.appExportMutex.Lock()
+	ret, specificReturn := fake.appExportReturnsOnCall[len(fake.appExportArgsForCall)]
+	fake.appExportArgsForCall = append(fake.appExportArgsForCall, struct {
+		arg1 string
+		arg2 string
+		arg3 models.AppExportRequest
+	}{arg1, arg2, arg3})
+	stub := fake.AppExportStub
+	fakeReturns := fake.appExportReturns
+	fake.recordInvocation("AppExport", []interface{}{arg1, arg2, arg3})
+	fake.appExportMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) AppExportCallCount() int {
+	fake.appExportMutex.RLock()
+	defer fake.appExportMutex.RUnlock()
+	return len(fake.appExportArgsForCall)
+}
+
+func (fake *FakeAPIClient) AppExportCalls(stub func(string, string, models.AppExportRequest) (models.Response, error)) {
+	fake.appExportMutex.Lock()
+	defer fake.appExportMutex.Unlock()
+	fake.AppExportStub = stub
+}
+
+func (fake *FakeAPIClient) AppExportArgsForCall(i int) (string, string, models.AppExportRequest) {
+	fake.appExportMutex.RLock()
+	defer fake.appExportMutex.RUnlock()
+	argsForCall := fake.appExportArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) AppExportReturns(result1 models.Response, result2 error) {
+	fake.appExportMutex.Lock()
+	defer fake.appExportMutex.Unlock()
+	fake.AppExportStub = nil
+	fake.appExportReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppExportReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.appExportMutex.Lock()
+	defer fake.appExportMutex.Unlock()
+	fake.AppExportStub = nil
+	if fake.appExportReturnsOnCall == nil {
+		fake.appExportReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.appExportReturnsOnCall[i] = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeAPIClient) AppGetPart(arg1 string, arg2 string, arg3 string) (models.AppPartResponse, error) {
@@ -3368,6 +3474,126 @@ func (fake *FakeAPIClient) EnvUnsetReturnsOnCall(i int, result1 models.Response,
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) ExportregistryList() ([]models.ExportregistryResponse, error) {
+	fake.exportregistryListMutex.Lock()
+	ret, specificReturn := fake.exportregistryListReturnsOnCall[len(fake.exportregistryListArgsForCall)]
+	fake.exportregistryListArgsForCall = append(fake.exportregistryListArgsForCall, struct {
+	}{})
+	stub := fake.ExportregistryListStub
+	fakeReturns := fake.exportregistryListReturns
+	fake.recordInvocation("ExportregistryList", []interface{}{})
+	fake.exportregistryListMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ExportregistryListCallCount() int {
+	fake.exportregistryListMutex.RLock()
+	defer fake.exportregistryListMutex.RUnlock()
+	return len(fake.exportregistryListArgsForCall)
+}
+
+func (fake *FakeAPIClient) ExportregistryListCalls(stub func() ([]models.ExportregistryResponse, error)) {
+	fake.exportregistryListMutex.Lock()
+	defer fake.exportregistryListMutex.Unlock()
+	fake.ExportregistryListStub = stub
+}
+
+func (fake *FakeAPIClient) ExportregistryListReturns(result1 []models.ExportregistryResponse, result2 error) {
+	fake.exportregistryListMutex.Lock()
+	defer fake.exportregistryListMutex.Unlock()
+	fake.ExportregistryListStub = nil
+	fake.exportregistryListReturns = struct {
+		result1 []models.ExportregistryResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ExportregistryListReturnsOnCall(i int, result1 []models.ExportregistryResponse, result2 error) {
+	fake.exportregistryListMutex.Lock()
+	defer fake.exportregistryListMutex.Unlock()
+	fake.ExportregistryListStub = nil
+	if fake.exportregistryListReturnsOnCall == nil {
+		fake.exportregistryListReturnsOnCall = make(map[int]struct {
+			result1 []models.ExportregistryResponse
+			result2 error
+		})
+	}
+	fake.exportregistryListReturnsOnCall[i] = struct {
+		result1 []models.ExportregistryResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ExportregistryMatch(arg1 string) (models.ExportregistriesMatchResponse, error) {
+	fake.exportregistryMatchMutex.Lock()
+	ret, specificReturn := fake.exportregistryMatchReturnsOnCall[len(fake.exportregistryMatchArgsForCall)]
+	fake.exportregistryMatchArgsForCall = append(fake.exportregistryMatchArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.ExportregistryMatchStub
+	fakeReturns := fake.exportregistryMatchReturns
+	fake.recordInvocation("ExportregistryMatch", []interface{}{arg1})
+	fake.exportregistryMatchMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ExportregistryMatchCallCount() int {
+	fake.exportregistryMatchMutex.RLock()
+	defer fake.exportregistryMatchMutex.RUnlock()
+	return len(fake.exportregistryMatchArgsForCall)
+}
+
+func (fake *FakeAPIClient) ExportregistryMatchCalls(stub func(string) (models.ExportregistriesMatchResponse, error)) {
+	fake.exportregistryMatchMutex.Lock()
+	defer fake.exportregistryMatchMutex.Unlock()
+	fake.ExportregistryMatchStub = stub
+}
+
+func (fake *FakeAPIClient) ExportregistryMatchArgsForCall(i int) string {
+	fake.exportregistryMatchMutex.RLock()
+	defer fake.exportregistryMatchMutex.RUnlock()
+	argsForCall := fake.exportregistryMatchArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeAPIClient) ExportregistryMatchReturns(result1 models.ExportregistriesMatchResponse, result2 error) {
+	fake.exportregistryMatchMutex.Lock()
+	defer fake.exportregistryMatchMutex.Unlock()
+	fake.ExportregistryMatchStub = nil
+	fake.exportregistryMatchReturns = struct {
+		result1 models.ExportregistriesMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ExportregistryMatchReturnsOnCall(i int, result1 models.ExportregistriesMatchResponse, result2 error) {
+	fake.exportregistryMatchMutex.Lock()
+	defer fake.exportregistryMatchMutex.Unlock()
+	fake.ExportregistryMatchStub = nil
+	if fake.exportregistryMatchReturnsOnCall == nil {
+		fake.exportregistryMatchReturnsOnCall = make(map[int]struct {
+			result1 models.ExportregistriesMatchResponse
+			result2 error
+		})
+	}
+	fake.exportregistryMatchReturnsOnCall[i] = struct {
+		result1 models.ExportregistriesMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeAPIClient) GitconfigCreate(arg1 models.GitconfigCreateRequest) (models.Response, error) {
 	fake.gitconfigCreateMutex.Lock()
 	ret, specificReturn := fake.gitconfigCreateReturnsOnCall[len(fake.gitconfigCreateArgsForCall)]
@@ -5054,6 +5280,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.appDeployMutex.RUnlock()
 	fake.appExecMutex.RLock()
 	defer fake.appExecMutex.RUnlock()
+	fake.appExportMutex.RLock()
+	defer fake.appExportMutex.RUnlock()
 	fake.appGetPartMutex.RLock()
 	defer fake.appGetPartMutex.RUnlock()
 	fake.appImportGitMutex.RLock()
@@ -5118,6 +5346,10 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.envShowMutex.RUnlock()
 	fake.envUnsetMutex.RLock()
 	defer fake.envUnsetMutex.RUnlock()
+	fake.exportregistryListMutex.RLock()
+	defer fake.exportregistryListMutex.RUnlock()
+	fake.exportregistryMatchMutex.RLock()
+	defer fake.exportregistryMatchMutex.RUnlock()
 	fake.gitconfigCreateMutex.RLock()
 	defer fake.gitconfigCreateMutex.RUnlock()
 	fake.gitconfigDeleteMutex.RLock()

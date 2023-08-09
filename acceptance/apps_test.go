@@ -1606,6 +1606,30 @@ configuration:
 					Expect(err).ToNot(HaveOccurred())
 				})
 
+				It("fails to export on conflict between destinations", func() {
+					out, err := env.Epinio("", "app", "export", app, exportPath, "--registry", "__bogus__")
+					Expect(err).To(HaveOccurred(), out)
+					Expect(out).To(ContainSubstring("Conflict, both directory and registry destinations found"))
+				})
+
+				It("fails to export without a destination", func() {
+					out, err := env.Epinio("", "app", "export", app)
+					Expect(err).To(HaveOccurred(), out)
+					Expect(out).To(ContainSubstring("Neither directory nor registry destination found"))
+				})
+
+				It("fails to export for an unknown registry destination", func() {
+					out, err := env.Epinio("", "app", "export", app, "--registry", "__bogus__")
+					Expect(err).To(HaveOccurred(), out)
+					Expect(out).To(ContainSubstring("bad export destination"))
+				})
+
+				It("fails to export an unknown application", func() {
+					out, err := env.Epinio("", "app", "export", "__bogus__", "--registry", "foo")
+					Expect(err).To(HaveOccurred(), out)
+					Expect(out).To(ContainSubstring(""))
+				})
+
 				It("exports the details of a customized app", func() {
 					out, err := env.Epinio("", "app", "export", app, exportPath)
 					Expect(err).ToNot(HaveOccurred(), out)

@@ -16,12 +16,18 @@ package registry
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/bridge/git"
+	"github.com/go-logr/logr"
 	parser "github.com/novln/docker-parser"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -48,6 +54,156 @@ type DockerConfigJSON struct {
 type ConnectionDetails struct {
 	RegistryCredentials []RegistryCredentials
 	Namespace           string
+}
+
+type ExportRegistry struct {
+	Name string
+	URL  string
+}
+
+func ExportRegistryNames(log logr.Logger, secretLoader git.SecretLister) ([]string, error) {
+
+	registries, err := ExportRegistries(log, secretLoader)
+	if err != nil {
+		return nil, err
+	}
+
+	names := []string{}
+	for _, registry := range registries {
+		names = append(names, registry.Name)
+	}
+
+	return names, nil
+}
+
+func ExportRegistries(log logr.Logger, secretLoader git.SecretLister) ([]ExportRegistry, error) {
+
+	secretSelector := labels.Set(map[string]string{
+		kubernetes.EpinioAPIExportRegistryLabelKey: "true",
+	}).AsSelector().String()
+
+	secretList, err := secretLoader.List(context.Background(),
+		metav1.ListOptions{
+			LabelSelector: secretSelector,
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	registries := []ExportRegistry{}
+	for _, secret := range secretList.Items {
+		url, err := GetRegistryUrlFromSecret(secret)
+		if err != nil {
+			// log the issue, and otherwise ignore the secret
+			log.Error(err, fmt.Sprintf("skipping secret '%s'", secret.Name))
+			continue
+		}
+
+		registries = append(registries, ExportRegistry{
+			Name: string(secret.Name),
+			URL:  url,
+		})
+	}
+
+	return registries, nil
+}
+
+func GetRegistryUrlFromSecret(secret v1.Secret) (string, error) {
+	namespace, ok := secret.ObjectMeta.Annotations[RegistrySecretNamespaceAnnotationKey]
+	if !ok {
+		return "", fmt.Errorf("missing annotation '%s'", RegistrySecretNamespaceAnnotationKey)
+	}
+
+	configjson, ok := secret.Data[".dockerconfigjson"]
+	if !ok {
+		return "", errors.New("missing key `.dockerconfigjson`")
+	}
+
+	// The JSON has to have the following structure (written as YAML):
+	//
+	// auths:
+	//   (url):
+	//     ... credentials ... here not relevant
+
+	type aconfig map[string]interface{} // key: desired url
+	var config map[string]aconfig       // key: "auths"
+
+	err := json.Unmarshal(configjson, &config)
+	if err != nil {
+		return "", err
+	}
+
+	auths, ok := config["auths"]
+	if !ok {
+		return "", errors.New("missing key `auths` in `.dockerconfigjson`")
+	}
+
+	if len(auths) > 1 {
+		return "", errors.New("more than one url found in `auths` in `.dockerconfigjson`")
+	}
+	if len(auths) < 1 {
+		return "", errors.New("no url found in `auths` in `.dockerconfigjson`")
+	}
+
+	for key := range auths {
+		// return the single url, as the first url found in the map
+		return key + "/" + namespace, nil
+	}
+
+	// Cannot be reached
+	return "", errors.New("registry.go / getRegistryUrlFromSecret - cannot happen")
+}
+
+func GetRegistryCredentialsFromSecret(secret v1.Secret) (RegistryCredentials, error) {
+	empty := RegistryCredentials{}
+
+	namespace, ok := secret.ObjectMeta.Annotations[RegistrySecretNamespaceAnnotationKey]
+	if !ok {
+		return empty, fmt.Errorf("missing annotation '%s'", RegistrySecretNamespaceAnnotationKey)
+	}
+
+	configjson, ok := secret.Data[".dockerconfigjson"]
+	if !ok {
+		return empty, errors.New("missing key `.dockerconfigjson`")
+	}
+
+	// The JSON has to have the following structure (written as YAML):
+	//
+	// auths:
+	//   (url):
+	//     ... credentials ... here not relevant
+
+	type aconfig map[string]ContainerRegistryAuth // key, value: desired url, and creds
+	var config map[string]aconfig                 // key: "auths"
+
+	err := json.Unmarshal(configjson, &config)
+	if err != nil {
+		return empty, err
+	}
+
+	auths, ok := config["auths"]
+	if !ok {
+		return empty, errors.New("missing key `auths` in `.dockerconfigjson`")
+	}
+
+	if len(auths) > 1 {
+		return empty, errors.New("more than one url found in `auths` in `.dockerconfigjson`")
+	}
+	if len(auths) < 1 {
+		return empty, errors.New("no url found in `auths` in `.dockerconfigjson`")
+	}
+
+	for key, cred := range auths {
+		// return the single credentials, as the first credentials found in the map
+		return RegistryCredentials{
+			URL:      key + "/" + namespace,
+			Username: cred.Username,
+			Password: cred.Password,
+		}, nil
+	}
+
+	// Cannot be reached
+	return empty, errors.New("registry.go / getRegistryUrlFromSecret - cannot happen")
 }
 
 // PublicRegistryURL returns the public registry URL from the connection details

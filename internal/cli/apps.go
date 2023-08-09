@@ -58,6 +58,15 @@ func init() {
 	CmdAppDelete.Flags().Bool("all", false, "Delete all applications")
 	CmdAppRestage.Flags().Bool("no-restart", false, "Do not restart application after restaging")
 
+	CmdAppExport.Flags().StringP("registry", "r", "", "The name of the registry to export to")
+	CmdAppExport.Flags().String("image-name", "", "User chosen name for the image file")
+	CmdAppExport.Flags().String("image-tag", "", "User chosen tag for the image file")
+	CmdAppExport.Flags().String("chart-name", "", "User chosen name for the chart file")
+	CmdAppExport.Flags().String("chart-version", "", "User chosen version for the chart file")
+
+	err = CmdAppExport.RegisterFlagCompletionFunc("registry", matchingRegistryFinder)
+	checkErr(err)
+
 	CmdApp.AddCommand(CmdAppCreate)
 	CmdApp.AddCommand(CmdAppChart) // See chart.go for implementation
 	CmdApp.AddCommand(CmdAppEnv)   // See env.go for implementation
@@ -143,14 +152,59 @@ var CmdAppShow = &cobra.Command{
 
 // CmdAppExport implements the command: epinio apps export
 var CmdAppExport = &cobra.Command{
-	Use:               "export NAME DIRECTORY",
-	Short:             "Export the named application into the directory",
-	Args:              cobra.ExactArgs(2),
+	Use:               "export NAME [DIRECTORY]",
+	Short:             "Export the named application into the directory or flag-specified registry",
+	Args:              cobra.MaximumNArgs(2),
 	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		err := client.AppExport(args[0], args[1])
+		nargs := len(args)
+		registry, err := cmd.Flags().GetString("registry")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --registry")
+		}
+
+		// we have to have a single destination. i.e. exactly one of directory or registry
+		// has to be specified. specifying neither or both are errors.
+		if nargs == 1 && registry == "" {
+			return errors.New("Neither directory nor registry destination found")
+		}
+		if nargs == 2 && registry != "" {
+			return errors.New("Conflict, both directory and registry destinations found")
+		}
+
+		var destination, imageName, chartName, imageTag, chartVersion string
+		toRegistry := nargs == 1
+		if toRegistry {
+			destination = registry
+			imageName, err = cmd.Flags().GetString("image-name")
+			if err != nil {
+				return errors.Wrap(err, "error reading option --image-name")
+			}
+			chartName, err = cmd.Flags().GetString("chart-name")
+			if err != nil {
+				return errors.Wrap(err, "error reading option --chart-name")
+			}
+			imageTag, err = cmd.Flags().GetString("image-tag")
+			if err != nil {
+				return errors.Wrap(err, "error reading option --image-tag")
+			}
+			chartVersion, err = cmd.Flags().GetString("chart-version")
+			if err != nil {
+				return errors.Wrap(err, "error reading option --chart-version")
+			}
+		} else {
+			destination = args[1] // directory
+		}
+
+		err = client.AppExport(args[0], toRegistry, models.AppExportRequest{
+			Destination:  destination,
+			ImageName:    imageName,
+			ChartName:    chartName,
+			ImageTag:     imageTag,
+			ChartVersion: chartVersion,
+		})
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error exporting app")
 	},
