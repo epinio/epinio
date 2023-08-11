@@ -211,10 +211,11 @@ var _ = Describe("Services", LService, func() {
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("ingress.enabled", "true"),
-						WithRow("ingress.hostname", `"`+serviceHostname+`"`),
-						WithRow("nesting", `{"here":{"hello":"world"}}`),
-						WithRow("other", `\[{"sequence":"delta"}\]`),
-						WithRow("sequence", `\["alpha","omega"\]`),
+						WithRow("ingress.hostname", serviceHostname),
+						WithRow("nesting.here.hello", "world"),
+						WithRow(`other\[0\].sequence`, "delta"),
+						WithRow(`sequence\[0\]`, "alpha"),
+						WithRow(`sequence\[1\]`, "omega"),
 					),
 				)
 			})
