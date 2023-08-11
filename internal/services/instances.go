@@ -144,6 +144,17 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string,
 		ServiceNameLabelKey:           name,
 	}
 
+	var data map[string][]byte
+	if settings != nil {
+		yaml, err := yaml.Marshal(settings)
+		if err != nil {
+			return errors.Wrap(err, "failed to marshall the settings")
+		}
+		data = map[string][]byte{
+			"settings": yaml,
+		}
+	}
+
 	var annotations map[string]string // default: nil
 	if len(catalogService.SecretTypes) > 0 {
 		annotations = map[string]string{
@@ -151,9 +162,9 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string,
 		}
 	}
 
-	err := s.kubeClient.CreateLabeledSecret(ctx, namespace, service, nil, labels, annotations)
+	err := s.kubeClient.CreateLabeledSecret(ctx, namespace, service, data, labels, annotations)
 	if err != nil {
-		return errors.Wrap(err, "error creating service secret")
+		return errors.Wrap(err, "failed to create service secret")
 	}
 
 	epinioValues, err := getEpinioValues(name, catalogService.Meta.Name)
