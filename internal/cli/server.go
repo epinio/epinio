@@ -78,12 +78,6 @@ func init() {
 	err = viper.BindEnv("s3-certificate-secret", "S3_CERTIFICATE_SECRET")
 	checkErr(err)
 
-	flags.String("trace-output", "text", "(TRACE_OUTPUT) logs output format [text,json]")
-	err = viper.BindPFlag("trace-output", flags.Lookup("trace-output"))
-	checkErr(err)
-	err = viper.BindEnv("trace-output", "TRACE_OUTPUT")
-	checkErr(err)
-
 	flags.String("ingress-class-name", "", "(INGRESS_CLASS_NAME) Name of the ingress class to use for apps. Leave empty to add no ingressClassName to the ingress.")
 	err = viper.BindPFlag("ingress-class-name", flags.Lookup("ingress-class-name"))
 	checkErr(err)
