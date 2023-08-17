@@ -31,7 +31,12 @@ func TraceLevel() int {
 	return viper.GetInt("trace-level")
 }
 
-// TraceOutput returns the trace-output argument
+// TraceFile returns the trace-file argument, i.e. the path to the log file to use, if any.
+func TraceFile() string {
+	return viper.GetString("trace-file")
+}
+
+// TraceOutput returns the trace-output argument, i.e. the chosen trace format
 func TraceOutput() string {
 	return viper.GetString("trace-output")
 }
@@ -45,9 +50,16 @@ func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 		log.Fatal(err)
 	}
 	argToEnv["trace-level"] = "TRACE_LEVEL"
+
+	pf.StringP("trace-file", "", "", "Print trace messages to the specified file")
+	err = viper.BindPFlag("trace-file", pf.Lookup("trace-file"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	argToEnv["trace-file"] = "TRACE_FILE"
 }
 
-// NewLogger returns a logger based on the trace-output configuration
+// NewLogger returns a logger based on the trace-output/trace-file configuration
 func NewLogger() logr.Logger {
 	if TraceOutput() == "json" {
 		return NewZapLogger()
@@ -57,7 +69,17 @@ func NewLogger() logr.Logger {
 
 // NewStdrLogger returns a stdr logger
 func NewStdrLogger() logr.Logger {
-	return stdr.New(log.New(os.Stderr, "", log.LstdFlags)).V(1) // NOTE: Increment of level, not absolute.
+	destination := os.Stderr
+	traceFilePath := TraceFile()
+	if traceFilePath != "" {
+		dst, err := os.OpenFile(traceFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalf("Unable to create log file %s", traceFilePath)
+		}
+		destination = dst
+	}
+
+	return stdr.New(log.New(destination, "", log.LstdFlags)).V(1) // NOTE: Increment of level, not absolute.
 }
 
 // NewZapLogger creates a new zap logger with our setup. It only prints messages below
@@ -71,6 +93,11 @@ func NewZapLogger() logr.Logger {
 
 	zc := zap.NewProductionConfig()
 	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(TraceLevel() * -1))
+
+	traceFilePath := TraceFile()
+	if traceFilePath != "" {
+		zc.OutputPaths = []string{traceFilePath}
+	}
 
 	z, err := zc.Build()
 	if err != nil {
