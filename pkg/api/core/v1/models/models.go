@@ -387,6 +387,7 @@ type Service struct {
 	BoundApps             []string           `json:"boundapps"`
 	InternalRoutes        []string           `json:"internal_routes,omitempty"`
 	Settings              ChartValueSettings `json:"settings,omitempty"`
+	Details               map[string]string  `json:"details,omitempty"` // Details from associated configs
 }
 
 func (s Service) Namespace() string {

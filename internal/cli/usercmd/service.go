@@ -157,6 +157,25 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 		c.ui.Exclamation().Msg("No settings")
 	}
 
+	if len(service.Details) > 0 {
+		keys := make([]string, 0, len(service.Details))
+		for k := range service.Details {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		msg := c.ui.Success().WithTable("Key", "Value")
+
+		for _, k := range keys {
+			value := transformForDisplay(service.Details[k])
+			msg = msg.WithTableRow(k, value)
+		}
+
+		msg.Msg("Parameters:")
+	} else {
+		c.ui.Exclamation().Msg("No parameters")
+	}
+
 	return nil
 }
 

@@ -12,9 +12,12 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
@@ -49,9 +52,32 @@ func Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	if len(serviceConfigurations) > 0 {
+		service.Details = map[string]string{}
+		for _, serviceConfig := range serviceConfigurations {
+			for key, value := range serviceConfig.Data {
+				if _, ok := service.Details[key]; ok {
+					for j := 0; true; j++ {
+						xkey := fmt.Sprintf("%s.%d", key, j)
+						if _, ok := service.Details[xkey]; !ok {
+							service.Details[key] = string(value)
+							break
+						}
+					}
+					continue
+				}
+				service.Details[key] = string(value)
+			}
+		}
+	}
+
 	service.BoundApps = appNames
 
 	response.OKReturn(c, service)
-
 	return nil
 }
