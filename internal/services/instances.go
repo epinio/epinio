@@ -128,8 +128,13 @@ func GetInternalRoutes(ctx context.Context, servicesGetter v1.ServiceInterface, 
 	return internalRoutes, nil
 }
 
-func (s *ServiceClient) Create(ctx context.Context, namespace, name string,
-	wait bool, settings models.ChartValueSettings, catalogService models.CatalogService) error {
+func (s *ServiceClient) Create(ctx context.Context,
+	namespace, name string,
+	wait bool,
+	settings models.ChartValueSettings,
+	catalogService models.CatalogService,
+	hook helm.PostDeployFunction,
+) error {
 	// Resources, and names
 	//
 	// |Kind	|Name		|Notes			|
@@ -196,13 +201,14 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string,
 	err = helm.DeployService(
 		ctx,
 		helm.ServiceParameters{
-			AppRef:     models.NewAppRef(name, namespace),
-			Cluster:    s.kubeClient,
-			Chart:      catalogService.HelmChart,
-			Version:    catalogService.ChartVersion,
-			Repository: catalogService.HelmRepo.URL,
-			Values:     values,
-			Wait:       wait,
+			AppRef:         models.NewAppRef(name, namespace),
+			Cluster:        s.kubeClient,
+			Chart:          catalogService.HelmChart,
+			Version:        catalogService.ChartVersion,
+			Repository:     catalogService.HelmRepo.URL,
+			Values:         values,
+			Wait:           wait,
+			PostDeployHook: hook,
 		})
 
 	if err != nil {

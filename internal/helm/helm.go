@@ -47,14 +47,17 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+type PostDeployFunction func(ctx context.Context) error
+
 type ServiceParameters struct {
-	models.AppRef                     // Service: name & namespace
-	Cluster       *kubernetes.Cluster // Cluster to talk to.
-	Chart         string              // Name of helm chart to deploy
-	Version       string              // Version of helm chart to deploy
-	Repository    string              // Helm repository holding the chart to deploy
-	Values        string              // Chart customization (YAML-formatted string)
-	Wait          bool                // Wait for service to deploy
+	models.AppRef                      // Service: name & namespace
+	Cluster        *kubernetes.Cluster // Cluster to talk to.
+	Chart          string              // Name of helm chart to deploy
+	Version        string              // Version of helm chart to deploy
+	Repository     string              // Helm repository holding the chart to deploy
+	Values         string              // Chart customization (YAML-formatted string)
+	Wait           bool                // Wait for service to deploy
+	PostDeployHook PostDeployFunction  // Hook to call after service deployment
 }
 
 type ConfigParameter struct {
@@ -167,7 +170,20 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 			err = installOrUpgradeChartWithRetry(context.Background(), logger, client, &chartSpec)
 			if err != nil {
 				logger.Error(err, "installing or upgrading service ASYNC")
+				return
 			}
+
+			if parameters.PostDeployHook != nil {
+				// MAYBE : `wait for the release to be in a ready state` here too, see below.
+				// So far, local, things were fast enough to not need it for labeling
+				err := parameters.PostDeployHook(context.Background())
+				if err != nil {
+					logger.Error(err, "service post deployment ASYNC")
+					return
+				}
+			}
+
+			logger.Info("completed service deployment ASYNC")
 		}()
 		return nil
 	}
@@ -194,7 +210,20 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		return releaseStatus == StatusReady, nil
 	})
 
-	return errors.Wrap(err, "polling release status")
+	if err != nil {
+		return errors.Wrap(err, "polling release status")
+	}
+
+	if parameters.PostDeployHook != nil {
+		err := parameters.PostDeployHook(ctx)
+		if err != nil {
+			logger.Error(err, "service post deployment SYNC")
+			return errors.Wrap(err, "post deployment action")
+		}
+	}
+
+	logger.Info("completed service deployment SYNC")
+	return nil
 }
 
 func Deploy(logger logr.Logger, parameters ChartParameters) error {

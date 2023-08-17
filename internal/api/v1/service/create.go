@@ -12,9 +12,14 @@
 package service
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/gin-gonic/gin"
 
@@ -26,6 +31,7 @@ import (
 func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
+	logger := requestctx.Logger(ctx).WithName("ServiceCreate")
 
 	var createRequest models.ServiceCreateRequest
 	err := c.BindJSON(&createRequest)
@@ -78,9 +84,42 @@ func Create(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
+	postHook := func(ctx context.Context) error {
+		logger.Info("posthook entry")
+
+		// Called when the service is fully deployed. The context is provided as an argument
+		// as it may not be the local one (closure), but a background context instead.
+		// Everything else is taken from the closure.
+
+		// Make the secrets of the newly deployed service immediately available/visible as
+		// Epinio configurations.
+
+		logger.Info("posthook get service")
+		service, apiErr := GetService(ctx, cluster, logger, namespace, createRequest.Name)
+		if apiErr != nil {
+			x := apiErr.(apierror.APIError)
+			return fmt.Errorf("%s: %s", x.Title, x.Details)
+		}
+
+		logger.Info("posthook validate service")
+		apiErr = ValidateService(ctx, cluster, logger, service)
+		if apiErr != nil {
+			x := apiErr.(apierror.APIError)
+			return fmt.Errorf("%s: %s", x.Title, x.Details)
+		}
+
+		logger.Info("posthook label secrets - publish configurations")
+		_, err = configurations.LabelServiceSecrets(ctx, cluster, service)
+		logger.Info("posthook done", "error?", err)
+		return err
+	}
+
 	// Now we can (attempt to) create the desired service
-	err = kubeServiceClient.Create(ctx, namespace, createRequest.Name, createRequest.Wait,
-		createRequest.Settings, *catalogService)
+	err = kubeServiceClient.Create(ctx, namespace, createRequest.Name,
+		createRequest.Wait,
+		createRequest.Settings,
+		*catalogService,
+		postHook)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
