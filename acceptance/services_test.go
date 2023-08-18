@@ -95,8 +95,8 @@ var _ = Describe("Services", LService, func() {
 		})
 
 		When("Adding a catalog entry", func() {
-			// Already added an nginx catalog service in the top level before block
-			// It's meant to be used by other tests too to make tests faster, because
+			// Note: Already added an nginx catalog service in the top level before the block.
+			// It is meant to be used by other tests too, to make tests faster, because
 			// mysql takes more time to provision.
 
 			It("lists the extended catalog", func() {
@@ -150,7 +150,35 @@ var _ = Describe("Services", LService, func() {
 		})
 	})
 
-	Describe("Show", func() {
+	Describe("Show with credentials", func() {
+		var service string
+
+		BeforeEach(func() {
+			service = catalog.NewServiceName()
+
+			By("create it")
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service, "--wait")
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		It("shows a service which has credentials", func() {
+			By("show it")
+			out, err := env.Epinio("", "service", "show", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Showing Service"))
+			Expect(out).To(ContainSubstring("No settings"))
+			Expect(out).To(ContainSubstring("Credentials:"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("mysql-password", ".*"),
+					WithRow("mysql-root-password", ".*"),
+				),
+			)
+		})
+	})
+
+	Describe("Show without credentials", func() {
 		var service string
 
 		BeforeEach(func() {
@@ -161,11 +189,13 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		It("shows a service", func() {
+		It("shows a service which has no credentials", func() {
 			By("show it")
 			out, err := env.Epinio("", "service", "show", service)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Showing Service"))
+			Expect(out).To(ContainSubstring("No settings"))
+			Expect(out).To(ContainSubstring("No credentials"))
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
@@ -176,7 +206,6 @@ var _ = Describe("Services", LService, func() {
 					WithRow("Internal Routes", fmt.Sprintf(`.*\.%s\.svc\.cluster\.local`, namespace)),
 				),
 			)
-			Expect(out).To(ContainSubstring("No settings"))
 		})
 
 		Context("customized", func() {

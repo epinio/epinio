@@ -171,9 +171,9 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 			msg = msg.WithTableRow(k, value)
 		}
 
-		msg.Msg("Parameters:")
+		msg.Msg("Credentials:")
 	} else {
-		c.ui.Exclamation().Msg("No parameters")
+		c.ui.Exclamation().Msg("No credentials")
 	}
 
 	return nil
