@@ -95,11 +95,18 @@ func NewStdrLogger() logr.Logger {
 // Zap does not have named levels that are more verbose than DebugLevel, but it's possible to fake it.
 //
 // https://github.com/go-logr/zapr#increasing-verbosity
+
 func NewZapLogger() logr.Logger {
 	var logger logr.Logger
 
+	level := TraceLevel()
+	// Prevent wrap around in zap internals
+	if level > 128 {
+		level = 128
+	}
+
 	zc := zap.NewProductionConfig()
-	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(TraceLevel() * -1))
+	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(level * -1))
 
 	traceFilePath := TraceFile()
 	if traceFilePath != "" {
