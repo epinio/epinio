@@ -58,7 +58,7 @@ func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 	}
 	argToEnv["trace-file"] = "TRACE_FILE"
 
-	pf.String("trace-output", "text", "(TRACE_OUTPUT) logs output format [text,json]")
+	pf.String("trace-output", "text", "Sets trace output format [text,json]")
 	err = viper.BindPFlag("trace-output", pf.Lookup("trace-output"))
 	if err != nil {
 		log.Fatal(err)
