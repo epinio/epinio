@@ -139,6 +139,8 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 		WithTableRow("Internal Routes", strings.Join(internalRoutes, ", ")).
 		Msg("Details:")
 
+	// Show the service's custom values, if any.
+	// Sorted lexicographically by key.
 	if len(service.Settings) > 0 {
 		keys := []string{}
 		for key := range service.Settings {
@@ -157,6 +159,8 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 		c.ui.Exclamation().Msg("No settings")
 	}
 
+	// Show the service's credential/detail data, if any.
+	// Sorted lexicographically by key.
 	if len(service.Details) > 0 {
 		keys := make([]string, 0, len(service.Details))
 		for k := range service.Details {
