@@ -84,6 +84,11 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 		return nil
 	}
 
+	// Insert a default of last resort. See also note below.
+	if diskRequest == "" {
+		diskRequest = "1Gi"
+	}
+
 	// From here on, only if the PVC is missing
 	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.Namespace()).
 		Create(ctx, &corev1.PersistentVolumeClaim{
