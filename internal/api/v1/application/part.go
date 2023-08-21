@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -179,8 +180,9 @@ func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		return apierror.InternalError(err)
 	}
 
-	jobName := names.GenerateResourceName("image-export-job", appRef.Namespace, appRef.Name, theApp.StageID)
-	imageOutputFilename := fmt.Sprintf("%s-%s-%s.tar", appRef.Namespace, appRef.Name, theApp.StageID)
+	now := strconv.Itoa(time.Now().Nanosecond())
+	jobName := names.GenerateResourceName("export-job", appRef.Namespace, appRef.Name, theApp.StageID, now)
+	imageOutputFilename := fmt.Sprintf("%s-%s-%s-%s.tar", appRef.Namespace, appRef.Name, theApp.StageID, now)
 
 	logger.Info("got app chart", "chart image", theApp.ImageURL)
 
