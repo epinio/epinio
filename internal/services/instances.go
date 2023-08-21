@@ -31,6 +31,7 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/strvals"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -99,7 +100,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		settings = catalogEntry.Settings
 	}
 
-	err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient,
+	err = setServiceStatusAndCustomValues(&service, srv, ctx, logger, s.kubeClient,
 		namespace, names.ServiceReleaseName(name), settings)
 
 	return &service, err
@@ -149,6 +150,17 @@ func (s *ServiceClient) Create(ctx context.Context,
 		ServiceNameLabelKey:           name,
 	}
 
+	var data map[string][]byte
+	if settings != nil {
+		yaml, err := yaml.Marshal(settings)
+		if err != nil {
+			return errors.Wrap(err, "failed to marshall the settings")
+		}
+		data = map[string][]byte{
+			"settings": yaml,
+		}
+	}
+
 	var annotations map[string]string // default: nil
 	if len(catalogService.SecretTypes) > 0 {
 		annotations = map[string]string{
@@ -156,9 +168,9 @@ func (s *ServiceClient) Create(ctx context.Context,
 		}
 	}
 
-	err := s.kubeClient.CreateLabeledSecret(ctx, namespace, service, nil, labels, annotations)
+	err := s.kubeClient.CreateLabeledSecret(ctx, namespace, service, data, labels, annotations)
 	if err != nil {
-		return errors.Wrap(err, "error creating service secret")
+		return errors.Wrap(err, "failed to create service secret")
 	}
 
 	epinioValues, err := getEpinioValues(name, catalogService.Meta.Name)
@@ -359,7 +371,8 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 
 		logger := tracelog.NewLogger().WithName("ServiceStatus")
 
-		err = setServiceStatusAndCustomValues(&service, ctx, logger, s.kubeClient,
+		theServiceSecret := srv
+		err = setServiceStatusAndCustomValues(&service, &theServiceSecret, ctx, logger, s.kubeClient,
 			srv.ObjectMeta.Namespace, names.ServiceReleaseName(serviceName),
 			nil, // no settings information - TODO
 		)
@@ -414,6 +427,7 @@ func getEpinioValues(serviceName, catalogServiceName string) (string, error) {
 }
 
 func setServiceStatusAndCustomValues(service *models.Service,
+	serviceSecret *corev1.Secret,
 	ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
 	namespace, releaseName string,
 	settings map[string]models.ChartSetting,
@@ -436,6 +450,23 @@ func setServiceStatusAndCustomValues(service *models.Service,
 	}
 
 	service.Status = NewServiceStatusFromHelmRelease(serviceStatus)
+
+	yamlSettings, ok := serviceSecret.Data["settings"]
+	if ok {
+		// Found the exact settings in the K secret representing the E service
+		var customized models.ChartValueSettings
+		err := yaml.Unmarshal(yamlSettings, &customized)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshall the settings")
+		}
+
+		service.Settings = customized
+		return nil
+	}
+
+	// The settings are not in the K secret. This is a 1.9.0-created service. Fall back to
+	// heuristic (i.e. hacked) extraction of the settings from the Helm release for backward
+	// compatibility. This is not a 1:1 roundtrip
 
 	if len(settings) > 0 {
 		customized := models.ChartValueSettings{}
