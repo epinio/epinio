@@ -191,9 +191,9 @@ func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		return apierror.NewInternalError("failed to create job", "error", err.Error())
 	}
 
-	file, err := getFileImageAndJobCleanup(ctx, cluster, jobName, imageOutputFilename)
+	file, err := getFileImageAndJobCleanup(ctx, logger, cluster, jobName, imageOutputFilename)
 	if err != nil {
-		return apierror.NewInternalError("failed waiting for job done", "error", err.Error())
+		return apierror.NewInternalError("failed job", "error", err.Error())
 	}
 
 	defer func() {
@@ -306,22 +306,40 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 	return cluster.CreateJob(ctx, helmchart.Namespace(), job)
 }
 
-func getFileImageAndJobCleanup(ctx context.Context, cluster *kubernetes.Cluster, jobName, imageOutputFilename string) (*os.File, error) {
+func getFileImageAndJobCleanup(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, jobName, imageOutputFilename string) (*os.File, error) {
 	err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), jobName, time.Minute*2)
 	if err != nil {
+		logger.Info("export job wait error", "error", err, "job", jobName)
+
+		if errors.Is(err, context.Canceled) {
+			logger.Info("delete job, canceled", "job", jobName)
+			// NOTE: Use bg context here, the regular once is canceled.
+			err := cluster.DeleteJob(context.Background(), helmchart.Namespace(), jobName)
+			if err != nil {
+				logger.Info("export job delete error, in cancellation",
+					"error", err, "job", jobName)
+			}
+		}
+
 		return nil, errors.Wrapf(err, "error waiting for job done %s", jobName)
 	}
 
 	// check for file existence
 	file, err := os.Open("/image-export/" + imageOutputFilename)
 	if err != nil {
+		// NOTE: job is kept, allows for debugging.
+
+		logger.Info("export job result error", "error", err, "job", jobName)
 		return nil, errors.Wrap(err, "failed to open tar file")
 	}
 
+	logger.Info("delete job, done", "job", jobName)
+
 	err = cluster.DeleteJob(ctx, helmchart.Namespace(), jobName)
-
+	if err != nil {
+		logger.Info("export job delete error", "error", err, "job", jobName)
+	}
 	return file, errors.Wrapf(err, "error deleting job %s", jobName)
-
 }
 
 func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
