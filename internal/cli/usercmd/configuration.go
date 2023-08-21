@@ -500,7 +500,7 @@ func transformForDisplay(v string) string {
 	// Consider: Count and truncate by runes, not bytes.
 	// - https://pkg.go.dev/unicode/utf8@go1.20.5#RuneCountInString
 	// - https://go.dev/blog/strings (Libraries, foreach/range)
-	limit := 30
+	limit := 70
 
 	// Pass short strings as-is
 	if len(v) <= limit {

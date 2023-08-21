@@ -407,8 +407,10 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
-					WithRow("file", `# Copyright © 2021 - 2023 SUS`, "\\/configurations\\/"+configurationName1+"\\/file"),
-					WithRow("", "[(]hiding 1758 additional bytes[)]", ""),
+					WithRow("file", `# Copyright © 2021 - 2023`, "\\/configurations\\/"+configurationName1+"\\/file"),
+					WithRow("", "SUSE LLC # Licensed under the"),
+					WithRow("", "Apache Licens [(]hiding 1718", ""),
+					WithRow("", "additional bytes[)]", ""),
 				),
 			)
 		})

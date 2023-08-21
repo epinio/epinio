@@ -2664,6 +2664,13 @@
           "type": "string",
           "x-go-name": "CatalogServiceVersion"
         },
+        "details": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Details"
+        },
         "internal_routes": {
           "type": "array",
           "items": {
