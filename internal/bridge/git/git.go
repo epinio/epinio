@@ -42,6 +42,8 @@ type Manager struct {
 // The only required field is the URL, needed to check the specific instance to apply the configuration.
 // If the UserOrg and/or the Repository are also specified then the most specific configuration will be used.
 type Configuration struct {
+	// TODO : Track creating user
+
 	// ID of the configuration (it maps to the kubernetes secret)
 	ID string
 	// URL is the full url (schema/host/port) used to match a particular instance
