@@ -76,7 +76,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-// addNamespaceToUser will add the namespace to the User namespaces
+// addNamespaceToUser will add the namespace to the User's namespaces
 func addNamespaceToUser(ctx context.Context, namespace string) error {
 	user := requestctx.User(ctx)
 
@@ -87,7 +87,8 @@ func addNamespaceToUser(ctx context.Context, namespace string) error {
 
 	err = authService.AddNamespaceToUser(ctx, user.Username, namespace)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error adding namespace [%s] to user [%s]", namespace, user.Username))
+		return errors.Wrap(err, fmt.Sprintf("error adding namespace [%s] to user [%s]",
+			namespace, user.Username))
 	}
 	return nil
 }

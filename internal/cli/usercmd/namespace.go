@@ -224,7 +224,7 @@ func (c *EpinioClient) DeleteNamespace(namespaces []string, force, all bool) err
 	return nil
 }
 
-// ShowNamepsace shows a Namespace
+// ShowNamespace shows a Namespace
 func (c *EpinioClient) ShowNamespace(namespace string) error {
 	log := c.Log.WithName("ShowNamespace").WithValues("Namespace", namespace)
 	log.Info("start")

@@ -20,8 +20,8 @@ import (
 )
 
 var (
-	gForceFlag bool
-	gAllFlag   bool
+	gNamespaceForceFlag bool
+	gNamespaceAllFlag   bool
 )
 
 // CmdNamespace implements the command: epinio namespace
@@ -44,8 +44,8 @@ var CmdNamespace = &cobra.Command{
 func init() {
 
 	flags := CmdNamespaceDelete.Flags()
-	flags.BoolVarP(&gForceFlag, "force", "f", false, "force namespace deletion")
-	flags.BoolVar(&gAllFlag, "all", false, "delete all namespaces")
+	flags.BoolVarP(&gNamespaceForceFlag, "force", "f", false, "force namespace deletion")
+	flags.BoolVar(&gNamespaceAllFlag, "all", false, "delete all namespaces")
 
 	CmdNamespace.AddCommand(CmdNamespaceCreate)
 	CmdNamespace.AddCommand(CmdNamespaceList)
@@ -94,7 +94,7 @@ var CmdNamespaceDelete = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		err := client.DeleteNamespace(args, gForceFlag, gAllFlag)
+		err := client.DeleteNamespace(args, gNamespaceForceFlag, gNamespaceAllFlag)
 		if err != nil {
 			// Cancellation is not an "error" in deletion.
 			if !strings.Contains(err.Error(), "Cancelled") {
