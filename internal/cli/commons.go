@@ -169,6 +169,19 @@ func matchingCatalogFinder(cmd *cobra.Command, args []string, toComplete string)
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 
+// matchingGitconfigFinder returns a list of matching git configurations from the provided partial
+// command. It only matches for the first command argument.
+func matchingGitconfigFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	client.API.DisableVersionWarning()
+
+	matches := client.GitconfigsMatching(toComplete)
+	return matches, cobra.ShellCompDirectiveNoFileComp
+}
+
 // filteredMatchingFinder will use the finder func to find the resources with the prefix name
 // It will then filter the matches removing the provided args
 func filteredMatchingFinder(args []string, prefix string, finder func(prefix string) []string) []string {

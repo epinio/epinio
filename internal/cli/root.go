@@ -128,6 +128,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		CmdSettings,
 		NewInfoCmd(),
 		NewClientSyncCmd(),
+		CmdGitconfig,
 		CmdNamespace,
 		CmdAppPush, // shorthand access to `app push`
 		CmdApp,

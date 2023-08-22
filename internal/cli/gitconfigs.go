@@ -1,0 +1,123 @@
+// Copyright © 2021 - 2023 SUSE LLC
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package cli
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+)
+
+var (
+	gGitconfigAllFlag bool
+)
+
+// CmdGitconfig implements the command: epinio gitconfig
+var CmdGitconfig = &cobra.Command{
+	Use:           "gitconfig",
+	Aliases:       []string{"gitconfigs"},
+	Short:         "Epinio-controlled git configurations",
+	Long:          `Manage epinio-controlled git configurations`,
+	SilenceErrors: true,
+	SilenceUsage:  true,
+	Args:          cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := cmd.Usage(); err != nil {
+			return err
+		}
+		return fmt.Errorf(`Unknown method "%s"`, args[0])
+	},
+}
+
+func init() {
+	flags := CmdGitconfigDelete.Flags()
+	flags.BoolVar(&gGitconfigAllFlag, "all", false, "delete all git configurations")
+
+	// CmdGitconfig.AddCommand(CmdGitconfigCreate)
+	CmdGitconfig.AddCommand(CmdGitconfigList)
+	CmdGitconfig.AddCommand(CmdGitconfigDelete)
+	CmdGitconfig.AddCommand(CmdGitconfigShow)
+}
+
+// CmdGitconfigs implements the command: epinio gitconfig list
+var CmdGitconfigList = &cobra.Command{
+	Use:   "list",
+	Short: "Lists all epinio-controlled git configurations",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		err := client.Gitconfigs()
+		if err != nil {
+			return errors.Wrap(err, "error listing epinio-controlled git configurations")
+		}
+
+		return nil
+	},
+}
+
+// // CmdGitconfigCreate implements the command: epinio gitconfig create
+// var CmdGitconfigCreate = &cobra.Command{
+// 	Use:   "create NAME",
+// 	Short: "Creates an epinio-controlled git configuration",
+// 	Args:  cobra.ExactArgs(1),
+// 	RunE: func(cmd *cobra.Command, args []string) error {
+// 		cmd.SilenceUsage = true
+//
+// 		err := client.CreateGitconfig(args[0])
+// 		if err != nil {
+// 			return errors.Wrap(err, "error creating epinio-controlled git configuration")
+// 		}
+//
+// 		return nil
+// 	},
+// }
+
+// CmdGitconfigDelete implements the command: epinio gitconfig delete
+var CmdGitconfigDelete = &cobra.Command{
+	Use:               "delete NAME",
+	Short:             "Deletes an epinio-controlled git configuration",
+	ValidArgsFunction: matchingGitconfigFinder,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		err := client.DeleteGitconfig(args, gGitconfigAllFlag)
+		if err != nil {
+			// Cancellation is not an "error" in deletion.
+			if !strings.Contains(err.Error(), "Cancelled") {
+				err = errors.Wrap(err, "error deleting epinio-controlled git configuration")
+			}
+			return err
+		}
+
+		return nil
+	},
+}
+
+// CmdGitconfigShow implements the command: epinio gitconfig show
+var CmdGitconfigShow = &cobra.Command{
+	Use:               "show NAME",
+	Short:             "Shows the details of an epinio-controlled git configuration",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingGitconfigFinder,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		err := client.ShowGitconfig(args[0])
+		if err != nil {
+			return errors.Wrap(err, "error showing epinio-controlled git configuration")
+		}
+
+		return nil
+	},
+}

@@ -556,6 +556,57 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
+	GitconfigDeleteStub        func([]string) (models.Response, error)
+	gitconfigDeleteMutex       sync.RWMutex
+	gitconfigDeleteArgsForCall []struct {
+		arg1 []string
+	}
+	gitconfigDeleteReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	gitconfigDeleteReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
+	GitconfigShowStub        func(string) (models.Gitconfig, error)
+	gitconfigShowMutex       sync.RWMutex
+	gitconfigShowArgsForCall []struct {
+		arg1 string
+	}
+	gitconfigShowReturns struct {
+		result1 models.Gitconfig
+		result2 error
+	}
+	gitconfigShowReturnsOnCall map[int]struct {
+		result1 models.Gitconfig
+		result2 error
+	}
+	GitconfigsStub        func() (models.GitconfigList, error)
+	gitconfigsMutex       sync.RWMutex
+	gitconfigsArgsForCall []struct {
+	}
+	gitconfigsReturns struct {
+		result1 models.GitconfigList
+		result2 error
+	}
+	gitconfigsReturnsOnCall map[int]struct {
+		result1 models.GitconfigList
+		result2 error
+	}
+	GitconfigsMatchStub        func(string) (models.GitconfigsMatchResponse, error)
+	gitconfigsMatchMutex       sync.RWMutex
+	gitconfigsMatchArgsForCall []struct {
+		arg1 string
+	}
+	gitconfigsMatchReturns struct {
+		result1 models.GitconfigsMatchResponse
+		result2 error
+	}
+	gitconfigsMatchReturnsOnCall map[int]struct {
+		result1 models.GitconfigsMatchResponse
+		result2 error
+	}
 	HeadersStub        func() map[string]string
 	headersMutex       sync.RWMutex
 	headersArgsForCall []struct {
@@ -3289,6 +3340,259 @@ func (fake *FakeAPIClient) EnvUnsetReturnsOnCall(i int, result1 models.Response,
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) GitconfigDelete(arg1 []string) (models.Response, error) {
+	var arg1Copy []string
+	if arg1 != nil {
+		arg1Copy = make([]string, len(arg1))
+		copy(arg1Copy, arg1)
+	}
+	fake.gitconfigDeleteMutex.Lock()
+	ret, specificReturn := fake.gitconfigDeleteReturnsOnCall[len(fake.gitconfigDeleteArgsForCall)]
+	fake.gitconfigDeleteArgsForCall = append(fake.gitconfigDeleteArgsForCall, struct {
+		arg1 []string
+	}{arg1Copy})
+	stub := fake.GitconfigDeleteStub
+	fakeReturns := fake.gitconfigDeleteReturns
+	fake.recordInvocation("GitconfigDelete", []interface{}{arg1Copy})
+	fake.gitconfigDeleteMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) GitconfigDeleteCallCount() int {
+	fake.gitconfigDeleteMutex.RLock()
+	defer fake.gitconfigDeleteMutex.RUnlock()
+	return len(fake.gitconfigDeleteArgsForCall)
+}
+
+func (fake *FakeAPIClient) GitconfigDeleteCalls(stub func([]string) (models.Response, error)) {
+	fake.gitconfigDeleteMutex.Lock()
+	defer fake.gitconfigDeleteMutex.Unlock()
+	fake.GitconfigDeleteStub = stub
+}
+
+func (fake *FakeAPIClient) GitconfigDeleteArgsForCall(i int) []string {
+	fake.gitconfigDeleteMutex.RLock()
+	defer fake.gitconfigDeleteMutex.RUnlock()
+	argsForCall := fake.gitconfigDeleteArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeAPIClient) GitconfigDeleteReturns(result1 models.Response, result2 error) {
+	fake.gitconfigDeleteMutex.Lock()
+	defer fake.gitconfigDeleteMutex.Unlock()
+	fake.GitconfigDeleteStub = nil
+	fake.gitconfigDeleteReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) GitconfigDeleteReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.gitconfigDeleteMutex.Lock()
+	defer fake.gitconfigDeleteMutex.Unlock()
+	fake.GitconfigDeleteStub = nil
+	if fake.gitconfigDeleteReturnsOnCall == nil {
+		fake.gitconfigDeleteReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.gitconfigDeleteReturnsOnCall[i] = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) GitconfigShow(arg1 string) (models.Gitconfig, error) {
+	fake.gitconfigShowMutex.Lock()
+	ret, specificReturn := fake.gitconfigShowReturnsOnCall[len(fake.gitconfigShowArgsForCall)]
+	fake.gitconfigShowArgsForCall = append(fake.gitconfigShowArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.GitconfigShowStub
+	fakeReturns := fake.gitconfigShowReturns
+	fake.recordInvocation("GitconfigShow", []interface{}{arg1})
+	fake.gitconfigShowMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) GitconfigShowCallCount() int {
+	fake.gitconfigShowMutex.RLock()
+	defer fake.gitconfigShowMutex.RUnlock()
+	return len(fake.gitconfigShowArgsForCall)
+}
+
+func (fake *FakeAPIClient) GitconfigShowCalls(stub func(string) (models.Gitconfig, error)) {
+	fake.gitconfigShowMutex.Lock()
+	defer fake.gitconfigShowMutex.Unlock()
+	fake.GitconfigShowStub = stub
+}
+
+func (fake *FakeAPIClient) GitconfigShowArgsForCall(i int) string {
+	fake.gitconfigShowMutex.RLock()
+	defer fake.gitconfigShowMutex.RUnlock()
+	argsForCall := fake.gitconfigShowArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeAPIClient) GitconfigShowReturns(result1 models.Gitconfig, result2 error) {
+	fake.gitconfigShowMutex.Lock()
+	defer fake.gitconfigShowMutex.Unlock()
+	fake.GitconfigShowStub = nil
+	fake.gitconfigShowReturns = struct {
+		result1 models.Gitconfig
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) GitconfigShowReturnsOnCall(i int, result1 models.Gitconfig, result2 error) {
+	fake.gitconfigShowMutex.Lock()
+	defer fake.gitconfigShowMutex.Unlock()
+	fake.GitconfigShowStub = nil
+	if fake.gitconfigShowReturnsOnCall == nil {
+		fake.gitconfigShowReturnsOnCall = make(map[int]struct {
+			result1 models.Gitconfig
+			result2 error
+		})
+	}
+	fake.gitconfigShowReturnsOnCall[i] = struct {
+		result1 models.Gitconfig
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) Gitconfigs() (models.GitconfigList, error) {
+	fake.gitconfigsMutex.Lock()
+	ret, specificReturn := fake.gitconfigsReturnsOnCall[len(fake.gitconfigsArgsForCall)]
+	fake.gitconfigsArgsForCall = append(fake.gitconfigsArgsForCall, struct {
+	}{})
+	stub := fake.GitconfigsStub
+	fakeReturns := fake.gitconfigsReturns
+	fake.recordInvocation("Gitconfigs", []interface{}{})
+	fake.gitconfigsMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) GitconfigsCallCount() int {
+	fake.gitconfigsMutex.RLock()
+	defer fake.gitconfigsMutex.RUnlock()
+	return len(fake.gitconfigsArgsForCall)
+}
+
+func (fake *FakeAPIClient) GitconfigsCalls(stub func() (models.GitconfigList, error)) {
+	fake.gitconfigsMutex.Lock()
+	defer fake.gitconfigsMutex.Unlock()
+	fake.GitconfigsStub = stub
+}
+
+func (fake *FakeAPIClient) GitconfigsReturns(result1 models.GitconfigList, result2 error) {
+	fake.gitconfigsMutex.Lock()
+	defer fake.gitconfigsMutex.Unlock()
+	fake.GitconfigsStub = nil
+	fake.gitconfigsReturns = struct {
+		result1 models.GitconfigList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) GitconfigsReturnsOnCall(i int, result1 models.GitconfigList, result2 error) {
+	fake.gitconfigsMutex.Lock()
+	defer fake.gitconfigsMutex.Unlock()
+	fake.GitconfigsStub = nil
+	if fake.gitconfigsReturnsOnCall == nil {
+		fake.gitconfigsReturnsOnCall = make(map[int]struct {
+			result1 models.GitconfigList
+			result2 error
+		})
+	}
+	fake.gitconfigsReturnsOnCall[i] = struct {
+		result1 models.GitconfigList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) GitconfigsMatch(arg1 string) (models.GitconfigsMatchResponse, error) {
+	fake.gitconfigsMatchMutex.Lock()
+	ret, specificReturn := fake.gitconfigsMatchReturnsOnCall[len(fake.gitconfigsMatchArgsForCall)]
+	fake.gitconfigsMatchArgsForCall = append(fake.gitconfigsMatchArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.GitconfigsMatchStub
+	fakeReturns := fake.gitconfigsMatchReturns
+	fake.recordInvocation("GitconfigsMatch", []interface{}{arg1})
+	fake.gitconfigsMatchMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) GitconfigsMatchCallCount() int {
+	fake.gitconfigsMatchMutex.RLock()
+	defer fake.gitconfigsMatchMutex.RUnlock()
+	return len(fake.gitconfigsMatchArgsForCall)
+}
+
+func (fake *FakeAPIClient) GitconfigsMatchCalls(stub func(string) (models.GitconfigsMatchResponse, error)) {
+	fake.gitconfigsMatchMutex.Lock()
+	defer fake.gitconfigsMatchMutex.Unlock()
+	fake.GitconfigsMatchStub = stub
+}
+
+func (fake *FakeAPIClient) GitconfigsMatchArgsForCall(i int) string {
+	fake.gitconfigsMatchMutex.RLock()
+	defer fake.gitconfigsMatchMutex.RUnlock()
+	argsForCall := fake.gitconfigsMatchArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeAPIClient) GitconfigsMatchReturns(result1 models.GitconfigsMatchResponse, result2 error) {
+	fake.gitconfigsMatchMutex.Lock()
+	defer fake.gitconfigsMatchMutex.Unlock()
+	fake.GitconfigsMatchStub = nil
+	fake.gitconfigsMatchReturns = struct {
+		result1 models.GitconfigsMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) GitconfigsMatchReturnsOnCall(i int, result1 models.GitconfigsMatchResponse, result2 error) {
+	fake.gitconfigsMatchMutex.Lock()
+	defer fake.gitconfigsMatchMutex.Unlock()
+	fake.GitconfigsMatchStub = nil
+	if fake.gitconfigsMatchReturnsOnCall == nil {
+		fake.gitconfigsMatchReturnsOnCall = make(map[int]struct {
+			result1 models.GitconfigsMatchResponse
+			result2 error
+		})
+	}
+	fake.gitconfigsMatchReturnsOnCall[i] = struct {
+		result1 models.GitconfigsMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeAPIClient) Headers() map[string]string {
 	fake.headersMutex.Lock()
 	ret, specificReturn := fake.headersReturnsOnCall[len(fake.headersArgsForCall)]
@@ -4656,6 +4960,14 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.envShowMutex.RUnlock()
 	fake.envUnsetMutex.RLock()
 	defer fake.envUnsetMutex.RUnlock()
+	fake.gitconfigDeleteMutex.RLock()
+	defer fake.gitconfigDeleteMutex.RUnlock()
+	fake.gitconfigShowMutex.RLock()
+	defer fake.gitconfigShowMutex.RUnlock()
+	fake.gitconfigsMutex.RLock()
+	defer fake.gitconfigsMutex.RUnlock()
+	fake.gitconfigsMatchMutex.RLock()
+	defer fake.gitconfigsMatchMutex.RUnlock()
 	fake.headersMutex.RLock()
 	defer fake.headersMutex.RUnlock()
 	fake.infoMutex.RLock()
