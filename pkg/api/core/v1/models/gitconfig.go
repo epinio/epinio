@@ -16,6 +16,19 @@ type GitconfigsMatchResponse struct {
 	Names []string `json:"names,omitempty"`
 }
 
+// GitconfigCreateRequest contains the data for a new git configuration.
+type GitconfigCreateRequest struct {
+	ID           string      `json:"id,omitempty"`
+	URL          string      `json:"url,omitempty"`
+	Provider     GitProvider `json:"provider,omitempty"`
+	UserOrg      string      `json:"userorg,omitempty"`
+	Repository   string      `json:"repository,omitempty"`
+	SkipSSL      bool        `json:"skipssl,omitempty"`
+	Username     string      `json:"username,omitempty"`
+	Password     string      `json:"password,omitempty"`
+	Certificates []byte      `json:"certs,omitempty"`
+}
+
 // Gitconfig contains the public parts of git.Configuration
 // Password and cert data are private and excluded.
 // TODO : Track creating user of the config.

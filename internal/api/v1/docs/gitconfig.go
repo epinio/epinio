@@ -26,6 +26,23 @@ type GitconfigsResponse struct {
 	Body models.GitconfigList
 }
 
+// swagger:route POST /gitconfigs gitconfig GitconfigCreate
+// Create the posted new gitconfig.
+// responses:
+//   200: GitconfigCreateResponse
+
+// swagger:parameters GitconfigCreate
+type GitconfigCreateParam struct {
+	// in: body
+	Body models.GitconfigCreateRequest
+}
+
+// swagger:response GitconfigCreateResponse
+type GitconfigCreateResponse struct {
+	// in: body
+	Body models.Response
+}
+
 // swagger:route DELETE /gitconfigs GitconfigBatchDelete
 // Delete the named gitconfigs.
 // responses:

@@ -22,6 +22,71 @@ import (
 var _ = Describe("Gitconfigs", LGitconfig, func() {
 	var gitconfigName string
 
+	BeforeEach(func() {
+		gitconfigName = catalog.NewGitconfigName()
+	})
+
+	Describe("gitconfig create", func() {
+		AfterEach(func() {
+			out, err := env.Epinio("", "gitconfig", "delete", gitconfigName)
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		It("creates a gitconfig", func() {
+			out, err := env.Epinio("", "gitconfig", "create",
+				gitconfigName, "url", "selfie", "pass",
+				"--git-provider", "gitlab",
+				"--skip-ssl",
+				"--user-org", "anorg",
+				"--repository", "therepo",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Name: " + gitconfigName))
+			Expect(out).To(ContainSubstring("Git configuration created"))
+
+			out, err = env.Epinio("", "gitconfig", "show", gitconfigName)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", gitconfigName),
+					WithRow("Provider", "gitlab"),
+					WithRow("URL", "url"),
+					WithRow("User/Org", "anorg"),
+					WithRow("Repository", "therepo"),
+					WithRow("Skip SSL", "true"),
+					WithRow("Username", "selfie"),
+				),
+			)
+		})
+
+		It("rejects creating an existing gitconfig", func() {
+			out, err := env.Epinio("", "gitconfig", "create", gitconfigName, "url", "user", "pass")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			out, err = env.Epinio("", "gitconfig", "create", gitconfigName, "url", "user", "pass")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("gitconfig '%s' already exists", gitconfigName))
+		})
+	})
+
+	Describe("gitconfig create failures", func() {
+		It("rejects names not fitting kubernetes requirements", func() {
+			gitconfigName := "BOGUS"
+			out, err := env.Epinio("", "gitconfig", "create", gitconfigName, "url", "user", "pass")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("id must consist of lower case alphanumeric"))
+		})
+
+		It("rejects unknown git providers", func() {
+			out, err := env.Epinio("", "gitconfig", "create",
+				gitconfigName, "url", "user", "pass",
+				"--git-provider", "bogus")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("unknown provider"))
+		})
+	})
+
 	Describe("gitconfig list", func() {
 		BeforeEach(func() {
 			gitconfigName = catalog.NewGitconfigName()
@@ -104,8 +169,8 @@ var _ = Describe("Gitconfigs", LGitconfig, func() {
 		It("deletes a git configuration", func() {
 			out, err := env.Epinio("", "gitconfig", "delete", gitconfigName)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Git Configurations: %s", gitconfigName))
-			Expect(out).To(ContainSubstring("Git Configurations deleted."))
+			Expect(out).To(ContainSubstring("Git configurations: %s", gitconfigName))
+			Expect(out).To(ContainSubstring("Git configurations deleted."))
 		})
 
 		Context("command completion", func() {

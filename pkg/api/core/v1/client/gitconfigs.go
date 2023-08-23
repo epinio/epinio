@@ -19,13 +19,6 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// // GitconfigCreate creates a gitconfig
-// func (c *Client) GitconfigCreate(request models.GitconfigCreateRequest) (models.Response, error) {
-// 	response := models.Response{}
-// 	endpoint := api.Routes.Path("Gitconfigs")
-// 	return Post(c, endpoint, request, response)
-// }
-
 // GitconfigDelete deletes a gitconfig
 func (c *Client) GitconfigDelete(gitconfigs []string) (models.Response, error) {
 	response := models.Response{}
@@ -66,4 +59,11 @@ func (c *Client) Gitconfigs() (models.GitconfigList, error) {
 	endpoint := api.Routes.Path("Gitconfigs")
 
 	return Get(c, endpoint, response)
+}
+
+// GitconfigCreate creates a gitconfig
+func (c *Client) GitconfigCreate(request models.GitconfigCreateRequest) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("GitconfigCreate")
+	return Post(c, endpoint, request, response)
 }

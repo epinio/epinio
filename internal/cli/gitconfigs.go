@@ -44,7 +44,14 @@ func init() {
 	flags := CmdGitconfigDelete.Flags()
 	flags.BoolVar(&gGitconfigAllFlag, "all", false, "delete all git configurations")
 
-	// CmdGitconfig.AddCommand(CmdGitconfigCreate)
+	gitProviderOption(CmdGitconfigCreate)
+	flags = CmdGitconfigCreate.Flags()
+	flags.Bool("skip-ssl", false, "skip ssl")
+	flags.String("user-org", "", "user/org holding repository")
+	flags.String("repository", "", "specific repository")
+	flags.String("cert-file", "", "path to file holding supporting certificates")
+
+	CmdGitconfig.AddCommand(CmdGitconfigCreate)
 	CmdGitconfig.AddCommand(CmdGitconfigList)
 	CmdGitconfig.AddCommand(CmdGitconfigDelete)
 	CmdGitconfig.AddCommand(CmdGitconfigShow)
@@ -66,22 +73,48 @@ var CmdGitconfigList = &cobra.Command{
 	},
 }
 
-// // CmdGitconfigCreate implements the command: epinio gitconfig create
-// var CmdGitconfigCreate = &cobra.Command{
-// 	Use:   "create NAME",
-// 	Short: "Creates an epinio-controlled git configuration",
-// 	Args:  cobra.ExactArgs(1),
-// 	RunE: func(cmd *cobra.Command, args []string) error {
-// 		cmd.SilenceUsage = true
-//
-// 		err := client.CreateGitconfig(args[0])
-// 		if err != nil {
-// 			return errors.Wrap(err, "error creating epinio-controlled git configuration")
-// 		}
-//
-// 		return nil
-// 	},
-// }
+// CmdGitconfigCreate implements the command: epinio gitconfig create
+var CmdGitconfigCreate = &cobra.Command{
+	Use:   "create ID URL USER TOKEN [flags]",
+	Short: "Creates an epinio-controlled git configuration",
+	Args:  cobra.ExactArgs(4),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		skipssl, err := cmd.Flags().GetBool("skip-ssl")
+		if err != nil {
+			return errors.Wrap(err, "could not read option --skip-ssl")
+		}
+		provider, err := cmd.Flags().GetString("git-provider")
+		if err != nil {
+			return errors.Wrap(err, "could not read option --git-provider")
+		}
+		if provider == "" {
+			provider = "git"
+		}
+		userorg, err := cmd.Flags().GetString("user-org")
+		if err != nil {
+			return errors.Wrap(err, "could not read option --user-org")
+		}
+		repository, err := cmd.Flags().GetString("repository")
+		if err != nil {
+			return errors.Wrap(err, "could not read option --repository")
+		}
+		certfile, err := cmd.Flags().GetString("cert-file")
+		if err != nil {
+			return errors.Wrap(err, "could not read option --cert-file")
+		}
+
+		err = client.CreateGitconfig(args[0],
+			provider, args[1], args[2], args[3],
+			userorg, repository, certfile, skipssl)
+		if err != nil {
+			return errors.Wrap(err, "error creating epinio-controlled git configuration")
+		}
+
+		return nil
+	},
+}
 
 // CmdGitconfigDelete implements the command: epinio gitconfig delete
 var CmdGitconfigDelete = &cobra.Command{

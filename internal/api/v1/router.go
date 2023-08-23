@@ -191,8 +191,8 @@ var Routes = routes.NamedRoutes{
 	"ChartShow":   get("/appcharts/:name", errorHandler(appchart.Show)),
 
 	// Git configurations (auth for private git repos) - List, create, delete, and show.
-	"Gitconfigs": get("/gitconfigs", errorHandler(gitconfig.Index)),
-	// "GitconfigCreate":      post("/gitconfigs", errorHandler(gitconfig.Create)),
+	"Gitconfigs":           get("/gitconfigs", errorHandler(gitconfig.Index)),
+	"GitconfigCreate":      post("/gitconfigs", errorHandler(gitconfig.Create)),
 	"GitconfigDelete":      delete("/gitconfigs/:gitconfig", errorHandler(gitconfig.Delete)),
 	"GitconfigBatchDelete": delete("/gitconfigs", errorHandler(gitconfig.Delete)),
 	"GitconfigsMatch":      get("/gitconfigsmatch/:pattern", errorHandler(gitconfig.Match)),

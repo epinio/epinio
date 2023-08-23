@@ -13,36 +13,75 @@ package usercmd
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-// // CreateGitconfig creates a gitconfig
-// func (c *EpinioClient) CreateGitconfig(gitconfig string) error {
-// 	log := c.Log.WithName("CreateGitconfig").WithValues("Gitconfig", gitconfig)
-// 	log.Info("start")
-// 	defer log.Info("return")
+// CreateGitconfig creates a gitconfig
+func (c *EpinioClient) CreateGitconfig(id,
+	providerString, url, user, password, userorg, repo, certfile string,
+	skipssl bool) error {
 
-// 	c.ui.Note().
-// 		WithStringValue("Name", gitconfig).
-// 		Msg("Creating gitconfig...")
+	log := c.Log.WithName("CreateGitconfig").WithValues("gitconfig", id)
+	log.Info("start")
+	defer log.Info("return")
 
-// 	errorMsgs := validation.IsDNS1123Subdomain(gitconfig)
-// 	if len(errorMsgs) > 0 {
-// 		return fmt.Errorf("Gitconfig's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
-// 	}
+	c.ui.Note().
+		WithStringValue("Name", id).
+		WithStringValue("Provider", providerString).
+		WithStringValue("Url", url).
+		WithStringValue("User/Org", userorg).
+		WithStringValue("Repository", repo).
+		WithStringValue("Username", user).
+		WithStringValue("Password", password).
+		WithBoolValue("Skip SSL", skipssl).
+		WithStringValue("Certificates from", certfile).
+		Msg("Creating gitconfig...")
 
-// 	_, err := c.API.GitconfigCreate(models.GitconfigCreateRequest{Name: gitconfig})
-// 	if err != nil {
-// 		return err
-// 	}
+	errorMsgs := validation.IsDNS1123Subdomain(id)
+	if len(errorMsgs) > 0 {
+		return fmt.Errorf("The git configuration's id must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
+	}
 
-// 	c.ui.Success().Msg("Gitconfig created.")
+	provider, err := models.GitProviderFromString(providerString)
+	if err != nil {
+		return err
+	}
 
-// 	return nil
-// }
+	certs := []byte{}
+
+	if certfile != "" {
+		content, err := os.ReadFile(certfile)
+		if err != nil {
+			return errors.Wrapf(err, "filesystem error")
+		}
+		certs = content
+	}
+
+	_, err = c.API.GitconfigCreate(models.GitconfigCreateRequest{
+		ID:           id,
+		Provider:     provider,
+		URL:          url,
+		UserOrg:      userorg,
+		Repository:   repo,
+		Username:     user,
+		Password:     password,
+		SkipSSL:      skipssl,
+		Certificates: certs,
+	})
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("Git configuration created.")
+
+	return nil
+}
 
 // GitconfigsMatching returns all Epinio gi tconfigurations having the specified prefix in their name
 func (c *EpinioClient) GitconfigsMatching(prefix string) []string {
@@ -69,7 +108,7 @@ func (c *EpinioClient) Gitconfigs() error {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().Msg("Listing Git Configurations")
+	c.ui.Note().Msg("Listing git configurations")
 
 	details.Info("list gitconfigs")
 
@@ -94,7 +133,7 @@ func (c *EpinioClient) Gitconfigs() error {
 		)
 	}
 
-	msg.Msg("Epinio Git Configurations:")
+	msg.Msg("Git configurations:")
 
 	return nil
 }
@@ -124,7 +163,7 @@ func (c *EpinioClient) DeleteGitconfig(gitconfigs []string, all bool) error {
 			return err
 		}
 		if len(match.Names) == 0 {
-			c.ui.Exclamation().Msg("No gitconfigs found to delete")
+			c.ui.Exclamation().Msg("No git configurations found to delete")
 			return nil
 		}
 
@@ -138,7 +177,7 @@ func (c *EpinioClient) DeleteGitconfig(gitconfigs []string, all bool) error {
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Git Configurations", namesCSV).
+		WithStringValue("Git configurations", namesCSV).
 		Msg("Deleting git configurations...")
 
 	s := c.ui.Progressf("Deleting %s", gitconfigs)
@@ -157,7 +196,7 @@ func (c *EpinioClient) DeleteGitconfig(gitconfigs []string, all bool) error {
 		return err
 	}
 
-	c.ui.Success().Msg("Git Configurations deleted.")
+	c.ui.Success().Msg("Git configurations deleted.")
 
 	return nil
 }

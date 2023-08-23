@@ -18,25 +18,36 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"k8s.io/apimachinery/pkg/util/validation"
+
 	"github.com/gin-gonic/gin"
 )
 
-// Delete handles the API endpoint /gitconfigs/:gitconfig (DELETE).
-// It destroys the git configuration specified by its name.
-func Delete(c *gin.Context) apierror.APIErrors {
+// Create handles the API endpoint /gitconfigs (POST).
+// It creates a gitconfig with the specified name.
+func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	gitconfigName := c.Param("gitconfig")
 	logger := requestctx.Logger(ctx)
-
-	var gitconfigNames []string
-	gitconfigNames, found := c.GetQueryArray("gitconfigs[]")
-	if !found {
-		gitconfigNames = append(gitconfigNames, gitconfigName)
-	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
+	}
+
+	var request models.GitconfigCreateRequest
+	err = c.BindJSON(&request)
+	if err != nil {
+		return apierror.NewBadRequestError(err.Error())
+	}
+
+	gitconfigName := request.ID
+	if gitconfigName == "" {
+		return apierror.NewBadRequestError("name of gitconfig to create not found")
+	}
+	errorMsgs := validation.IsDNS1123Subdomain(gitconfigName)
+	if len(errorMsgs) > 0 {
+		return apierror.NewBadRequestErrorf("Git configurations' name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
 	}
 
 	manager, err := gitbridge.NewManager(logger, cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
@@ -46,23 +57,34 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 	gitconfigList := manager.Configurations
 
-	// see create.go
+	// see delete.go
 	gcNames := map[string]struct{}{}
 	for _, gitconfig := range gitconfigList {
 		gcNames[gitconfig.ID] = struct{}{}
 	}
 
-	for _, gitconfig := range gitconfigNames {
-		if _, ok := gcNames[gitconfig]; !ok {
-			continue
-		}
-
-		err := cluster.DeleteSecret(ctx, helmchart.Namespace(), gitconfig)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
+	// already known ?
+	if _, ok := gcNames[gitconfigName]; ok {
+		return apierror.NewConflictError("gitconfig", gitconfigName)
 	}
 
-	response.OK(c)
+	secret := gitbridge.NewSecretFromConfiguration(gitbridge.Configuration{
+		ID:          request.ID,
+		URL:         request.URL,
+		Provider:    request.Provider,
+		Username:    request.Username,
+		Password:    request.Password,
+		UserOrg:     request.UserOrg,
+		Repository:  request.Repository,
+		SkipSSL:     request.SkipSSL,
+		Certificate: request.Certificates,
+	})
+
+	err = cluster.CreateSecret(ctx, helmchart.Namespace(), secret)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	response.Created(c)
 	return nil
 }

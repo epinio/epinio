@@ -14,7 +14,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/epinio/epinio/internal/manifest"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -36,18 +35,7 @@ func init() {
 	err := CmdAppPush.RegisterFlagCompletionFunc("app-chart", matchingChartFinder)
 	checkErr(err)
 
-	CmdAppPush.Flags().String("git-provider", "", "Git provider code (default 'git')")
-	err = CmdAppPush.RegisterFlagCompletionFunc("git-provider",
-		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			matches := []string{}
-			for _, candidate := range models.ValidProviders {
-				if strings.HasPrefix(string(candidate), toComplete) {
-					matches = append(matches, string(candidate))
-				}
-			}
-			return matches, cobra.ShellCompDirectiveDefault
-		})
-	checkErr(err)
+	gitProviderOption(CmdAppPush)
 
 	routeOption(CmdAppPush)
 	bindOption(CmdAppPush)

@@ -218,6 +218,27 @@
           }
         }
       },
+      "post": {
+        "tags": [
+          "gitconfig"
+        ],
+        "summary": "Create the posted new gitconfig.",
+        "operationId": "GitconfigCreate",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/GitconfigCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigCreateResponse"
+          }
+        }
+      },
       "delete": {
         "summary": "Delete the named gitconfigs.",
         "operationId": "GitconfigBatchDelete",
@@ -2598,6 +2619,52 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "GitconfigCreateRequest": {
+      "type": "object",
+      "title": "GitconfigCreateRequest contains the data for a new git configuration.",
+      "properties": {
+        "certs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint8"
+          },
+          "x-go-name": "Certificates"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "ID"
+        },
+        "password": {
+          "type": "string",
+          "x-go-name": "Password"
+        },
+        "provider": {
+          "$ref": "#/definitions/GitProvider"
+        },
+        "repository": {
+          "type": "string",
+          "x-go-name": "Repository"
+        },
+        "skipssl": {
+          "type": "boolean",
+          "x-go-name": "SkipSSL"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
+        },
+        "userorg": {
+          "type": "string",
+          "x-go-name": "UserOrg"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "GitconfigList": {
       "type": "array",
       "items": {
@@ -3226,6 +3293,12 @@
       }
     },
     "EnvUnsetResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "GitconfigCreateResponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/Response"

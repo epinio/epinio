@@ -117,7 +117,7 @@ type APIClient interface {
 	ChartMatch(prefix string) (models.ChartMatchResponse, error)
 
 	// gitconfigs
-	// GitconfigCreate(req models.GitconfigCreateRequest) (models.Response, error)
+	GitconfigCreate(req models.GitconfigCreateRequest) (models.Response, error)
 	GitconfigDelete(gitconfigs []string) (models.Response, error)
 	GitconfigShow(gitconfig string) (models.Gitconfig, error)
 	Gitconfigs() (models.GitconfigList, error)
