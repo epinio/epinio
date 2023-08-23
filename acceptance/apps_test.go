@@ -338,46 +338,9 @@ var _ = Describe("Apps", LApplication, func() {
 			})
 
 			It("pushes the app when providing a proper token", func() {
-				tmpTokenDir, err := os.MkdirTemp("", "tmp-token-dir")
-				Expect(err).ToNot(HaveOccurred())
+				env.MakeGitconfig(catalog.NewGitconfigName())
 
-				tmpTokenFile := path.Join(tmpTokenDir, "token")
-				err = os.WriteFile(tmpTokenFile, []byte(os.Getenv("PRIVATE_REPO_IMPORT_PAT")), 0644)
-				Expect(err).ToNot(HaveOccurred())
-
-				DeferCleanup(func() {
-					os.RemoveAll(tmpTokenDir)
-				})
-
-				secretGitConfigName := fmt.Sprintf("github-configuration-%d", catalog.RandInt())
-
-				// create the secret with the github configuration
-				out, err := proc.Kubectl(
-					"create", "secret", "generic", secretGitConfigName,
-					"--namespace", "epinio",
-					"--from-literal=url=https://github.com",
-					"--from-literal=username=anything",
-					"--from-file=password="+tmpTokenFile,
-				)
-				Expect(err).NotTo(HaveOccurred(), out)
-
-				DeferCleanup(func() {
-					out, err = proc.Kubectl(
-						"delete", "secret", secretGitConfigName,
-						"--namespace", "epinio",
-					)
-					Expect(err).NotTo(HaveOccurred(), out)
-				})
-
-				// label the secret
-				out, err = proc.Kubectl(
-					"label", "secret", secretGitConfigName,
-					"--namespace", "epinio",
-					"epinio.io/api-git-credentials=true",
-				)
-				Expect(err).NotTo(HaveOccurred(), out)
-
-				out, err = env.Epinio("", "push", "--name", appName, "--git", privateRepo)
+				out, err := env.Epinio("", "push", "--name", appName, "--git", privateRepo)
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 		})

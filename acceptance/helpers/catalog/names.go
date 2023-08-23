@@ -35,6 +35,10 @@ func NewNamespaceName() string {
 	return "namespace-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
+func NewGitconfigName() string {
+	return "gitconfig-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
 func NewAppName() string {
 	return "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }

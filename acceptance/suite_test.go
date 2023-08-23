@@ -38,6 +38,7 @@ var (
 	LApplication   = Label("application")
 	LConfiguration = Label("configuration")
 	LNamespace     = Label("namespace")
+	LGitconfig     = Label("gitconfig")
 	LMisc          = Label("misc")
 
 	// Test configuration and state
