@@ -105,7 +105,8 @@ var _ = Describe("Auth users", func() {
 				Expect(secretName).To(Equal("user3"))
 
 				_, secret, _ := fake.UpdateArgsForCall(0)
-				Expect(secret.StringData).To(HaveLen(1))
+				Expect(secret.StringData).To(HaveLen(2))
+				Expect(secret.StringData["gitconfigs"]).To(Equal(""))
 				Expect(secret.StringData["namespaces"]).To(Equal("workspace\nworkspace2"))
 			})
 		})

@@ -17,47 +17,89 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 )
 
-func AuthorizationMiddleware(c *gin.Context) {
+func NamespaceAuthorizationMiddleware(c *gin.Context) {
+	user := requestctx.User(c.Request.Context())
+	authorization(c, "namespace", user.Namespaces)
+}
+
+func GitconfigAuthorizationMiddleware(c *gin.Context) {
+	user := requestctx.User(c.Request.Context())
+	authorization(c, "gitconfig", user.Gitconfigs)
+}
+
+func authorization(c *gin.Context, label string, allowed []string) {
 	logger := requestctx.Logger(c.Request.Context()).WithName("AuthorizationMiddleware")
 	user := requestctx.User(c.Request.Context())
 
 	method := c.Request.Method
 	path := c.Request.URL.Path
-	namespace := c.Param("namespace")
 
 	logger.Info(fmt.Sprintf("authorization request from user [%s] with role [%s] for [%s - %s]", user.Username, user.Role, method, path))
 
-	var authorized bool
 	switch user.Role {
 	case "admin":
-		authorized = authorizeAdmin(logger)
+		logger.V(1).WithName("authorizeAdmin").Info("user [admin] is authorized")
+		return
+
 	case "user":
-		authorized = authorizeUser(logger, user, path, namespace)
+		if !unrestrictedPath(logger, path) {
+			response.Error(c, apierrors.NewAPIError("user unauthorized, path restricted",
+				http.StatusForbidden))
+			c.Abort()
+		}
+
+		// extract the resources
+		resourceName := c.Param(label)
+		var resourceNames []string
+		resourceNames, found := c.GetQueryArray(label + "s[]")
+		if !found {
+			resourceNames = append(resourceNames, resourceName)
+		}
+
+		for _, rsrc := range resourceNames {
+			authorized := authorizeUser(logger, label, rsrc, allowed)
+			logger.Info(fmt.Sprintf("user [%s] with role [%s] authorized [%t] for %s [%s]",
+				user.Username, user.Role, authorized, label, rsrc))
+
+			if !authorized {
+				response.Error(c,
+					apierrors.NewAPIError(fmt.Sprintf("user unauthorized for %s %s",
+						label, rsrc),
+						http.StatusForbidden))
+				c.Abort()
+			}
+		}
 	}
-
-	logger.Info(fmt.Sprintf("user [%s] with role [%s] authorized [%t] for namespace [%s]", user.Username, user.Role, authorized, namespace))
-
-	if !authorized {
-		response.Error(c, apierrors.NewAPIError("user unauthorized", http.StatusForbidden))
-		c.Abort()
-	}
-
 }
 
-func authorizeAdmin(logger logr.Logger) bool {
-	logger.V(1).WithName("authorizeAdmin").Info("user admin is authorized")
-	return true
-}
-
-func authorizeUser(logger logr.Logger, user auth.User, path, namespace string) bool {
+func authorizeUser(logger logr.Logger, label, resource string, allowed []string) bool {
 	logger = logger.V(1).WithName("authorizeUser")
+
+	// check if the user has permission on the requested resource
+	if resource == "" {
+		// empty resource always permitted
+		return true
+	}
+
+	for _, ns := range allowed {
+		if resource == ns {
+			return true
+		}
+	}
+
+	logger.Info(fmt.Sprintf("%s [%s] is not in user %ss [%s]",
+		label, resource, label, strings.Join(allowed, ", ")))
+	return false
+}
+
+func unrestrictedPath(logger logr.Logger, path string) bool {
+	logger = logger.V(1).WithName("unrestrictedPath")
 
 	// check if the requested path is restricted
 	if _, found := AdminRoutes[path]; found {
@@ -65,18 +107,6 @@ func authorizeUser(logger logr.Logger, user auth.User, path, namespace string) b
 		return false
 	}
 
-	// check if the user has permission on the requested namespace
-	if namespace != "" {
-		for _, ns := range user.Namespaces {
-			if namespace == ns {
-				return true
-			}
-		}
-
-		logger.Info(fmt.Sprintf("namespace [%s] is not in user namespaces [%s]", namespace, strings.Join(user.Namespaces, ", ")))
-		return false
-	}
-
-	// all non-admin routes are public
+	// path is free to use
 	return true
 }

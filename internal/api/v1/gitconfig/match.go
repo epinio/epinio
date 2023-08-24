@@ -16,6 +16,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -29,7 +30,7 @@ import (
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
-	// user := requestctx.User(ctx)
+	user := requestctx.User(ctx)
 	logger := requestctx.Logger(ctx)
 
 	log.Info("match gitconfigs")
@@ -47,14 +48,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 
 	gitconfigList := manager.Configurations
 
-	// NOTE: auth.Filter... requires a `NamespacedResource`, and `git.Configuration` is not.
-	//
-	// Further: A token should be updated/deleted only from the user who created it, or by an admin
-	// Whereas: `git.Configuration` does not track the user who created it.
-	//          !The `Username` field holds the user information for git auth.
-	//          !The `UserOrg` field holds the git org/user to match
-	//
-	// gitconfigList = auth.FilterResources(user, gitconfigList)
+	gitconfigList = auth.FilterGitconfigResources(user, gitconfigList)
 
 	log.Info("get gitconfig prefix")
 	prefix := c.Param("pattern")

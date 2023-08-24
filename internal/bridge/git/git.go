@@ -62,6 +62,12 @@ type Configuration struct {
 	Certificate []byte
 }
 
+// Gitconfig returns the id of the configuration, for filtering.
+// Satisfies the interface `GitconfigResource`, see package `internal/auth`
+func (c Configuration) Gitconfig() string {
+	return c.ID
+}
+
 func NewManager(logger logr.Logger, secretLoader SecretLister) (*Manager, error) {
 	logger = logger.WithName("GitManager")
 
