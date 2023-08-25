@@ -13,10 +13,9 @@ package configuration
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/api/v1/deploy"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -54,39 +53,19 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 		return apierror.InternalError(err)
 	}
 
-	// Perform restart on the candidates which are actually running
 	if restart {
-		username := requestctx.User(ctx).Username
-
 		// Determine bound apps, as candidates for restart.
 		appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 
-		for _, appName := range appNames {
-			app, err := application.Lookup(ctx, cluster, namespace, appName)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-
-			// Restart workload, if any
-			if app.Workload != nil {
-				// TODO :: This plain restart is different from all other restarts
-				// (scaling, ev change, bound configurations change) ... The deployment
-				// actually does not change, at all. A resource the deployment
-				// references/uses changed, i.e. the configuration. We still have to
-				// trigger the restart somehow, so that the pod mounting the
-				// configuration remounts it for the new/changed keys.
-				_, apierr := deploy.DeployAppWithRestart(ctx, cluster, app.Meta, username, "")
-				if apierr != nil {
-					return apierr
-				}
-			}
+		// Perform restart on the candidates which are actually running
+		apiErr := apiapp.Redeploy(ctx, cluster, namespace, appNames)
+		if apiErr != nil {
+			return apiErr
 		}
 	}
-
-	// Done
 
 	response.OK(c)
 	return nil

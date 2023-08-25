@@ -12,6 +12,8 @@
 package application
 
 import (
+	"context"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -109,5 +111,36 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 	response.OKReturn(c, models.DeployResponse{
 		Routes: routes,
 	})
+	return nil
+}
+
+// Redeploy does not serve a specific handler. It is used by the configuration and service
+// update/replace handlers to restart the active set of the named applications. Quiescent
+// applications are ignored. This is their means of forcing the applications bound to the changed
+// configuration/service to pick up these changes and use them.
+func Redeploy(ctx context.Context, cluster *kubernetes.Cluster, namespace string, appNames []string) apierror.APIErrors {
+	username := requestctx.User(ctx).Username
+
+	for _, appName := range appNames {
+		app, err := application.Lookup(ctx, cluster, namespace, appName)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		// Restart workload, if any
+		if app.Workload != nil {
+			// TODO :: This plain restart is different from all other restarts
+			// (scaling, ev change, bound configurations change) ... The deployment
+			// actually does not change, at all. A resource the deployment
+			// references/uses changed, i.e. the configuration. We still have to
+			// trigger the restart somehow, so that the pod mounting the
+			// configuration remounts it for the new/changed keys.
+			_, apiErr := deploy.DeployAppWithRestart(ctx, cluster, app.Meta, username, "")
+			if apiErr != nil {
+				return apiErr
+			}
+		}
+	}
+
 	return nil
 }
