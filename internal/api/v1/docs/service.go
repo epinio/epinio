@@ -87,6 +87,48 @@ type ServiceCreateResponse struct {
 	Body models.Response
 }
 
+// swagger:route PATCH /namespaces/{Namespace}/services/{Service} service ServiceUpdate
+// Update the named `Service` in the `Namespace` as per the instructions in the body
+// responses:
+//   200: ServiceUpdateResponse
+
+// swagger:parameters ServiceUpdate
+type ServiceUpdateParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	Service string
+	// in: body
+	Body models.ServiceUpdateRequest
+}
+
+// swagger:response ServiceUpdateResponse
+type ServiceUpdateResponse struct {
+	// in: body
+	Body models.Response
+}
+
+// swagger:route PUT /namespaces/{Namespace}/services/{Service} service ServiceReplace
+// Replace the named `Service` in the `Namespace` as per the instructions in the body
+// responses:
+//   200: ServiceReplaceResponse
+
+// swagger:parameters ServiceReplace
+type ServiceReplaceParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	Service string
+	// in: body
+	Body models.ServiceReplaceRequest
+}
+
+// swagger:response ServiceReplaceResponse
+type ServiceReplaceResponse struct {
+	// in: body
+	Body models.Response
+}
+
 // swagger:route GET /namespaces/{Namespace}/services service ServiceList
 // Return list of services in the `Namespace`.
 // responses:
