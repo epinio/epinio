@@ -73,6 +73,17 @@ type ConfigurationCreateRequest struct {
 	Data map[string]string `json:"data"`
 }
 
+// NOTE: The `Update` and `Replace` requests below serve the same function, the modification and
+// redeployment of an existing service with changed custom values. The two endpoint differ in the
+// representation of the change and through that which user they are suitable for.
+//
+// `Update` takes a set of change/remove instructions and applies them to the service. This is
+// suitable to the CLI, which has no knowledge of the current state of the service.
+//
+// `Replace` on the other hand simply provides the entire new set of keys and values to replace the
+// current data with. This is suitable to the Web UI which has a local copy of the service state
+// available.
+
 // ConfigurationUpdateRequest represents and contains the data needed to
 // update a configuration instance (add/change, and remove keys)
 type ConfigurationUpdateRequest struct {

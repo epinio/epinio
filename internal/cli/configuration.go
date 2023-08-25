@@ -83,7 +83,7 @@ var CmdConfigurationCreate = &cobra.Command{
 	RunE: ConfigurationCreate,
 }
 
-// CmdConfigurationUpdate implements the command: epinio configuration create
+// CmdConfigurationUpdate implements the command: epinio configuration update
 var CmdConfigurationUpdate = &cobra.Command{
 	Use:               "update NAME [flags]",
 	Short:             "Update a configuration",

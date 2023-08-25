@@ -40,9 +40,7 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 		if err.Error() == "configuration not found" {
 			return apierror.ConfigurationIsNotKnown(configurationName)
 		}
-		if err != nil {
-			return apierror.InternalError(err)
-		}
+		return apierror.InternalError(err)
 	}
 
 	var replaceRequest models.ConfigurationReplaceRequest
