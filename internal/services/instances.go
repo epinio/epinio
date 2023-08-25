@@ -133,7 +133,7 @@ func (s *ServiceClient) Create(ctx context.Context,
 	namespace, name string,
 	wait bool,
 	settings models.ChartValueSettings,
-	catalogService models.CatalogService,
+	catalogService *models.CatalogService,
 	hook helm.PostDeployFunction,
 ) error {
 	// Resources, and names
@@ -142,6 +142,8 @@ func (s *ServiceClient) Create(ctx context.Context,
 	// |---		|---		|---			|
 	// |secret	|"s-"+name	|epinio management data	|
 	// |helm release|see above	|active workload	|
+
+	// Create the secret first
 
 	service := serviceResourceName(name)
 	labels := map[string]string{
@@ -173,54 +175,9 @@ func (s *ServiceClient) Create(ctx context.Context,
 		return errors.Wrap(err, "failed to create service secret")
 	}
 
-	epinioValues, err := getEpinioValues(name, catalogService.Meta.Name)
-	if err != nil {
-		logger := tracelog.NewLogger().WithName("Create")
-		logger.Error(err, "getting epinio values")
-	}
+	// The secret representing the service is created. Now deploy the helm chart.
 
-	// Ingest the service class YAML data into a proper values table
-	classValues, err := chartutil.ReadValues([]byte(catalogService.Values + epinioValues))
-	if err != nil {
-		return errors.Wrap(err, "failed to read service class values")
-	}
-
-	// Create proper values table from the --chart-value option data
-	userValues := chartutil.Values{}
-	for key, value := range settings {
-		err := strvals.ParseInto(key+"="+value, userValues)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse `"+key+"="+value+"`")
-		}
-	}
-
-	// Merge class and user values, then serialize back to YAML.
-	//
-	// NOTE: Class values have priority over user values, under the assumption that these are
-	// needed to (1) have the service chart working with Epinio (*), or (2) are chosen by the
-	// operator for their environment.
-	//
-	// (*) See the `extraDeploy` setting found in dev service classes.
-	//
-	// ATTENTION: This priority order is reversed from what is said in the application CRD PR.
-	// FIX:       application CRD PR to match here.
-
-	values, err := chartutil.Values(chartutil.CoalesceTables(classValues, userValues)).YAML()
-	if err != nil {
-		return errors.Wrap(err, "failed to merge class and user values")
-	}
-
-	err = helm.DeployService(
-		ctx,
-		helm.ServiceParameters{
-			AppRef:         models.NewAppRef(name, namespace),
-			Cluster:        s.kubeClient,
-			CatalogService: catalogService,
-			Values:         values,
-			Wait:           wait,
-			PostDeployHook: hook,
-		})
-
+	err = s.DeployOrUpdate(ctx, namespace, name, wait, settings, catalogService, hook)
 	if err != nil {
 		errb := s.kubeClient.DeleteSecret(ctx, namespace, service)
 		if errb != nil {
@@ -397,6 +354,63 @@ func NewServiceStatusFromHelmRelease(status helm.ReleaseStatus) models.ServiceSt
 	default:
 		return models.ServiceStatusUnknown
 	}
+}
+
+// Deploy deploys the helm chart of a service, or updates its release.
+func (s *ServiceClient) DeployOrUpdate(
+	ctx context.Context,
+	namespace, name string,
+	wait bool,
+	settings models.ChartValueSettings,
+	catalogService *models.CatalogService,
+	hook helm.PostDeployFunction) error {
+
+	epinioValues, err := getEpinioValues(name, catalogService.Meta.Name)
+	if err != nil {
+		logger := tracelog.NewLogger().WithName("Create")
+		logger.Error(err, "getting epinio values")
+	}
+
+	// Ingest the service class YAML data into a proper values table
+	classValues, err := chartutil.ReadValues([]byte(catalogService.Values + epinioValues))
+	if err != nil {
+		return errors.Wrap(err, "failed to read service class values")
+	}
+
+	// Create proper values table from the --chart-value option data
+	userValues := chartutil.Values{}
+	for key, value := range settings {
+		err := strvals.ParseInto(key+"="+value, userValues)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse `"+key+"="+value+"`")
+		}
+	}
+
+	// Merge class and user values, then serialize back to YAML.
+	//
+	// NOTE: Class values have priority over user values, under the assumption that these are
+	// needed to (1) have the service chart working with Epinio (*), or (2) are chosen by the
+	// operator for their environment.
+	//
+	// (*) See the `extraDeploy` setting found in dev service classes.
+	//
+	// ATTENTION: This priority order is reversed from what is said in the application CRD PR.
+	// FIX:       application CRD PR to match here.
+
+	values, err := chartutil.Values(chartutil.CoalesceTables(classValues, userValues)).YAML()
+	if err != nil {
+		return errors.Wrap(err, "failed to merge class and user values")
+	}
+
+	return helm.DeployService(ctx,
+		helm.ServiceParameters{
+			AppRef:         models.NewAppRef(name, namespace),
+			Cluster:        s.kubeClient,
+			CatalogService: *catalogService,
+			Values:         values,
+			Wait:           wait,
+			PostDeployHook: hook,
+		})
 }
 
 func getEpinioValues(serviceName, catalogServiceName string) (string, error) {
