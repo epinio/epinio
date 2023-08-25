@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -27,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/util/retry"
 
 	"helm.sh/helm/v3/pkg/chartutil"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
@@ -354,6 +356,162 @@ func NewServiceStatusFromHelmRelease(status helm.ReleaseStatus) models.ServiceSt
 	default:
 		return models.ServiceStatusUnknown
 	}
+}
+
+// UpdateService modifies an existing service as per the instructions and writes
+// the result back to the resource.
+func (s *ServiceClient) UpdateService(ctx context.Context, cluster *kubernetes.Cluster, service *models.Service,
+	changes models.ServiceUpdateRequest, hook helm.PostDeployFunction) error {
+
+	// Update the secret first. As part of that we get the updated settings as well.
+
+	var newSettings models.ChartValueSettings
+	serviceSecretName := serviceResourceName(service.Meta.Name)
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		serviceSecret, err := cluster.GetSecret(ctx, service.Meta.Namespace, serviceSecretName)
+		if err != nil {
+			return err
+		}
+
+		// ATTENTION: This code does not fall back to heuristic extraction from the helm
+		// release of the service as `Get` does.
+
+		// Read existing settings
+		settings := models.ChartValueSettings{}
+
+		if serviceSecret.Data != nil {
+			yamlSettings, ok := serviceSecret.Data["settings"]
+			if ok {
+				// Found the exact settings in the K secret representing the E service
+				err := yaml.Unmarshal(yamlSettings, &settings)
+				if err != nil {
+					return errors.Wrap(err, "failed to unmarshall the settings")
+				}
+			}
+		}
+
+		// Modify the settings as per the instructions.
+		for _, remove := range changes.Remove {
+			delete(settings, remove)
+		}
+		for key, value := range changes.Set {
+			settings[key] = value
+		}
+
+		yaml, err := yaml.Marshal(settings)
+		if err != nil {
+			return errors.Wrap(err, "failed to marshall the settings")
+		}
+
+		// Write the settings back
+		if serviceSecret.Data == nil {
+			serviceSecret.Data = map[string][]byte{}
+		}
+
+		serviceSecret.Data["settings"] = yaml
+
+		_, err = cluster.Kubectl.CoreV1().Secrets(service.Namespace()).Update(
+			ctx, serviceSecret, metav1.UpdateOptions{})
+		if err != nil {
+			// publish to calling scope
+			newSettings = settings
+		}
+
+		return err
+	})
+
+	if err != nil {
+		return err
+	}
+
+	catalogService, err := s.GetCatalogService(ctx, service.CatalogService)
+	if err != nil {
+		return err
+	}
+
+	err = s.DeployOrUpdate(ctx, service.Meta.Namespace, service.Meta.Name, changes.Wait,
+		newSettings, catalogService, hook)
+
+	return errors.Wrap(err, "error deploying service helm chart")
+
+}
+
+// ReplaceService replaces an existing service
+func (s *ServiceClient) ReplaceService(ctx context.Context, cluster *kubernetes.Cluster, service *models.Service,
+	data models.ServiceReplaceRequest, hook helm.PostDeployFunction) (bool, error) {
+	changed := false
+
+	var newSettings models.ChartValueSettings
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		serviceSecret, err := cluster.GetSecret(ctx, service.Meta.Namespace, service.Meta.Name)
+		if err != nil {
+			return err
+		}
+
+		// Read existing settings
+		oldSettings := models.ChartValueSettings{}
+
+		if serviceSecret.Data != nil {
+			yamlSettings, ok := serviceSecret.Data["settings"]
+			if ok {
+				// Found the exact settings in the K secret representing the E service
+				err := yaml.Unmarshal(yamlSettings, &oldSettings)
+				if err != nil {
+					return errors.Wrap(err, "failed to unmarshall the settings")
+				}
+			}
+		}
+
+		// Bail out without writing when there is no actual change.
+		if reflect.DeepEqual(oldSettings, data.Settings) {
+			// still `changed == false`
+			return nil
+		}
+
+		// Write new data
+		yaml, err := yaml.Marshal(data.Settings)
+		if err != nil {
+			return errors.Wrap(err, "failed to marshall the settings")
+		}
+
+		if serviceSecret.Data == nil {
+			serviceSecret.Data = map[string][]byte{}
+		}
+
+		serviceSecret.Data["settings"] = yaml
+
+		_, err = cluster.Kubectl.CoreV1().Secrets(service.Namespace()).Update(
+			ctx, serviceSecret, metav1.UpdateOptions{})
+
+		if err == nil {
+			changed = true
+			// publish new state to calling scope
+			newSettings = data.Settings
+		}
+
+		return err
+	})
+	if err != nil {
+		return false, err
+	}
+
+	if changed {
+		catalogService, err := s.GetCatalogService(ctx, service.CatalogService)
+		if err != nil {
+			return false, err
+		}
+
+		// push new state to helm release
+		err = s.DeployOrUpdate(ctx, service.Meta.Namespace, service.Meta.Name, data.Wait,
+			newSettings, catalogService, hook)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return changed, nil
 }
 
 // Deploy deploys the helm chart of a service, or updates its release.
