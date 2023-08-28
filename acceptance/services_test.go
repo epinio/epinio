@@ -1100,4 +1100,92 @@ var _ = Describe("Services", LService, func() {
 			})
 		})
 	})
+
+	Describe("service update", func() {
+		var appName string
+		var service string
+
+		BeforeEach(func() {
+			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+			Expect(err).ToNot(HaveOccurred())
+
+			appName = catalog.NewAppName()
+			service = catalog.NewServiceName()
+			containerImageURL := "splatform/sample-app"
+			serviceHostname := strings.Replace(settings.API, `https://epinio`, service, 1)
+
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
+
+			By("creating service instance: " + service)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service,
+				"--chart-value", "ingress.enabled=true",
+				"--chart-value", "ingress.hostname="+serviceHostname,
+				"--chart-value", "nesting.here.hello=world",
+				"--wait")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			out, err = env.Epinio("", "service", "bind", service, appName)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			// Wait for the app restart from binding the service to settle
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", ".*", ""),
+				),
+			)
+		})
+
+		It("it edits the service, and restarts the app", func() {
+			By("editing instance: " + service)
+			out, err := env.Epinio("", "service", "update", service,
+				"--wait",
+				"--remove", "ingress.enabled",
+				"--remove", "ingress.hostname",
+				"--set", "nesting.here.hello=user",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Update Service"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "OP", "VALUE"),
+					WithRow("ingress.enabled", "remove", ""),
+					WithRow("ingress.hostname", "remove", ""),
+					WithRow("nesting.here.hello", "add\\/change", "user"),
+				),
+			)
+			Expect(out).To(ContainSubstring("Service Changes Saved"))
+
+			// Confirm the changes ...
+			By("checking instance: " + service)
+			out, err = env.Epinio("", "service", "show", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(ContainSubstring("Showing Service"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("nesting.here.hello", "user"),
+				),
+			)
+			Expect(out).ToNot(ContainSubstring("ingress"))
+
+			// Wait for app to resettle ...
+			By("waiting for app to resettle: " + appName)
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", ".*", ""),
+				),
+			)
+		})
+	})
 })
