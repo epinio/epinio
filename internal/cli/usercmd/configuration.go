@@ -318,25 +318,7 @@ func (c *EpinioClient) UpdateConfiguration(name string, removedKeys []string, as
 	log.Info("start")
 	defer log.Info("return")
 
-	msg := c.ui.Note().
-		WithStringValue("Name", name).
-		WithStringValue("Namespace", c.Settings.Namespace).
-		WithTable("Parameter", "Op", "Value")
-
-	for _, removed := range removedKeys {
-		msg = msg.WithTableRow(removed, "remove", "")
-	}
-
-	changed := []string{}
-	for key := range assignments {
-		changed = append(changed, key)
-	}
-	sort.Strings(changed)
-
-	for _, key := range changed {
-		msg = msg.WithTableRow(key, "add/change", assignments[key])
-	}
-	msg.Msg("Update Configuration")
+	c.showChanges("Configuration", name, removedKeys, assignments)
 
 	if err := c.TargetOk(); err != nil {
 		return err
@@ -509,4 +491,26 @@ func transformForDisplay(v string) string {
 
 	// and truncate long strings
 	return fmt.Sprintf("%s (hiding %d additional bytes)", v[:limit], len(v)-limit)
+}
+
+func (c *EpinioClient) showChanges(label, name string, removedKeys []string, assignments map[string]string) {
+	msg := c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Namespace", c.Settings.Namespace).
+		WithTable("Parameter", "Op", "Value")
+
+	for _, removed := range removedKeys {
+		msg = msg.WithTableRow(removed, "remove", "")
+	}
+
+	changed := []string{}
+	for key := range assignments {
+		changed = append(changed, key)
+	}
+	sort.Strings(changed)
+
+	for _, key := range changed {
+		msg = msg.WithTableRow(key, "add/change", assignments[key])
+	}
+	msg.Msg("Update " + label)
 }
