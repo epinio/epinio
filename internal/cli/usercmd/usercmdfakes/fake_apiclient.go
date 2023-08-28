@@ -857,6 +857,21 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
+	ServiceUpdateStub        func(models.ServiceUpdateRequest, string, string) (models.Response, error)
+	serviceUpdateMutex       sync.RWMutex
+	serviceUpdateArgsForCall []struct {
+		arg1 models.ServiceUpdateRequest
+		arg2 string
+		arg3 string
+	}
+	serviceUpdateReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	serviceUpdateReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
 	SetHeaderStub        func(string, string)
 	setHeaderMutex       sync.RWMutex
 	setHeaderArgsForCall []struct {
@@ -4805,6 +4820,72 @@ func (fake *FakeAPIClient) ServiceUnbindReturnsOnCall(i int, result1 models.Resp
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) ServiceUpdate(arg1 models.ServiceUpdateRequest, arg2 string, arg3 string) (models.Response, error) {
+	fake.serviceUpdateMutex.Lock()
+	ret, specificReturn := fake.serviceUpdateReturnsOnCall[len(fake.serviceUpdateArgsForCall)]
+	fake.serviceUpdateArgsForCall = append(fake.serviceUpdateArgsForCall, struct {
+		arg1 models.ServiceUpdateRequest
+		arg2 string
+		arg3 string
+	}{arg1, arg2, arg3})
+	stub := fake.ServiceUpdateStub
+	fakeReturns := fake.serviceUpdateReturns
+	fake.recordInvocation("ServiceUpdate", []interface{}{arg1, arg2, arg3})
+	fake.serviceUpdateMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceUpdateCallCount() int {
+	fake.serviceUpdateMutex.RLock()
+	defer fake.serviceUpdateMutex.RUnlock()
+	return len(fake.serviceUpdateArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceUpdateCalls(stub func(models.ServiceUpdateRequest, string, string) (models.Response, error)) {
+	fake.serviceUpdateMutex.Lock()
+	defer fake.serviceUpdateMutex.Unlock()
+	fake.ServiceUpdateStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceUpdateArgsForCall(i int) (models.ServiceUpdateRequest, string, string) {
+	fake.serviceUpdateMutex.RLock()
+	defer fake.serviceUpdateMutex.RUnlock()
+	argsForCall := fake.serviceUpdateArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) ServiceUpdateReturns(result1 models.Response, result2 error) {
+	fake.serviceUpdateMutex.Lock()
+	defer fake.serviceUpdateMutex.Unlock()
+	fake.ServiceUpdateStub = nil
+	fake.serviceUpdateReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceUpdateReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.serviceUpdateMutex.Lock()
+	defer fake.serviceUpdateMutex.Unlock()
+	fake.ServiceUpdateStub = nil
+	if fake.serviceUpdateReturnsOnCall == nil {
+		fake.serviceUpdateReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.serviceUpdateReturnsOnCall[i] = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeAPIClient) SetHeader(arg1 string, arg2 string) {
 	fake.setHeaderMutex.Lock()
 	fake.setHeaderArgsForCall = append(fake.setHeaderArgsForCall, struct {
@@ -5083,6 +5164,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.serviceShowMutex.RUnlock()
 	fake.serviceUnbindMutex.RLock()
 	defer fake.serviceUnbindMutex.RUnlock()
+	fake.serviceUpdateMutex.RLock()
+	defer fake.serviceUpdateMutex.RUnlock()
 	fake.setHeaderMutex.RLock()
 	defer fake.setHeaderMutex.RUnlock()
 	fake.stagingCompleteMutex.RLock()

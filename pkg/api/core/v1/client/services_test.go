@@ -117,6 +117,9 @@ func DescribeServicesErrors() {
 			Entry("service create", func() (any, error) {
 				return epinioClient.ServiceCreate(models.ServiceCreateRequest{}, "namespace")
 			}),
+			Entry("service update", func() (any, error) {
+				return epinioClient.ServiceUpdate(models.ServiceUpdateRequest{}, "namespace", "prefix")
+			}),
 			Entry("service catalog match", func() (any, error) {
 				return epinioClient.ServiceCatalogMatch("servicenameprefix")
 			}),

@@ -39,6 +39,7 @@ func init() {
 
 	CmdServices.AddCommand(CmdServiceCatalog)
 	CmdServices.AddCommand(CmdServiceCreate)
+	CmdServices.AddCommand(CmdServiceUpdate)
 	CmdServices.AddCommand(CmdServiceBind)
 	CmdServices.AddCommand(CmdServiceUnbind)
 	CmdServices.AddCommand(CmdServiceShow)
@@ -50,6 +51,9 @@ func init() {
 	err := CmdServiceCreate.RegisterFlagCompletionFunc("chart-value",
 		matchingServiceChartValueFinder)
 	checkErr(err)
+
+	CmdServiceUpdate.Flags().Bool("wait", false, "Wait for deployment to complete")
+	changeOptions(CmdServiceUpdate)
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -107,6 +111,51 @@ var CmdServiceCreate = &cobra.Command{
 		err = client.ServiceCreate(catalogServiceName, serviceName, wait, chartValues)
 		return errors.Wrap(err, "error creating service")
 	},
+}
+
+// CmdServiceUpdate implements the command: epinio service update
+var CmdServiceUpdate = &cobra.Command{
+	Use:   "update NAME [flags]",
+	Short: "Update a service",
+	Long:  `Update service by name and change instructions through flags.`,
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		wait, err := cmd.Flags().GetBool("wait")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --wait")
+		}
+
+		// Process the --remove and --set options into operations (removals, assignments)
+
+		removedKeys, err := cmd.Flags().GetStringSlice("remove")
+		if err != nil {
+			return errors.Wrap(err, "failed to read option --remove")
+		}
+
+		kvAssignments, err := cmd.Flags().GetStringSlice("set")
+		if err != nil {
+			return errors.Wrap(err, "failed to read option --set")
+		}
+
+		assignments := map[string]string{}
+		for _, assignment := range kvAssignments {
+			pieces := strings.Split(assignment, "=")
+			if len(pieces) != 2 {
+				return errors.New("Bad --set assignment `" + assignment + "`, expected `name=value` as value")
+			}
+			assignments[pieces[0]] = pieces[1]
+		}
+
+		err = client.ServiceUpdate(args[0], wait, removedKeys, assignments)
+		if err != nil {
+			return errors.Wrap(err, "error creating service")
+		}
+
+		return nil
+	},
+	ValidArgsFunction: matchingServiceFinder,
 }
 
 var CmdServiceShow = &cobra.Command{

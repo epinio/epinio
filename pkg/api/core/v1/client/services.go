@@ -55,6 +55,14 @@ func (c *Client) ServiceCreate(request models.ServiceCreateRequest, namespace st
 	return Post(c, endpoint, request, response)
 }
 
+// ServiceUpdate updates a service by invoking the associated API endpoint
+func (c *Client) ServiceUpdate(request models.ServiceUpdateRequest, namespace, name string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ServiceUpdate", namespace, name)
+
+	return Patch(c, endpoint, request, response)
+}
+
 func (c *Client) ServiceShow(namespace, name string) (*models.Service, error) {
 	response := &models.Service{}
 	endpoint := api.Routes.Path("ServiceShow", namespace, name)

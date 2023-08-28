@@ -92,6 +92,7 @@ type APIClient interface {
 	ConfigurationDelete(req models.ConfigurationDeleteRequest, namespace string, names []string) (models.ConfigurationDeleteResponse, error)
 	ConfigurationCreate(req models.ConfigurationCreateRequest, namespace string) (models.Response, error)
 	ConfigurationUpdate(req models.ConfigurationUpdateRequest, namespace, name string) (models.Response, error)
+	// note: The replace endpoint is not used by the cli.
 	ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error)
 	ConfigurationApps(namespace string) (models.ConfigurationAppsResponse, error)
 	ConfigurationMatch(namespace, prefix string) (models.ConfigurationMatchResponse, error)
@@ -110,6 +111,8 @@ type APIClient interface {
 	ServiceList(namespace string) (models.ServiceList, error)
 	ServiceMatch(namespace, prefix string) (models.ServiceMatchResponse, error)
 	ServicePortForward(namespace string, serviceName string, opts *epinioapi.PortForwardOpts) error
+	ServiceUpdate(req models.ServiceUpdateRequest, namespace, name string) (models.Response, error)
+	// note: The replace endpoint is not used by the cli.
 
 	// application charts
 	ChartList() ([]models.AppChart, error)

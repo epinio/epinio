@@ -106,6 +106,38 @@ func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wai
 	return errors.Wrap(err, "service create failed")
 }
 
+// UpdateService updates a service specified by name and information about removed keys and changed assignments.
+func (c *EpinioClient) ServiceUpdate(name string, wait bool, removedKeys []string, assignments map[string]string) error {
+	log := c.Log.WithName("Update Service").
+		WithValues("Name", name, "Namespace", c.Settings.Namespace)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.showChanges("Service", name, removedKeys, assignments)
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	request := models.ServiceUpdateRequest{
+		Remove: removedKeys,
+		Set:    assignments,
+		Wait:   wait,
+	}
+
+	_, err := c.API.ServiceUpdate(request, c.Settings.Namespace, name)
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		WithStringValue("Namespace", c.Settings.Namespace).
+		Msg("Service Changes Saved.")
+
+	return nil
+}
+
 // ServiceShow describes a service instance
 func (c *EpinioClient) ServiceShow(serviceName string) error {
 	log := c.Log.WithName("ServiceShow")
