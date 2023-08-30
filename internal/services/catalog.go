@@ -44,7 +44,7 @@ func (s *ServiceClient) GetCatalogService(ctx context.Context, serviceName strin
 		return nil, errors.Wrap(err, fmt.Sprintf("error getting service %s from namespace epinio", serviceName))
 	}
 
-	service, err := convertUnstructuredIntoCatalogService(*result)
+	service, err := s.convertUnstructuredIntoCatalogService(*result)
 	if err != nil {
 		return nil, errors.Wrap(err, "error converting result into Catalog Service")
 	}
@@ -58,7 +58,7 @@ func (s *ServiceClient) ListCatalogServices(ctx context.Context) ([]*models.Cata
 		return nil, errors.Wrap(err, "error listing services")
 	}
 
-	services, err := convertUnstructuredListIntoCatalogService(listResult)
+	services, err := s.convertUnstructuredListIntoCatalogService(listResult)
 	if err != nil {
 		return nil, errors.Wrap(err, "error converting listResult into Catalog Services")
 	}
@@ -66,11 +66,11 @@ func (s *ServiceClient) ListCatalogServices(ctx context.Context) ([]*models.Cata
 	return services, nil
 }
 
-func convertUnstructuredListIntoCatalogService(unstructuredList *unstructured.UnstructuredList) ([]*models.CatalogService, error) {
+func (s *ServiceClient) convertUnstructuredListIntoCatalogService(unstructuredList *unstructured.UnstructuredList) ([]*models.CatalogService, error) {
 	catalogServices := []*models.CatalogService{}
 
 	for _, item := range unstructuredList.Items {
-		catalogService, err := convertUnstructuredIntoCatalogService(item)
+		catalogService, err := s.convertUnstructuredIntoCatalogService(item)
 		if err != nil {
 			return nil, errors.Wrap(err, "error converting catalog service list")
 		}
@@ -80,7 +80,7 @@ func convertUnstructuredListIntoCatalogService(unstructuredList *unstructured.Un
 	return catalogServices, nil
 }
 
-func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructured) (*models.CatalogService, error) {
+func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructured) (*models.CatalogService, error) {
 	catalogService := apiv1.Service{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &catalogService)
 	if err != nil {
@@ -96,6 +96,22 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 			Maximum: value.Maximum,
 			Enum:    value.Enum,
 		}
+	}
+
+	// if a secret was specified try to load the credentials from it
+	var repoUsername, repoPassword string
+	if catalogService.Spec.HelmRepo.Secret != "" {
+		authSecret, err := s.kubeClient.GetSecret(
+			context.Background(),
+			helmchart.Namespace(),
+			catalogService.Spec.HelmRepo.Secret,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "finding helm repo auth secret")
+		}
+
+		repoUsername = string(authSecret.Data["username"])
+		repoPassword = string(authSecret.Data["password"])
 	}
 
 	secretTypes := []string{}
@@ -119,6 +135,10 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 		HelmRepo: models.HelmRepo{
 			Name: catalogService.Spec.HelmRepo.Name,
 			URL:  catalogService.Spec.HelmRepo.URL,
+			Auth: models.HelmAuth{
+				Username: repoUsername,
+				Password: repoPassword,
+			},
 		},
 		Values:   catalogService.Spec.Values,
 		Settings: settings,

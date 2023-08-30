@@ -37,6 +37,7 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v3/pkg/registry"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
@@ -50,14 +51,12 @@ import (
 type PostDeployFunction func(ctx context.Context) error
 
 type ServiceParameters struct {
-	models.AppRef                      // Service: name & namespace
-	Cluster        *kubernetes.Cluster // Cluster to talk to.
-	Chart          string              // Name of helm chart to deploy
-	Version        string              // Version of helm chart to deploy
-	Repository     string              // Helm repository holding the chart to deploy
-	Values         string              // Chart customization (YAML-formatted string)
-	Wait           bool                // Wait for service to deploy
-	PostDeployHook PostDeployFunction  // Hook to call after service deployment
+	models.AppRef                        // Service: name & namespace
+	Cluster        *kubernetes.Cluster   // Cluster to talk to.
+	CatalogService models.CatalogService // CatalogService to deploy
+	Values         string                // Chart customization (YAML-formatted string)
+	Wait           bool                  // Wait for service to deploy
+	PostDeployHook PostDeployFunction    // Hook to call after service deployment
 }
 
 type ConfigParameter struct {
@@ -131,24 +130,50 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	helmChart := parameters.Chart
-	helmVersion := parameters.Version
+	catalogService := parameters.CatalogService
+
+	helmChart := catalogService.HelmChart
+	helmVersion := catalogService.ChartVersion
 	releaseName := names.ServiceReleaseName(parameters.Name)
 
-	if parameters.Repository != "" {
-		name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(parameters.Repository)))
-		if err := client.AddOrUpdateChartRepo(repo.Entry{
-			Name: name,
-			URL:  parameters.Repository,
-		}); err != nil {
-			return errors.Wrap(err, "creating the chart repository")
-		}
-
-		helmChart = fmt.Sprintf("%s/%s", name, helmChart)
-	}
 	err = cleanupReleaseIfNeeded(logger, client, releaseName)
 	if err != nil {
 		return errors.Wrap(err, "cleaning up release")
+	}
+
+	serviceRepoURL := catalogService.HelmRepo.URL
+	repoAuth := catalogService.HelmRepo.Auth
+
+	if serviceRepoURL != "" {
+		// if the repository is an OCI registry we install the chart from it
+		if registry.IsOCI(serviceRepoURL) {
+			// with OCI install with 'helm install foo oci://registry/chart'
+			helmChart = fmt.Sprintf("%s/%s", serviceRepoURL, helmChart)
+
+			// if auth credentials are available try to login
+			if repoAuth.Username != "" && repoAuth.Password != "" {
+				registryHostname := strings.TrimPrefix(serviceRepoURL, "oci://")
+				err = client.RegistryLogin(registryHostname, repoAuth.Username, repoAuth.Password)
+				if err != nil {
+					return errors.Wrap(err, "logging into the helm registry")
+				}
+			}
+
+		} else { // else add and update the repository
+			name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(serviceRepoURL)))
+			err = client.AddOrUpdateChartRepo(repo.Entry{
+				Name: name,
+				URL:  serviceRepoURL,
+				// support for private repositories
+				Username: repoAuth.Username,
+				Password: repoAuth.Password,
+			})
+			if err != nil {
+				return errors.Wrap(err, "creating the chart repository")
+			}
+
+			helmChart = fmt.Sprintf("%s/%s", name, helmChart)
+		}
 	}
 
 	chartSpec := hc.ChartSpec{
