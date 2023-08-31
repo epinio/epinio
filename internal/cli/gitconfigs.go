@@ -27,8 +27,8 @@ var (
 var CmdGitconfig = &cobra.Command{
 	Use:           "gitconfig",
 	Aliases:       []string{"gitconfigs"},
-	Short:         "Epinio-controlled git configurations",
-	Long:          `Manage epinio-controlled git configurations`,
+	Short:         "Epinio git configuration management",
+	Long:          `Manage git configurations`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	Args:          cobra.MinimumNArgs(1),
@@ -62,13 +62,13 @@ func init() {
 // CmdGitconfigs implements the command: epinio gitconfig list
 var CmdGitconfigList = &cobra.Command{
 	Use:   "list",
-	Short: "Lists all epinio-controlled git configurations",
+	Short: "Lists all git configurations",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
 		err := client.Gitconfigs()
 		if err != nil {
-			return errors.Wrap(err, "error listing epinio-controlled git configurations")
+			return errors.Wrap(err, "error listing git configurations")
 		}
 
 		return nil
@@ -78,7 +78,7 @@ var CmdGitconfigList = &cobra.Command{
 // CmdGitconfigCreate implements the command: epinio gitconfig create
 var CmdGitconfigCreate = &cobra.Command{
 	Use:   "create ID URL [flags]",
-	Short: "Creates an epinio-controlled git configuration",
+	Short: "Creates a git configuration",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -121,7 +121,7 @@ var CmdGitconfigCreate = &cobra.Command{
 		err = client.CreateGitconfig(id, provider, url,
 			user, password, userorg, repository, certfile, skipssl)
 		if err != nil {
-			return errors.Wrap(err, "error creating epinio-controlled git configuration")
+			return errors.Wrap(err, "error creating git configuration")
 		}
 
 		return nil
@@ -131,7 +131,7 @@ var CmdGitconfigCreate = &cobra.Command{
 // CmdGitconfigDelete implements the command: epinio gitconfig delete
 var CmdGitconfigDelete = &cobra.Command{
 	Use:               "delete NAME",
-	Short:             "Deletes an epinio-controlled git configuration",
+	Short:             "Delete git configurations",
 	ValidArgsFunction: matchingGitconfigFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -140,7 +140,7 @@ var CmdGitconfigDelete = &cobra.Command{
 		if err != nil {
 			// Cancellation is not an "error" in deletion.
 			if !strings.Contains(err.Error(), "Cancelled") {
-				err = errors.Wrap(err, "error deleting epinio-controlled git configuration")
+				err = errors.Wrap(err, "error deleting git configuration")
 			}
 			return err
 		}
@@ -152,7 +152,7 @@ var CmdGitconfigDelete = &cobra.Command{
 // CmdGitconfigShow implements the command: epinio gitconfig show
 var CmdGitconfigShow = &cobra.Command{
 	Use:               "show NAME",
-	Short:             "Shows the details of an epinio-controlled git configuration",
+	Short:             "Shows the details of a git configuration",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: matchingGitconfigFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -160,7 +160,7 @@ var CmdGitconfigShow = &cobra.Command{
 
 		err := client.ShowGitconfig(args[0])
 		if err != nil {
-			return errors.Wrap(err, "error showing epinio-controlled git configuration")
+			return errors.Wrap(err, "error showing git configuration")
 		}
 
 		return nil
