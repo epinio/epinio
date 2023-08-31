@@ -13,7 +13,6 @@ package namespace
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -87,8 +86,8 @@ func addNamespaceToUser(ctx context.Context, namespace string) error {
 
 	err = authService.AddNamespaceToUser(ctx, user.Username, namespace)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error adding namespace [%s] to user [%s]",
-			namespace, user.Username))
+		return errors.Wrapf(err, "error adding namespace [%s] to user [%s]",
+			namespace, user.Username)
 	}
 	return nil
 }

@@ -117,12 +117,12 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespace string) error {
 	user, err := s.GetUserByUsername(ctx, username)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error getting user [%s] by username", username))
+		return errors.Wrapf(err, "error getting user [%s] by username", username)
 	}
 	user.AddNamespace(namespace)
 
 	err = s.updateUserSecret(ctx, user)
-	return errors.Wrap(err, fmt.Sprintf("error updating user secret [%s]", username))
+	return errors.Wrapf(err, "error updating user secret [%s]", username)
 }
 
 // RemoveNamespaceFromUsers will remove the specified namespace from all users
@@ -156,12 +156,12 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 func (s *AuthService) AddGitconfigToUser(ctx context.Context, username, gitconfig string) error {
 	user, err := s.GetUserByUsername(ctx, username)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error getting user [%s] by username", username))
+		return errors.Wrapf(err, "error getting user [%s] by username", username)
 	}
 	user.AddGitconfig(gitconfig)
 
 	err = s.updateUserSecret(ctx, user)
-	return errors.Wrap(err, fmt.Sprintf("error updating user secret [%s]", username))
+	return errors.Wrapf(err, "error updating user secret [%s]", username)
 }
 
 // RemoveGitconfigFromUsers will remove the specified gitconfig from all users
@@ -212,7 +212,7 @@ func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
 	return errors.Wrap(retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error getting the user secret [%s]", user.Username))
+			return errors.Wrapf(err, "error getting the user secret [%s]", user.Username)
 		}
 
 		userSecret.StringData = map[string]string{

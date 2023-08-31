@@ -13,7 +13,6 @@ package gitconfig
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -110,8 +109,8 @@ func addGitconfigToUser(ctx context.Context, gitconfig string) error {
 
 	err = authService.AddGitconfigToUser(ctx, user.Username, gitconfig)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error adding gitconfig [%s] to user [%s]",
-			gitconfig, user.Username))
+		return errors.Wrapf(err, "error adding gitconfig [%s] to user [%s]",
+			gitconfig, user.Username)
 	}
 	return nil
 }
