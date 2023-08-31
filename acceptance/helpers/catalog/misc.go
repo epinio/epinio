@@ -102,9 +102,9 @@ func DeleteCatalogServiceFromNamespace(namespace, name string) {
 func SampleServiceTmpFile(namespace string, catalogService models.CatalogService) string {
 
 	// Convert from internal model to CRD structure
-	settings := map[string]epinioappv1.ChartSetting{}
+	settings := map[string]epinioappv1.ServiceSetting{}
 	for key, value := range catalogService.Settings {
-		settings[key] = epinioappv1.ChartSetting{
+		settings[key] = epinioappv1.ServiceSetting{
 			Type:    value.Type,
 			Minimum: value.Minimum,
 			Maximum: value.Maximum,
