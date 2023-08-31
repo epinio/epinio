@@ -21,6 +21,8 @@ import (
 )
 
 func (m *Machine) MakeGitconfig(gitConfigName string) {
+	GinkgoHelper()
+
 	m.MakeGitconfigWithoutCleanup(gitConfigName)
 
 	DeferCleanup(func() {
@@ -34,6 +36,8 @@ func (m *Machine) MakeGitconfig(gitConfigName string) {
 }
 
 func (m *Machine) MakeGitconfigWithoutCleanup(gitConfigName string) {
+	GinkgoHelper()
+
 	By("make git config")
 
 	By("token directory and file")
