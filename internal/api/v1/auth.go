@@ -48,10 +48,11 @@ func authorization(c *gin.Context, label string, allowed []string) {
 		return
 
 	case "user":
-		if !unrestrictedPath(logger, path) {
+		if restrictedPath(logger, path) {
 			response.Error(c, apierrors.NewAPIError("user unauthorized, path restricted",
 				http.StatusForbidden))
 			c.Abort()
+			return
 		}
 
 		// extract the resources
@@ -73,6 +74,7 @@ func authorization(c *gin.Context, label string, allowed []string) {
 						label, rsrc),
 						http.StatusForbidden))
 				c.Abort()
+				return
 			}
 		}
 	}
@@ -98,15 +100,15 @@ func authorizeUser(logger logr.Logger, label, resource string, allowed []string)
 	return false
 }
 
-func unrestrictedPath(logger logr.Logger, path string) bool {
+func restrictedPath(logger logr.Logger, path string) bool {
 	logger = logger.V(1).WithName("unrestrictedPath")
 
 	// check if the requested path is restricted
 	if _, found := AdminRoutes[path]; found {
 		logger.Info(fmt.Sprintf("path [%s] is an admin route, user unauthorized", path))
-		return false
+		return true
 	}
 
 	// path is free to use
-	return true
+	return false
 }
