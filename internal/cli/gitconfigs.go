@@ -47,6 +47,8 @@ func init() {
 	gitProviderOption(CmdGitconfigCreate)
 	flags = CmdGitconfigCreate.Flags()
 	flags.Bool("skip-ssl", false, "skip ssl")
+	flags.String("user", "", "user for logging into the host")
+	flags.String("password", "", "password for logging into the host")
 	flags.String("user-org", "", "user/org holding repository")
 	flags.String("repository", "", "specific repository")
 	flags.String("cert-file", "", "path to file holding supporting certificates")
@@ -75,9 +77,9 @@ var CmdGitconfigList = &cobra.Command{
 
 // CmdGitconfigCreate implements the command: epinio gitconfig create
 var CmdGitconfigCreate = &cobra.Command{
-	Use:   "create ID URL USER TOKEN [flags]",
+	Use:   "create ID URL [flags]",
 	Short: "Creates an epinio-controlled git configuration",
-	Args:  cobra.ExactArgs(4),
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -92,6 +94,14 @@ var CmdGitconfigCreate = &cobra.Command{
 		if provider == "" {
 			provider = "git"
 		}
+		user, err := cmd.Flags().GetString("user")
+		if err != nil {
+			return errors.Wrap(err, "could not read option --user")
+		}
+		password, err := cmd.Flags().GetString("password")
+		if err != nil {
+			return errors.Wrap(err, "could not read option --password")
+		}
 		userorg, err := cmd.Flags().GetString("user-org")
 		if err != nil {
 			return errors.Wrap(err, "could not read option --user-org")
@@ -105,9 +115,11 @@ var CmdGitconfigCreate = &cobra.Command{
 			return errors.Wrap(err, "could not read option --cert-file")
 		}
 
-		err = client.CreateGitconfig(args[0],
-			provider, args[1], args[2], args[3],
-			userorg, repository, certfile, skipssl)
+		id := args[0]
+		url := args[1]
+
+		err = client.CreateGitconfig(id, provider, url,
+			user, password, userorg, repository, certfile, skipssl)
 		if err != nil {
 			return errors.Wrap(err, "error creating epinio-controlled git configuration")
 		}

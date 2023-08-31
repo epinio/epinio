@@ -34,7 +34,9 @@ var _ = Describe("Gitconfigs", LGitconfig, func() {
 
 		It("creates a gitconfig", func() {
 			out, err := env.Epinio("", "gitconfig", "create",
-				gitconfigName, "url", "selfie", "pass",
+				gitconfigName, "url",
+				"--user", "selfie",
+				"--password", "pass",
 				"--git-provider", "gitlab",
 				"--skip-ssl",
 				"--user-org", "anorg",
@@ -61,10 +63,14 @@ var _ = Describe("Gitconfigs", LGitconfig, func() {
 		})
 
 		It("rejects creating an existing gitconfig", func() {
-			out, err := env.Epinio("", "gitconfig", "create", gitconfigName, "url", "user", "pass")
+			out, err := env.Epinio("", "gitconfig", "create", gitconfigName, "url",
+				"--user", "user",
+				"--password", "pass")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			out, err = env.Epinio("", "gitconfig", "create", gitconfigName, "url", "user", "pass")
+			out, err = env.Epinio("", "gitconfig", "create", gitconfigName, "url",
+				"--user", "user",
+				"--password", "pass")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("gitconfig '%s' already exists", gitconfigName))
 		})
@@ -73,14 +79,18 @@ var _ = Describe("Gitconfigs", LGitconfig, func() {
 	Describe("gitconfig create failures", func() {
 		It("rejects names not fitting kubernetes requirements", func() {
 			gitconfigName := "BOGUS"
-			out, err := env.Epinio("", "gitconfig", "create", gitconfigName, "url", "user", "pass")
+			out, err := env.Epinio("", "gitconfig", "create", gitconfigName, "url",
+				"--user", "user",
+				"--password", "pass")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("id must consist of lower case alphanumeric"))
 		})
 
 		It("rejects unknown git providers", func() {
 			out, err := env.Epinio("", "gitconfig", "create",
-				gitconfigName, "url", "user", "pass",
+				gitconfigName, "url",
+				"--user", "user",
+				"--password", "pass",
 				"--git-provider", "bogus")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("unknown provider"))
