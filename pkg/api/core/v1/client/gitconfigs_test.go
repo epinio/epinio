@@ -19,6 +19,7 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -62,9 +63,9 @@ func DescribeGitconfigsErrors() {
 				_, err := call()
 				Expect(err).To(HaveOccurred())
 			},
-			// Entry("gitconfig create", func() (any, error) {
-			// 	return epinioClient.GitconfigCreate(models.GitconfigCreateRequest{})
-			// }),
+			Entry("gitconfig create", func() (any, error) {
+				return epinioClient.GitconfigCreate(models.GitconfigCreateRequest{})
+			}),
 			Entry("gitconfig delete", func() (any, error) {
 				return epinioClient.GitconfigDelete([]string{"gitconfig"})
 			}),
