@@ -251,6 +251,8 @@ github.com/epinio/application v0.0.0-20230626094023-b54470d3693f h1:A2WR5kdVJB0u
 github.com/epinio/application v0.0.0-20230626094023-b54470d3693f/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
 github.com/epinio/application v0.0.0-20230830132518-5a2abda8bc06 h1:hQosXl1f3Epj6LK+8Vn24A9IxAsmpiMCEhVXnnT+JXk=
 github.com/epinio/application v0.0.0-20230830132518-5a2abda8bc06/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
+github.com/epinio/application v0.0.0-20230831095130-87dcf00a2fc1 h1:8znLZJWoqwev/G9TmiI6CTBVMk8d6ONtxOLRSYemGuE=
+github.com/epinio/application v0.0.0-20230831095130-87dcf00a2fc1/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
 github.com/evanphx/json-patch v0.5.2/go.mod h1:ZWS5hhDbVDyob71nXKNL0+PWn6ToqBHMikGIFbs31qQ=
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch v4.11.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=

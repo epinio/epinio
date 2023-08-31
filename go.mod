@@ -20,7 +20,7 @@ require (
 	github.com/briandowns/spinner v1.23.0
 	github.com/coreos/go-oidc/v3 v3.5.0
 	github.com/dchest/uniuri v1.2.0
-	github.com/epinio/application v0.0.0-20230830132518-5a2abda8bc06
+	github.com/epinio/application v0.0.0-20230831095130-87dcf00a2fc1
 	github.com/fatih/color v1.15.0
 	github.com/gin-gonic/gin v1.8.2
 	github.com/go-git/go-git/v5 v5.7.0
