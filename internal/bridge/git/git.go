@@ -42,6 +42,8 @@ type Manager struct {
 // The only required field is the URL, needed to check the specific instance to apply the configuration.
 // If the UserOrg and/or the Repository are also specified then the most specific configuration will be used.
 type Configuration struct {
+	// TODO : Track creating user
+
 	// ID of the configuration (it maps to the kubernetes secret)
 	ID string
 	// URL is the full url (schema/host/port) used to match a particular instance
@@ -58,6 +60,12 @@ type Configuration struct {
 	Repository  string
 	SkipSSL     bool
 	Certificate []byte
+}
+
+// Gitconfig returns the id of the configuration, for filtering.
+// Satisfies the interface `GitconfigResource`, see package `internal/auth`
+func (c Configuration) Gitconfig() string {
+	return c.ID
 }
 
 func NewManager(logger logr.Logger, secretLoader SecretLister) (*Manager, error) {

@@ -56,7 +56,7 @@ var _ = Describe("Authorization Middleware", func() {
 
 		When("url is not restricted", func() {
 			It("returns status code 200", func() {
-				v1.AuthorizationMiddleware(c)
+				v1.NamespaceAuthorizationMiddleware(c)
 				Expect(w.Code).To(Equal(http.StatusOK))
 			})
 		})
@@ -70,7 +70,7 @@ var _ = Describe("Authorization Middleware", func() {
 			})
 
 			It("returns status code 403", func() {
-				v1.AuthorizationMiddleware(c)
+				v1.NamespaceAuthorizationMiddleware(c)
 				Expect(w.Code).To(Equal(http.StatusForbidden))
 			})
 		})
@@ -79,14 +79,14 @@ var _ = Describe("Authorization Middleware", func() {
 			It("returns status code 403 for another namespace", func() {
 				c.Params = []gin.Param{{Key: "namespace", Value: "another-workspace"}}
 
-				v1.AuthorizationMiddleware(c)
+				v1.NamespaceAuthorizationMiddleware(c)
 				Expect(w.Code).To(Equal(http.StatusForbidden))
 			})
 
 			It("returns status code 200 for its namespace", func() {
 				c.Params = []gin.Param{{Key: "namespace", Value: "workspace"}}
 
-				v1.AuthorizationMiddleware(c)
+				v1.NamespaceAuthorizationMiddleware(c)
 				Expect(w.Code).To(Equal(http.StatusOK))
 			})
 		})

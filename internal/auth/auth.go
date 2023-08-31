@@ -113,19 +113,19 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 	return NewUserFromSecret(*createdUserSecret), nil
 }
 
-// AddNamespaceToUser will add to the User the specified namespace
+// AddNamespaceToUser will add the specified namespace to the User
 func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespace string) error {
 	user, err := s.GetUserByUsername(ctx, username)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error getting user [%s] by username", username))
+		return errors.Wrapf(err, "error getting user [%s] by username", username)
 	}
 	user.AddNamespace(namespace)
 
 	err = s.updateUserSecret(ctx, user)
-	return errors.Wrap(err, fmt.Sprintf("error updating user secret [%s]", username))
+	return errors.Wrapf(err, "error updating user secret [%s]", username)
 }
 
-// RemoveNamespaceFromUsers will remove the specified namespace from all the users
+// RemoveNamespaceFromUsers will remove the specified namespace from all users
 func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace string) error {
 	users, err := s.GetUsers(ctx)
 	if err != nil {
@@ -136,6 +136,45 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 	for _, user := range users {
 		removed := user.RemoveNamespace(namespace)
 		// namespace was not in the Users namespaces
+		if !removed {
+			continue
+		}
+
+		err = s.updateUserSecret(ctx, user)
+		if err != nil {
+			errorMessages = append(errorMessages, err.Error())
+		}
+	}
+
+	if len(errorMessages) > 0 {
+		return fmt.Errorf("some error occurred while cleaning users: [%s]", strings.Join(errorMessages, ", "))
+	}
+	return nil
+}
+
+// AddGitconfigToUser will add the specified gitconfig to the User
+func (s *AuthService) AddGitconfigToUser(ctx context.Context, username, gitconfig string) error {
+	user, err := s.GetUserByUsername(ctx, username)
+	if err != nil {
+		return errors.Wrapf(err, "error getting user [%s] by username", username)
+	}
+	user.AddGitconfig(gitconfig)
+
+	err = s.updateUserSecret(ctx, user)
+	return errors.Wrapf(err, "error updating user secret [%s]", username)
+}
+
+// RemoveGitconfigFromUsers will remove the specified gitconfig from all users
+func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig string) error {
+	users, err := s.GetUsers(ctx)
+	if err != nil {
+		return errors.Wrap(err, "error getting users")
+	}
+
+	errorMessages := []string{}
+	for _, user := range users {
+		removed := user.RemoveGitconfig(gitconfig)
+		// gitconfig was not in the Users gitconfigs
 		if !removed {
 			continue
 		}
@@ -173,13 +212,12 @@ func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
 	return errors.Wrap(retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("error getting the user secret [%s]", user.Username))
+			return errors.Wrapf(err, "error getting the user secret [%s]", user.Username)
 		}
 
-		if len(user.Namespaces) > 0 {
-			userSecret.StringData = map[string]string{
-				"namespaces": strings.Join(user.Namespaces, "\n"),
-			}
+		userSecret.StringData = map[string]string{
+			"namespaces": strings.Join(user.Namespaces, "\n"),
+			"gitconfigs": strings.Join(user.Gitconfigs, "\n"),
 		}
 
 		_, err = s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
@@ -205,6 +243,31 @@ func FilterResources[T NamespacedResource](user User, resources []T) []T {
 	filteredResources := []T{}
 	for _, resource := range resources {
 		if _, allowed := namespacesMap[resource.Namespace()]; allowed {
+			filteredResources = append(filteredResources, resource)
+		}
+	}
+
+	return filteredResources
+}
+
+type GitconfigResource interface {
+	Gitconfig() string
+}
+
+// FilterResources returns only the GitconfigResources where the user has permissions
+func FilterGitconfigResources[T GitconfigResource](user User, resources []T) []T {
+	if user.Role == "admin" {
+		return resources
+	}
+
+	gitconfigsMap := make(map[string]struct{})
+	for _, ns := range user.Gitconfigs {
+		gitconfigsMap[ns] = struct{}{}
+	}
+
+	filteredResources := []T{}
+	for _, resource := range resources {
+		if _, allowed := gitconfigsMap[resource.Gitconfig()]; allowed {
 			filteredResources = append(filteredResources, resource)
 		}
 	}

@@ -25,6 +25,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/configuration"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/env"
+	"github.com/epinio/epinio/internal/api/v1/gitconfig"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
@@ -188,6 +189,15 @@ var Routes = routes.NamedRoutes{
 	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Match)),
 	"ChartMatch0": get("/appchartsmatch", errorHandler(appchart.Match)),
 	"ChartShow":   get("/appcharts/:name", errorHandler(appchart.Show)),
+
+	// Git configurations (auth for private git repos) - List, create, delete, and show.
+	"Gitconfigs":           get("/gitconfigs", errorHandler(gitconfig.Index)),
+	"GitconfigCreate":      post("/gitconfigs", errorHandler(gitconfig.Create)),
+	"GitconfigDelete":      delete("/gitconfigs/:gitconfig", errorHandler(gitconfig.Delete)),
+	"GitconfigBatchDelete": delete("/gitconfigs", errorHandler(gitconfig.Delete)),
+	"GitconfigsMatch":      get("/gitconfigsmatch/:pattern", errorHandler(gitconfig.Match)),
+	"GitconfigsMatch0":     get("/gitconfigsmatch", errorHandler(gitconfig.Match)),
+	"GitconfigShow":        get("/gitconfigs/:gitconfig", errorHandler(gitconfig.Show)),
 }
 
 var WsRoutes = routes.NamedRoutes{

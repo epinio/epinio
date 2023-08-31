@@ -15,8 +15,25 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/internal/api/v1/application"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/spf13/cobra"
 )
+
+// gitProviderOption initializes the --git-provider option for the provided command
+func gitProviderOption(cmd *cobra.Command) {
+	cmd.Flags().String("git-provider", "", "Git provider code (default 'git')")
+	err := cmd.RegisterFlagCompletionFunc("git-provider",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			matches := []string{}
+			for _, candidate := range models.ValidProviders {
+				if strings.HasPrefix(string(candidate), toComplete) {
+					matches = append(matches, string(candidate))
+				}
+			}
+			return matches, cobra.ShellCompDirectiveDefault
+		})
+	checkErr(err)
+}
 
 // instancesOption initializes the --instances/-i option for the provided command
 func instancesOption(cmd *cobra.Command) {

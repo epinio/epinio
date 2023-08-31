@@ -28,7 +28,8 @@ type User struct {
 	Password   string
 	CreatedAt  time.Time
 	Role       string
-	Namespaces []string
+	Namespaces []string // list of namespaces this user has created (and thus access to)
+	Gitconfigs []string // list of gitconfigs this user has created (and thus access to)
 
 	secretName string
 }
@@ -41,6 +42,7 @@ func NewUserFromSecret(secret corev1.Secret) User {
 		CreatedAt:  secret.ObjectMeta.CreationTimestamp.Time,
 		Role:       secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey],
 		Namespaces: []string{},
+		Gitconfigs: []string{},
 
 		secretName: secret.GetName(),
 	}
@@ -55,10 +57,20 @@ func NewUserFromSecret(secret corev1.Secret) User {
 		}
 	}
 
+	if gcs, found := secret.Data["gitconfigs"]; found {
+		gitconfigs := strings.TrimSpace(string(gcs))
+		for _, gitconfig := range strings.Split(gitconfigs, "\n") {
+			gitconfig = strings.TrimSpace(gitconfig)
+			if gitconfig != "" {
+				user.Gitconfigs = append(user.Gitconfigs, gitconfig)
+			}
+		}
+	}
+
 	return user
 }
 
-// AddNamespace adds the namespace to the User's namespaces, if not already exists
+// AddNamespace adds the namespace to the User's namespaces, if it not already exists
 func (u *User) AddNamespace(namespace string) {
 	if namespace == "" {
 		return
@@ -88,5 +100,38 @@ func (u *User) RemoveNamespace(namespace string) bool {
 	}
 
 	u.Namespaces = updatedNamespaces
+	return removed
+}
+
+// AddGitconfig adds the gitconfig to the User's gitconfigs, if it not already exists
+func (u *User) AddGitconfig(gitconfig string) {
+	if gitconfig == "" {
+		return
+	}
+
+	for _, ns := range u.Gitconfigs {
+		if ns == gitconfig {
+			return
+		}
+	}
+
+	u.Gitconfigs = append(u.Gitconfigs, gitconfig)
+}
+
+// RemoveGitconfig removes a gitconfig from the User's gitconfigs.
+// It returns false if the gitconfig was not there
+func (u *User) RemoveGitconfig(gitconfig string) bool {
+	updatedGitconfigs := []string{}
+	removed := false
+
+	for _, ns := range u.Gitconfigs {
+		if ns != gitconfig {
+			updatedGitconfigs = append(updatedGitconfigs, ns)
+		} else {
+			removed = true
+		}
+	}
+
+	u.Gitconfigs = updatedGitconfigs
 	return removed
 }

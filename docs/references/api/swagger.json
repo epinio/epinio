@@ -169,6 +169,139 @@
         }
       }
     },
+    "/gitconfigmatches": {
+      "get": {
+        "description": "Return list of names for all controlled gitconfigs (No prefix = empty prefix = match everything)",
+        "tags": [
+          "gitconfig"
+        ],
+        "operationId": "GitconfigMatch0",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigMatchResponse"
+          }
+        }
+      }
+    },
+    "/gitconfigmatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "gitconfig"
+        ],
+        "summary": "Return list of names for all controlled gitconfigs whose name matches the prefix `Pattern`.",
+        "operationId": "GitconfigMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigMatchResponse"
+          }
+        }
+      }
+    },
+    "/gitconfigs": {
+      "get": {
+        "tags": [
+          "gitconfig"
+        ],
+        "summary": "Return list of all controlled gitconfigs.",
+        "operationId": "Gitconfigs",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigsResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "gitconfig"
+        ],
+        "summary": "Create the posted new gitconfig.",
+        "operationId": "GitconfigCreate",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/GitconfigCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigCreateResponse"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete the named gitconfigs.",
+        "operationId": "GitconfigBatchDelete",
+        "parameters": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "in: url",
+            "name": "Gitconfigs",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigDeleteResponse"
+          }
+        }
+      }
+    },
+    "/gitconfigs/{Gitconfig}": {
+      "get": {
+        "tags": [
+          "gitconfig"
+        ],
+        "summary": "Return details of the named `Gitconfig`.",
+        "operationId": "Gitconfigshow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Gitconfig",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigshowResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "gitconfig"
+        ],
+        "summary": "Delete the named `Gitconfig`.",
+        "operationId": "GitconfigDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Gitconfig",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigDeleteResponse"
+          }
+        }
+      }
+    },
     "/info": {
       "get": {
         "description": "Return server system information",
@@ -2453,6 +2586,106 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "Gitconfig": {
+      "description": "Gitconfig contains the public parts of git.Configuration\nPassword and cert data are private and excluded.\nTODO : Track creating user of the config.",
+      "type": "object",
+      "properties": {
+        "meta": {
+          "$ref": "#/definitions/MetaLite"
+        },
+        "provider": {
+          "$ref": "#/definitions/GitProvider"
+        },
+        "repository": {
+          "type": "string",
+          "x-go-name": "Repository"
+        },
+        "skipssl": {
+          "type": "boolean",
+          "x-go-name": "SkipSSL"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
+        },
+        "userorg": {
+          "type": "string",
+          "x-go-name": "UserOrg"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "GitconfigCreateRequest": {
+      "type": "object",
+      "title": "GitconfigCreateRequest contains the data for a new git configuration.",
+      "properties": {
+        "certs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint8"
+          },
+          "x-go-name": "Certificates"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "ID"
+        },
+        "password": {
+          "type": "string",
+          "x-go-name": "Password"
+        },
+        "provider": {
+          "$ref": "#/definitions/GitProvider"
+        },
+        "repository": {
+          "type": "string",
+          "x-go-name": "Repository"
+        },
+        "skipssl": {
+          "type": "boolean",
+          "x-go-name": "SkipSSL"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
+        },
+        "userorg": {
+          "type": "string",
+          "x-go-name": "UserOrg"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "GitconfigList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Gitconfig"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "GitconfigsMatchResponse": {
+      "description": "GitconfigsMatchResponse contains the list of names for matching git configurations",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "HelmRepo": {
       "description": "HelmRepo matches github.com/epinio/application/api/v1 HelmRepo\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
@@ -3063,6 +3296,36 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/Response"
+      }
+    },
+    "GitconfigCreateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "GitconfigDeleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "GitconfigMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/GitconfigsMatchResponse"
+      }
+    },
+    "GitconfigsResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/GitconfigList"
+      }
+    },
+    "GitconfigshowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Gitconfig"
       }
     },
     "InfoResponse": {

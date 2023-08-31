@@ -128,7 +128,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 			authMiddleware,
 			versionMiddleware,
 			apiv1.NamespaceMiddleware,
-			apiv1.AuthorizationMiddleware,
+			apiv1.NamespaceAuthorizationMiddleware,
+			apiv1.GitconfigAuthorizationMiddleware,
 		)
 		apiv1.Lemon(apiRoutesGroup)
 	}
@@ -139,7 +140,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 			tokenAuthMiddleware,
 			versionMiddleware,
 			apiv1.NamespaceMiddleware,
-			apiv1.AuthorizationMiddleware,
+			apiv1.NamespaceAuthorizationMiddleware,
+			// gitconfig has no websocket routes
 		)
 		apiv1.Spice(wapiRoutesGroup)
 	}
