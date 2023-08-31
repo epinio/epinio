@@ -47,7 +47,7 @@ func init() {
 	gitProviderOption(CmdGitconfigCreate)
 	flags = CmdGitconfigCreate.Flags()
 	flags.Bool("skip-ssl", false, "skip ssl")
-	flags.String("user", "", "user for logging into the host")
+	flags.String("username", "", "user name for logging into the host")
 	flags.String("password", "", "password for logging into the host")
 	flags.String("user-org", "", "user/org holding repository")
 	flags.String("repository", "", "specific repository")
@@ -94,9 +94,9 @@ var CmdGitconfigCreate = &cobra.Command{
 		if provider == "" {
 			provider = "git"
 		}
-		user, err := cmd.Flags().GetString("user")
+		user, err := cmd.Flags().GetString("username")
 		if err != nil {
-			return errors.Wrap(err, "could not read option --user")
+			return errors.Wrap(err, "could not read option --username")
 		}
 		password, err := cmd.Flags().GetString("password")
 		if err != nil {
