@@ -107,7 +107,7 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 			catalogService.Spec.HelmRepo.Secret,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "finding helm repo auth secret")
+			return nil, errors.Wrap(err, "finding helm repo auth secret: "+catalogService.Spec.HelmRepo.Secret)
 		}
 
 		repoUsername = string(authSecret.Data["username"])
