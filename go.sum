@@ -249,6 +249,10 @@ github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0/go.m
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/epinio/application v0.0.0-20230626094023-b54470d3693f h1:A2WR5kdVJB0uVDJkmzuSAObjSzovhB5wKrdzoe0CESk=
 github.com/epinio/application v0.0.0-20230626094023-b54470d3693f/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
+github.com/epinio/application v0.0.0-20230830132518-5a2abda8bc06 h1:hQosXl1f3Epj6LK+8Vn24A9IxAsmpiMCEhVXnnT+JXk=
+github.com/epinio/application v0.0.0-20230830132518-5a2abda8bc06/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
+github.com/epinio/application v0.0.0-20230831095130-87dcf00a2fc1 h1:8znLZJWoqwev/G9TmiI6CTBVMk8d6ONtxOLRSYemGuE=
+github.com/epinio/application v0.0.0-20230831095130-87dcf00a2fc1/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
 github.com/evanphx/json-patch v0.5.2/go.mod h1:ZWS5hhDbVDyob71nXKNL0+PWn6ToqBHMikGIFbs31qQ=
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch v4.11.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
@@ -1418,6 +1422,7 @@ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8T
 golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+gomodules.xyz/jsonpatch/v2 v2.2.0 h1:4pT439QV83L+G9FkcCriY6EkpcK6r6bK+A5FBUMI7qY=
 gomodules.xyz/jsonpatch/v2 v2.2.0/go.mod h1:WXp+iVDkoLQqPudfQ9GBlwB2eZ5DKOnjQZCYdOS8GPY=
 gonum.org/v1/gonum v0.0.0-20180816165407-929014505bf4/go.mod h1:Y+Yx5eoAFn32cQvJDxZx5Dpnq+c3wtXuadVZAcxbbBo=
 gonum.org/v1/gonum v0.0.0-20181121035319-3f7ecaa7e8ca/go.mod h1:Y+Yx5eoAFn32cQvJDxZx5Dpnq+c3wtXuadVZAcxbbBo=

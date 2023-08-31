@@ -146,3 +146,13 @@ func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
 	statusAction.ShowResources = true
 	return statusAction.Run(name)
 }
+
+func (c *SynchronizedClient) RegistryLogin(hostname, username, password string) error {
+	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
+	if !ok {
+		return fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
+	}
+
+	registryLoginAction := action.NewRegistryLogin(concreteHelmClient.ActionConfig)
+	return registryLoginAction.Run(nil, hostname, username, password)
+}

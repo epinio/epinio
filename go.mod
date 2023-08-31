@@ -20,7 +20,7 @@ require (
 	github.com/briandowns/spinner v1.23.0
 	github.com/coreos/go-oidc/v3 v3.5.0
 	github.com/dchest/uniuri v1.2.0
-	github.com/epinio/application v0.0.0-20230626094023-b54470d3693f
+	github.com/epinio/application v0.0.0-20230831095130-87dcf00a2fc1
 	github.com/fatih/color v1.15.0
 	github.com/gin-gonic/gin v1.8.2
 	github.com/go-git/go-git/v5 v5.7.0
@@ -68,6 +68,8 @@ require (
 	k8s.io/metrics v0.27.3
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106
 )
+
+require gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1 // indirect
