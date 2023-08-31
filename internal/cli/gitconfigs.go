@@ -30,7 +30,6 @@ var CmdGitconfig = &cobra.Command{
 	Short:         "Epinio git configuration management",
 	Long:          `Manage git configurations`,
 	SilenceErrors: true,
-	SilenceUsage:  true,
 	Args:          cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := cmd.Usage(); err != nil {
