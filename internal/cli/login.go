@@ -12,6 +12,9 @@
 package cli
 
 import (
+	"fmt"
+	"net/url"
+
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +49,16 @@ var CmdLogin = &cobra.Command{
 		cmd.SilenceUsage = true
 
 		address := args[0]
+
+		parsedURL, err := url.Parse(address)
+		if err != nil {
+			return err
+		}
+		// if the scheme is missing fallback to https
+		if parsedURL.Scheme == "" {
+			address = fmt.Sprintf("https://%s", address)
+		}
+
 		username, err := cmd.Flags().GetString("user")
 		if err != nil {
 			return err
