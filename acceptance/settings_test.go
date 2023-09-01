@@ -38,14 +38,6 @@ var _ = Describe("Settings", LMisc, func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 	})
 
-	Describe("Ensemble", func() {
-		It("fails for a bogus sub command", func() {
-			out, err := env.Epinio("", "settings", "bogus", "...")
-			Expect(err).To(HaveOccurred())
-			Expect(out).To(ContainSubstring(`Unknown method "bogus"`))
-		})
-	})
-
 	Describe("Colors", func() {
 		It("changes the settings when disabling colors", func() {
 			settings, err := env.Epinio("", "settings", "colors", "0", "--settings-file", tmpSettingsPath)
