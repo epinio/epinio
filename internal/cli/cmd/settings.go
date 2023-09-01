@@ -45,25 +45,13 @@ func NewSettingsColorsCmd(client *usercmd.EpinioClient) *cobra.Command {
 		Use:   "colors BOOL",
 		Short: "Manage colored output",
 		Long:  "Enable/Disable colored output",
-		Args: func(cmd *cobra.Command, args []string) error {
-			err := cobra.ExactArgs(1)(cmd, args)
-			if err != nil {
-				return err
-			}
-
-			_, err = strconv.ParseBool(args[0])
-			if err != nil {
-				return errors.New("requires a boolean argument")
-			}
-			return nil
-		},
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
 			colors, err := strconv.ParseBool(args[0])
-			// assert: err == nil -- see args validation
 			if err != nil {
-				return errors.Wrap(err, "unexpected bool parsing error")
+				return errors.New("requires a boolean argument (true/false)")
 			}
 
 			err = client.SettingsColors(cmd.Context(), colors)

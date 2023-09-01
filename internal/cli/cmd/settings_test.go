@@ -60,9 +60,8 @@ var _ = Describe("Command 'epinio settings'", func() {
 		When("an invalid value is provided", func() {
 			It("shows the usage and an error", func() {
 				args := []string{"colors", "foobar"}
-				stdout, stderr := executeCmd(settingsCmd, args, output, outputErr)
-				Expect(stdout).To(HavePrefix("Usage:"))
-				Expect(stderr).To(Equal("Error: requires a boolean argument\n"))
+				_, stderr := executeCmd(settingsCmd, args, nil, outputErr)
+				Expect(stderr).To(Equal("Error: requires a boolean argument (true/false)\n"))
 			})
 		})
 	})
