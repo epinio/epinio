@@ -1144,8 +1144,8 @@ var _ = Describe("Services", LService, func() {
 			By("editing instance: " + service)
 			out, err := env.Epinio("", "service", "update", service,
 				"--wait",
-				"--remove", "ingress.enabled",
-				"--remove", "ingress.hostname",
+				"--unset", "ingress.enabled",
+				"--unset", "ingress.hostname",
 				"--set", "nesting.here.hello=user",
 			)
 			Expect(err).ToNot(HaveOccurred(), out)

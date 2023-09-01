@@ -127,11 +127,11 @@ var CmdServiceUpdate = &cobra.Command{
 			return errors.Wrap(err, "error reading option --wait")
 		}
 
-		// Process the --remove and --set options into operations (removals, assignments)
+		// Process the --unset and --set options into operations (removals, assignments)
 
-		removedKeys, err := cmd.Flags().GetStringSlice("remove")
+		removedKeys, err := changeGetUnset(cmd)
 		if err != nil {
-			return errors.Wrap(err, "failed to read option --remove")
+			return err
 		}
 
 		kvAssignments, err := cmd.Flags().GetStringSlice("set")
