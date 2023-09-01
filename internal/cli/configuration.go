@@ -83,7 +83,7 @@ var CmdConfigurationCreate = &cobra.Command{
 	RunE: ConfigurationCreate,
 }
 
-// CmdConfigurationUpdate implements the command: epinio configuration create
+// CmdConfigurationUpdate implements the command: epinio configuration update
 var CmdConfigurationUpdate = &cobra.Command{
 	Use:               "update NAME [flags]",
 	Short:             "Update a configuration",
@@ -195,11 +195,11 @@ func ConfigurationCreate(cmd *cobra.Command, args []string) error {
 func ConfigurationUpdate(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	// Process the --remove and --set options into operations (removals, assignments)
+	// Process the --unset and --set options into operations (removals, assignments)
 
-	removedKeys, err := cmd.Flags().GetStringSlice("remove")
+	removedKeys, err := changeGetUnset(cmd)
 	if err != nil {
-		return errors.Wrap(err, "failed to read option --remove")
+		return err
 	}
 
 	kvAssignments, err := cmd.Flags().GetStringSlice("set")
@@ -277,15 +277,29 @@ func ConfigurationUnbind(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// changeOptions initializes the --remove/-r and --set/-s options for
-// the provided command.
+// changeOptions initializes the --unset/-u and --set/-s options for the provided command.
+// It also initializes the old --remove/-r options, and marks them as deprecated.
 func changeOptions(cmd *cobra.Command) {
 	cmd.Flags().StringSliceP("set", "s", []string{}, "configuration key/value assignments to add/modify")
-	cmd.Flags().StringSliceP("remove", "r", []string{}, "configuration keys to remove")
+	cmd.Flags().StringSliceP("unset", "u", []string{}, "configuration keys to remove")
+	cmd.Flags().StringSliceP("remove", "r", []string{}, "(deprecated) configuration keys to remove")
+	checkErr(cmd.Flags().MarkDeprecated("remove", "please use --unset instead"))
 
 	// Note: No completion functionality. This would require asking the configuration for
 	// its details so that the keys to remove can be matched. And add/modify cannot
 	// check anyway.
+}
+
+func changeGetUnset(cmd *cobra.Command) ([]string, error) {
+	removedKeys, err := cmd.Flags().GetStringSlice("remove")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read deprecated option --remove")
+	}
+	unsetKeys, err := cmd.Flags().GetStringSlice("unset")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read option --unset")
+	}
+	return append(unsetKeys, removedKeys...), nil
 }
 
 func findConfigurationApp(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

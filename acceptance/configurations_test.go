@@ -467,7 +467,7 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			// edit the configuration ...
 
 			out, err := env.Epinio("", "configuration", "update", configurationName1,
-				"--remove", "username",
+				"--unset", "username",
 				"--set", "user=ci/cd",
 			)
 			Expect(err).ToNot(HaveOccurred(), out)

@@ -170,6 +170,8 @@ var Routes = routes.NamedRoutes{
 	"ServiceShow":        get("/namespaces/:namespace/services/:service", errorHandler(service.Show)),
 	"ServiceDelete":      delete("/namespaces/:namespace/services/:service", errorHandler(service.Delete)),
 	"ServiceBatchDelete": delete("/namespaces/:namespace/services", errorHandler(service.Delete)),
+	"ServiceUpdate":      patch("/namespaces/:namespace/services/:service", errorHandler(service.Update)),
+	"ServiceReplace":     put("/namespaces/:namespace/services/:service", errorHandler(service.Replace)),
 
 	"ServiceMatch":  get("/namespaces/:namespace/servicesmatches/:pattern", errorHandler(service.Match)),
 	"ServiceMatch0": get("/namespaces/:namespace/servicesmatches", errorHandler(service.Match)),
