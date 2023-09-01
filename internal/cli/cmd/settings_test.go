@@ -30,9 +30,9 @@ import (
 var _ = Describe("Command 'epinio settings'", func() {
 
 	var (
-		epinioClient *usercmd.EpinioClient
-		output       io.ReadWriter
-		settingsCmd  *cobra.Command
+		epinioClient      *usercmd.EpinioClient
+		output, outputErr io.ReadWriter
+		settingsCmd       *cobra.Command
 	)
 
 	BeforeEach(func() {
@@ -41,14 +41,35 @@ var _ = Describe("Command 'epinio settings'", func() {
 		Expect(err).To(BeNil())
 
 		output = &bytes.Buffer{}
+		outputErr = &bytes.Buffer{}
 		epinioClient.UI().SetOutput(output)
 
 		settingsCmd = cmd.NewSettingsCmd(epinioClient)
 	})
 
+	Describe("colors", func() {
+		When("no argument is provided", func() {
+			It("shows the usage and an error", func() {
+				args := []string{"colors"}
+				stdout, stderr := executeCmd(settingsCmd, args, output, outputErr)
+				Expect(stdout).To(HavePrefix("Usage:"))
+				Expect(stderr).To(Equal("Error: accepts 1 arg(s), received 0\n"))
+			})
+		})
+
+		When("an invalid value is provided", func() {
+			It("shows the usage and an error", func() {
+				args := []string{"colors", "foobar"}
+				stdout, stderr := executeCmd(settingsCmd, args, output, outputErr)
+				Expect(stdout).To(HavePrefix("Usage:"))
+				Expect(stderr).To(Equal("Error: requires a boolean argument\n"))
+			})
+		})
+	})
+
 	Describe("show", func() {
 		When("no flags are provided", func() {
-			It("it will hide sensible values", func() {
+			It("will hide sensible values", func() {
 				epinioClient.Settings = &settings.Settings{
 					Location:  "/my/local/settings",
 					Namespace: "mynamespace",
