@@ -12,7 +12,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
@@ -23,17 +22,11 @@ import (
 // NewSettingsCmd returns a new 'epinio settings' command
 func NewSettingsCmd(client *usercmd.EpinioClient) *cobra.Command {
 	settingsCmd := &cobra.Command{
-		Use:           "settings",
-		Short:         "Epinio settings management",
-		Long:          `Manage the epinio cli settings`,
-		SilenceErrors: true,
-		SilenceUsage:  true,
-		Args:          cobra.MinimumNArgs(1),
+		Use:   "settings",
+		Short: "Epinio settings management",
+		Long:  `Manage the epinio cli settings`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cmd.Usage(); err != nil {
-				return err
-			}
-			return fmt.Errorf(`Unknown method "%s"`, args[0])
+			return cmd.Usage()
 		},
 	}
 
@@ -49,10 +42,9 @@ func NewSettingsCmd(client *usercmd.EpinioClient) *cobra.Command {
 // NewSettingsColorsCmd returns a new 'epinio settings colors' command
 func NewSettingsColorsCmd(client *usercmd.EpinioClient) *cobra.Command {
 	return &cobra.Command{
-		Use:          "colors BOOL",
-		Short:        "Manage colored output",
-		Long:         "Enable/Disable colored output",
-		SilenceUsage: true,
+		Use:   "colors BOOL",
+		Short: "Manage colored output",
+		Long:  "Enable/Disable colored output",
 		Args: func(cmd *cobra.Command, args []string) error {
 			err := cobra.ExactArgs(1)(cmd, args)
 			if err != nil {
@@ -66,6 +58,8 @@ func NewSettingsColorsCmd(client *usercmd.EpinioClient) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
 			colors, err := strconv.ParseBool(args[0])
 			// assert: err == nil -- see args validation
 			if err != nil {
@@ -91,11 +85,12 @@ func NewSettingsShowCmd(client *usercmd.EpinioClient) *cobra.Command {
 	cfg := &SettingsShowConfig{}
 
 	settingsShowCmd := &cobra.Command{
-		Use:          "show",
-		Short:        "Show the current settings",
-		SilenceUsage: true,
-		Args:         cobra.ExactArgs(0),
+		Use:   "show",
+		Short: "Show the current settings",
+		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
+			cmd.SilenceUsage = true
+
 			showPassword := cfg.showPassword
 			showToken := cfg.showPassword
 
@@ -115,12 +110,13 @@ func NewSettingsShowCmd(client *usercmd.EpinioClient) *cobra.Command {
 // NewSettingsUpdateCACmd returns a new 'epinio settings update-ca' command
 func NewSettingsUpdateCACmd(client *usercmd.EpinioClient) *cobra.Command {
 	return &cobra.Command{
-		Use:          "update-ca",
-		Short:        "Update the api location and CA certificate",
-		Long:         "Update the api location and CA certificate from the current cluster",
-		SilenceUsage: true,
-		Args:         cobra.ExactArgs(0),
+		Use:   "update-ca",
+		Short: "Update the api location and CA certificate",
+		Long:  "Update the api location and CA certificate from the current cluster",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
 			err := client.SettingsUpdateCA(cmd.Context())
 			if err != nil {
 				return errors.Wrap(err, "failed to update the settings")

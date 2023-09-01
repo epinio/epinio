@@ -20,11 +20,13 @@ import (
 // NewInfoCmd returns a new 'epinio info' command
 func NewInfoCmd(client *usercmd.EpinioClient) *cobra.Command {
 	return &cobra.Command{
-		Use:          "info",
-		Short:        "Shows information about the Epinio environment",
-		Long:         "Shows status and versions for epinio's server-side components.",
-		SilenceUsage: true,
+		Use:   "info",
+		Short: "Shows information about the Epinio environment",
+		Long:  "Shows status and versions for epinio's server-side components.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
 			err := client.Info()
 			if err != nil {
 				return errors.Wrap(err, "error retrieving Epinio environment information")
