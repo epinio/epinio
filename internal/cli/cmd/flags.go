@@ -12,24 +12,15 @@
 package cmd
 
 import (
-	"github.com/epinio/epinio/internal/cli/usercmd"
-	"github.com/pkg/errors"
+	"log"
+
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-// NewInfoCmd returns a new 'epinio info' command
-func NewInfoCmd(client *usercmd.EpinioClient) *cobra.Command {
-	return &cobra.Command{
-		Use:          "info",
-		Short:        "Shows information about the Epinio environment",
-		Long:         "Shows status and versions for epinio's server-side components.",
-		SilenceUsage: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			err := client.Info()
-			if err != nil {
-				return errors.Wrap(err, "error retrieving Epinio environment information")
-			}
-			return nil
-		},
+func bindFlag(cmd *cobra.Command, key string) {
+	err := viper.BindPFlag(key, cmd.Flags().Lookup(key))
+	if err != nil {
+		log.Fatal(err)
 	}
 }
