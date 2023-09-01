@@ -88,7 +88,12 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 		// Note: Create a new client for this. `c` cannot be assumed to be properly initialized,
 		// as it was created before the login was performed and saved.
 
-		client, err := New(ctx)
+		client, err := New()
+		if err != nil {
+			return err
+		}
+
+		err = client.Init(ctx)
 		if err != nil {
 			return err
 		}

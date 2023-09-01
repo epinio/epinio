@@ -133,23 +133,8 @@ type APIClient interface {
 	Headers() map[string]string
 }
 
-func New(ctx context.Context) (*EpinioClient, error) {
-	cfg, err := settings.Load()
-	if err != nil {
-		return nil, errors.Wrap(err, "error loading settings")
-	}
-
-	apiClient := epinioapi.New(ctx, cfg)
-
-	return NewEpinioClient(cfg, apiClient)
-}
-
-func NewEpinioClient(cfg *settings.Settings, apiClient APIClient) (*EpinioClient, error) {
+func New() (*EpinioClient, error) {
 	logger := tracelog.NewLogger().WithName("EpinioClient").V(3)
-
-	log := logger.WithName("NewEpinioClient")
-	log.Info("Ingress API", "url", cfg.API)
-	log.Info("Settings API", "url", cfg.API)
 
 	updater, err := getUpdater(runtime.GOOS)
 	if err != nil {
@@ -157,12 +142,25 @@ func NewEpinioClient(cfg *settings.Settings, apiClient APIClient) (*EpinioClient
 	}
 
 	return &EpinioClient{
-		API:      apiClient,
-		ui:       termui.NewUI(),
-		Settings: cfg,
-		Log:      logger,
-		Updater:  updater,
+		ui:      termui.NewUI(),
+		Log:     logger,
+		Updater: updater,
 	}, nil
+}
+
+func (c *EpinioClient) Init(ctx context.Context) error {
+	cfg, err := settings.Load()
+	if err != nil {
+		return errors.Wrap(err, "error loading settings")
+	}
+	c.Settings = cfg
+
+	log := c.Log.WithName("Init")
+	log.Info("Ingress API", "url", cfg.API)
+	log.Info("Settings API", "url", cfg.API)
+
+	c.API = epinioapi.New(ctx, cfg)
+	return nil
 }
 
 func (cli *EpinioClient) UI() *termui.UI {
