@@ -14,7 +14,6 @@ package cmd_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -49,7 +48,7 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 
 	BeforeEach(func() {
 		epinioClient, err := usercmd.New()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		mock = &usercmdfakes.FakeAPIClient{}
 		epinioClient.API = mock
@@ -61,9 +60,6 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 		epinioClient.Updater = mockUpdater
 
 		clientSyncCmd = cmd.NewClientSyncCmd(epinioClient)
-
-		clientSyncCmd.SetErr(output)
-		clientSyncCmd.SetArgs([]string{"client-sync"})
 	})
 
 	When("the api returns an info response", func() {
@@ -98,19 +94,13 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 					It("shows the final version", func() {
 						mockUpdater.UpdateReturns(nil)
 
-						clientSyncCmd.Execute()
+						args := []string{"client-sync"}
+						stdout, _ := executeCmd(clientSyncCmd, args, output, nil)
 
 						Expect(mockUpdater.UpdateCallCount()).To(Equal(1))
 
-						out, err := ioutil.ReadAll(output)
-						Expect(err).To(BeNil())
-
-						stdout := string(out)
-						Expect(stdout).ToNot(BeEmpty())
-
-						stdout = strings.TrimSpace(stdout)
 						lines := strings.Split(stdout, "\n")
-						Expect(lines).To(HaveLen(1))
+						Expect(lines).To(HaveLen(2))
 
 						Expect(lines[0]).To(Equal("✔️  Updated epinio client to " + serverVersion))
 					})
@@ -120,19 +110,13 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 					It("shows an error", func() {
 						mockUpdater.UpdateReturns(errors.New("updater failed"))
 
-						clientSyncCmd.Execute()
+						args := []string{"client-sync"}
+						_, stderr := executeCmd(clientSyncCmd, args, nil, output)
 
 						Expect(mockUpdater.UpdateCallCount()).To(Equal(1))
 
-						out, err := ioutil.ReadAll(output)
-						Expect(err).To(BeNil())
-
-						stdout := string(out)
-						Expect(stdout).ToNot(BeEmpty())
-
-						stdout = strings.TrimSpace(stdout)
-						lines := strings.Split(stdout, "\n")
-						Expect(lines).To(HaveLen(1))
+						lines := strings.Split(stderr, "\n")
+						Expect(lines).To(HaveLen(2))
 
 						Expect(lines[0]).To(ContainSubstring("error syncing the Epinio client: updating the client: updater failed"))
 					})
@@ -155,19 +139,13 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 				It("shows the final version", func() {
 					mockUpdater.UpdateReturns(nil)
 
-					clientSyncCmd.Execute()
+					args := []string{"client-sync"}
+					stdout, _ := executeCmd(clientSyncCmd, args, output, nil)
 
 					Expect(mockUpdater.UpdateCallCount()).To(Equal(0))
 
-					out, err := ioutil.ReadAll(output)
-					Expect(err).To(BeNil())
-
-					stdout := string(out)
-					Expect(stdout).ToNot(BeEmpty())
-
-					stdout = strings.TrimSpace(stdout)
 					lines := strings.Split(stdout, "\n")
-					Expect(lines).To(HaveLen(1))
+					Expect(lines).To(HaveLen(2))
 
 					Expect(lines[0]).To(Equal("✔️  Client and server version are the same (v1.2.3). Nothing to do!"))
 				})
@@ -179,17 +157,11 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 		It("will show an error", func() {
 			mock.InfoReturns(models.InfoResponse{}, errors.New("something failed"))
 
-			clientSyncCmd.Execute()
+			args := []string{"client-sync"}
+			_, stderr := executeCmd(clientSyncCmd, args, nil, output)
 
-			out, err := ioutil.ReadAll(output)
-			Expect(err).To(BeNil())
-
-			stdout := string(out)
-			Expect(stdout).ToNot(BeEmpty())
-
-			stdout = strings.TrimSpace(stdout)
-			lines := strings.Split(stdout, "\n")
-			Expect(lines).To(HaveLen(1))
+			lines := strings.Split(stderr, "\n")
+			Expect(lines).To(HaveLen(2))
 
 			Expect(lines[0]).To(ContainSubstring("error syncing the Epinio client: something failed"))
 		})

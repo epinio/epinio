@@ -14,7 +14,6 @@ package cmd_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/epinio/epinio/internal/cli/cmd"
@@ -37,7 +36,7 @@ var _ = Describe("Command 'epinio info'", func() {
 
 	BeforeEach(func() {
 		epinioClient, err := usercmd.New()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		mock = &usercmdfakes.FakeAPIClient{}
 		epinioClient.API = mock
@@ -46,9 +45,6 @@ var _ = Describe("Command 'epinio info'", func() {
 		epinioClient.UI().SetOutput(output)
 
 		infoCmd = cmd.NewInfoCmd(epinioClient)
-
-		infoCmd.SetErr(output)
-		infoCmd.SetArgs([]string{"info"})
 	})
 
 	When("the api returns a complete response", func() {
@@ -61,17 +57,10 @@ var _ = Describe("Command 'epinio info'", func() {
 			}
 			mock.InfoReturns(goodResponse, nil)
 
-			infoCmd.Execute()
+			stdout, _ := executeCmd(infoCmd, []string{}, output, nil)
 
-			out, err := ioutil.ReadAll(output)
-			Expect(err).To(BeNil())
-
-			stdout := string(out)
-			Expect(stdout).ToNot(BeEmpty())
-
-			stdout = strings.TrimSpace(stdout)
 			lines := strings.Split(stdout, "\n")
-			Expect(lines).To(HaveLen(5))
+			Expect(lines).To(HaveLen(6), stdout)
 
 			Expect(lines[0]).To(Equal("✔️  Epinio Environment"))
 			Expect(lines[1]).To(Equal("Platform: k8s-platform"))
@@ -85,19 +74,13 @@ var _ = Describe("Command 'epinio info'", func() {
 		It("will show an error", func() {
 			mock.InfoReturns(models.InfoResponse{}, errors.New("something failed"))
 
-			infoCmd.Execute()
+			_, outerr := executeCmd(infoCmd, []string{}, nil, output)
 
-			out, err := ioutil.ReadAll(output)
-			Expect(err).To(BeNil())
-
-			stdout := string(out)
-			Expect(stdout).ToNot(BeEmpty())
-
-			stdout = strings.TrimSpace(stdout)
-			lines := strings.Split(stdout, "\n")
-			Expect(lines).To(HaveLen(1))
+			lines := strings.Split(outerr, "\n")
+			Expect(lines).To(HaveLen(2), outerr)
 
 			Expect(lines[0]).To(ContainSubstring("error retrieving Epinio environment information: something failed"))
 		})
 	})
+
 })

@@ -12,7 +12,10 @@
 package cmd_test
 
 import (
+	"io"
 	"testing"
+
+	"github.com/spf13/cobra"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -21,4 +24,30 @@ import (
 func TestEpinio(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Epinio Suite CMD")
+}
+
+func executeCmd(cmd *cobra.Command, args []string, output, outputErr io.ReadWriter) (string, string) {
+	GinkgoHelper()
+
+	cmd.SetOut(output)
+	cmd.SetErr(outputErr)
+	cmd.SetArgs(args)
+
+	// we don't check the err because if the command fails we want to check the error anyway
+	_ = cmd.Execute()
+
+	var out, outErr []byte
+	var err error
+
+	if output != nil {
+		out, err = io.ReadAll(output)
+		Expect(err).ToNot(HaveOccurred())
+	}
+
+	if outputErr != nil {
+		outErr, err = io.ReadAll(outputErr)
+		Expect(err).ToNot(HaveOccurred())
+	}
+
+	return string(out), string(outErr)
 }
