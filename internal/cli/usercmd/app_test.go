@@ -49,8 +49,11 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 			})
 
 			It("returns no error", func() {
-				epinioClient, err := usercmd.NewEpinioClient(&settings.Settings{Namespace: "workspace"}, fake)
+				epinioClient, err := usercmd.New()
 				Expect(err).ToNot(HaveOccurred())
+
+				epinioClient.Settings = &settings.Settings{Namespace: "workspace"}
+				epinioClient.API = fake
 
 				err = epinioClient.AppRestage("appname", false)
 				Expect(err).ToNot(HaveOccurred())
@@ -74,8 +77,11 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 			})
 
 			It("returns no error and it won't stage", func() {
-				epinioClient, err := usercmd.NewEpinioClient(&settings.Settings{Namespace: "workspace"}, fake)
+				epinioClient, err := usercmd.New()
 				Expect(err).ToNot(HaveOccurred())
+
+				epinioClient.Settings = &settings.Settings{Namespace: "workspace"}
+				epinioClient.API = fake
 
 				err = epinioClient.AppRestage("appname", false)
 				Expect(err).ToNot(HaveOccurred())

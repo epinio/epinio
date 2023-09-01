@@ -9,16 +9,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli_test
+package cmd_test
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"io/ioutil"
 	"strings"
 
-	"github.com/epinio/epinio/internal/cli"
+	"github.com/epinio/epinio/internal/cli/cmd"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/cli/usercmd/usercmdfakes"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -37,7 +36,7 @@ var _ = Describe("Command 'epinio info'", func() {
 	)
 
 	BeforeEach(func() {
-		epinioClient, err := usercmd.New(context.Background())
+		epinioClient, err := usercmd.New()
 		Expect(err).To(BeNil())
 
 		mock = &usercmdfakes.FakeAPIClient{}
@@ -46,8 +45,8 @@ var _ = Describe("Command 'epinio info'", func() {
 		output = &bytes.Buffer{}
 		epinioClient.UI().SetOutput(output)
 
-		infoCmd = cli.NewInfoCmd()
-		cli.SetClient(epinioClient)
+		infoCmd = cmd.NewInfoCmd(epinioClient)
+
 		infoCmd.SetErr(output)
 		infoCmd.SetArgs([]string{"info"})
 	})

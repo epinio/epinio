@@ -9,11 +9,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli_test
+package cmd_test
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -21,7 +20,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/epinio/epinio/internal/cli"
+	"github.com/epinio/epinio/internal/cli/cmd"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/cli/usercmd/usercmdfakes"
 	"github.com/epinio/epinio/internal/selfupdater/selfupdaterfakes"
@@ -49,7 +48,7 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 	)
 
 	BeforeEach(func() {
-		epinioClient, err := usercmd.New(context.Background())
+		epinioClient, err := usercmd.New()
 		Expect(err).To(BeNil())
 
 		mock = &usercmdfakes.FakeAPIClient{}
@@ -61,8 +60,8 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 		mockUpdater = &selfupdaterfakes.FakeUpdater{}
 		epinioClient.Updater = mockUpdater
 
-		clientSyncCmd = cli.NewClientSyncCmd()
-		cli.SetClient(epinioClient)
+		clientSyncCmd = cmd.NewClientSyncCmd(epinioClient)
+
 		clientSyncCmd.SetErr(output)
 		clientSyncCmd.SetArgs([]string{"client-sync"})
 	})

@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/cli/cmd"
 	settings "github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/duration"
@@ -42,6 +43,12 @@ var (
 
 // NewRootCmd returns the rootCmd, that is the main `epinio` cli.
 func NewRootCmd() (*cobra.Command, error) {
+	var err error
+	client, err = usercmd.New()
+	if err != nil {
+		return nil, errors.Wrap(err, "initializing cli")
+	}
+
 	rootCmd := &cobra.Command{
 		Args:          cobra.MaximumNArgs(0),
 		Use:           "epinio",
@@ -52,11 +59,10 @@ func NewRootCmd() (*cobra.Command, error) {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			stdr.SetVerbosity(tracelog.TraceLevel())
 
-			client, err := usercmd.New(cmd.Context())
+			err := client.Init(cmd.Context())
 			if err != nil {
-				return errors.Wrap(err, "initializing cli")
+				return errors.Wrap(err, "initializing client")
 			}
-			SetClient(client)
 
 			for _, header := range flagHeaders {
 				headerKeyValue := strings.SplitN(header, ":", 2)
@@ -76,7 +82,7 @@ func NewRootCmd() (*cobra.Command, error) {
 	argToEnv := map[string]string{}
 
 	settingsLocation := ""
-	var err error
+
 	if pf.Lookup("settings-file") == nil && os.Getenv("EPINIO_SETTINGS") == "" {
 		settingsLocation, err = settings.DefaultLocation()
 		if err != nil {
@@ -125,9 +131,8 @@ func NewRootCmd() (*cobra.Command, error) {
 
 	rootCmd.AddCommand(
 		CmdCompletion,
-		CmdSettings,
-		NewInfoCmd(),
-		NewClientSyncCmd(),
+		cmd.NewInfoCmd(client),
+		cmd.NewClientSyncCmd(client),
 		CmdGitconfig,
 		CmdNamespace,
 		CmdAppPush, // shorthand access to `app push`
@@ -175,8 +180,4 @@ func checkErr(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func SetClient(epinioClient *usercmd.EpinioClient) {
-	client = epinioClient
 }

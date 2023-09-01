@@ -9,28 +9,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli
+package cmd_test
 
 import (
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-// NewInfoCmd returns a new 'epinio info' command
-func NewInfoCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "info",
-		Short: "Shows information about the Epinio environment",
-		Long:  "Shows status and versions for epinio's server-side components.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.SilenceUsage = true
-
-			err := client.Info()
-			if err != nil {
-				return errors.Wrap(err, "error retrieving Epinio environment information")
-			}
-
-			return nil
-		},
-	}
+func TestEpinio(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Epinio Suite CMD")
 }
