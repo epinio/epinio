@@ -67,6 +67,7 @@ func NewRootCmd() (*cobra.Command, error) {
 
 			if flagOutput == "json" {
 				client.UI().EnableJSON()
+				client.API.DisableVersionWarning()
 			}
 
 			for _, header := range flagHeaders {
