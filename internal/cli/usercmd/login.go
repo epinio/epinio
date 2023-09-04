@@ -22,8 +22,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/cli/settings"
+	"github.com/epinio/epinio/internal/cli/termui"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
 	"golang.org/x/term"

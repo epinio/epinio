@@ -24,7 +24,7 @@ import (
 	k3s "github.com/epinio/epinio/helpers/kubernetes/platform/k3s"
 	kind "github.com/epinio/epinio/helpers/kubernetes/platform/kind"
 	minikube "github.com/epinio/epinio/helpers/kubernetes/platform/minikube"
-	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/cli/termui"
 
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"

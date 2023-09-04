@@ -19,9 +19,9 @@ import (
 	"runtime"
 
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
-	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/settings"
+	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/selfupdater"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -160,6 +160,7 @@ func (c *EpinioClient) Init(ctx context.Context) error {
 	log.Info("Settings API", "url", cfg.API)
 
 	c.API = epinioapi.New(ctx, cfg)
+	c.ui = termui.NewUI()
 	return nil
 }
 
