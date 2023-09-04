@@ -97,6 +97,8 @@ func (c *EpinioClient) Namespaces() error {
 
 	msg.Msg("Epinio Namespaces:")
 
+	c.ui.JSON(namespaces)
+
 	return nil
 }
 
@@ -251,6 +253,8 @@ func (c *EpinioClient) ShowNamespace(namespace string) error {
 		WithTableRow("Configurations", strings.Join(space.Configurations, "\n"))
 
 	msg.Msg("Details:")
+
+	c.ui.JSON(space)
 
 	return nil
 }

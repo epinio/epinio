@@ -39,6 +39,7 @@ var (
 
 	flagSettingsFile string
 	flagHeaders      []string
+	flagOutput       string
 )
 
 // NewRootCmd returns the rootCmd, that is the main `epinio` cli.
@@ -62,6 +63,10 @@ func NewRootCmd() (*cobra.Command, error) {
 			err := client.Init(cmd.Context())
 			if err != nil {
 				return errors.Wrap(err, "initializing client")
+			}
+
+			if flagOutput == "json" {
+				client.UI().EnableJSON()
 			}
 
 			for _, header := range flagHeaders {

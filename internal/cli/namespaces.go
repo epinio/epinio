@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -46,6 +47,12 @@ func init() {
 	flags := CmdNamespaceDelete.Flags()
 	flags.BoolVarP(&gNamespaceForceFlag, "force", "f", false, "force namespace deletion")
 	flags.BoolVar(&gNamespaceAllFlag, "all", false, "delete all namespaces")
+
+	CmdNamespaceList.Flags().StringVarP(&flagOutput, "output", "o", "text", "Sets output format [text,json]")
+	checkErr(viper.BindPFlag("output", CmdNamespaceList.Flags().Lookup("output")))
+
+	CmdNamespaceShow.Flags().StringVarP(&flagOutput, "output", "o", "text", "Sets output format [text,json]")
+	checkErr(viper.BindPFlag("output", CmdNamespaceShow.Flags().Lookup("output")))
 
 	CmdNamespace.AddCommand(CmdNamespaceCreate)
 	CmdNamespace.AddCommand(CmdNamespaceList)
