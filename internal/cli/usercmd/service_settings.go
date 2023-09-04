@@ -20,7 +20,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// ChartShow shows the value of the specified environment variable in
+// ChartSettingsShow shows the value of the specified environment variable in
 // the named application.
 func (c *EpinioClient) ChartSettingsShow(ctx context.Context, settings map[string]models.ChartSetting) {
 	log := c.Log.WithName("ChartSettingsShow")
