@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/epinio/epinio/helpers/termui"
 	api "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/version"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"golang.org/x/oauth2"

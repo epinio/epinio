@@ -19,7 +19,7 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/fatih/color"
 )
 

@@ -21,10 +21,10 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes/config"
-	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/cmd"
 	settings "github.com/epinio/epinio/internal/cli/settings"
+	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"

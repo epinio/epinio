@@ -24,9 +24,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
+	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
