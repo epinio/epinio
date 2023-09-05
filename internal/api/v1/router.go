@@ -27,6 +27,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/env"
 	"github.com/epinio/epinio/internal/api/v1/exportregistry"
 	"github.com/epinio/epinio/internal/api/v1/gitconfig"
+	"github.com/epinio/epinio/internal/api/v1/gitproxy"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
@@ -208,6 +209,8 @@ var Routes = routes.NamedRoutes{
 	// Note, the second registration catches calls with an empty pattern!
 	"ExportregistriesMatch":  get("/exportregistrymatches/:pattern", errorHandler(exportregistry.Match)),
 	"ExportregistriesMatch0": get("/exportregistrymatches", errorHandler(exportregistry.Match)),
+
+	"GitProxy": post("/gitproxy", errorHandler(gitproxy.ProxyHandler)),
 }
 
 var WsRoutes = routes.NamedRoutes{
