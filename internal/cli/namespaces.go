@@ -48,11 +48,15 @@ func init() {
 	flags.BoolVarP(&gNamespaceForceFlag, "force", "f", false, "force namespace deletion")
 	flags.BoolVar(&gNamespaceAllFlag, "all", false, "delete all namespaces")
 
-	CmdNamespaceList.Flags().StringVarP(&flagOutput, "output", "o", "text", "Sets output format [text,json]")
-	checkErr(viper.BindPFlag("output", CmdNamespaceList.Flags().Lookup("output")))
+	flagOutput = newEnumValue([]string{"text", "json"}, "text")
 
-	CmdNamespaceShow.Flags().StringVarP(&flagOutput, "output", "o", "text", "Sets output format [text,json]")
+	CmdNamespaceList.Flags().VarP(flagOutput, "output", "o", "sets output format [text|json]")
+	checkErr(viper.BindPFlag("output", CmdNamespaceList.Flags().Lookup("output")))
+	checkErr(CmdNamespaceList.RegisterFlagCompletionFunc("output", newStaticFlagsCompletionFunc(flagOutput.Allowed)))
+
+	CmdNamespaceShow.Flags().VarP(flagOutput, "output", "o", "sets output format [text|json]")
 	checkErr(viper.BindPFlag("output", CmdNamespaceShow.Flags().Lookup("output")))
+	checkErr(CmdNamespaceShow.RegisterFlagCompletionFunc("output", newStaticFlagsCompletionFunc(flagOutput.Allowed)))
 
 	CmdNamespace.AddCommand(CmdNamespaceCreate)
 	CmdNamespace.AddCommand(CmdNamespaceList)
