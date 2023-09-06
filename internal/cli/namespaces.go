@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -46,6 +47,16 @@ func init() {
 	flags := CmdNamespaceDelete.Flags()
 	flags.BoolVarP(&gNamespaceForceFlag, "force", "f", false, "force namespace deletion")
 	flags.BoolVar(&gNamespaceAllFlag, "all", false, "delete all namespaces")
+
+	flagOutput = newEnumValue([]string{"text", "json"}, "text")
+
+	CmdNamespaceList.Flags().VarP(flagOutput, "output", "o", "sets output format [text|json]")
+	checkErr(viper.BindPFlag("output", CmdNamespaceList.Flags().Lookup("output")))
+	checkErr(CmdNamespaceList.RegisterFlagCompletionFunc("output", newStaticFlagsCompletionFunc(flagOutput.Allowed)))
+
+	CmdNamespaceShow.Flags().VarP(flagOutput, "output", "o", "sets output format [text|json]")
+	checkErr(viper.BindPFlag("output", CmdNamespaceShow.Flags().Lookup("output")))
+	checkErr(CmdNamespaceShow.RegisterFlagCompletionFunc("output", newStaticFlagsCompletionFunc(flagOutput.Allowed)))
 
 	CmdNamespace.AddCommand(CmdNamespaceCreate)
 	CmdNamespace.AddCommand(CmdNamespaceList)

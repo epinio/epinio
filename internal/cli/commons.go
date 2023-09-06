@@ -203,3 +203,19 @@ func filteredMatchingFinder(args []string, prefix string, finder func(prefix str
 
 	return filteredMatches
 }
+
+type flagCompletionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
+
+func newStaticFlagsCompletionFunc(allowedValues []string) flagCompletionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		matches := []string{}
+
+		for _, allowed := range allowedValues {
+			if strings.HasPrefix(allowed, toComplete) {
+				matches = append(matches, allowed)
+			}
+		}
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}

@@ -12,7 +12,10 @@
 package acceptance_test
 
 import (
+	"encoding/json"
+
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
@@ -100,6 +103,16 @@ var _ = Describe("Namespaces", LNamespace, func() {
 				),
 			)
 		})
+
+		It("lists namespaces in JSON format", func() {
+			out, err := env.Epinio("", "namespace", "list", namespaceName, "--output", "json")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			namespaces := models.NamespaceList{}
+			err = json.Unmarshal([]byte(out), &namespaces)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(namespaces).ToNot(BeEmpty())
+		})
 	})
 
 	Describe("namespace show", func() {
@@ -174,6 +187,16 @@ var _ = Describe("Namespaces", LNamespace, func() {
 						WithRow("Configurations", configurationName),
 					),
 				)
+			})
+
+			It("shows a namespace in JSON format", func() {
+				out, err := env.Epinio("", "namespace", "show", namespaceName, "--output", "json")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				namespace := models.Namespace{}
+				err = json.Unmarshal([]byte(out), &namespace)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(namespace.Meta.Name).To(Equal(namespaceName))
 			})
 		})
 	})

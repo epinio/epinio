@@ -13,6 +13,7 @@ package termui
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -53,8 +54,9 @@ const (
 // UI contains functionality for dealing with the user
 // on the CLI
 type UI struct {
-	output    io.Writer
-	verbosity int // Verbosity level for user messages.
+	output      io.Writer
+	verbosity   int // Verbosity level for user messages.
+	jsonEnabled bool
 }
 
 // Message represents a piece of information we want displayed to the user
@@ -93,6 +95,22 @@ func NewUI() *UI {
 	return &UI{
 		output:    color.Output,
 		verbosity: verbosity(),
+	}
+}
+
+func (u *UI) EnableJSON() {
+	u.verbosity = -1
+	u.jsonEnabled = true
+}
+
+func (u *UI) DisableJSON() {
+	u.verbosity = verbosity()
+	u.jsonEnabled = false
+}
+
+func (u *UI) JSON(value any) {
+	if u.jsonEnabled {
+		_ = json.NewEncoder(u.output).Encode(value)
 	}
 }
 
