@@ -43,14 +43,20 @@ var _ = Describe("Gitproxy Endpoint", func() {
 		ctx = requestctx.WithLogger(context.Background(), logr.Discard())
 	})
 
+	setupRequestBody := func(body string) {
+		GinkgoHelper()
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "url", strings.NewReader(body))
+		Expect(err).ToNot(HaveOccurred())
+		c.Request = req
+	}
+
 	When("JSON is malformed", func() {
 		It("returns status code 400", func() {
-			body := strings.NewReader(`{"url":"https://api.gi`)
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "url", body)
-			Expect(err).ToNot(HaveOccurred())
-			c.Request = req
+			setupRequestBody(`{"url":"https://api.gi`)
 
 			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
+
 			errs := gitproxy.Proxy(c, gitManager)
 			Expect(w.Code).To(Equal(http.StatusBadRequest))
 			Expect(errs).To(HaveOccurred())
@@ -59,12 +65,10 @@ var _ = Describe("Gitproxy Endpoint", func() {
 
 	When("URL is malformed", func() {
 		It("returns status code 400", func() {
-			body := strings.NewReader(`{"url":"postgres://user:abc{DEf1=ghi@example.com:5432/db?sslmode=require"}`)
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "url", body)
-			Expect(err).ToNot(HaveOccurred())
-			c.Request = req
+			setupRequestBody(`{"url":"postgres://user:abc{DEf1=ghi@example.com:5432/db?sslmode=require"}`)
 
 			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
+
 			errs := gitproxy.Proxy(c, gitManager)
 			Expect(errs).To(HaveOccurred())
 		})
@@ -78,12 +82,10 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			}))
 			defer srv.Close()
 
-			body := strings.NewReader(fmt.Sprintf(`{"url":"%s/repos/epinio/epinio","gitconfig":"missing"}`, srv.URL))
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "url", body)
-			Expect(err).ToNot(HaveOccurred())
-			c.Request = req
+			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"missing"}`, srv.URL))
 
 			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
+
 			errs := gitproxy.Proxy(c, gitManager)
 			Expect(errs).ToNot(HaveOccurred())
 			Expect(w.Code).To(Equal(http.StatusCreated))
@@ -91,6 +93,124 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			b, err := io.ReadAll(w.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(b)).To(Equal(`{"foo":"bar"}`))
+		})
+
+		It("fails for unkwnown URLs", func() {
+			setupAndRun := func(path string) {
+				GinkgoHelper()
+
+				err := gitproxy.ValidateURL(fmt.Sprintf("https://mydomain.com%s", path))
+				Expect(err).To(HaveOccurred())
+			}
+
+			setupAndRun("")
+			setupAndRun("/apis")
+		})
+
+		It("fails for Github non whitelisted URLs", func() {
+			setupAndRun := func(path string) {
+				GinkgoHelper()
+
+				err := gitproxy.ValidateURL(fmt.Sprintf("https://api.github.com%s", path))
+				Expect(err).To(HaveOccurred())
+			}
+
+			setupAndRun("")
+			setupAndRun("/")
+			setupAndRun("/epinio")
+			setupAndRun("/epinio/epinio")
+			setupAndRun("/epinio/with/parts")
+			setupAndRun("/epinio/with/four/parts")
+			setupAndRun("/epinio/with/five/parts/here")
+			setupAndRun("/epinio/with/too/many/parts/here")
+		})
+
+		It("passes for Github whitelisted URLs", func() {
+			// - /repos/USERNAME/REPO
+			// - /repos/USERNAME/REPO/commits
+			// - /repos/USERNAME/REPO/branches
+			// - /repos/USERNAME/REPO/branches/BRANCH
+			// - /users/USERNAME/repos
+			// - /search/repositories
+
+			setupAndRun := func(path string) {
+				GinkgoHelper()
+
+				err := gitproxy.ValidateURL(fmt.Sprintf("https://api.github.com%s", path))
+				Expect(err).ToNot(HaveOccurred())
+			}
+
+			setupAndRun("/search/repositories?q=repo:USER/ORG")
+			setupAndRun("/users/USERNAME/repos")
+			setupAndRun("/repos/USERNAME/REPO")
+			setupAndRun("/repos/USERNAME/REPO/commits")
+			setupAndRun("/repos/USERNAME/REPO/branches")
+			setupAndRun("/repos/USERNAME/REPO/branches/BRANCH")
+		})
+
+		It("passes for Github Enterprise Server whitelisted URLs", func() {
+			// - /api/v3/repos/USERNAME/REPO
+			// - /api/v3/repos/USERNAME/REPO/commits
+			// - /api/v3/repos/USERNAME/REPO/branches
+			// - /api/v3/repos/USERNAME/REPO/branches/BRANCH
+			// - /api/v3/users/USERNAME/repos
+			// - /api/v3/search/repositories
+
+			setupAndRun := func(path string) {
+				GinkgoHelper()
+
+				err := gitproxy.ValidateURL(fmt.Sprintf("https://github.mydomain.com/api/v3%s", path))
+				Expect(err).ToNot(HaveOccurred())
+			}
+
+			setupAndRun("/search/repositories")
+			setupAndRun("/users/USERNAME/repos")
+			setupAndRun("/repos/USERNAME/REPO")
+			setupAndRun("/repos/USERNAME/REPO/commits")
+			setupAndRun("/repos/USERNAME/REPO/branches")
+			setupAndRun("/repos/USERNAME/REPO/branches/BRANCH")
+		})
+
+		It("fails for Gitlab Server non whitelisted URLs", func() {
+			setupAndRun := func(path string) {
+				GinkgoHelper()
+
+				err := gitproxy.ValidateURL(fmt.Sprintf("https://gitlab.mydomain.com/api/v4%s", path))
+				Expect(err).To(HaveOccurred())
+			}
+
+			setupAndRun("")
+			setupAndRun("/")
+			setupAndRun("/any")
+			setupAndRun("/search/something")
+			setupAndRun("/projects/USERNAME%2FREPO/repository/stars")
+			setupAndRun("/projects/USERNAME%2FREPO/repository/commits/BRANCH")
+			setupAndRun("/api/with/too/many/parts/api")
+		})
+
+		It("passes for Gitlab Server whitelisted URLs", func() {
+			// - /api/v4/avatar
+			// - /api/v4/search/repositories
+			// - /api/v4/USERNAME/projects
+			// - /api/v4/projects/USERNAME%2FREPO
+			// - /api/v4/projects/USERNAME%2FREPO/repository/commits
+			// - /api/v4/projects/USERNAME%2FREPO/repository/branches
+			// - /api/v4/projects/USERNAME%2FREPO/repository/branches/BRANCH
+
+			setupAndRun := func(path string) {
+				GinkgoHelper()
+
+				err := gitproxy.ValidateURL(fmt.Sprintf("https://gitlab.mydomain.com/api/v4%s", path))
+				Expect(err).ToNot(HaveOccurred())
+			}
+
+			setupAndRun("/avatar")
+			setupAndRun("/search/repositories")
+			setupAndRun("/USERNAME/projects")
+			setupAndRun("/projects/USERNAME%2FREPO")
+			setupAndRun("/projects/USERNAME%2FREPO/repository/commits")
+			setupAndRun("/projects/USERNAME%2FREPO/repository/branches")
+			setupAndRun("/projects/USERNAME%2FREPO/repository/branches/BRANCH")
 		})
 
 		When("gitconfig with username and password is provided", func() {
@@ -104,14 +224,13 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				}))
 				defer srv.Close()
 
-				body := strings.NewReader(fmt.Sprintf(`{"url":"%s/repos/epinio/epinio","gitconfig":"my-git-conf"}`, srv.URL))
-				req, err := http.NewRequestWithContext(ctx, http.MethodGet, "url", body)
-				Expect(err).ToNot(HaveOccurred())
-				c.Request = req
+				gitConfig := "my-git-conf"
+				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: "my-git-conf", Username: "epinio", Password: "password"},
+					{ID: gitConfig, Username: "epinio", Password: "password"},
 				}}
+
 				errs := gitproxy.Proxy(c, gitManager)
 				Expect(errs).ToNot(HaveOccurred())
 				Expect(w.Code).To(Equal(http.StatusCreated))
@@ -129,12 +248,10 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				srv := httptest.NewTLSServer(nil)
 				defer srv.Close()
 
-				body := strings.NewReader(fmt.Sprintf(`{"url":"%s/repos/epinio/epinio"}`, srv.URL))
-				req, err := http.NewRequestWithContext(ctx, http.MethodGet, "url", body)
-				Expect(err).ToNot(HaveOccurred())
-				c.Request = req
+				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio"}`, srv.URL))
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
+
 				errs := gitproxy.Proxy(c, gitManager)
 				Expect(errs).To(HaveOccurred())
 			})
@@ -148,14 +265,13 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				}))
 				defer srv.Close()
 
-				body := strings.NewReader(fmt.Sprintf(`{"url":"%s/repos/epinio/epinio","gitconfig":"my-git-conf"}`, srv.URL))
-				req, err := http.NewRequestWithContext(ctx, http.MethodGet, "url", body)
-				Expect(err).ToNot(HaveOccurred())
-				c.Request = req
+				gitConfig := "my-git-conf"
+				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: "my-git-conf", SkipSSL: true},
+					{ID: gitConfig, SkipSSL: true},
 				}}
+
 				errs := gitproxy.Proxy(c, gitManager)
 				Expect(errs).ToNot(HaveOccurred())
 				Expect(w.Code).To(Equal(http.StatusCreated))
@@ -174,19 +290,19 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				}))
 				defer srv.Close()
 
-				body := strings.NewReader(fmt.Sprintf(`{"url":"%s/repos/epinio/epinio","gitconfig":"my-git-conf"}`, srv.URL))
-				req, err := http.NewRequestWithContext(ctx, http.MethodGet, "url", body)
-				Expect(err).ToNot(HaveOccurred())
-				c.Request = req
+				gitConfig := "my-git-conf"
+				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
 
+				// load PEM certificate from TLS server
 				conn, err := tls.Dial("tcp", strings.TrimPrefix(srv.URL, "https://"), &tls.Config{InsecureSkipVerify: true})
 				Expect(err).ToNot(HaveOccurred())
 				defer conn.Close()
 				pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: conn.ConnectionState().PeerCertificates[0].Raw})
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: "my-git-conf", Certificate: pemCert},
+					{ID: gitConfig, Certificate: pemCert},
 				}}
+
 				errs := gitproxy.Proxy(c, gitManager)
 				Expect(errs).ToNot(HaveOccurred())
 				Expect(w.Code).To(Equal(http.StatusCreated))

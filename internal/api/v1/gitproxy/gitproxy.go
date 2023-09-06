@@ -14,9 +14,11 @@ package gitproxy
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -29,6 +31,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
+// ProxyHandler is the gin.Handler for the Proxy func
 func ProxyHandler(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx)
@@ -46,6 +49,8 @@ func ProxyHandler(c *gin.Context) apierror.APIErrors {
 	return Proxy(c, gitManager)
 }
 
+// Proxy will proxy the URL provided in the GitProxyRequest
+// eventually using the gitconfiguration spcified in the gitconfig.
 func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx)
@@ -55,7 +60,7 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 		return apierror.NewBadRequestError(err.Error())
 	}
 
-	if _, err := url.Parse(proxyRequest.URL); err != nil {
+	if err := ValidateURL(proxyRequest.URL); err != nil {
 		return apierror.NewBadRequestError("invalid proxied URL")
 	}
 
@@ -99,6 +104,154 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 	return nil
 }
 
+// ValidateURL will validate the URL to proxy. We don't want to let the user proxy everything
+// but only some of the Github or Gitlab APIs.
+func ValidateURL(proxiedURL string) error {
+	u, err := url.Parse(proxiedURL)
+	if err != nil {
+		return errors.Wrap(err, "parsing proxied URL")
+	}
+
+	// if the host is known (Github or Github Enterprise Cloud) just validate the path
+	// https://docs.github.com/en/enterprise-cloud@latest/rest/enterprise-admin
+	if u.Host == "api.github.com" {
+		return validateGithubURL(u.EscapedPath())
+	}
+
+	// if the path starts with '/api/v3' we are assuming this to be a selfhosted Github Enterprise Server
+	// https://docs.github.com/en/enterprise-server@3.10/rest/enterprise-admin
+	if strings.HasPrefix(u.Path, "/api/v3") {
+		path := strings.TrimPrefix(u.EscapedPath(), "/api/v3")
+		return validateGithubURL(path)
+	}
+
+	// if the path starts with '/api/v4' we are assuming this to be a Gitlab server
+	// https://docs.gitlab.com/ee/api/rest/
+	if strings.HasPrefix(u.Path, "/api/v4") {
+		path := strings.TrimPrefix(u.EscapedPath(), "/api/v4")
+		return validateGitlabURL(path)
+	}
+
+	return fmt.Errorf("unknown URL '%s'", proxiedURL)
+}
+
+// validateGithubURL will validate if the requested API is a whitelisted one.
+// We don't want to let the user call all the Github APIs with the provided tokens.
+// The supported APIs are:
+// - /repos/USERNAME/REPO
+// - /repos/USERNAME/REPO/commits
+// - /repos/USERNAME/REPO/branches
+// - /repos/USERNAME/REPO/branches/BRANCH
+// - /users/USERNAME/repos
+// - /search/repositories
+func validateGithubURL(path string) error {
+	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	if len(parts) < 2 {
+		return fmt.Errorf("invalid Github URL. Too few parts: [%s]", strings.Join(parts, ","))
+	}
+
+	// with 2 parts we support this endpoint:
+	// - /search/repositories
+	if len(parts) == 2 {
+		if parts[0] == "search" && parts[1] == "repositories" {
+			return nil
+		}
+		return fmt.Errorf("invalid Github URL with 2 parts: [%s]", strings.Join(parts, ","))
+	}
+
+	// with 3 parts we support these endpoints:
+	// - /repos/USERNAME/REPO
+	// - /users/USERNAME/repos
+	if len(parts) == 3 {
+		if parts[0] == "repos" ||
+			(parts[0] == "users" && parts[2] == "repos") {
+			return nil
+		}
+		return fmt.Errorf("invalid Github URL with 3 parts: [%s]", strings.Join(parts, ","))
+	}
+
+	// with 4 parts we support these endpoints:
+	// - /repos/USERNAME/REPO/commits
+	// - /repos/USERNAME/REPO/branches
+	if len(parts) == 4 {
+		if parts[0] == "repos" && (parts[3] == "commits" || parts[3] == "branches") {
+			return nil
+		}
+		return fmt.Errorf("invalid Github URL with 4 parts: [%s]", strings.Join(parts, ","))
+	}
+
+	// with 5 parts we support this endpoint:
+	// - /repos/USERNAME/REPO/branches/BRANCH
+	if len(parts) == 5 {
+		if parts[0] == "repos" && parts[3] == "branches" {
+			return nil
+		}
+		return fmt.Errorf("invalid Github URL with 5 parts: [%s]", strings.Join(parts, ","))
+	}
+
+	return fmt.Errorf("invalid Github URL. Too many parts: [%s]", strings.Join(parts, ","))
+}
+
+// validateGitlabURL will validate if the requested API is a whitelisted one.
+// We don't want to let the user call all the Gitlab APIs with the provided tokens.
+// Gitlab use the project ID or the url encoded "USERNAME/REPO" string, hence we are checking for the second one.
+// The supported APIs are:
+// - /avatar
+// - /search/repositories
+// - /USERNAME/projects
+// - /projects/USERNAME%2FREPO
+// - /projects/USERNAME%2FREPO/repository/branches
+// - /projects/USERNAME%2FREPO/repository/commits
+// - /projects/REPO/repository/branches/BRANCH
+func validateGitlabURL(path string) error {
+	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
+
+	// with 1 part we support this endpoint:
+	// - /avatar
+	if len(parts) == 1 {
+		if parts[0] == "avatar" {
+			return nil
+		}
+		return fmt.Errorf("invalid Github URL with 1 part1: [%s]", parts[0])
+	}
+
+	// with 2 parts we support these endpoints:
+	// - /search/repositories
+	// - /USERNAME/projects
+	// - /projects/USERNAME%2FREPO
+	if len(parts) == 2 {
+		if (parts[0] == "search" && parts[1] == "repositories") ||
+			parts[0] == "projects" || parts[1] == "projects" {
+			return nil
+		}
+		return fmt.Errorf("invalid Github URL with 2 parts: [%s]", strings.Join(parts, ","))
+	}
+
+	// with 4 parts we support these endpoints:
+	// - /projects/USERNAME%2FREPO/repository/branches
+	// - /projects/USERNAME%2FREPO/repository/commits
+	if len(parts) == 4 {
+		if parts[0] == "projects" && parts[2] == "repository" &&
+			(parts[3] == "branches" || parts[3] == "commits") {
+			return nil
+		}
+		return fmt.Errorf("invalid Github URL with 3 parts: [%s]", strings.Join(parts, ","))
+	}
+
+	// with 5 parts we support this endpoint:
+	// - /projects/REPO/repository/branches/BRANCH
+	if len(parts) == 5 {
+		if parts[0] == "projects" && parts[2] == "repository" && parts[3] == "branches" {
+			return nil
+		}
+		return fmt.Errorf("invalid Github URL with 5 parts: [%s]", strings.Join(parts, ","))
+	}
+
+	return fmt.Errorf("invalid Github URL '%s'. Parts: [%s]", path, strings.Join(parts, ","))
+}
+
+// getProxyClient will create a *http.Client based on the provided *gitbridge.Configuration.
+// For example it will skip the SSL verification or load the provided certificates.
 func getProxyClient(gitConfig *gitbridge.Configuration) (*http.Client, error) {
 	client := &http.Client{}
 
@@ -135,6 +288,7 @@ func getProxyClient(gitConfig *gitbridge.Configuration) (*http.Client, error) {
 	return client, nil
 }
 
+// doRequest will execute the proxied request copying the response and the headers in the ResponseWriter
 func doRequest(client *http.Client, req *http.Request, writer http.ResponseWriter) error {
 	resp, err := client.Do(req)
 	if err != nil {
