@@ -191,8 +191,9 @@ func validateGithubURL(path string) error {
 // The supported APIs are:
 // - /avatar
 // - /search/repositories
-// - /USERNAME/projects
 // - /projects/USERNAME%2FREPO
+// - /users/USERNAME/projects
+// - /groups/USERNAME/projects
 // - /projects/USERNAME%2FREPO/repository/branches
 // - /projects/USERNAME%2FREPO/repository/commits
 // - /projects/REPO/repository/branches/BRANCH
@@ -209,11 +210,18 @@ func validateGitlabURL(path string) error {
 
 	// with 2 parts we support these endpoints:
 	// - /search/repositories
-	// - /USERNAME/projects
 	// - /projects/USERNAME%2FREPO
 	if len(parts) == 2 {
-		if (parts[0] == "search" && parts[1] == "repositories") ||
-			parts[0] == "projects" || parts[1] == "projects" {
+		if path == "/search/repositories" || parts[0] == "projects" {
+			return nil
+		}
+	}
+
+	// with 3 parts we support these endpoints:
+	// - /users/USERNAME/projects
+	// - /groups/USERNAME/projects
+	if len(parts) == 3 {
+		if (parts[0] == "users" || parts[0] == "groups") && parts[2] == "projects" {
 			return nil
 		}
 	}
