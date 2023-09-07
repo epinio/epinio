@@ -32,15 +32,10 @@ body:
       label: Epinio UI [OPTIONAL]
       options:
         - label: >
-            **( 📝 Manual step )** Tag the `epinio/ui`.
+            **( 📝 Manual step )** Tag the `epinio/ui` and check the release action.
             `git tag -a vX.Y.Z-a.b.c -m 'vX.Y.Z-a.b.c'`
             `git push origin vX.Y.Z-a.b.c`
-            [LINK](https://github.com/epinio/ui)
-        - label: >
-            **( 📝 Manual step )** Tag the `epinio/ui-backend` (with the same tag) and check the release action.
-            `git tag -a vX.Y.Z-a.b.c -m 'vX.Y.Z-a.b.c'`
-            `git push origin vX.Y.Z-a.b.c`
-            [LINK](https://github.com/epinio/ui-backend/actions/workflows/release.yml)
+            [LINK](https://github.com/epinio/ui/actions/workflows/release.yml)
         - label: >
             **( 📝 Manual step )** Check the `epinio/helm-charts` pull requests for the latest updates. Merge the PR.
             [LINK](https://github.com/epinio/helm-charts/pulls?q=is%3Apr+author%3Aapp%2Fgithub-actions)
@@ -78,12 +73,6 @@ body:
         - label: >
             **( 📝 Manual step )** Run the `epinio/helm-charts` release action to publish the latest chart.
             [LINK](https://github.com/epinio/helm-charts/actions/workflows/release.yml)
-        - label: >
-            **( 📝 Manual step )** Check that the publication of the chart triggered the `epinio/helm-charts`
-            epinio docker action to generate a docker image for deploying the latest `epiniod` image.
-            [LINK](https://github.com/epinio/helm-charts/actions/workflows/build-epiniod.yml)
-            Trigger manually if needed. Check that the resulting docker image is available in `ghcr.io`, with
-            the chosen tags [LINK](https://github.com/epinio/helm-charts/pkgs/container/epiniod).
 
   - type: checkboxes
     id: release-checklist
