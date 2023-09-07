@@ -16,19 +16,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
+//counterfeiter:generate . NamespaceMatcher
+type NamespaceMatcher interface {
+	GetAPI() usercmd.APIClient
+	NamespacesMatching(toComplete string) []string
+}
+
 type ValidArgsFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
 
 // NewNamespaceMatcherFunc returns a list of matching namespaces from the provided partial command.
 // It only matches for the first command argument.
-func NewNamespaceMatcherFunc(client *usercmd.EpinioClient) ValidArgsFunc {
+func NewNamespaceMatcherFunc(matcher NamespaceMatcher) ValidArgsFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		client.API.DisableVersionWarning()
+		matcher.GetAPI().DisableVersionWarning()
 
-		matches := client.NamespacesMatching(toComplete)
+		matches := matcher.NamespacesMatching(toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
 }

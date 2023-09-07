@@ -12,16 +12,24 @@
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
+//counterfeiter:generate . NamespaceService
+type NamespaceService interface {
+	CreateNamespace(namespace string) error
+	Namespaces() error
+	DeleteNamespace(namespaces []string, force, all bool) error
+	ShowNamespace(namespace string) error
+
+	NamespaceMatcher
+}
+
 // NewNamespaceCmd returns a new 'epinio namespace' command
-func NewNamespaceCmd(client *usercmd.EpinioClient, rootCfg *RootConfig) *cobra.Command {
+func NewNamespaceCmd(client NamespaceService, rootCfg *RootConfig) *cobra.Command {
 	namespaceCmd := &cobra.Command{
 		Use:           "namespace",
 		Aliases:       []string{"namespaces"},
@@ -30,12 +38,6 @@ func NewNamespaceCmd(client *usercmd.EpinioClient, rootCfg *RootConfig) *cobra.C
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cmd.Usage(); err != nil {
-				return err
-			}
-			return fmt.Errorf(`Unknown method "%s"`, args[0])
-		},
 	}
 
 	namespaceCmd.AddCommand(
@@ -49,7 +51,7 @@ func NewNamespaceCmd(client *usercmd.EpinioClient, rootCfg *RootConfig) *cobra.C
 }
 
 // NewNamespaceCreateCmd returns a new 'epinio namespace create' command
-func NewNamespaceCreateCmd(client *usercmd.EpinioClient) *cobra.Command {
+func NewNamespaceCreateCmd(client NamespaceService) *cobra.Command {
 	return &cobra.Command{
 		Use:   "create NAME",
 		Short: "Creates an epinio-controlled namespace",
@@ -68,10 +70,11 @@ func NewNamespaceCreateCmd(client *usercmd.EpinioClient) *cobra.Command {
 }
 
 // NewNamespaceListCmd returns a new 'epinio namespace list' command
-func NewNamespaceListCmd(client *usercmd.EpinioClient, rootCfg *RootConfig) *cobra.Command {
+func NewNamespaceListCmd(client NamespaceService, rootCfg *RootConfig) *cobra.Command {
 	namespaceListCmd := &cobra.Command{
 		Use:   "list",
 		Short: "Lists all epinio-controlled namespaces",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
@@ -97,7 +100,7 @@ type NamespaceDeleteConfig struct {
 }
 
 // NewNamespaceDeleteCmd returns a new 'epinio namespace delete' command
-func NewNamespaceDeleteCmd(client *usercmd.EpinioClient) *cobra.Command {
+func NewNamespaceDeleteCmd(client NamespaceService) *cobra.Command {
 	cfg := NamespaceDeleteConfig{}
 
 	namespaceDeleteCmd := &cobra.Command{
@@ -127,7 +130,7 @@ func NewNamespaceDeleteCmd(client *usercmd.EpinioClient) *cobra.Command {
 }
 
 // NewNamespaceShowCmd returns a new 'epinio namespace show' command
-func NewNamespaceShowCmd(client *usercmd.EpinioClient, rootCfg *RootConfig) *cobra.Command {
+func NewNamespaceShowCmd(client NamespaceService, rootCfg *RootConfig) *cobra.Command {
 	namespaceShowCmd := &cobra.Command{
 		Use:               "show NAME",
 		Short:             "Shows the details of an epinio-controlled namespace",

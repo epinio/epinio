@@ -57,7 +57,7 @@ var _ = Describe("Command 'epinio info'", func() {
 			}
 			mock.InfoReturns(goodResponse, nil)
 
-			stdout, _ := executeCmd(infoCmd, []string{}, output, nil)
+			stdout, _, _ := executeCmd(infoCmd, []string{}, output, nil)
 
 			lines := strings.Split(stdout, "\n")
 			Expect(lines).To(HaveLen(6), stdout)
@@ -74,7 +74,7 @@ var _ = Describe("Command 'epinio info'", func() {
 		It("will show an error", func() {
 			mock.InfoReturns(models.InfoResponse{}, errors.New("something failed"))
 
-			_, outerr := executeCmd(infoCmd, []string{}, nil, output)
+			_, outerr, _ := executeCmd(infoCmd, []string{}, nil, output)
 
 			lines := strings.Split(outerr, "\n")
 			Expect(lines).To(HaveLen(2), outerr)

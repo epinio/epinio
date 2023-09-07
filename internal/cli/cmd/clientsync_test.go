@@ -95,7 +95,7 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 						mockUpdater.UpdateReturns(nil)
 
 						args := []string{"client-sync"}
-						stdout, _ := executeCmd(clientSyncCmd, args, output, nil)
+						stdout, _, _ := executeCmd(clientSyncCmd, args, output, nil)
 
 						Expect(mockUpdater.UpdateCallCount()).To(Equal(1))
 
@@ -111,7 +111,7 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 						mockUpdater.UpdateReturns(errors.New("updater failed"))
 
 						args := []string{"client-sync"}
-						_, stderr := executeCmd(clientSyncCmd, args, nil, output)
+						_, stderr, _ := executeCmd(clientSyncCmd, args, nil, output)
 
 						Expect(mockUpdater.UpdateCallCount()).To(Equal(1))
 
@@ -140,7 +140,7 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 					mockUpdater.UpdateReturns(nil)
 
 					args := []string{"client-sync"}
-					stdout, _ := executeCmd(clientSyncCmd, args, output, nil)
+					stdout, _, _ := executeCmd(clientSyncCmd, args, output, nil)
 
 					Expect(mockUpdater.UpdateCallCount()).To(Equal(0))
 
@@ -158,7 +158,7 @@ var _ = Describe("Command 'epinio client-sync'", func() {
 			mock.InfoReturns(models.InfoResponse{}, errors.New("something failed"))
 
 			args := []string{"client-sync"}
-			_, stderr := executeCmd(clientSyncCmd, args, nil, output)
+			_, stderr, _ := executeCmd(clientSyncCmd, args, nil, output)
 
 			lines := strings.Split(stderr, "\n")
 			Expect(lines).To(HaveLen(2))

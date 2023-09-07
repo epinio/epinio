@@ -11,6 +11,14 @@
 
 package cmd
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+
 type RootConfig struct {
 	Output *EnumValue
+}
+
+func NewRootConfig() *RootConfig {
+	return &RootConfig{
+		Output: NewEnumValue([]string{"text", "json"}, "text"),
+	}
 }

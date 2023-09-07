@@ -43,9 +43,7 @@ var (
 
 // NewRootCmd returns the rootCmd, that is the main `epinio` cli.
 func NewRootCmd() (*cobra.Command, error) {
-	cfg := &cmd.RootConfig{
-		Output: cmd.NewEnumValue([]string{"text", "json"}, "text"),
-	}
+	cfg := cmd.NewRootConfig()
 
 	var err error
 	client, err = usercmd.New()
