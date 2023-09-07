@@ -61,7 +61,7 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 	}
 
 	if err := ValidateURL(proxyRequest.URL); err != nil {
-		return apierror.NewBadRequestError("invalid proxied URL")
+		return apierror.NewBadRequestErrorf("invalid proxied URL: %s", err.Error())
 	}
 
 	// create request to proxy
@@ -146,9 +146,6 @@ func ValidateURL(proxiedURL string) error {
 // - /search/repositories
 func validateGithubURL(path string) error {
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
-	if len(parts) < 2 {
-		return fmt.Errorf("invalid Github URL. Too few parts: [%s]", strings.Join(parts, ","))
-	}
 
 	// with 2 parts we support this endpoint:
 	// - /search/repositories
@@ -156,7 +153,6 @@ func validateGithubURL(path string) error {
 		if parts[0] == "search" && parts[1] == "repositories" {
 			return nil
 		}
-		return fmt.Errorf("invalid Github URL with 2 parts: [%s]", strings.Join(parts, ","))
 	}
 
 	// with 3 parts we support these endpoints:
@@ -167,7 +163,6 @@ func validateGithubURL(path string) error {
 			(parts[0] == "users" && parts[2] == "repos") {
 			return nil
 		}
-		return fmt.Errorf("invalid Github URL with 3 parts: [%s]", strings.Join(parts, ","))
 	}
 
 	// with 4 parts we support these endpoints:
@@ -177,7 +172,6 @@ func validateGithubURL(path string) error {
 		if parts[0] == "repos" && (parts[3] == "commits" || parts[3] == "branches") {
 			return nil
 		}
-		return fmt.Errorf("invalid Github URL with 4 parts: [%s]", strings.Join(parts, ","))
 	}
 
 	// with 5 parts we support this endpoint:
@@ -186,10 +180,9 @@ func validateGithubURL(path string) error {
 		if parts[0] == "repos" && parts[3] == "branches" {
 			return nil
 		}
-		return fmt.Errorf("invalid Github URL with 5 parts: [%s]", strings.Join(parts, ","))
 	}
 
-	return fmt.Errorf("invalid Github URL. Too many parts: [%s]", strings.Join(parts, ","))
+	return fmt.Errorf("invalid Github URL: '%s'", path)
 }
 
 // validateGitlabURL will validate if the requested API is a whitelisted one.
@@ -212,7 +205,6 @@ func validateGitlabURL(path string) error {
 		if parts[0] == "avatar" {
 			return nil
 		}
-		return fmt.Errorf("invalid Github URL with 1 part1: [%s]", parts[0])
 	}
 
 	// with 2 parts we support these endpoints:
@@ -224,7 +216,6 @@ func validateGitlabURL(path string) error {
 			parts[0] == "projects" || parts[1] == "projects" {
 			return nil
 		}
-		return fmt.Errorf("invalid Github URL with 2 parts: [%s]", strings.Join(parts, ","))
 	}
 
 	// with 4 parts we support these endpoints:
@@ -235,7 +226,6 @@ func validateGitlabURL(path string) error {
 			(parts[3] == "branches" || parts[3] == "commits") {
 			return nil
 		}
-		return fmt.Errorf("invalid Github URL with 3 parts: [%s]", strings.Join(parts, ","))
 	}
 
 	// with 5 parts we support this endpoint:
@@ -244,10 +234,9 @@ func validateGitlabURL(path string) error {
 		if parts[0] == "projects" && parts[2] == "repository" && parts[3] == "branches" {
 			return nil
 		}
-		return fmt.Errorf("invalid Github URL with 5 parts: [%s]", strings.Join(parts, ","))
 	}
 
-	return fmt.Errorf("invalid Github URL '%s'. Parts: [%s]", path, strings.Join(parts, ","))
+	return fmt.Errorf("invalid Gitlab URL '%s'", path)
 }
 
 // getProxyClient will create a *http.Client based on the provided *gitbridge.Configuration.

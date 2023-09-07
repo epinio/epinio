@@ -97,6 +97,13 @@ func appImportGit(namespace, app, gitURL, revision string) ([]byte, int) {
 	return bodyBytes, response.StatusCode
 }
 
+func gitproxy(body io.Reader) ([]byte, int) {
+	GinkgoHelper()
+
+	endpoint := makeEndpoint(v1.Routes.Path("GitProxy"))
+	return curl(http.MethodPost, endpoint, body)
+}
+
 func curl(method, endpoint string, body io.Reader) ([]byte, int) {
 	GinkgoHelper()
 
