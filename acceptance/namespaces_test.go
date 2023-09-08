@@ -71,7 +71,7 @@ var _ = Describe("Namespaces", LNamespace, func() {
 		})
 	})
 
-	FDescribe("namespace list", func() {
+	Describe("namespace list", func() {
 		var namespaceName string
 		var configurationName string
 		var appName string
