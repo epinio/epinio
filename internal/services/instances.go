@@ -443,9 +443,10 @@ func (s *ServiceClient) ReplaceService(ctx context.Context, cluster *kubernetes.
 	changed := false
 
 	var newSettings models.ChartValueSettings
+	serviceSecretName := serviceResourceName(service.Meta.Name)
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		serviceSecret, err := cluster.GetSecret(ctx, service.Meta.Namespace, service.Meta.Name)
+		serviceSecret, err := cluster.GetSecret(ctx, service.Meta.Namespace, serviceSecretName)
 		if err != nil {
 			return err
 		}
