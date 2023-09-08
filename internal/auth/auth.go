@@ -35,7 +35,7 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 )
 
-//counterfeiter:generate k8s.io/client-go/kubernetes/typed/core/v1.SecretInterface
+//counterfeiter:generate -header ../../LICENSE_HEADER k8s.io/client-go/kubernetes/typed/core/v1.SecretInterface
 
 type AuthService struct {
 	typedcorev1.SecretInterface

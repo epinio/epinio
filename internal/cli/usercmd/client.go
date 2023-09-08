@@ -42,7 +42,7 @@ type EpinioClient struct {
 	Updater  selfupdater.Updater
 }
 
-//counterfeiter:generate . APIClient
+//counterfeiter:generate -header ../../../LICENSE_HEADER . APIClient
 type APIClient interface {
 	AuthToken() (models.AuthTokenResponse, error)
 

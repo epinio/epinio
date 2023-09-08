@@ -51,7 +51,7 @@ var ArchToURL = map[string]string{
 	"amd64": "x86_64",
 }
 
-//counterfeiter:generate . Updater
+//counterfeiter:generate -header ../../LICENSE_HEADER . Updater
 type Updater interface {
 	Update(string) error
 }

@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//counterfeiter:generate . NamespaceService
+//counterfeiter:generate -header ../../../LICENSE_HEADER . NamespaceService
 type NamespaceService interface {
 	CreateNamespace(namespace string) error
 	Namespaces() error
