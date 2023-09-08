@@ -32,7 +32,7 @@ import (
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 
-//counterfeiter:generate . JobLister
+//counterfeiter:generate -header ../../LICENSE_HEADER . JobLister
 type MockJobListerInterface struct {
 	application.JobLister
 }

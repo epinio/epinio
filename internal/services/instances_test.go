@@ -29,7 +29,7 @@ import (
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 
-//counterfeiter:generate k8s.io/client-go/kubernetes/typed/core/v1.ServiceInterface
+//counterfeiter:generate -header ../../LICENSE_HEADER k8s.io/client-go/kubernetes/typed/core/v1.ServiceInterface
 type MockServiceInterface struct {
 	v1.ServiceInterface
 }

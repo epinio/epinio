@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//counterfeiter:generate . NamespaceMatcher
+//counterfeiter:generate -header ../../../LICENSE_HEADER . NamespaceMatcher
 type NamespaceMatcher interface {
 	GetAPI() usercmd.APIClient
 	NamespacesMatching(toComplete string) []string
