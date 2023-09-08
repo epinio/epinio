@@ -82,19 +82,6 @@ func matchingAppsFinder(cmd *cobra.Command, args []string, toComplete string) ([
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 
-// matchingNamespaceFinder returns a list of matching namespaces from the provided partial
-// command. It only matches for the first command argument.
-func matchingNamespaceFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) != 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	client.API.DisableVersionWarning()
-
-	matches := client.NamespacesMatching(toComplete)
-	return matches, cobra.ShellCompDirectiveNoFileComp
-}
-
 // matchingChartFinder returns a list of application charts whose names match the provided partial name
 func matchingChartFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) > 0 {
@@ -202,20 +189,4 @@ func filteredMatchingFinder(args []string, prefix string, finder func(prefix str
 	}
 
 	return filteredMatches
-}
-
-type flagCompletionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
-
-func newStaticFlagsCompletionFunc(allowedValues []string) flagCompletionFunc {
-	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		matches := []string{}
-
-		for _, allowed := range allowedValues {
-			if strings.HasPrefix(allowed, toComplete) {
-				matches = append(matches, allowed)
-			}
-		}
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	}
 }

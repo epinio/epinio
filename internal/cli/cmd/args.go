@@ -12,39 +12,29 @@
 package cmd
 
 import (
-	"log"
-	"strings"
-
+	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-func bindFlag(cmd *cobra.Command, key string) {
-	err := viper.BindPFlag(key, cmd.Flags().Lookup(key))
-	if err != nil {
-		log.Fatal(err)
-	}
+//counterfeiter:generate . NamespaceMatcher
+type NamespaceMatcher interface {
+	GetAPI() usercmd.APIClient
+	NamespacesMatching(toComplete string) []string
 }
 
-func bindFlagCompletionFunc(cmd *cobra.Command, key string, fn FlagCompletionFunc) {
-	err := cmd.RegisterFlagCompletionFunc(key, fn)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
+type ValidArgsFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
 
-type FlagCompletionFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
-
-func NewStaticFlagsCompletionFunc(allowedValues []string) FlagCompletionFunc {
+// NewNamespaceMatcherFunc returns a list of matching namespaces from the provided partial command.
+// It only matches for the first command argument.
+func NewNamespaceMatcherFunc(matcher NamespaceMatcher) ValidArgsFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		matches := []string{}
-
-		for _, allowed := range allowedValues {
-			if strings.HasPrefix(allowed, toComplete) {
-				matches = append(matches, allowed)
-			}
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
+		matcher.GetAPI().DisableVersionWarning()
+
+		matches := matcher.NamespacesMatching(toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
 }

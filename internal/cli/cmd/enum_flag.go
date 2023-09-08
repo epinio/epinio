@@ -9,36 +9,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli
+package cmd
 
 import (
 	"fmt"
 	"strings"
 )
 
-// enumValue implements the Value interface
+// EnumValue implements the Value interface
 // It can be used to define a flag with a set of allowed values
 // Ref:
 // - https://github.com/spf13/pflag/blob/2e9d26c8c37aae03e3f9d4e90b7116f5accb7cab/flag.go#L185-L191
 // - https://github.com/spf13/pflag/issues/236#issuecomment-931600452
-type enumValue struct {
+type EnumValue struct {
 	Allowed []string
 	Value   string
 }
 
-// newEnumValue give a list of allowed flag parameters, where the second argument is the default
-func newEnumValue(allowed []string, d string) *enumValue {
-	return &enumValue{
+// NewEnumValue give a list of allowed flag parameters, where the second argument is the default
+func NewEnumValue(allowed []string, d string) *EnumValue {
+	return &EnumValue{
 		Allowed: allowed,
 		Value:   d,
 	}
 }
 
-func (a enumValue) String() string {
+func (a EnumValue) String() string {
 	return a.Value
 }
 
-func (a *enumValue) Set(p string) error {
+func (a *EnumValue) Set(p string) error {
 	isIncluded := func(opts []string, val string) bool {
 		for _, opt := range opts {
 			if val == opt {
@@ -54,6 +54,6 @@ func (a *enumValue) Set(p string) error {
 	return nil
 }
 
-func (a *enumValue) Type() string {
+func (a *EnumValue) Type() string {
 	return "string"
 }

@@ -26,7 +26,7 @@ func TestEpinio(t *testing.T) {
 	RunSpecs(t, "Epinio Suite CMD")
 }
 
-func executeCmd(cmd *cobra.Command, args []string, output, outputErr io.ReadWriter) (string, string) {
+func executeCmd(cmd *cobra.Command, args []string, output, outputErr io.ReadWriter) (string, string, error) {
 	GinkgoHelper()
 
 	cmd.SetOut(output)
@@ -34,7 +34,7 @@ func executeCmd(cmd *cobra.Command, args []string, output, outputErr io.ReadWrit
 	cmd.SetArgs(args)
 
 	// we don't check the err because if the command fails we want to check the error anyway
-	_ = cmd.Execute()
+	runErr := cmd.Execute()
 
 	var out, outErr []byte
 	var err error
@@ -49,5 +49,5 @@ func executeCmd(cmd *cobra.Command, args []string, output, outputErr io.ReadWrit
 		Expect(err).ToNot(HaveOccurred())
 	}
 
-	return string(out), string(outErr)
+	return string(out), string(outErr), runErr
 }

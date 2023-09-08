@@ -168,6 +168,10 @@ func (cli *EpinioClient) UI() *termui.UI {
 	return cli.ui
 }
 
+func (cli *EpinioClient) GetAPI() APIClient {
+	return cli.API
+}
+
 func getUpdater(os string) (selfupdater.Updater, error) {
 	var updater selfupdater.Updater
 	switch os {

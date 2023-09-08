@@ -51,7 +51,7 @@ var _ = Describe("Command 'epinio settings'", func() {
 		When("no argument is provided", func() {
 			It("shows the usage and an error", func() {
 				args := []string{"colors"}
-				stdout, stderr := executeCmd(settingsCmd, args, output, outputErr)
+				stdout, stderr, _ := executeCmd(settingsCmd, args, output, outputErr)
 				Expect(stdout).To(HavePrefix("Usage:"))
 				Expect(stderr).To(Equal("Error: accepts 1 arg(s), received 0\n"))
 			})
@@ -60,7 +60,7 @@ var _ = Describe("Command 'epinio settings'", func() {
 		When("an invalid value is provided", func() {
 			It("shows the usage and an error", func() {
 				args := []string{"colors", "foobar"}
-				_, stderr := executeCmd(settingsCmd, args, nil, outputErr)
+				_, stderr, _ := executeCmd(settingsCmd, args, nil, outputErr)
 				Expect(stderr).To(Equal("Error: requires a boolean argument (true/false)\n"))
 			})
 		})
@@ -85,7 +85,7 @@ var _ = Describe("Command 'epinio settings'", func() {
 				}
 
 				args := []string{"show"}
-				stdout, _ := executeCmd(settingsCmd, args, output, nil)
+				stdout, _, _ := executeCmd(settingsCmd, args, output, nil)
 
 				lines := strings.Split(stdout, "\n")
 				Expect(lines).To(HaveLen(15), stdout)
@@ -118,7 +118,7 @@ var _ = Describe("Command 'epinio settings'", func() {
 				}
 
 				args := []string{"show", "--show-password"}
-				stdout, _ := executeCmd(settingsCmd, args, output, nil)
+				stdout, _, _ := executeCmd(settingsCmd, args, output, nil)
 
 				lines := strings.Split(stdout, "\n")
 				Expect(lines).To(HaveLen(15), stdout)
@@ -144,7 +144,7 @@ var _ = Describe("Command 'epinio settings'", func() {
 				}
 
 				args := []string{"show", "--show-password"}
-				stdout, _ := executeCmd(settingsCmd, args, output, nil)
+				stdout, _, _ := executeCmd(settingsCmd, args, output, nil)
 
 				lines := strings.Split(stdout, "\n")
 				Expect(lines).To(HaveLen(15), stdout)
