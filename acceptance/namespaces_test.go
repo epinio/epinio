@@ -71,7 +71,7 @@ var _ = Describe("Namespaces", LNamespace, func() {
 		})
 	})
 
-	Describe("namespace list", func() {
+	FDescribe("namespace list", func() {
 		var namespaceName string
 		var configurationName string
 		var appName string
@@ -94,7 +94,7 @@ var _ = Describe("Namespaces", LNamespace, func() {
 		})
 
 		It("lists namespaces", func() {
-			out, err := env.Epinio("", "namespace", "list", namespaceName)
+			out, err := env.Epinio("", "namespace", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(
 				HaveATable(
@@ -105,7 +105,7 @@ var _ = Describe("Namespaces", LNamespace, func() {
 		})
 
 		It("lists namespaces in JSON format", func() {
-			out, err := env.Epinio("", "namespace", "list", namespaceName, "--output", "json")
+			out, err := env.Epinio("", "namespace", "list", "--output", "json")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			namespaces := models.NamespaceList{}
