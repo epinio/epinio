@@ -12,11 +12,13 @@
 package acceptance_test
 
 import (
+	"encoding/json"
 	"os"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/names"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
@@ -60,6 +62,15 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			)
 		})
 
+		It("lists configurations in JSON format", func() {
+			out, err := env.Epinio("", "configuration", "list", "--output", "json")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			configurations := models.ConfigurationResponseList{}
+			err = json.Unmarshal([]byte(out), &configurations)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(configurations).ToNot(BeEmpty())
+		})
 	})
 
 	Describe("list across namespaces", func() {
@@ -382,7 +393,7 @@ var _ = Describe("Configurations", LConfiguration, func() {
 
 	Describe("configuration show", func() {
 
-		It("it shows configuration details", func() {
+		It("shows configuration details", func() {
 			env.MakeConfiguration(configurationName1)
 
 			out, err := env.Epinio("", "configuration", "show", configurationName1)
@@ -395,6 +406,18 @@ var _ = Describe("Configurations", LConfiguration, func() {
 					WithRow("username", "epinio-user", "\\/configurations\\/"+configurationName1+"\\/username"),
 				),
 			)
+		})
+
+		It("shows a configuration in JSON format", func() {
+			env.MakeConfiguration(configurationName1)
+
+			out, err := env.Epinio("", "configuration", "show", configurationName1, "--output", "json")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			configuration := models.ConfigurationResponse{}
+			err = json.Unmarshal([]byte(out), &configuration)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(configuration.Meta.Name).To(Equal(configurationName1))
 		})
 
 		It("reads from files, and truncates large configuration details", func() {
