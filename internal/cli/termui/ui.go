@@ -108,10 +108,11 @@ func (u *UI) DisableJSON() {
 	u.jsonEnabled = false
 }
 
-func (u *UI) JSON(value any) {
+func (u *UI) JSON(value any) bool {
 	if u.jsonEnabled {
 		_ = json.NewEncoder(u.output).Encode(value)
 	}
+	return u.jsonEnabled
 }
 
 func (u *UI) Raw(message string) {
