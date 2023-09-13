@@ -61,9 +61,8 @@ func (c *EpinioClient) Configurations(all bool) error {
 
 	sort.Sort(configurations)
 
-	if c.ui.JSON(configurations) {
-		// Avoid doing all the formatting for human consumption which will not be shown due to json mode
-		return nil
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(configurations)
 	}
 
 	details.Info("show configurations")
@@ -419,9 +418,8 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		return err
 	}
 
-	if c.ui.JSON(resp) {
-		// Avoid doing all the formatting for human consumption which will not be shown due to json mode
-		return nil
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(resp)
 	}
 
 	configurationDetails := resp.Configuration.Details

@@ -84,9 +84,8 @@ func (c *EpinioClient) Namespaces() error {
 
 	sort.Sort(namespaces)
 
-	if c.ui.JSON(namespaces) {
-		// Avoid doing all the formatting for human consumption which will not be shown due to json mode
-		return nil
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(namespaces)
 	}
 
 	msg := c.ui.Success().WithTable("Name", "Created", "Applications", "Configurations")
@@ -245,9 +244,8 @@ func (c *EpinioClient) ShowNamespace(namespace string) error {
 		return err
 	}
 
-	if c.ui.JSON(space) {
-		// Avoid doing all the formatting for human consumption which will not be shown due to json mode
-		return nil
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(space)
 	}
 
 	msg := c.ui.Success().WithTable("Key", "Value")
