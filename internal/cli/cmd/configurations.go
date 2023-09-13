@@ -68,8 +68,14 @@ func NewConfigurationCmd(client ConfigurationService, rootCfg *RootConfig) *cobr
 	return configurationCmd
 }
 
+type ConfigurationListConfig struct {
+	all bool
+}
+
 // NewConfigurationListCmd returns a new 'epinio configuration list' command
 func NewConfigurationListCmd(client ConfigurationService, rootCfg *RootConfig) *cobra.Command {
+	cfg := ConfigurationListConfig{}
+
 	cmd := &cobra.Command{
 		Use:   "list [--all]",
 		Short: "Lists configurations",
@@ -78,12 +84,7 @@ func NewConfigurationListCmd(client ConfigurationService, rootCfg *RootConfig) *
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			all, err := cmd.Flags().GetBool("all")
-			if err != nil {
-				return errors.Wrap(err, "error reading option --all")
-			}
-
-			err = client.Configurations(all)
+			err := client.Configurations(cfg.all)
 			if err != nil {
 				return errors.Wrap(err, "error listing configurations")
 			}
@@ -92,7 +93,7 @@ func NewConfigurationListCmd(client ConfigurationService, rootCfg *RootConfig) *
 		},
 	}
 
-	cmd.Flags().Bool("all", false, "list all configurations")
+	cmd.Flags().BoolVar(&cfg.all, "all", false, "list all configurations")
 	cmd.Flags().VarP(rootCfg.Output, "output", "o", "sets output format [text|json]")
 	bindFlag(cmd, "output")
 	bindFlagCompletionFunc(cmd, "output", NewStaticFlagsCompletionFunc(rootCfg.Output.Allowed))
@@ -127,8 +128,14 @@ func NewConfigurationShowCmd(client ConfigurationService, rootCfg *RootConfig) *
 	return cmd
 }
 
+type ConfigurationCreateConfig struct {
+	kvFromFiles []string
+}
+
 // NewConfigurationCreateCmd returns a new 'epinio configuration create' command
 func NewConfigurationCreateCmd(client ConfigurationService) *cobra.Command {
+	cfg := ConfigurationCreateConfig{}
+
 	cmd := &cobra.Command{
 		Use:   "create NAME (KEY VALUE)...",
 		Short: "Create a configuration",
@@ -147,19 +154,15 @@ func NewConfigurationCreateCmd(client ConfigurationService) *cobra.Command {
 
 			// Merge plain argument key/value data with k/v from options, i.e. files.
 			kvAssigments := args[1:]
-			kvFromFiles, err := cmd.Flags().GetStringSlice("from-file")
-			if err != nil {
-				return errors.Wrap(err, "failed to read option --from-file")
-			}
-			if len(kvFromFiles) > 0 {
-				err, kvFiles := assignmentsFromFiles(kvFromFiles)
+			if len(cfg.kvFromFiles) > 0 {
+				err, kvFiles := assignmentsFromFiles(cfg.kvFromFiles)
 				if err != nil {
 					return err
 				}
 				kvAssigments = append(kvAssigments, kvFiles...)
 			}
 
-			err = client.CreateConfiguration(args[0], kvAssigments)
+			err := client.CreateConfiguration(args[0], kvAssigments)
 			if err != nil {
 				return errors.Wrap(err, "error creating configuration")
 			}
@@ -168,13 +171,20 @@ func NewConfigurationCreateCmd(client ConfigurationService) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringSliceP("from-file", "f", []string{}, "values from files")
+	cmd.Flags().StringSliceVarP(&cfg.kvFromFiles, "from-file", "f", []string{}, "values from files")
 
 	return cmd
 }
 
+type ConfigurationDeleteConfig struct {
+	unbind bool
+	all    bool
+}
+
 // NewConfigurationDeleteCmd returns a new 'epinio configuration delete' command
 func NewConfigurationDeleteCmd(client ConfigurationService) *cobra.Command {
+	cfg := ConfigurationDeleteConfig{}
+
 	cmd := &cobra.Command{
 		Use:   "delete NAME1 [NAME2 ...]",
 		Short: "Delete one or more configurations",
@@ -182,24 +192,14 @@ func NewConfigurationDeleteCmd(client ConfigurationService) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			unbind, err := cmd.Flags().GetBool("unbind")
-			if err != nil {
-				return errors.Wrap(err, "error reading option --unbind")
-			}
-
-			all, err := cmd.Flags().GetBool("all")
-			if err != nil {
-				return errors.Wrap(err, "error reading option --all")
-			}
-
-			if all && len(args) > 0 {
+			if cfg.all && len(args) > 0 {
 				return errors.New("Conflict between --all and named configurations")
 			}
-			if !all && len(args) == 0 {
+			if !cfg.all && len(args) == 0 {
 				return errors.New("No configurations specified for deletion")
 			}
 
-			err = client.DeleteConfiguration(args, unbind, all)
+			err := client.DeleteConfiguration(args, cfg.unbind, cfg.all)
 			if err != nil {
 				return errors.Wrap(err, "error deleting configuration")
 			}
@@ -209,14 +209,16 @@ func NewConfigurationDeleteCmd(client ConfigurationService) *cobra.Command {
 		ValidArgsFunction: NewConfigurationMatcherAnyFunc(client),
 	}
 
-	cmd.Flags().Bool("all", false, "delete all configurations")
-	cmd.Flags().Bool("unbind", false, "Unbind from applications before deleting")
+	cmd.Flags().BoolVar(&cfg.all, "all", false, "delete all configurations")
+	cmd.Flags().BoolVar(&cfg.unbind, "unbind", false, "Unbind from applications before deleting")
 
 	return cmd
 }
 
 // NewConfigurationUpdateCmd returns a new 'epinio configuration update' command
 func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
+	cfg := ChangeConfig{}
+
 	cmd := &cobra.Command{
 		Use:   "update NAME [flags]",
 		Short: "Update a configuration",
@@ -225,20 +227,9 @@ func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			// Process the --unset and --set options into operations (removals, assignments)
-
-			removedKeys, err := changeGetUnset(cmd)
-			if err != nil {
-				return err
-			}
-
-			kvAssignments, err := cmd.Flags().GetStringSlice("set")
-			if err != nil {
-				return errors.Wrap(err, "failed to read option --set")
-			}
-
+			// Process --set information into a map
 			assignments := map[string]string{}
-			for _, assignment := range kvAssignments {
+			for _, assignment := range cfg.assigned {
 				pieces := strings.Split(assignment, "=")
 				if len(pieces) != 2 {
 					return errors.New("Bad --set assignment `" + assignment + "`, expected `name=value` as value")
@@ -246,7 +237,7 @@ func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 				assignments[pieces[0]] = pieces[1]
 			}
 
-			err = client.UpdateConfiguration(args[0], removedKeys, assignments)
+			err := client.UpdateConfiguration(args[0], cfg.removed, assignments)
 			if err != nil {
 				return errors.Wrap(err, "error creating configuration")
 			}
@@ -256,7 +247,7 @@ func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 		ValidArgsFunction: NewConfigurationMatcherFirstFunc(client),
 	}
 
-	changeOptions(cmd)
+	changeOptions(cmd, &cfg)
 
 	return cmd
 }
@@ -305,12 +296,17 @@ func NewConfigurationUnbindCmd(client ConfigurationService) *cobra.Command {
 
 // / / // /// ///// //////// /////////////
 
+type ChangeConfig struct {
+	removed  []string
+	assigned []string
+}
+
 // changeOptions initializes the --unset/-u and --set/-s options for the provided command.
 // It also initializes the old --remove/-r options, and marks them as deprecated.
-func changeOptions(cmd *cobra.Command) {
-	cmd.Flags().StringSliceP("set", "s", []string{}, "configuration key/value assignments to add/modify")
-	cmd.Flags().StringSliceP("unset", "u", []string{}, "configuration keys to remove")
-	cmd.Flags().StringSliceP("remove", "r", []string{}, "(deprecated) configuration keys to remove")
+func changeOptions(cmd *cobra.Command, cfg *ChangeConfig) {
+	cmd.Flags().StringSliceVarP(&cfg.assigned, "set", "s", []string{}, "configuration key/value assignments to add/modify")
+	cmd.Flags().StringSliceVarP(&cfg.removed, "unset", "u", []string{}, "configuration keys to remove")
+	cmd.Flags().StringSliceVarP(&cfg.removed, "remove", "r", []string{}, "(deprecated) configuration keys to remove")
 	err := cmd.Flags().MarkDeprecated("remove", "please use --unset instead")
 	if err != nil {
 		log.Fatal(err)
@@ -319,18 +315,6 @@ func changeOptions(cmd *cobra.Command) {
 	// Note: No completion functionality. This would require asking the configuration for
 	// its details so that the keys to remove can be matched. And add/modify cannot
 	// check anyway.
-}
-
-func changeGetUnset(cmd *cobra.Command) ([]string, error) {
-	removedKeys, err := cmd.Flags().GetStringSlice("remove")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read deprecated option --remove")
-	}
-	unsetKeys, err := cmd.Flags().GetStringSlice("unset")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read option --unset")
-	}
-	return append(unsetKeys, removedKeys...), nil
 }
 
 func assignmentsFromFiles(fromFileSpecs []string) (error, []string) {
