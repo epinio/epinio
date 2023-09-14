@@ -64,9 +64,21 @@ jobs:
 
       - uses: sigstore/cosign-installer@v3.1.1
 
+        # if the release was triggered manually we get the latest tag from git
+        # otherwise we will get the info from the 'github.ref_name'
       - name: Get latest tag
         id: get_latest_tag
-        run: echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+        run: |
+          if [[ ${{ github.event_name }} == "workflow_dispatch" ]]; then
+            LATEST_TAG=$(git describe --tags --abbrev=0)
+          else
+            LATEST_TAG=${{ github.ref_name }}
+          fi
+          
+          echo event_name: ${{ github.event_name }}
+          echo ref_name: ${{ github.ref_name }}
+          echo LATEST_TAG: $LATEST_TAG
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
@@ -77,6 +89,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
       
       # Goreleaser will cleanup the draft, so we need to populate it again
       - name: Run Releaser Drafter
@@ -85,10 +98,6 @@ jobs:
           config-name: release-drafter.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Get current tag
-        id: get_tag
-        run: echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
 
       - name: Verify signatures on the generated docker images and manifests
         id: verify_signatures
@@ -113,4 +122,4 @@ jobs:
           token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
           repository: epinio/helm-charts
           event-type: epinio-release
-          client-payload: '{"ref": "${{ steps.get_tag.outputs.TAG }}"}'
+          client-payload: '{"ref": "${{ steps.get_latest_tag.outputs.LATEST_TAG }}"}'
