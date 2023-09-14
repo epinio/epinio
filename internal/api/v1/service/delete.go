@@ -12,7 +12,6 @@
 package service
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
@@ -34,7 +33,7 @@ import (
 // It deletes the named service
 func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).WithName("Delete")
+	logger := requestctx.Logger(ctx).WithName("ServiceDelete")
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
@@ -77,6 +76,8 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		theServices = append(theServices, service)
 	}
 
+	logger.Info("services to delete", "services", serviceNames)
+
 	// Collect the configurations per service, and record per bound app the service/config
 	// information
 	//
@@ -101,7 +102,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			return apierror.InternalError(err)
 		}
 
-		logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
+		logger.Info("configurations", "service", service.Meta.Name, "configurations", serviceConfigurations)
 
 		for _, secret := range serviceConfigurations {
 			bound, err := application.BoundAppsNamesFor(ctx, cluster, namespace, secret.Name)
@@ -125,6 +126,8 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 	boundAppNames = helpers.UniqueStrings(boundAppNames)
 
+	logger.Info("bound to", "apps", boundAppNames, "count", len(boundAppNames), "unbind?", deleteRequest.Unbind)
+
 	// Verify that the services are unbound. IOW not bound to any application.  If they are, and
 	// automatic unbind was requested, do that.  Without automatic unbind such applications are
 	// reported as error.
@@ -135,9 +138,13 @@ func Delete(c *gin.Context) apierror.APIErrors {
 				WithDetails(strings.Join(boundAppNames, ","))
 		}
 
+		logger.Info("app/configuration linkage", "map", appConfigurationsMap)
+
 		// Unbind all the services' configurations from the found applications.  Using the
 		// inverted map holding the service/config information per app
 		for appName, infos := range appConfigurationsMap {
+			logger.Info("unbind from", "app name", appName)
+
 			// Note: Merge the configs per service
 			infoMap := make(map[string][]v1.Secret)
 			for _, info := range infos {
@@ -146,6 +153,8 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 			// ... And run the unbind per app and service.
 			for serviceName, serviceConfigurations := range infoMap {
+				logger.Info("unbinding of", "service", appName, serviceName)
+
 				apiErr := UnbindService(ctx, cluster, logger, namespace, serviceName,
 					appName, username, serviceConfigurations)
 				if apiErr != nil {

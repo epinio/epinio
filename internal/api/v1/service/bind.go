@@ -30,7 +30,7 @@ import (
 // It creates a binding between the specified service and application
 func Bind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).WithName("Bind")
+	logger := requestctx.Logger(ctx).WithName("ServiceBind")
 
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
