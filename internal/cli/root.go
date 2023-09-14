@@ -146,7 +146,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		CmdAppPush, // shorthand access to `app push`
 		CmdApp,
 		cmd.NewTargetCmd(client),
-		CmdConfiguration,
+		cmd.NewConfigurationCmd(client, cfg),
 		CmdServer,
 		cmdVersion,
 		CmdServices,

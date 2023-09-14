@@ -19,6 +19,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+// BindFlagCompletionFunc transient export of the internal function, until all commands have moved
+// into the cmd package. Exported so that services, apps, etc. can use it. Want these to use the
+// function so that the `key` has different values, not just `output`. Because that is rejected
+// by the linter, code `unparam` (~ IOW superfluous parameter, fixed value).
+func BindFlagCompletionFunc(cmd *cobra.Command, key string, fn FlagCompletionFunc) {
+	bindFlagCompletionFunc(cmd, key, fn)
+}
+
 func bindFlag(cmd *cobra.Command, key string) {
 	err := viper.BindPFlag(key, cmd.Flags().Lookup(key))
 	if err != nil {

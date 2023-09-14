@@ -12,6 +12,7 @@
 package cli
 
 import (
+	clicmd "github.com/epinio/epinio/internal/cli/cmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -24,7 +25,7 @@ var CmdAppDelete = &cobra.Command{
 	Short: "Deletes one or more applications",
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 
-		filteredMatches := filteredMatchingFinder(args, toComplete, client.AppsMatching)
+		filteredMatches := clicmd.FilteredMatchingFinder(args, toComplete, client.AppsMatching)
 		return filteredMatches, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {

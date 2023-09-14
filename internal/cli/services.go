@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"strings"
 
+	clicmd "github.com/epinio/epinio/internal/cli/cmd"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -48,9 +49,9 @@ func init() {
 	CmdServices.AddCommand(CmdServicePortForward)
 
 	chartValueOption(CmdServiceCreate)
-	err := CmdServiceCreate.RegisterFlagCompletionFunc("chart-value",
+
+	clicmd.BindFlagCompletionFunc(CmdServiceCreate, "chart-value",
 		matchingServiceChartValueFinder)
-	checkErr(err)
 
 	CmdServiceUpdate.Flags().Bool("wait", false, "Wait for deployment to complete")
 	changeOptions(CmdServiceUpdate)
@@ -180,7 +181,7 @@ var CmdServiceDelete = &cobra.Command{
 
 		client.API.DisableVersionWarning()
 
-		matches := filteredMatchingFinder(args, toComplete, client.ServiceMatching)
+		matches := clicmd.FilteredMatchingFinder(args, toComplete, client.ServiceMatching)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -300,4 +301,34 @@ var CmdServicePortForward = &cobra.Command{
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error port forwarding to service")
 	},
+}
+
+// /////////////////////////////////////////////////////////////////////
+/// The code below is a duplicate of the code in cmd/configurations.go
+/// It is needed becauses configurations has moved into package `cmd`, while services has not yet.
+/// REMOVE this code when services moves into package `cmd`.
+
+// changeOptions initializes the --unset/-u and --set/-s options for the provided command.
+// It also initializes the old --remove/-r options, and marks them as deprecated.
+func changeOptions(cmd *cobra.Command) {
+	cmd.Flags().StringSliceP("set", "s", []string{}, "configuration key/value assignments to add/modify")
+	cmd.Flags().StringSliceP("unset", "u", []string{}, "configuration keys to remove")
+	cmd.Flags().StringSliceP("remove", "r", []string{}, "(deprecated) configuration keys to remove")
+	checkErr(cmd.Flags().MarkDeprecated("remove", "please use --unset instead"))
+
+	// Note: No completion functionality. This would require asking the configuration for
+	// its details so that the keys to remove can be matched. And add/modify cannot
+	// check anyway.
+}
+
+func changeGetUnset(cmd *cobra.Command) ([]string, error) {
+	removedKeys, err := cmd.Flags().GetStringSlice("remove")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read deprecated option --remove")
+	}
+	unsetKeys, err := cmd.Flags().GetStringSlice("unset")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read option --unset")
+	}
+	return append(unsetKeys, removedKeys...), nil
 }

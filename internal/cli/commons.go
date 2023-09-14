@@ -56,19 +56,6 @@ func CreateKubeClient(configPath string) kubernetes.Interface {
 	return clientset
 }
 
-// matchingConfigurationFinder returns a list of configurations whose names match the provided
-// partial command. It only matches for the first command argument
-func matchingConfigurationFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) != 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	client.API.DisableVersionWarning()
-
-	matches := client.ConfigurationMatching(toComplete)
-	return matches, cobra.ShellCompDirectiveNoFileComp
-}
-
 // matchingAppsFinder returns a list of matching apps from the provided partial command. It only
 // matches for the first command argument.
 func matchingAppsFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -167,26 +154,4 @@ func matchingGitconfigFinder(cmd *cobra.Command, args []string, toComplete strin
 
 	matches := client.GitconfigsMatching(toComplete)
 	return matches, cobra.ShellCompDirectiveNoFileComp
-}
-
-// filteredMatchingFinder will use the finder func to find the resources with the prefix name
-// It will then filter the matches removing the provided args
-func filteredMatchingFinder(args []string, prefix string, finder func(prefix string) []string) []string {
-	// map to check for already selected resources
-	alreadyMatched := map[string]struct{}{}
-	for _, resource := range args {
-		alreadyMatched[resource] = struct{}{}
-	}
-
-	filteredMatches := []string{}
-
-	matches := finder(prefix)
-	for _, resource := range matches {
-		// return only the not already matched resources
-		if _, found := alreadyMatched[resource]; !found {
-			filteredMatches = append(filteredMatches, resource)
-		}
-	}
-
-	return filteredMatches
 }

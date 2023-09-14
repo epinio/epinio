@@ -83,6 +83,11 @@ func (c *EpinioClient) Namespaces() error {
 	}
 
 	sort.Sort(namespaces)
+
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(namespaces)
+	}
+
 	msg := c.ui.Success().WithTable("Name", "Created", "Applications", "Configurations")
 
 	for _, namespace := range namespaces {
@@ -96,8 +101,6 @@ func (c *EpinioClient) Namespaces() error {
 	}
 
 	msg.Msg("Epinio Namespaces:")
-
-	c.ui.JSON(namespaces)
 
 	return nil
 }
@@ -241,6 +244,10 @@ func (c *EpinioClient) ShowNamespace(namespace string) error {
 		return err
 	}
 
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(space)
+	}
+
 	msg := c.ui.Success().WithTable("Key", "Value")
 
 	sort.Strings(space.Apps)
@@ -253,8 +260,6 @@ func (c *EpinioClient) ShowNamespace(namespace string) error {
 		WithTableRow("Configurations", strings.Join(space.Configurations, "\n"))
 
 	msg.Msg("Details:")
-
-	c.ui.JSON(space)
 
 	return nil
 }
