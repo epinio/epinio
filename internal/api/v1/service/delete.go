@@ -114,7 +114,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			//
 			// Note that the configs for a service are spread over the collected appInfos.
 			// They are properly merged later, when it comes to actual automatic unbinding.
-			for _, appName := range boundAppNames {
+			for _, appName := range bound {
 				appConfigurationsMap[appName] = append(appConfigurationsMap[appName], appInfo{
 					service: service.Meta.Name,
 					config:  secret,
