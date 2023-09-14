@@ -102,9 +102,11 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			return apierror.InternalError(err)
 		}
 
-		logger.Info("configurations", "service", service.Meta.Name, "configurations", serviceConfigurations)
+		logger.Info("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
 
 		for _, secret := range serviceConfigurations {
+			logger.Info("configuration secret", "service", service.Meta.Name, "secret", secret.Name)
+
 			bound, err := application.BoundAppsNamesFor(ctx, cluster, namespace, secret.Name)
 			if err != nil {
 				return apierror.InternalError(err)
@@ -126,7 +128,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 	boundAppNames = helpers.UniqueStrings(boundAppNames)
 
-	logger.Info("bound to", "apps", boundAppNames, "count", len(boundAppNames), "unbind?", deleteRequest.Unbind)
+	logger.Info("bound to", "apps", boundAppNames, "count", len(boundAppNames), "unbind", deleteRequest.Unbind)
 
 	// Verify that the services are unbound. IOW not bound to any application.  If they are, and
 	// automatic unbind was requested, do that.  Without automatic unbind such applications are
@@ -153,7 +155,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 			// ... And run the unbind per app and service.
 			for serviceName, serviceConfigurations := range infoMap {
-				logger.Info("unbinding of", "service", appName, serviceName)
+				logger.Info("unbinding of", "app", appName, "service", serviceName)
 
 				apiErr := UnbindService(ctx, cluster, logger, namespace, serviceName,
 					appName, username, serviceConfigurations)

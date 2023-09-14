@@ -80,7 +80,7 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("configurationSecrets", "secrets", serviceConfigurations)
+	logger.Info("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
 
 	apiErr = UnbindService(ctx, cluster, logger, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
 	if apiErr != nil {
