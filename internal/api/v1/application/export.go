@@ -348,7 +348,7 @@ func applyDefaults(req *models.AppExportRequest, namespace, appName, stageID str
 		req.ImageTag = stageID
 	}
 	if req.ChartVersion == "" {
-		req.ChartVersion = "0"
+		req.ChartVersion = "0.0.0"
 	}
 }
 
