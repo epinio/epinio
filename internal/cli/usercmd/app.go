@@ -270,7 +270,12 @@ func (c *EpinioClient) AppExport(appName string, toRegistry bool, param models.A
 		// invoke server to perform the export
 
 		_, err := c.API.AppExport(c.Settings.Namespace, appName, param)
-		return err
+		if err != nil {
+			return err
+		}
+
+		c.ui.Success().Msg("Ok")
+		return nil
 	}
 
 	// Export to local filesystem. Retrieve the parts from the server.
@@ -298,6 +303,7 @@ func (c *EpinioClient) AppExport(appName string, toRegistry bool, param models.A
 		return err
 	}
 
+	c.ui.Success().Msg("Ok")
 	return nil
 }
 
