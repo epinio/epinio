@@ -13,7 +13,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
@@ -33,7 +32,7 @@ import (
 // It removes the binding between the specified service and application
 func Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).WithName("Bind")
+	logger := requestctx.Logger(ctx).WithName("ServiceUnbind")
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
@@ -81,7 +80,7 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
+	logger.Info("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
 
 	apiErr = UnbindService(ctx, cluster, logger, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
 	if apiErr != nil {
@@ -97,7 +96,7 @@ func UnbindService(
 	namespace, serviceName, appName, userName string,
 	serviceConfigurations []v1.Secret,
 ) apierror.APIErrors {
-	logger.Info("unbinding service configurations")
+	logger.Info("unbinding service configurations", "service", serviceName, "app", appName)
 
 	for _, secret := range serviceConfigurations {
 		// TODO: Don't `helm upgrade` after each removal. Do it once.
@@ -110,6 +109,7 @@ func UnbindService(
 	}
 
 	logger.Info("unbound service configurations")
+	logger.Info("unset service/application linkage")
 
 	appRef := models.NewAppRef(appName, namespace)
 	err := application.BoundServicesUnset(ctx, cluster, appRef, serviceName)

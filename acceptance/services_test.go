@@ -650,6 +650,45 @@ var _ = Describe("Services", LService, func() {
 					return out
 				}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
 			})
+
+			Context("github epinio#2551", func() {
+				var service2, chart2 string
+
+				BeforeEach(func() {
+					service2 = catalog.NewServiceName()
+					chart2 = names.ServiceReleaseName(service2)
+
+					// we need to create second service for this
+					By("create it")
+					out, err := env.Epinio("", "service", "create", "postgresql-dev", service2, "--wait")
+					Expect(err).ToNot(HaveOccurred(), out)
+				})
+
+				It("unbinds and deletes a bound service when forced, and can bind again", func() {
+					out, err := env.Epinio("", "service", "delete", "--unbind", service)
+					Expect(err).ToNot(HaveOccurred(), out)
+					Expect(out).To(ContainSubstring("Services Removed"))
+
+					Eventually(func() string {
+						out, _ := env.Epinio("", "service", "delete", service)
+						return out
+					}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+
+					By("bind second service to changed app")
+					out, err = env.Epinio("", "service", "bind", service2, app)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					By("verify binding")
+					appShowOut, err := env.Epinio("", "app", "show", app)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(appShowOut).To(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("Bound Configurations", chart2+".*"),
+						),
+					)
+				})
+			})
 		})
 
 		Context("command completion", func() {
