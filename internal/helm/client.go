@@ -163,10 +163,10 @@ func (c *SynchronizedClient) Push(chartref, remote string, opts ...action.PushOp
 		return "", fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
 	}
 
-	ac := concreteHelmClient.ActionConfig
+	ac := *concreteHelmClient.ActionConfig
 	ac.RegistryClient = nil
 
-	opts = append(opts, action.WithPushConfig(ac))
+	opts = append(opts, action.WithPushConfig(&ac))
 
 	registryPushAction := action.NewPushWithOpts(opts...)
 	return registryPushAction.Run(chartref, remote)
