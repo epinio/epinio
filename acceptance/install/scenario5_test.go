@@ -61,7 +61,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", fu
 		flags = []string{
 			"--set", "server.disableTracking=true", // disable tracking during tests
 			"--set", "global.domain=" + domain,
-			"--set", "global.tlsIssuer=letsencrypt-staging",
+			"--set", "global.tlsIssuer=letsencrypt-staging", // let epinio create the ClusterIssuer
 			"--set", "containerregistry.enabled=false",
 			"--set", "global.registryURL=registry.hub.docker.com",
 			"--set", "global.registryUsername=" + registryUsername,
@@ -82,12 +82,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", fu
 	})
 
 	It("Installs with letsencrypt-staging cert and pushes an app", func() {
-		By("Creating letsencrypt issuer", func() {
-			// Create certificate secret and cluster_issuer
-			out, err := proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("letsencrypt-staging.yaml"))
-			Expect(err).NotTo(HaveOccurred(), out)
-		})
-
+		// Do not create the letsencrypt-staging clusterIssuer here, epinio will create it instead
 		By("Checking LoadBalancer IP", func() {
 			// Ensure that Traefik LB is not in Pending state anymore, could take time
 			Eventually(func() string {
