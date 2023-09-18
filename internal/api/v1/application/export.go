@@ -201,7 +201,16 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 
 	destinationURL, err := url.Parse(destination.URL)
 	if err != nil {
-		return apierror.InternalError(err)
+		if !strings.Contains(destination.URL, "://") {
+			// Run again with a scheme - This ensures that host and path are properly separated.
+			// Without a scheme the parser considers everything to be the path.
+			destinationURL, err = url.Parse("oci://" + destination.URL)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+		} else {
+			return apierror.InternalError(err)
+		}
 	}
 	if destinationURL.Scheme == "" {
 		// Run again with a scheme - This ensures that host and path are properly separated.
