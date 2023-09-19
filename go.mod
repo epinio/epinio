@@ -18,7 +18,7 @@ require (
 	github.com/alron/ginlogr v0.0.4
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.23.0
-	github.com/coreos/go-oidc/v3 v3.5.0
+	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/dchest/uniuri v1.2.0
 	github.com/epinio/application v0.0.0-20230831095130-87dcf00a2fc1
 	github.com/fatih/color v1.15.0
