@@ -152,6 +152,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		CmdServices,
 		cmd.NewLoginCmd(client),
 		cmd.NewLogoutCmd(client),
+		CmdExportRegistries, // See exportregistry.go for implementation
 	)
 
 	// Hidden command providing developer tools

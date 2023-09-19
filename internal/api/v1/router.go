@@ -25,6 +25,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/configuration"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/env"
+	"github.com/epinio/epinio/internal/api/v1/exportregistry"
 	"github.com/epinio/epinio/internal/api/v1/gitconfig"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -106,6 +107,7 @@ var Routes = routes.NamedRoutes{
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
 	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
 	"AppValidateCV":   get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
+	"AppExport":       post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
 
 	"AppMatch":  get("/namespaces/:namespace/appsmatches/:pattern", errorHandler(application.Match)),
 	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Match)),
@@ -200,6 +202,12 @@ var Routes = routes.NamedRoutes{
 	"GitconfigsMatch":      get("/gitconfigsmatch/:pattern", errorHandler(gitconfig.Match)),
 	"GitconfigsMatch0":     get("/gitconfigsmatch", errorHandler(gitconfig.Match)),
 	"GitconfigShow":        get("/gitconfigs/:gitconfig", errorHandler(gitconfig.Show)),
+
+	// List and match export registries - Note: Operators are responsible for creation and deletion.
+	"Exportregistries": get("/exportregistries", errorHandler(exportregistry.Index)),
+	// Note, the second registration catches calls with an empty pattern!
+	"ExportregistriesMatch":  get("/exportregistrymatches/:pattern", errorHandler(exportregistry.Match)),
+	"ExportregistriesMatch0": get("/exportregistrymatches", errorHandler(exportregistry.Match)),
 }
 
 var WsRoutes = routes.NamedRoutes{

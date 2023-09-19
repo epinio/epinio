@@ -116,6 +116,14 @@ func (c *Client) AppGetPart(namespace, appName, part string) (models.AppPartResp
 	}, nil
 }
 
+// AppExport triggers an export of the app to a registry
+func (c *Client) AppExport(namespace, appName string, request models.AppExportRequest) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("AppExport", namespace, appName)
+
+	return Post(c, endpoint, request, response)
+}
+
 // AppUpdate updates an app
 func (c *Client) AppUpdate(request models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error) {
 	response := models.Response{}

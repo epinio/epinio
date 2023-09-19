@@ -46,6 +46,11 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+const imageExportVolume = "/image-export/"
+
+// Has to match mount path of `image-export-volume` in templates/server.yaml of the chart
+// CONSIDER ? Templated, and name given to server through EV ?
+
 // GetPart handles the API endpoint GET /namespaces/:namespace/applications/:app/part/:part
 // It determines the contents of the requested part (values, chart, image) and returns as
 // the response of the handler.
@@ -90,9 +95,9 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 
 	switch partName {
 	case "chart":
-		return fetchAppChart(c, ctx, logger, cluster, app.Meta)
+		return fetchAppChart(c, ctx, logger, cluster, app)
 	case "image":
-		return fetchAppImage(c, ctx, logger, cluster, app.Meta)
+		return fetchAppImage(c, ctx, logger, cluster, app)
 	case "values":
 		return fetchAppValues(c, logger, cluster, app.Meta)
 	}
@@ -100,18 +105,9 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 	return apierror.InternalError(fmt.Errorf("should not be reached"))
 }
 
-func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
+// ATTENTION TODO Compare `fetchAppChartFile` (see `export.go`), DRY them.
 
-	// Get application
-	theApp, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	if theApp == nil {
-		return apierror.AppIsNotKnown(app.Name)
-	}
-
+func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, theApp *models.App) apierror.APIErrors {
 	// Get the application's app chart
 	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
 	if err != nil {
@@ -171,33 +167,22 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 	return nil
 }
 
-func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, appRef models.AppRef) apierror.APIErrors {
+func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, theApp *models.App) apierror.APIErrors {
 	logger.Info("fetching app image")
 
-	// Get application
-	theApp, err := application.Lookup(ctx, cluster, appRef.Namespace, appRef.Name)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	// Mixing in nanoseconds to prevent multiple requests for the same app to clash over the file name
 	now := strconv.Itoa(time.Now().Nanosecond())
-	jobName := names.GenerateResourceName("export-job", appRef.Namespace, appRef.Name, theApp.StageID, now)
-	imageOutputFilename := fmt.Sprintf("%s-%s-%s-%s.tar", appRef.Namespace, appRef.Name, theApp.StageID, now)
+	imageOutputFilename := fmt.Sprintf("%s-%s-%s-%s.tar", theApp.Meta.Namespace, theApp.Meta.Name, theApp.StageID, now)
 
 	logger.Info("got app chart", "chart image", theApp.ImageURL)
 
-	err = runDownloadImageJob(ctx, cluster, jobName, theApp.ImageURL, imageOutputFilename)
+	file, err := fetchAppImageFile(ctx, logger, cluster, theApp, imageOutputFilename)
 	if err != nil {
-		return apierror.NewInternalError("failed to create job", "error", err.Error())
-	}
-
-	file, err := getFileImageAndJobCleanup(ctx, logger, cluster, jobName, imageOutputFilename)
-	if err != nil {
-		return apierror.NewInternalError("failed job", "error", err.Error())
+		return apierror.NewInternalError("failed to retrieve image", err.Error())
 	}
 
 	defer func() {
-		err := os.Remove("/image-export/" + imageOutputFilename)
+		err := os.Remove(imageExportVolume + imageOutputFilename)
 		if err != nil {
 			logger.Info("error cleaning up image file", "filename", imageOutputFilename, "error", err.Error())
 		}
@@ -210,6 +195,25 @@ func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 
 	c.DataFromReader(http.StatusOK, fileInfo.Size(), "application/x-tar", bufio.NewReader(file), nil)
 	return nil
+}
+
+func fetchAppImageFile(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, theApp *models.App, imageOutputFilename string) (*os.File, error) {
+	// Mixing in nanoseconds to prevent multiple requests for the same app to clash over the job name
+
+	nano := strconv.Itoa(time.Now().Nanosecond())
+	jobName := names.GenerateResourceName("image-export-job", theApp.Meta.Namespace, theApp.Meta.Name, theApp.StageID, nano)
+
+	err := runDownloadImageJob(ctx, cluster, jobName, theApp.ImageURL, imageOutputFilename)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create job")
+	}
+
+	file, err := getFileImageAndJobCleanup(ctx, logger, cluster, jobName, imageOutputFilename)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed waiting for job completion")
+	}
+
+	return file, nil
 }
 
 func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobName, imageURL, imageOutputFilename string) error {
@@ -325,7 +329,7 @@ func getFileImageAndJobCleanup(ctx context.Context, logger logr.Logger, cluster 
 	}
 
 	// check for file existence
-	file, err := os.Open("/image-export/" + imageOutputFilename)
+	file, err := os.Open(imageExportVolume + imageOutputFilename)
 	if err != nil {
 		// NOTE: job is kept, allows for debugging.
 

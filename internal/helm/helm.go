@@ -251,6 +251,35 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	return nil
 }
 
+// Local type definitions for proper marshalling of the
+// `values.yaml` to hand to helm from the chart parameters.
+
+type RouteParam struct {
+	Id     string `yaml:"id"`
+	Domain string `yaml:"domain"`
+	Path   string `yaml:"path"`
+	Secret string `yaml:"secret,omitempty"`
+}
+type EpinioParam struct {
+	AppName        string               `yaml:"appName"`
+	Configurations []string             `yaml:"configurations"`
+	ConfigPaths    []ConfigParameter    `yaml:"configpaths"`
+	Env            []models.EnvVariable `yaml:"env"`
+	ImageUrl       string               `yaml:"imageURL"`
+	Ingress        string               `yaml:"ingress,omitempty"`
+	ReplicaCount   int32                `yaml:"replicaCount"`
+	Routes         []RouteParam         `yaml:"routes"`
+	StageID        string               `yaml:"stageID"`
+	Start          string               `yaml:"start,omitempty"`
+	TlsIssuer      string               `yaml:"tlsIssuer"`
+	Username       string               `yaml:"username"`
+}
+type ChartParam struct {
+	Epinio EpinioParam            `yaml:"epinio"`
+	Chart  map[string]string      `yaml:"chartConfig,omitempty"`
+	User   map[string]interface{} `yaml:"userConfig,omitempty"`
+}
+
 func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	// Find the app chart to use for the deployment.
 	appChart, err := appchart.Lookup(parameters.Context, parameters.Cluster, parameters.Chart)
@@ -259,35 +288,6 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	}
 	if appChart == nil {
 		return fmt.Errorf("Unable to deploy, chart %s not found", parameters.Chart)
-	}
-
-	// Local type definitions for proper marshalling of the
-	// `values.yaml` to hand to helm from the chart parameters.
-
-	type routeParam struct {
-		Id     string `yaml:"id"`
-		Domain string `yaml:"domain"`
-		Path   string `yaml:"path"`
-		Secret string `yaml:"secret,omitempty"`
-	}
-	type epinioParam struct {
-		AppName        string               `yaml:"appName"`
-		Configurations []string             `yaml:"configurations"`
-		ConfigPaths    []ConfigParameter    `yaml:"configpaths"`
-		Env            []models.EnvVariable `yaml:"env"`
-		ImageUrl       string               `yaml:"imageURL"`
-		Ingress        string               `yaml:"ingress,omitempty"`
-		ReplicaCount   int32                `yaml:"replicaCount"`
-		Routes         []routeParam         `yaml:"routes"`
-		StageID        string               `yaml:"stageID"`
-		Start          string               `yaml:"start,omitempty"`
-		TlsIssuer      string               `yaml:"tlsIssuer"`
-		Username       string               `yaml:"username"`
-	}
-	type chartParam struct {
-		Epinio epinioParam            `yaml:"epinio"`
-		Chart  map[string]string      `yaml:"chartConfig,omitempty"`
-		User   map[string]interface{} `yaml:"userConfig,omitempty"`
 	}
 
 	// Fill values.yaml structure
@@ -306,8 +306,8 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		have[c.Name] = true
 	}
 
-	params := chartParam{
-		Epinio: epinioParam{
+	params := ChartParam{
+		Epinio: EpinioParam{
 			AppName:        parameters.Name,
 			Env:            parameters.Environment.List(),
 			ImageUrl:       parameters.ImageURL,
@@ -336,7 +336,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 			r := routes.FromString(desired)
 			rdot := strings.ReplaceAll(r.String(), "/", ".")
 
-			rp := routeParam{
+			rp := RouteParam{
 				Id:     rdot,
 				Domain: r.Domain,
 				Path:   r.Path,

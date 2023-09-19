@@ -240,23 +240,46 @@ func (c *EpinioClient) AppShow(appName string) error {
 }
 
 // AppExport saves the named app, in the targeted namespace, to the directory.
-func (c *EpinioClient) AppExport(appName string, directory string) error {
+func (c *EpinioClient) AppExport(appName string, toRegistry bool, param models.AppExportRequest) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().
+	msg := c.ui.Note().
 		WithStringValue("Namespace", c.Settings.Namespace).
-		WithStringValue("Application", appName).
-		WithStringValue("Target Directory", directory).
-		Msg("Export application")
+		WithStringValue("Application", appName)
+
+	if toRegistry {
+		msg.
+			WithStringValue("Target Registry", param.Destination).
+			Msg("Export application to registry")
+	} else {
+		msg.
+			WithStringValue("Target Directory", param.Destination).
+			Msg("Export application to local filesystem")
+	}
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
 	details.Info("export application")
+
+	if toRegistry {
+		// invoke server to perform the export
+
+		_, err := c.API.AppExport(c.Settings.Namespace, appName, param)
+		if err != nil {
+			return err
+		}
+
+		c.ui.Success().Msg("Ok")
+		return nil
+	}
+
+	// Export to local filesystem. Retrieve the parts from the server.
+	directory := param.Destination
 
 	err := os.MkdirAll(directory, 0700)
 	if err != nil {
@@ -280,6 +303,7 @@ func (c *EpinioClient) AppExport(appName string, directory string) error {
 		return err
 	}
 
+	c.ui.Success().Msg("Ok")
 	return nil
 }
 

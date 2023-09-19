@@ -399,3 +399,24 @@ type AppValidateCVResponse struct {
 	// in: body
 	Body models.Response
 }
+
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/export application AppExport
+// Export the named `App` in the `Namespace`.
+// responses:
+//   200: AppExportResponse
+
+// swagger:parameters AppExport
+type AppExportParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+	// in: body
+	Body models.AppExportRequest
+}
+
+// swagger:response AppExportResponse
+type AppExportResponse struct {
+	// in: body
+	Body models.Response
+}
