@@ -86,6 +86,15 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 	}
 	logger.Info("OCI export", "destination", destination.URL, "certs@", certSecretName)
 
+	destinationURL, err := decodeDestination(req.Destination, destination.URL)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	logger.Info("OCI export destination", "url scheme", destinationURL.Scheme)
+	logger.Info("OCI export destination", "url host", destinationURL.Host)
+	logger.Info("OCI export destination", "url path", destinationURL.Path)
+
 	// Make the certs available as file for use by registry clients, if any.
 	certFile := ""
 	if certSecretName != "" {
@@ -113,7 +122,7 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 	// as a means of introducing path injection attacks. Not true actually, as the names are
 	// restricted by the kube regexes. Still easier to just use the timestamp.
 
-	trimmedDestination := trim(destination.URL)
+	trimmedDestination := trimSchemes(destination.URL)
 
 	base := fmt.Sprintf("oci-export-%d", time.Now().UnixNano())
 
@@ -199,33 +208,7 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 
 	// chart archive ...
 
-	destinationURL, err := url.Parse(destination.URL)
-	if err != nil {
-		if !strings.Contains(destination.URL, "://") {
-			// Run again with a scheme - This ensures that host and path are properly separated.
-			// Without a scheme the parser considers everything to be the path.
-			destinationURL, err = url.Parse("oci://" + destination.URL)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-		} else {
-			return apierror.InternalError(err)
-		}
-	}
-	if destinationURL.Scheme == "" {
-		// Run again with a scheme - This ensures that host and path are properly separated.
-		// Without a scheme the parser considers everything to be the path.
-		destinationURL, err = url.Parse("oci://" + destination.URL)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-	}
-
-	logger.Info("OCI export destination", "url scheme", destinationURL.Scheme)
-	logger.Info("OCI export destination", "url host", destinationURL.Host)
-	logger.Info("OCI export destination", "url path", destinationURL.Path)
-
-	destinationHost := trim(destinationURL.Host)
+	destinationHost := destinationURL.Host
 
 	logger.Info("OCI export login", "host'", destinationHost)
 
@@ -653,9 +636,51 @@ func loadCerts(ctx context.Context, cluster *kubernetes.Cluster, secretName stri
 	return certFile, nil
 }
 
-func trim(url string) string {
+func trimSchemes(url string) string {
 	url = strings.TrimPrefix(url, "oci://")
 	url = strings.TrimPrefix(url, "https://")
 	url = strings.TrimPrefix(url, "http://")
 	return url
+}
+
+func decodeDestination(name, destination string) (*url.URL, error) {
+	// `destination` is an url coming out of the host reference field of a docker config.json file.
+	// It has to contain at least a hostname.
+	//
+	// Examples:
+	// (1) https://index.docker.io/v1/
+	// (2) registry.suse.com
+	// (3) 172-18-0-5.nip.io:5000
+	// (4) index.docker.io/v1/
+	//
+	// Note that the url may or may not have a leading schema.
+	// Further note that examples (3) and (4) are actually __not__ proper urls.
+	// Yet they are acceptable as keys in a docker config.json file.
+	// Example (3) will fail to parse.
+	// Example (4) will mis-identify the hostname part as part of the url path.
+	// Both are cured by adding a schema.
+	//
+	// On the other side while a string like `/172-18-0-5.nip.io:5000/foo` is an url it is not
+	// valid here, as it does not have a host reference.
+	//
+	// See https://github.com/golang/go/issues/18824 for more notes.
+
+	rawDest := destination
+	if !strings.Contains(destination, "://") {
+		// No scheme present. This will lead to a number of parsing issues.
+		// Force a scheme.
+		destination = "oci://" + destination
+	}
+
+	destinationURL, err := url.Parse(destination)
+	if err != nil {
+		return nil, err
+	}
+
+	if destinationURL.Host == "" {
+		// No host present. That is an error.
+		return nil, fmt.Errorf("Registry '%s': Missing host in '%s'", name, rawDest)
+	}
+
+	return destinationURL, nil
 }
