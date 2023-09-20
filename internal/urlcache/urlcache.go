@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -30,12 +31,28 @@ type Fetcher func(ctx context.Context, logger logr.Logger, originURL, destinatio
 
 const BasePath = "/tmp/urlcache"
 
+// syncURLMap is holding a mutex for each url
+var syncURLMap sync.Map
+
 // Get returns the local file containing the data found at the specified url.
 // It invokes the fetcher when the local file does not exist yet.
 func Get(ctx context.Context, logger logr.Logger, url string, fetcher Fetcher) (string, error) {
 	logger = logger.V(1).WithName("URLCache")
 
 	logger.Info("get", "url", url)
+
+	// DANGER: The url cache is a global structure shared among all API requests.
+	// DANGER: It is very possible that multiple goroutines invoke `Get` for the
+	// DANGER: same url, at nearly the same time.
+	//
+	// Here we perform per-url interlocking so that only one of these goroutines
+	// will perform the fetch, while all others are blocked until the fetcher is done.
+
+	anyMutex, _ := syncURLMap.LoadOrStore(url, &sync.Mutex{})
+	if m, ok := anyMutex.(*sync.Mutex); ok {
+		m.Lock()
+		defer m.Unlock()
+	}
 
 	// No caching needed for local file.
 
@@ -53,13 +70,6 @@ func Get(ctx context.Context, logger logr.Logger, url string, fetcher Fetcher) (
 	path := filepath.Join(BasePath, fileName+".tgz")
 
 	// Check cache for url
-
-	// DANGER :: The url cache is a global structure shared among all API requests.
-	// DANGER :: It is very possible that multiple goroutines invoke `Get` for the
-	// DANGER :: same url, at nearly the same time.
-	//
-	// TODO   :: Add interlocking so that one of these will perform the fetch, while
-	// TODO   :: all others are blocked until the first has completed fetching.
 
 	if _, err := os.Stat(path); err == nil {
 		logger.Info("is cached", "path", path)
