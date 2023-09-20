@@ -17,6 +17,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,6 +34,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
+	"github.com/epinio/epinio/internal/urlcache"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/go-logr/logr"
 	hc "github.com/mittwald/go-helm-client"
@@ -306,7 +310,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	helmChart, helmVersion, err := getChartReference(logger, client, appChart)
+	helmChart, helmVersion, err := getChartReference(parameters.Context, logger, client, appChart)
 	if err != nil {
 		return errors.Wrap(err, "retrieving chart reference")
 	}
@@ -594,7 +598,7 @@ func installOrUpgradeChartWithRetry(ctx context.Context, logger logr.Logger, cli
 	})
 }
 
-func getChartReference(logger logr.Logger, client hc.Client, appChart *models.AppChartFull) (string, string, error) {
+func getChartReference(ctx context.Context, logger logr.Logger, client hc.Client, appChart *models.AppChartFull) (string, string, error) {
 	// chart, version, error
 	// See also part.go, fetchAppChart
 
@@ -603,8 +607,32 @@ func getChartReference(logger logr.Logger, client hc.Client, appChart *models.Ap
 	if appChart.HelmRepo == "" {
 		// The helm chart is either a local file, or a direct url to the chart location.
 
-		logger.Info("deploy app", "non-repo app chart", helmChart, "version", helmVersion)
-		return appChart.HelmChart, "", nil
+		logger.Info("deploy app", "non-repo app chart", appChart.HelmChart)
+
+		helmChart, err := urlcache.Get(ctx, logger, appChart.HelmChart,
+			func(ctx context.Context, originURL, destinationPath string) error {
+				response, err := http.Get(originURL) // nolint:gosec // app chart repo ref
+				if err != nil || response.StatusCode != http.StatusOK {
+					logger.Info("fail, http issue")
+					return err
+				}
+				defer response.Body.Close()
+
+				dstFile, err := os.Create(destinationPath)
+				if err != nil {
+					return err
+				}
+				defer dstFile.Close()
+
+				_, err = io.Copy(dstFile, response.Body)
+				return err
+			})
+		if err != nil {
+			return "", "", err
+		}
+
+		logger.Info("deploy app", "app chart path", helmChart)
+		return helmChart, "", nil
 	}
 
 	// The helm chart ref is a name in a repository.
