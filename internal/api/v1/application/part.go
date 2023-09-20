@@ -134,7 +134,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 
 	logger.Info("input", "local chart archive", chartArchive)
 
-	// Try to read the archive as local path first, before falling back to retrieval via http.
+	// Here the archive is surely a local file
 
 	file, err := os.Open(chartArchive)
 	if err != nil {
