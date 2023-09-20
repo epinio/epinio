@@ -80,5 +80,5 @@ body:
       label: Release
       options:
         - label: >
-            **( 📝 Manual step )** Edit the latest draft release, set it as "pre-relase" and publish the release.
+            **( 📝 Manual step )** Edit the latest draft release, set it as "pre-release" and publish the release.
             [LINK](https://github.com/epinio/epinio/releases)
