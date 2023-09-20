@@ -467,6 +467,7 @@ func instances(cmd *cobra.Command) (*int32, error) {
 	return i, nil
 }
 
+// See also settings/settings.go
 func fileExists(path string) (bool, error) {
 	if _, err := os.Stat(path); err == nil {
 		return true, nil

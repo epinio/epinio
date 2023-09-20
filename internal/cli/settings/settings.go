@@ -202,6 +202,7 @@ func location() string {
 	return viper.GetString("settings-file")
 }
 
+// See also manifest/manifest.go
 func fileExists(path string) (bool, error) {
 	if _, err := os.Stat(path); err == nil {
 		return true, nil
