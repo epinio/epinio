@@ -16,6 +16,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Fetcher func(ctx context.Context, originULR, destinationPath string) error
+type Fetcher func(ctx context.Context, logger logr.Logger, originURL, destinationPath string) error
 
 const BasePath = "/tmp/urlcache"
 
@@ -52,6 +54,13 @@ func Get(ctx context.Context, logger logr.Logger, url string, fetcher Fetcher) (
 
 	// Check cache for url
 
+	// DANGER :: The url cache is a global structure shared among all API requests.
+	// DANGER :: It is very possible that multiple goroutines invoke `Get` for the
+	// DANGER :: same url, at nearly the same time.
+	//
+	// TODO   :: Add interlocking so that one of these will perform the fetch, while
+	// TODO   :: all others are blocked until the first has completed fetching.
+
 	if _, err := os.Stat(path); err == nil {
 		logger.Info("is cached", "path", path)
 		// Already cached
@@ -72,7 +81,7 @@ func Get(ctx context.Context, logger logr.Logger, url string, fetcher Fetcher) (
 	// Extend cache
 	logger.Info("fetch", "url", url, "path", path)
 
-	err := fetcher(ctx, url, path)
+	err := fetcher(ctx, logger, url, path)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to fetch url")
 	}
@@ -86,4 +95,23 @@ func Get(ctx context.Context, logger logr.Logger, url string, fetcher Fetcher) (
 
 	logger.Info("now cached", "path", path, "size", stat.Size())
 	return path, nil
+}
+
+func HttpFetcher(ctx context.Context, logger logr.Logger, originURL, destinationPath string) error {
+	response, err := http.Get(originURL) // nolint:gosec // app chart repo ref
+	if err != nil || response.StatusCode != http.StatusOK {
+		logger.Info("fail, http issue")
+		return err
+	}
+	defer response.Body.Close()
+
+	dstFile, err := os.Create(destinationPath)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, response.Body)
+	return err
+
 }

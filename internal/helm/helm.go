@@ -17,9 +17,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -609,24 +606,7 @@ func getChartReference(ctx context.Context, logger logr.Logger, client hc.Client
 
 		logger.Info("deploy app", "non-repo app chart", appChart.HelmChart)
 
-		helmChart, err := urlcache.Get(ctx, logger, appChart.HelmChart,
-			func(ctx context.Context, originURL, destinationPath string) error {
-				response, err := http.Get(originURL) // nolint:gosec // app chart repo ref
-				if err != nil || response.StatusCode != http.StatusOK {
-					logger.Info("fail, http issue")
-					return err
-				}
-				defer response.Body.Close()
-
-				dstFile, err := os.Create(destinationPath)
-				if err != nil {
-					return err
-				}
-				defer dstFile.Close()
-
-				_, err = io.Copy(dstFile, response.Body)
-				return err
-			})
+		helmChart, err := urlcache.Get(ctx, logger, appChart.HelmChart, urlcache.HttpFetcher)
 		if err != nil {
 			return "", "", err
 		}
