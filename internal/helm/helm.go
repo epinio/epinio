@@ -596,30 +596,42 @@ func installOrUpgradeChartWithRetry(ctx context.Context, logger logr.Logger, cli
 
 func getChartReference(logger logr.Logger, client hc.Client, appChart *models.AppChartFull) (string, string, error) {
 	// chart, version, error
+	// See also part.go, fetchAppChart
+
+	logger.Info("deploy app", "raw app chart", appChart.HelmChart, "helm repo", appChart.HelmRepo)
+
+	if appChart.HelmRepo == "" {
+		// The helm chart is either a local file, or a direct url to the chart location.
+
+		logger.Info("deploy app", "non-repo app chart", helmChart, "version", helmVersion)
+		return appChart.HelmChart, "", nil
+	}
+
+	// The helm chart ref is a name in a repository.
+	// This name may have a version appended to it, separated from the actual chart by `:`.
+	// Ensure that the repository is locally known.
+
+	repositoryName := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(appChart.HelmRepo)))
+	if err := client.AddOrUpdateChartRepo(repo.Entry{
+		Name: repositoryName,
+		URL:  appChart.HelmRepo,
+	}); err != nil {
+		return "", "", errors.Wrap(err, "creating the chart repository")
+	}
+
+	// Decode the chart ref. IOW extract the possible version tag.
 
 	helmChart := appChart.HelmChart
 	helmVersion := ""
-
-	logger.Info("deploy app", "raw app chart", helmChart)
-
-	// See also part.go, fetchAppChart
-	if appChart.HelmRepo != "" {
-		name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(appChart.HelmRepo)))
-		if err := client.AddOrUpdateChartRepo(repo.Entry{
-			Name: name,
-			URL:  appChart.HelmRepo,
-		}); err != nil {
-			return "", "", errors.Wrap(err, "creating the chart repository")
-		}
-
-		pieces := strings.SplitN(helmChart, ":", 2)
-		if len(pieces) == 2 {
-			helmVersion = pieces[1]
-			helmChart = pieces[0]
-		}
-
-		helmChart = fmt.Sprintf("%s/%s", name, helmChart)
+	pieces := strings.SplitN(helmChart, ":", 2)
+	if len(pieces) == 2 {
+		helmVersion = pieces[1]
+		helmChart = pieces[0]
 	}
+
+	// Combine chart and repository to a proper in-repo reference.
+
+	helmChart = fmt.Sprintf("%s/%s", repositoryName, helmChart)
 
 	logger.Info("deploy app", "app chart", helmChart, "version", helmVersion)
 
