@@ -371,20 +371,20 @@ func fetchAppManifest(c *gin.Context, app *models.App) apierror.APIErrors {
 
 // chartArchiveURL returns a url for the helm chart's tarball.
 //
-// The chart is specified as simple name, and resolved to actual archive through a helm repo. This
-// code is a __HACK__. At various levels.
+// The chart is specified as simple name, and resolved to the actual archive through a helm repo.
+// This code is a __HACK__. At various levels.
 //
-// We create and initialize a mittwald client, this gives us the basic dir structure needed.
+// We create and initialize a mittwald client, this gives us the basic directory structure needed.
 //
-// We add the repository needed. This gives us the chart and index files for it in the above
-// directory hierarchy.
+// We add the repository needed.
+// This gives us the chart and index files for it in the above directory hierarchy.
 //
 // We do __NOT__ use a low-level helm puller action. Even setting it up with configuration and
 // settings of the above client it will look in the wrong place for the repo index. I.e. looks to
 // completely ignore the RepositoryCache setting.
 //
-// So, to continue the hack, we access the repo index.yaml directly, i.e. read in, unmarshal into
-// minimally required structure and then locate the chart and its urls.
+// So, to continue the hack, we access the repostory's index.yaml directly, i.e. read in, unmarshal
+// into the minimally required structure and then locate the chart and its urls.
 //
 // The advantage of this hack: We get a fetchable url we can feed into the part invoked when the
 // chart was specified as direct url. No going through a temp file.
