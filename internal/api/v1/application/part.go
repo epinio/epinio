@@ -31,6 +31,7 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/registry"
+	"github.com/epinio/epinio/internal/urlcache"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -124,46 +125,42 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 
 	logger.Info("input", "chart archive", chartArchive)
 
+	// Ensure presence of the chart archive as a local file.
+
+	chartArchive, err = urlcache.Get(ctx, logger, chartArchive, urlcache.HttpFetcher)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	logger.Info("input", "local chart archive", chartArchive)
+
 	// Try to read the archive as local path first, before falling back to retrieval via http.
 
 	file, err := os.Open(chartArchive)
-	if err == nil {
-		logger.Info("input", "chart archive", "is file")
-
-		fileInfo, err := file.Stat()
-		if err == nil {
-			logger.Info("input", "chart archive", "has stat")
-
-			contentLength := fileInfo.Size()
-			contentType := "application/x-gzip"
-
-			logger.Info("input", "chart archive", "returning file")
-
-			c.DataFromReader(http.StatusOK, contentLength, contentType, bufio.NewReader(file), nil)
-			return nil
-		}
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "chart archive", "retrieving by http")
+	logger.Info("input", "chart archive", "is file")
 
-	response, err := http.Get(chartArchive) // nolint:gosec // app chart repo ref
-	if err != nil || response.StatusCode != http.StatusOK {
-		logger.Info("fail, http issue")
-
-		c.Status(http.StatusServiceUnavailable)
-		return nil
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
-	reader := response.Body
-	contentLength := response.ContentLength
-	contentType := response.Header.Get("Content-Type")
+	logger.Info("input", "chart archive", "has stat")
+
+	contentLength := fileInfo.Size()
+	contentType := "application/x-gzip"
+
+	logger.Info("input", "chart archive", "returning file")
 
 	logger.Info("OK",
 		"origin", c.Request.URL.String(),
 		"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
 	)
 
-	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, nil)
+	c.DataFromReader(http.StatusOK, contentLength, contentType, bufio.NewReader(file), nil)
 	return nil
 }
 
