@@ -50,7 +50,7 @@ Documentation is available at [docs.epinio.io](https://docs.epinio.io/).
 ### Installation
 
 Requires a Kubernetes cluster, an Ingress Controller and a Cert Manager as explained in the [installation](https://docs.epinio.io/installation/install_epinio) documentation.
-Once this is in place, and leaving out DNS setup, an installatio reduces to:
+Once this is in place, and leaving out DNS setup, an installation reduces to:
 
 ```
 helm repo add epinio https://epinio.github.io/helm-charts
