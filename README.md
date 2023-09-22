@@ -27,60 +27,53 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 
 ## What problem does Epinio solve?
 
-Epinio makes it easy for developers to iterate on their applications running in Kubernetes. Easy means:
+Epinio makes it easy for developers to develop their applications running in Kubernetes clusters. Easy means:
 
-- No experience with Kubernetes is required
+- No experience with Kubernetes is needed
 - No steep learning curve
 - Quick local setup with minimal configuration
-- Deploying to production similar to development
+- Deploying to production the same as deploying in development
 
-Kubernetes is becoming the de-facto standard for container orchestration.
-Developers may want to use Kubernetes for all the benefits it provides or may
-have to do so because that's what their Ops team has chosen. Whatever the case,
-using Kubernetes is not simple. It has a steep learning curve and doing it right
-is a full time job. Developers should spend their time working on their applications,
-not doing operations.
+[Kubernetes](https://kubernetes.io/) is the standard for container orchestration.
+Developers may want to use Kubernetes for its benefits or because their Ops team has chosen it.
+In either case, working with Kubernetes can be complex depending on the environment.
+It has a steep learning curve and doing it right is a full-time job.
+Developers should spend their time working on their applications, not doing operations.
 
-Epinio is adding the needed abstractions and intelligence to allow Developers
-to use Kubernetes as a PaaS (Platform as a Service).
+Epinio adds the needed abstractions and tools to allow developers to use Kubernetes as a [PaaS](https://en.wikipedia.org/wiki/Platform_as_a_service).
+
 
 ## Documentation
 
-Detailed installation and user documentation is available at our main
-[docs.epinio.io](https://docs.epinio.io/) site.
+Documentation is available at [docs.epinio.io](https://docs.epinio.io/).
 
 ### Installation
 
-The basic boilerplate requires a Kubernetes cluster, an Ingress Controller and a Cert Manager as
-detailed in the [documentation](https://docs.epinio.io/installation/install_epinio). Once this is in
-place, and leaving out DNS setup, in the most trivial case the main installation boils down to
+Requires a Kubernetes cluster, an Ingress Controller and a Cert Manager as explained in the [installation](https://docs.epinio.io/installation/install_epinio) documentation.
+Once this is in place, and leaving out DNS setup, an installatio reduces to:
 
 ```
 helm repo add epinio https://epinio.github.io/helm-charts
 helm repo update
 
-helm install --namespace epinio --create-namespace epinio epinio/epinio \                                               --set global.domain=mydomain.example.com
+helm install --namespace epinio --create-namespace epinio epinio/epinio \
+  --set global.domain=mydomain.example.com
 ```
 
-For the details glossed over here see the
-[documentation](https://docs.epinio.io/installation/install_epinio).
+### CLI installation
 
-### Client installation
-
-Installation of the Epinio CLI can be as simple as downloading a binary from the
+Installation of the Epinio CLI is by downloading a binary from the
 [release page](https://github.com/epinio/epinio/releases), or usage of `brew`, i.e.
 
 ```
 brew install epinio
 ```
 
-For the details glossed over here see the
-[documentation](https://docs.epinio.io/installation/install_epinio_cli).
+There is further documentation [here](https://docs.epinio.io/installation/install_epinio_cli).
 
 ### Quick Start Tutorial
 
-- Our [QuickStart Tutorial](https://docs.epinio.io/tutorials/quickstart) explains how to create a
-  namespace and push an application.
+Our [QuickStart Tutorial](https://docs.epinio.io/tutorials/quickstart) works through how to create a namespace and push an application.
 
 ### Reach Us
 
@@ -93,7 +86,7 @@ For the details glossed over here see the
 
 Find more information in the [Contribution Guide](./CONTRIBUTING.md).
 
-Our [developer documentation](./docs) explains how to build and run Epinio from a source checkout.
+The [developer documentation](./docs) explains how to build and run Epinio from a git source checkout.
 
 ## Features
 
@@ -105,12 +98,12 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
   - Web UI
   - Epinio CLI
 - **Apps**
-  - Push code directly without additional tools or steps
+  - Push code directly without further tools or steps
   - Basic operation of your application once pushed
   - Cloud Native Buildpacks build and containerize your code for you
 - **Configurations**
-  - CRUD operations of your configuration. A configuration can be a database, SaaS etc. A configuration can be an external component or can be created using `epinio configuration`
-  - Bind configurations to apps
+  - CRUD operations on your configuration. A configuration can be a database, SaaS etc. A configuration can be an external component or can be created using `epinio configuration`.
+  - Bind configurations to apps.
 
 ## Example apps
 
