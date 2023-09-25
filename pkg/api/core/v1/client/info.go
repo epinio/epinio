@@ -12,14 +12,13 @@
 package client
 
 import (
-	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 // Info returns information about Epinio and its components
 func (c *Client) Info() (models.InfoResponse, error) {
 	response := models.InfoResponse{}
-	endpoint := api.Routes.Path("Info")
+	endpoint := "info"
 
 	return Get(c, endpoint, response)
 }

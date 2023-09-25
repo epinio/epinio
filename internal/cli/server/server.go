@@ -94,6 +94,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	router.GET("/ready", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
+	// No authentication, no logging, no session. This is epinio's version and auth information.
+	router.GET("/api/v1/info", apiv1.ErrorHandler(apiv1.Info))
 
 	router.GET("/api/swagger.json", swaggerHandler)
 
