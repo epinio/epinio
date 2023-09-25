@@ -108,12 +108,10 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	// Dex or no dex ?
 
-	dexPEMPath := "/etc/ssl/certs/dex-tls.pem"
-
-	if _, err := os.Stat(dexPEMPath); err == nil {
+	if _, err := os.Stat(apiv1.DexPEMPath); err == nil {
 		// dex secret is present, load contained cert
 
-		err := auth.ExtendLocalTrustFromFile(dexPEMPath)
+		err := auth.ExtendLocalTrustFromFile(apiv1.DexPEMPath)
 		if err != nil {
 			return nil, errors.Wrap(err, "extending local trust with dex")
 		}

@@ -2941,6 +2941,10 @@
           "type": "string",
           "x-go-name": "DefaultBuilderImage"
         },
+        "dex_available": {
+          "type": "boolean",
+          "x-go-name": "DEXAvailable"
+        },
         "kube_version": {
           "type": "string",
           "x-go-name": "KubeVersion"

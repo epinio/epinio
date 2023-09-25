@@ -31,6 +31,7 @@ func (c *EpinioClient) Info() error {
 		WithStringValue("Kubernetes Version", v.KubeVersion).
 		WithStringValue("Epinio Server Version", v.Version).
 		WithStringValue("Epinio Client Version", version.Version).
+		WithBoolValue("Epinio Server Supports DEX", v.DEXAvailable).
 		Msg("Epinio Environment")
 
 	return nil

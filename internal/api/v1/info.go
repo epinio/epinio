@@ -12,6 +12,8 @@
 package v1
 
 import (
+	"os"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -24,6 +26,7 @@ import (
 )
 
 const VersionHeader = "epinio-version"
+const DexPEMPath = "/etc/ssl/certs/dex-tls.pem"
 
 // Info handles the API endpoint /info.  It returns version
 // information for various epinio components.
@@ -49,11 +52,14 @@ func Info(c *gin.Context) APIErrors {
 
 	defaultBuilderImage := stageConfig.Data["builderImage"]
 
+	_, dexError := os.Stat(DexPEMPath)
+
 	response.OKReturn(c, models.InfoResponse{
 		Version:             version.Version,
 		Platform:            platform.String(),
 		KubeVersion:         kubeVersion,
 		DefaultBuilderImage: defaultBuilderImage,
+		DEXAvailable:        dexError == nil,
 	})
 	return nil
 }
