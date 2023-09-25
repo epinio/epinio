@@ -28,7 +28,7 @@ var _ = Describe("Users", LMisc, func() {
 	var uri string
 
 	BeforeEach(func() {
-		uri = fmt.Sprintf("%s%s/info", serverURL, v1.Root)
+		uri = fmt.Sprintf("%s%s/namespaces", serverURL, v1.Root)
 		request, err = http.NewRequest("GET", uri, strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 	})
