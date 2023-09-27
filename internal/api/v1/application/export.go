@@ -412,7 +412,7 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 
 	logger.Info("input", "chart archive", chartArchive)
 
-	chartArchive, err = urlcache.Get(ctx, logger, chartArchive, urlcache.HttpFetcher)
+	chartArchive, err = urlcache.Get(ctx, logger, chartArchive)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

@@ -606,7 +606,7 @@ func getChartReference(ctx context.Context, logger logr.Logger, client hc.Client
 
 		logger.Info("deploy app", "non-repo app chart", appChart.HelmChart)
 
-		helmChart, err := urlcache.Get(ctx, logger, appChart.HelmChart, urlcache.HttpFetcher)
+		helmChart, err := urlcache.Get(ctx, logger, appChart.HelmChart)
 		if err != nil {
 			return "", "", err
 		}

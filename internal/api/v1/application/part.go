@@ -127,7 +127,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 
 	// Ensure presence of the chart archive as a local file.
 
-	chartArchive, err = urlcache.Get(ctx, logger, chartArchive, urlcache.HttpFetcher)
+	chartArchive, err = urlcache.Get(ctx, logger, chartArchive)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

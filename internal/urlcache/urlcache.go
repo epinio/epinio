@@ -27,16 +27,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Fetcher func(ctx context.Context, logger logr.Logger, originURL, destinationPath string) error
-
 const BasePath = "/tmp/urlcache"
 
 // syncURLMap is holding a mutex for each url
 var syncURLMap sync.Map
 
 // Get returns the local file containing the data found at the specified url.
-// It invokes the fetcher when the local file does not exist yet.
-func Get(ctx context.Context, logger logr.Logger, url string, fetcher Fetcher) (string, error) {
+// It fetches the url when the local file does not exist yet.
+func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 	logger = logger.V(1).WithName("URLCache")
 
 	logger.Info("get", "url", url)
@@ -91,7 +89,7 @@ func Get(ctx context.Context, logger logr.Logger, url string, fetcher Fetcher) (
 	// Extend cache
 	logger.Info("fetch", "url", url, "path", path)
 
-	err := fetcher(ctx, logger, url, path)
+	err := fetch(logger, url, path)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to fetch url")
 	}
@@ -107,7 +105,7 @@ func Get(ctx context.Context, logger logr.Logger, url string, fetcher Fetcher) (
 	return path, nil
 }
 
-func HttpFetcher(ctx context.Context, logger logr.Logger, originURL, destinationPath string) error {
+func fetch(logger logr.Logger, originURL, destinationPath string) error {
 	response, err := http.Get(originURL) // nolint:gosec // app chart repo ref
 	if err != nil || response.StatusCode != http.StatusOK {
 		logger.Info("fail, http issue")
