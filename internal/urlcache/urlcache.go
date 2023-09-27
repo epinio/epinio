@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -64,7 +63,7 @@ func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 	h := sha256.New()
 	h.Write([]byte(url))
 	hash := h.Sum(nil)
-	fileName := strings.ReplaceAll(base64.StdEncoding.EncodeToString([]byte(hash)), "/", ".")
+	fileName := base64.RawURLEncoding.EncodeToString([]byte(hash))
 	path := filepath.Join(BasePath, fileName+".tgz")
 
 	// Check cache for url
