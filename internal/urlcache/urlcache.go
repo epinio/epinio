@@ -16,6 +16,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -26,10 +27,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-const BasePath = "/tmp/urlcache"
+var BasePath = "/tmp/urlcache"
 
 // syncURLMap is holding a mutex for each url
 var syncURLMap sync.Map
+
+// initMutex serializes the cache directory initialization
+var initMutex sync.Mutex
 
 // Get returns the local file containing the data found at the specified url.
 // It fetches the url when the local file does not exist yet.
@@ -52,62 +56,70 @@ func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 	}
 
 	// No caching needed for local file.
-
 	if _, err := os.Stat(url); err == nil {
 		logger.Info("is local file")
 		return url, nil
 	}
 
 	// Compute cache path for url
-
 	h := sha256.New()
 	h.Write([]byte(url))
 	hash := h.Sum(nil)
 	fileName := base64.RawURLEncoding.EncodeToString([]byte(hash))
 	path := filepath.Join(BasePath, fileName+".tgz")
 
-	// Check cache for url
-
+	// Check cache for url, and return if already cached
 	if _, err := os.Stat(path); err == nil {
 		logger.Info("is cached", "path", path)
-		// Already cached
 		return path, nil
 	}
 
 	// Initialize cache
+	err := initCache(logger)
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to setup url cache")
+	}
+
+	// Extend cache
+	err = fetchFile(logger, url, path)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to fetch url")
+	}
+
+	// Return cache element
+	return path, nil
+}
+
+func initCache(logger logr.Logger) error {
+	// DANGER: The initialization of the cache directory requires serialization as well, so that
+	// DANGER: only access performs the initialization, while everything else sees the
+	// DANGER: initialized directory. This is url-independent and not ensures by the main map,
+	// DANGER: which serializes per url.
+
+	initMutex.Lock()
+	defer initMutex.Unlock()
 
 	if _, err := os.Stat(BasePath); err != nil {
 		logger.Info("initialize cache", "directory", BasePath)
 		// Not yet initialized
 		err := os.MkdirAll(BasePath, 0700)
 		if err != nil {
-			return "", errors.Wrapf(err, "unable to setup url cache")
+			return err
 		}
 	}
 
-	// Extend cache
-	logger.Info("fetch", "url", url, "path", path)
-
-	err := fetch(logger, url, path)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to fetch url")
-	}
-
-	// Verify fetch (path has to exist now)
-
-	stat, err := os.Stat(path)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to properly save fetched url")
-	}
-
-	logger.Info("now cached", "path", path, "size", stat.Size())
-	return path, nil
+	return nil
 }
 
-func fetch(logger logr.Logger, originURL, destinationPath string) error {
+func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
+	logger.Info("fetch", "url", originURL, "path", destinationPath)
+
 	response, err := http.Get(originURL) // nolint:gosec // app chart repo ref
 	if err != nil || response.StatusCode != http.StatusOK {
-		logger.Info("fail, http issue")
+		logger.Info("fail, http issue %d", response.StatusCode)
+		if err == nil {
+			err = fmt.Errorf("failed with status %d", response.StatusCode)
+		}
 		return err
 	}
 	defer response.Body.Close()
@@ -116,9 +128,21 @@ func fetch(logger logr.Logger, originURL, destinationPath string) error {
 	if err != nil {
 		return err
 	}
-	defer dstFile.Close()
 
 	_, err = io.Copy(dstFile, response.Body)
-	return err
+	if err != nil {
+		dstFile.Close()
+		os.Remove(dstFile.Name())
+		return err
+	}
+	dstFile.Close()
 
+	// Verify fetch (path has to exist now)
+	stat, err := os.Stat(destinationPath)
+	if err != nil {
+		return err
+	}
+
+	logger.Info("now cached", "path", destinationPath, "size", stat.Size())
+	return nil
 }
