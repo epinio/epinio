@@ -141,19 +141,19 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "chart archive", "is file")
+	logger.Info("input is file")
 
 	fileInfo, err := file.Stat()
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "chart archive", "has stat")
+	logger.Info("input has stat")
 
 	contentLength := fileInfo.Size()
 	contentType := "application/x-gzip"
 
-	logger.Info("input", "chart archive", "returning file")
+	logger.Info("input, returning file")
 
 	logger.Info("OK",
 		"origin", c.Request.URL.String(),

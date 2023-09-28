@@ -410,14 +410,14 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "chart archive", chartArchive)
+	logger.Info("input", "chart-url", chartArchive)
 
 	chartArchive, err = urlcache.Get(ctx, logger, chartArchive)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "local chart archive", chartArchive)
+	logger.Info("input", "chart-file", chartArchive)
 
 	// Here the archive is surely a local file
 
@@ -427,7 +427,7 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 	}
 	defer file.Close()
 
-	logger.Info("input", "chart archive", "is file")
+	logger.Info("input is file")
 
 	dstFile, err := os.Create(imageExportVolume + destinationPath)
 	if err != nil {
@@ -436,7 +436,7 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 	defer dstFile.Close()
 
 	// copy file ...
-	logger.Info("input", "chart archive", "copying file")
+	logger.Info("input, copy to", "destination", dstFile.Name())
 
 	_, err = io.Copy(dstFile, file)
 	if err != nil {

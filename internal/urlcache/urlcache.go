@@ -70,20 +70,20 @@ func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 
 	// Check cache for url, and return if already cached
 	if _, err := os.Stat(path); err == nil {
-		logger.Info("is cached", "path", path)
+		logger.Info("cache HIT", "path", path)
 		return path, nil
 	}
 
 	// Initialize cache
 	err := initCache(logger)
 	if err != nil {
-		return "", errors.Wrapf(err, "unable to setup url cache")
+		return "", errors.Wrap(err, "unable to setup url cache")
 	}
 
 	// Extend cache
 	err = fetchFile(logger, url, path)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to fetch url")
+		return "", errors.Wrap(err, "failed to fetch url")
 	}
 
 	// Return cache element
@@ -112,15 +112,15 @@ func initCache(logger logr.Logger) error {
 }
 
 func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
-	logger.Info("fetch", "url", originURL, "path", destinationPath)
+	logger.Info("cache MISS, fetch", "url", originURL, "path", destinationPath)
 
 	response, err := http.Get(originURL) // nolint:gosec // app chart repo ref
-	if err != nil || response.StatusCode != http.StatusOK {
-		logger.Info("fail, http issue %d", response.StatusCode)
-		if err == nil {
-			err = fmt.Errorf("failed with status %d", response.StatusCode)
-		}
+	if err != nil {
 		return err
+	}
+	if response.StatusCode >= http.StatusBadRequest {
+		logger.Info("fail http", "status", response.StatusCode)
+		return fmt.Errorf("failed with status %d", response.StatusCode)
 	}
 	defer response.Body.Close()
 

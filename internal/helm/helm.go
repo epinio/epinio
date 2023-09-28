@@ -293,7 +293,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		return fmt.Errorf("Unable to deploy, chart %s not found", parameters.Chart)
 	}
 
-	logger.Info("deploy app", "app chart", appChart)
+	logger.Info("deploy app", "appchart", appChart)
 
 	// Fill values.yaml structure
 
@@ -599,19 +599,19 @@ func getChartReference(ctx context.Context, logger logr.Logger, client hc.Client
 	// chart, version, error
 	// See also part.go, fetchAppChart
 
-	logger.Info("deploy app", "raw app chart", appChart.HelmChart, "helm repo", appChart.HelmRepo)
+	logger.Info("deploy app", "raw-appchart", appChart.HelmChart, "helm-repo", appChart.HelmRepo)
 
 	if appChart.HelmRepo == "" {
 		// The helm chart is either a local file, or a direct url to the chart location.
 
-		logger.Info("deploy app", "non-repo app chart", appChart.HelmChart)
+		logger.Info("deploy app", "appchart-url", appChart.HelmChart)
 
 		helmChart, err := urlcache.Get(ctx, logger, appChart.HelmChart)
 		if err != nil {
 			return "", "", err
 		}
 
-		logger.Info("deploy app", "app chart path", helmChart)
+		logger.Info("deploy app", "appchart-file", helmChart)
 		return helmChart, "", nil
 	}
 
@@ -641,7 +641,7 @@ func getChartReference(ctx context.Context, logger logr.Logger, client hc.Client
 
 	helmChart = fmt.Sprintf("%s/%s", repositoryName, helmChart)
 
-	logger.Info("deploy app", "app chart", helmChart, "version", helmVersion)
+	logger.Info("deploy app", "appchart", helmChart, "version", helmVersion)
 
 	return helmChart, helmVersion, nil
 }
