@@ -54,14 +54,12 @@ func Info(c *gin.Context) APIErrors {
 
 	_, dexError := os.Stat(DexPEMPath)
 
-	// Inlined versionMiddleware for unauth endpoint.
-	c.Header(VersionHeader, version.Version)
 	response.OKReturn(c, models.InfoResponse{
 		Version:             version.Version,
 		Platform:            platform.String(),
 		KubeVersion:         kubeVersion,
 		DefaultBuilderImage: defaultBuilderImage,
-		DEXAvailable:        dexError == nil,
+		OIDCEnabled:         dexError == nil,
 	})
 	return nil
 }
