@@ -99,7 +99,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.9.5
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
 
       - name: Cache Tools
         uses: actions/cache@v3
