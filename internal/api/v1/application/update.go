@@ -14,6 +14,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -288,6 +289,12 @@ func updateRoutes(
 
 	routes := []string{}
 	for _, d := range updateRoutes {
+		// Strip scheme prefixes, if present
+		routeURL, err := url.Parse(d)
+		if err == nil && routeURL.Scheme != "" {
+			d = strings.TrimPrefix(d, routeURL.Scheme+"://")
+		}
+		// Note %q quotes the url as required by the json patch constructed below.
 		routes = append(routes, fmt.Sprintf("%q", d))
 	}
 

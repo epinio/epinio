@@ -13,6 +13,8 @@ package application
 
 import (
 	"context"
+	"net/url"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -95,7 +97,14 @@ func Create(c *gin.Context) apierror.APIErrors {
 	var routes []string
 	if createRequest.Configuration.Routes != nil {
 		// Note: Routes can be empty here!
-		routes = createRequest.Configuration.Routes
+		for _, d := range createRequest.Configuration.Routes {
+			// Strip scheme prefixes, if present
+			routeURL, err := url.Parse(d)
+			if err == nil && routeURL.Scheme != "" {
+				d = strings.TrimPrefix(d, routeURL.Scheme+"://")
+			}
+			routes = append(routes, d)
+		}
 	} else {
 		route, err := domain.AppDefaultRoute(ctx, createRequest.Name, namespace)
 		if err != nil {
