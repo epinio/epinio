@@ -63,7 +63,7 @@ func InstallNginx() {
 	out, err = proc.RunW("helm", "upgrade", "--install", "nginx-ingress", "nginx-stable/nginx-ingress",
 		"-n", "ingress-nginx",
 		"--create-namespace",
-		"--set", "controller.setAsDefaultIngress=true",
+		"--set", "controller.ingressClass.setAsDefaultIngress=true",
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
 }
