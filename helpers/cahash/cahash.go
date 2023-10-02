@@ -60,3 +60,26 @@ func DecodeOneCert(raw []byte) (*x509.Certificate, error) {
 
 	return nil, errors.New("failed find PEM data")
 }
+
+// DecodeCerts iterates over pem blocks and load all the valid certificates
+func DecodeCerts(raw []byte) ([]*x509.Certificate, error) {
+	certs := []*x509.Certificate{}
+
+	byteData := raw
+	for len(byteData) > 0 {
+		block, rest := pem.Decode(byteData)
+		if block == nil {
+			return nil, errors.New("failed decoding PEM data")
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			byteData = rest
+			continue // pem block is not a cert? (e.g. maybe it was a dh_params block)
+		}
+
+		certs = append(certs, cert)
+	}
+
+	return certs, nil
+}
