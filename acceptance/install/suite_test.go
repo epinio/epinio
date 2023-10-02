@@ -56,14 +56,14 @@ func InstallCertManager() {
 }
 
 func InstallNginx() {
-	out, err := proc.RunW("helm", "repo", "add", "nginx-stable", "https://helm.nginx.com/stable")
+	out, err := proc.RunW("helm", "repo", "add", "ingress-nginx", "https://kubernetes.github.io/ingress-nginx")
 	Expect(err).NotTo(HaveOccurred(), out)
 	out, err = proc.RunW("helm", "repo", "update")
 	Expect(err).NotTo(HaveOccurred(), out)
-	out, err = proc.RunW("helm", "upgrade", "--install", "nginx-ingress", "nginx-stable/nginx-ingress",
-		"-n", "ingress-nginx",
+	out, err = proc.RunW("helm", "upgrade", "--install", "ingress-nginx", "ingress-nginx/ingress-nginx",
+		"--namespace", "ingress-nginx",
 		"--create-namespace",
-		"--set", "controller.ingressClass.setAsDefaultIngress=true",
+		"--set", "controller.ingressClassResource.default=true",
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
 }
