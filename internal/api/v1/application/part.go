@@ -286,6 +286,24 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 					Annotations: map[string]string{},
 				},
 				Spec: corev1.PodSpec{
+					Affinity: &corev1.Affinity{
+						PodAffinity: &corev1.PodAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											{
+												Key:      "app.kubernetes.io/name",
+												Operator: "In",
+												Values:   []string{"epinio-server"},
+											},
+										},
+									},
+									TopologyKey: "kubernetes.io/hostname",
+								},
+							},
+						},
+					},
 					Containers: []corev1.Container{
 						{
 							Name:    "skopeo",
