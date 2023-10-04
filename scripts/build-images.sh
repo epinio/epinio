@@ -12,7 +12,7 @@
 
 set -e
 
-version="$(git describe --tags)"
+version="test-$(git describe --tags)"
 imageEpServer="ghcr.io/epinio/epinio-server"
 imageUnpacker="ghcr.io/epinio/epinio-unpacker"
 

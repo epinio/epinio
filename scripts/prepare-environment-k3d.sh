@@ -23,7 +23,7 @@ UNAME="$(uname | tr "[:upper:]" "[:lower:]")"
 EPINIO_BINARY="./dist/epinio-$UNAME-amd64"
 
 # IMAGE_TAG is the one built from the 'make build-images'
-IMAGE_TAG="$(git describe --tags)"
+IMAGE_TAG="test-$(git describe --tags)"
 
 function check_dependency {
 	for dep in "$@"
