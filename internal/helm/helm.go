@@ -31,6 +31,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
+	"github.com/epinio/epinio/internal/urlcache"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/go-logr/logr"
 	hc "github.com/mittwald/go-helm-client"
@@ -281,6 +282,8 @@ type ChartParam struct {
 }
 
 func Deploy(logger logr.Logger, parameters ChartParameters) error {
+	logger.Info("deploy app", "parameters", parameters)
+
 	// Find the app chart to use for the deployment.
 	appChart, err := appchart.Lookup(parameters.Context, parameters.Cluster, parameters.Chart)
 	if err != nil {
@@ -290,144 +293,23 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		return fmt.Errorf("Unable to deploy, chart %s not found", parameters.Chart)
 	}
 
+	logger.Info("deploy app", "appchart", appChart)
+
 	// Fill values.yaml structure
 
-	// ATTENTION: The Configurations slice may contain multiple mount points for the same
-	// configuration, for backward compatibility. We dedup this to have only one volume per
-	// config.
-
-	configurationNames := []string{}
-	have := map[string]bool{}
-	for _, c := range parameters.Configurations {
-		if _, found := have[c.Name]; found {
-			continue
-		}
-		configurationNames = append(configurationNames, c.Name)
-		have[c.Name] = true
-	}
-
-	params := ChartParam{
-		Epinio: EpinioParam{
-			AppName:        parameters.Name,
-			Env:            parameters.Environment.List(),
-			ImageUrl:       parameters.ImageURL,
-			ReplicaCount:   parameters.Instances,
-			Configurations: configurationNames,
-			ConfigPaths:    parameters.Configurations,
-			StageID:        parameters.StageID,
-			TlsIssuer:      viper.GetString("tls-issuer"),
-			Username:       parameters.Username,
-			// Ingress, Start, Routes: see below
-		},
-		// Chart, User: see below
-	}
-
-	name := viper.GetString("ingress-class-name")
-	if name != "" {
-		params.Epinio.Ingress = name
-	}
-	if parameters.Start != nil {
-		params.Epinio.Start = fmt.Sprintf(`%d`, *parameters.Start)
-	}
-	if len(parameters.Routes) > 0 {
-		logger.Info("routes and domains")
-
-		for _, desired := range parameters.Routes {
-			r := routes.FromString(desired)
-			rdot := strings.ReplaceAll(r.String(), "/", ".")
-
-			rp := RouteParam{
-				Id:     rdot,
-				Domain: r.Domain,
-				Path:   r.Path,
-			}
-
-			domainSecret, err := domain.MatchDo(r.Domain, parameters.Domains)
-
-			logger.Info("domain match", "domain", r.Domain, "secret", domainSecret, "err", err)
-
-			// Should we treat a match error as something to stop for?
-			// The error can only come from `filepath.Match()`
-			if err == nil && domainSecret != "" {
-				// Pass the found secret
-				rp.Secret = domainSecret
-			}
-			params.Epinio.Routes = append(params.Epinio.Routes, rp)
-		}
-	}
-
-	// Add the settings, if any. This also performs last-minute validation.  See also
-	// internal/application ValidateCV. Both use the core helper `ValidateField`
-	// implemented here (Avoid import cycle).
-	//
-	// While nothing should trigger here we cannot be sure. Because it is currently
-	// technically possible to change the app settings in the time window between a
-	// client triggering validation and actually deploying the app image. This window
-	// can actually be quite large, due to the time taken by staging and image
-	// download.
-	//
-	// It doesn't even have to be malicious. Just a user B doing a normal update while
-	// user A deployed, and landing in the window.
-
-	if len(parameters.Settings) > 0 {
-		params.User = make(map[string]interface{})
-
-		for field, value := range parameters.Settings {
-			spec, found := appChart.Settings[field]
-			if !found {
-				return fmt.Errorf("Unable to deploy. Setting '%s' unknown", field)
-			}
-
-			// Note: Here the interface{} result of the properly typed value is
-			// important. It ensures that the map values are properly typed for yaml
-			// serialization.
-
-			v, err := ValidateField(field, value, spec)
-			if err != nil {
-				return fmt.Errorf(`Unable to deploy. %s`, err.Error())
-			}
-			params.User[field] = v
-		}
-	}
-
-	params.Chart = appChart.Values
-
-	// At last generate the properly quoted values.yaml string
-
-	logger.Info("app helm setup", "parameters", params)
-
-	yamlParameters, err := yaml.Marshal(params)
+	params, err := getValuesYAML(logger, appChart, parameters)
 	if err != nil {
-		return errors.Wrap(err, "marshalling the parameters")
+		return err
 	}
-
-	logger.Info("app helm setup", "parameters-as-yaml", string(yamlParameters))
 
 	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	helmChart := appChart.HelmChart
-	helmVersion := ""
-
-	// See also part.go, fetchAppChart
-	if appChart.HelmRepo != "" {
-		name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(appChart.HelmRepo)))
-		if err := client.AddOrUpdateChartRepo(repo.Entry{
-			Name: name,
-			URL:  appChart.HelmRepo,
-		}); err != nil {
-			return errors.Wrap(err, "creating the chart repository")
-		}
-
-		pieces := strings.SplitN(helmChart, ":", 2)
-		if len(pieces) == 2 {
-			helmVersion = pieces[1]
-			helmChart = pieces[0]
-		}
-
-		helmChart = fmt.Sprintf("%s/%s", name, helmChart)
+	helmChart, helmVersion, err := getChartReference(parameters.Context, logger, client, appChart)
+	if err != nil {
+		return errors.Wrap(err, "retrieving chart reference")
 	}
 
 	releaseName := names.ReleaseName(parameters.Name)
@@ -444,7 +326,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		Namespace:   parameters.Namespace,
 		Wait:        true,
 		Atomic:      true, // implies `Wait true`
-		ValuesYaml:  string(yamlParameters),
+		ValuesYaml:  params,
 		Timeout:     duration.ToDeployment(),
 		ReuseValues: true,
 	}
@@ -711,4 +593,181 @@ func installOrUpgradeChartWithRetry(ctx context.Context, logger logr.Logger, cli
 		}
 		return err
 	})
+}
+
+func getChartReference(ctx context.Context, logger logr.Logger, client hc.Client, appChart *models.AppChartFull) (string, string, error) {
+	// chart, version, error
+	// See also part.go, fetchAppChart
+
+	logger.Info("deploy app", "raw-appchart", appChart.HelmChart, "helm-repo", appChart.HelmRepo)
+
+	if appChart.HelmRepo == "" {
+		// The helm chart is either a local file, or a direct url to the chart location.
+
+		logger.Info("deploy app", "appchart-url", appChart.HelmChart)
+
+		helmChart, err := urlcache.Get(ctx, logger, appChart.HelmChart)
+		if err != nil {
+			return "", "", err
+		}
+
+		logger.Info("deploy app", "appchart-file", helmChart)
+		return helmChart, "", nil
+	}
+
+	// The helm chart ref is a name in a repository.
+	// This name may have a version appended to it, separated from the actual chart by `:`.
+	// Ensure that the repository is locally known.
+
+	repositoryName := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(appChart.HelmRepo)))
+	if err := client.AddOrUpdateChartRepo(repo.Entry{
+		Name: repositoryName,
+		URL:  appChart.HelmRepo,
+	}); err != nil {
+		return "", "", errors.Wrap(err, "creating the chart repository")
+	}
+
+	// Decode the chart ref. IOW extract the possible version tag.
+
+	helmChart := appChart.HelmChart
+	helmVersion := ""
+	pieces := strings.SplitN(helmChart, ":", 2)
+	if len(pieces) == 2 {
+		helmVersion = pieces[1]
+		helmChart = pieces[0]
+	}
+
+	// Combine chart and repository to a proper in-repo reference.
+
+	helmChart = fmt.Sprintf("%s/%s", repositoryName, helmChart)
+
+	logger.Info("deploy app", "appchart", helmChart, "version", helmVersion)
+
+	return helmChart, helmVersion, nil
+}
+
+func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters ChartParameters) (string, error) {
+	logger.Info("deploy app, get values.yaml")
+
+	// ATTENTION: The configurations slice may contain multiple mount points for the same
+	// configuration, for backward compatibility. We dedup this so that there is only one volume
+	// per configuration.
+
+	configurationNames := []string{}
+	have := map[string]bool{}
+	for _, c := range parameters.Configurations {
+		if _, found := have[c.Name]; found {
+			continue
+		}
+		configurationNames = append(configurationNames, c.Name)
+		have[c.Name] = true
+	}
+
+	params := ChartParam{
+		Epinio: EpinioParam{
+			AppName:        parameters.Name,
+			Env:            parameters.Environment.List(),
+			ImageUrl:       parameters.ImageURL,
+			ReplicaCount:   parameters.Instances,
+			Configurations: configurationNames,
+			ConfigPaths:    parameters.Configurations,
+			StageID:        parameters.StageID,
+			TlsIssuer:      viper.GetString("tls-issuer"),
+			Username:       parameters.Username,
+			// Ingress, Start, Routes: see below
+		},
+		// Chart, User: see below
+	}
+
+	name := viper.GetString("ingress-class-name")
+	if name != "" {
+		params.Epinio.Ingress = name
+		logger.Info("deploy app", "ingress-class", name)
+	}
+	if parameters.Start != nil {
+		params.Epinio.Start = fmt.Sprintf(`%d`, *parameters.Start)
+		logger.Info("deploy app", "start", params.Epinio.Start)
+	}
+	if len(parameters.Routes) > 0 {
+		logger.Info("deploy app, routes and domains")
+
+		for _, desired := range parameters.Routes {
+			r := routes.FromString(desired)
+			rdot := strings.ReplaceAll(r.String(), "/", ".")
+
+			rp := RouteParam{
+				Id:     rdot,
+				Domain: r.Domain,
+				Path:   r.Path,
+			}
+
+			domainSecret, err := domain.MatchDo(r.Domain, parameters.Domains)
+
+			logger.Info("deploy app, domain match", "domain", r.Domain,
+				"secret", domainSecret, "err", err)
+
+			// Should we treat a match error as something to stop for?
+			// The error can only come from `filepath.Match()`
+			if err == nil && domainSecret != "" {
+				// Pass the found secret
+				rp.Secret = domainSecret
+			}
+			params.Epinio.Routes = append(params.Epinio.Routes, rp)
+		}
+	}
+
+	// Add the settings, if any. This also performs last-minute validation.  See also
+	// internal/application ValidateCV. Both use the core helper `ValidateField`
+	// implemented here (Avoid import cycle).
+	//
+	// While nothing should trigger here we cannot be sure. Because it is currently
+	// technically possible to change the app settings in the time window between a
+	// client triggering validation and actually deploying the app image. This window
+	// can actually be quite large, due to the time taken by staging and image
+	// download.
+	//
+	// It doesn't even have to be malicious. Just a user B doing a normal update while
+	// user A deployed, and landing in the window.
+
+	if len(parameters.Settings) > 0 {
+		logger.Info("deploy app, settings")
+
+		params.User = make(map[string]interface{})
+
+		for field, value := range parameters.Settings {
+			spec, found := appChart.Settings[field]
+			if !found {
+				return "", fmt.Errorf("Unable to deploy. Setting '%s' unknown", field)
+			}
+
+			// Note: Here the interface{} result of the properly typed value is
+			// important. It ensures that the map values are properly typed for yaml
+			// serialization.
+
+			v, err := ValidateField(field, value, spec)
+			if err != nil {
+				return "", fmt.Errorf(`Unable to deploy. %s`, err.Error())
+			}
+			params.User[field] = v
+
+			logger.Info("deploy app, settings", "field", field, "value", v)
+		}
+	}
+
+	params.Chart = appChart.Values
+
+	// At last generate the properly quoted values.yaml string
+
+	logger.Info("deploy app", "helm values.raw", params)
+
+	yamlParameters, err := yaml.Marshal(params)
+	if err != nil {
+		return "", errors.Wrap(err, "marshalling the parameters")
+	}
+
+	yamlString := string(yamlParameters)
+
+	logger.Info("deploy app", "helm values.yaml", yamlString)
+	logger.Info("deploy app, return values.yaml")
+	return yamlString, nil
 }

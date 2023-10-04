@@ -15,7 +15,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/registry"
+	"github.com/epinio/epinio/internal/urlcache"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -145,7 +145,7 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 	//           and mount declarations.
 
 	logger.Info("OCI export fetch chart archive", "path", chartLocalFile)
-	apierr := fetchAppChartFile(c, ctx, logger, cluster, theApp, chartLocalFile)
+	apierr := fetchAppChartFile(ctx, logger, cluster, theApp, chartLocalFile)
 	if apierr != nil {
 		return apierr
 	}
@@ -394,7 +394,7 @@ func cleanupLocalPath(logger logr.Logger, label, path string) {
 }
 
 // ATTENTION TODO Compare `fetchAppChart` (see `part.go`), DRY them.
-func fetchAppChartFile(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
+func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
 	theApp *models.App, destinationPath string) apierror.APIErrors {
 	// Get the application's app chart
 	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
@@ -410,7 +410,24 @@ func fetchAppChartFile(c *gin.Context, ctx context.Context, logger logr.Logger, 
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "chart archive", chartArchive)
+	logger.Info("input", "chart-url", chartArchive)
+
+	chartArchive, err = urlcache.Get(ctx, logger, chartArchive)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	logger.Info("input", "chart-file", chartArchive)
+
+	// Here the archive is surely a local file
+
+	file, err := os.Open(chartArchive)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	defer file.Close()
+
+	logger.Info("input is file")
 
 	dstFile, err := os.Create(imageExportVolume + destinationPath)
 	if err != nil {
@@ -418,46 +435,10 @@ func fetchAppChartFile(c *gin.Context, ctx context.Context, logger logr.Logger, 
 	}
 	defer dstFile.Close()
 
-	// Try to read the archive as local path first, before falling back to retrieval via http.
+	// copy file ...
+	logger.Info("input, copy to", "destination", dstFile.Name())
 
-	file, err := os.Open(chartArchive)
-	if err == nil {
-		defer file.Close()
-		logger.Info("input", "chart archive", "is file")
-
-		_, err := file.Stat()
-		if err == nil {
-			logger.Info("input", "chart archive", "has stat")
-
-			// copy file ...
-			logger.Info("input", "chart archive", "copying file")
-
-			_, err := io.Copy(dstFile, file)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-
-			return nil
-		}
-	}
-
-	logger.Info("input", "chart archive", "retrieving by http")
-
-	response, err := http.Get(chartArchive) // nolint:gosec // app chart repo ref
-	if err != nil || response.StatusCode != http.StatusOK {
-		logger.Info("fail, http issue", "status", response.StatusCode)
-
-		c.Status(http.StatusServiceUnavailable)
-		if err == nil {
-			return apierror.InternalError(fmt.Errorf("bad status %v retrieving %s", response.StatusCode, chartArchive))
-		}
-		return apierror.InternalError(err)
-	}
-
-	// write to destination file ...
-	reader := response.Body
-
-	_, err = io.Copy(dstFile, reader)
+	_, err = io.Copy(dstFile, file)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

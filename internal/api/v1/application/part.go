@@ -31,6 +31,7 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/registry"
+	"github.com/epinio/epinio/internal/urlcache"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -124,46 +125,42 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 
 	logger.Info("input", "chart archive", chartArchive)
 
-	// Try to read the archive as local path first, before falling back to retrieval via http.
+	// Ensure presence of the chart archive as a local file.
+
+	chartArchive, err = urlcache.Get(ctx, logger, chartArchive)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	logger.Info("input", "local chart archive", chartArchive)
+
+	// Here the archive is surely a local file
 
 	file, err := os.Open(chartArchive)
-	if err == nil {
-		logger.Info("input", "chart archive", "is file")
-
-		fileInfo, err := file.Stat()
-		if err == nil {
-			logger.Info("input", "chart archive", "has stat")
-
-			contentLength := fileInfo.Size()
-			contentType := "application/x-gzip"
-
-			logger.Info("input", "chart archive", "returning file")
-
-			c.DataFromReader(http.StatusOK, contentLength, contentType, bufio.NewReader(file), nil)
-			return nil
-		}
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "chart archive", "retrieving by http")
+	logger.Info("input is file")
 
-	response, err := http.Get(chartArchive) // nolint:gosec // app chart repo ref
-	if err != nil || response.StatusCode != http.StatusOK {
-		logger.Info("fail, http issue")
-
-		c.Status(http.StatusServiceUnavailable)
-		return nil
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
-	reader := response.Body
-	contentLength := response.ContentLength
-	contentType := response.Header.Get("Content-Type")
+	logger.Info("input has stat")
+
+	contentLength := fileInfo.Size()
+	contentType := "application/x-gzip"
+
+	logger.Info("input, returning file")
 
 	logger.Info("OK",
 		"origin", c.Request.URL.String(),
 		"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
 	)
 
-	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, nil)
+	c.DataFromReader(http.StatusOK, contentLength, contentType, bufio.NewReader(file), nil)
 	return nil
 }
 
@@ -389,20 +386,20 @@ func fetchAppManifest(c *gin.Context, app *models.App) apierror.APIErrors {
 
 // chartArchiveURL returns a url for the helm chart's tarball.
 //
-// The chart is specified as simple name, and resolved to actual archive through a helm repo. This
-// code is a __HACK__. At various levels.
+// The chart is specified as simple name, and resolved to the actual archive through a helm repo.
+// This code is a __HACK__. At various levels.
 //
-// We create and initialize a mittwald client, this gives us the basic dir structure needed.
+// We create and initialize a mittwald client, this gives us the basic directory structure needed.
 //
-// We add the repository needed. This gives us the chart and index files for it in the above
-// directory hierarchy.
+// We add the repository needed.
+// This gives us the chart and index files for it in the above directory hierarchy.
 //
 // We do __NOT__ use a low-level helm puller action. Even setting it up with configuration and
 // settings of the above client it will look in the wrong place for the repo index. I.e. looks to
 // completely ignore the RepositoryCache setting.
 //
-// So, to continue the hack, we access the repo index.yaml directly, i.e. read in, unmarshal into
-// minimally required structure and then locate the chart and its urls.
+// So, to continue the hack, we access the repostory's index.yaml directly, i.e. read in, unmarshal
+// into the minimally required structure and then locate the chart and its urls.
 //
 // The advantage of this hack: We get a fetchable url we can feed into the part invoked when the
 // chart was specified as direct url. No going through a temp file.
