@@ -427,8 +427,8 @@ func CleanupNamespaces() error {
 func CleanupAWS_RKE2() error {
 	kubeconfig := os.Getenv("KUBECONFIG")
 
-	fmt.Println("Cleaning up nginx-ingress and namespaces ...")
-	out, err := proc.RunW("helm", "--kubeconfig", kubeconfig, "delete", "nginx-ingress", "-n", "ingress-nginx", "--wait")
+	fmt.Println("Cleaning up ingress-nginx and namespaces ...")
+	out, err := proc.RunW("helm", "--kubeconfig", kubeconfig, "delete", "ingress-nginx", "-n", "ingress-nginx", "--wait")
 	if err != nil {
 		return errors.Wrap(err, "helm cli command failed: "+out)
 	}
