@@ -306,7 +306,7 @@ type InfoResponse struct {
 	KubeVersion         string `json:"kube_version,omitempty"`
 	Platform            string `json:"platform,omitempty"`
 	DefaultBuilderImage string `json:"default_builder_image,omitempty"`
-	OIDCEnabled         bool   `json:"dex_available,omitempty"`
+	OIDCEnabled         bool   `json:"oidc_enabled,omitempty"`
 }
 
 // AuthTokenResponse contains an auth token

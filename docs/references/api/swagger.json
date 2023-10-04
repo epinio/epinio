@@ -2941,13 +2941,13 @@
           "type": "string",
           "x-go-name": "DefaultBuilderImage"
         },
-        "dex_available": {
-          "type": "boolean",
-          "x-go-name": "OIDCEnabled"
-        },
         "kube_version": {
           "type": "string",
           "x-go-name": "KubeVersion"
+        },
+        "oidc_enabled": {
+          "type": "boolean",
+          "x-go-name": "OIDCEnabled"
         },
         "platform": {
           "type": "string",
