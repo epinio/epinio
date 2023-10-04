@@ -100,7 +100,10 @@ func Create(c *gin.Context) apierror.APIErrors {
 		for _, d := range createRequest.Configuration.Routes {
 			// Strip scheme prefixes, if present
 			routeURL, err := url.Parse(d)
-			if err == nil && routeURL.Scheme != "" {
+			if err != nil {
+				return apierror.NewBadRequestError(err.Error()).WithDetails("failed to parse route")
+			}
+			if routeURL.Scheme != "" {
 				d = strings.TrimPrefix(d, routeURL.Scheme+"://")
 			}
 			routes = append(routes, d)

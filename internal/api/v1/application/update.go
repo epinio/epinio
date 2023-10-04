@@ -291,7 +291,10 @@ func updateRoutes(
 	for _, d := range updateRoutes {
 		// Strip scheme prefixes, if present
 		routeURL, err := url.Parse(d)
-		if err == nil && routeURL.Scheme != "" {
+		if err != nil {
+			return apierror.NewBadRequestError(err.Error()).WithDetails("failed to parse route")
+		}
+		if routeURL.Scheme != "" {
 			d = strings.TrimPrefix(d, routeURL.Scheme+"://")
 		}
 		// Note %q quotes the url as required by the json patch constructed below.
