@@ -2945,6 +2945,10 @@
           "type": "string",
           "x-go-name": "KubeVersion"
         },
+        "oidc_enabled": {
+          "type": "boolean",
+          "x-go-name": "OIDCEnabled"
+        },
         "platform": {
           "type": "string",
           "x-go-name": "Platform"

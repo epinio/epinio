@@ -25,5 +25,6 @@ var _ = Describe("Info", LMisc, func() {
 		Expect(out).To(ContainSubstring(`Kubernetes Version: `))
 		Expect(out).To(ContainSubstring(`Epinio Server Version: `))
 		Expect(out).To(ContainSubstring(`Epinio Client Version: `))
+		Expect(out).To(ContainSubstring(`OIDC enabled: `))
 	})
 })

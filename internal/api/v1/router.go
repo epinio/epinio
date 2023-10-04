@@ -46,6 +46,12 @@ const (
 // The "Status" of the first error in the list becomes the response Status Code.
 type APIActionFunc func(c *gin.Context) errors.APIErrors
 
+// ErrorHandler exposes the internal errorhandler for use by the server without having to edit the
+// router definitions.
+func ErrorHandler(action APIActionFunc) gin.HandlerFunc {
+	return errorHandler(action)
+}
+
 func funcName(i interface{}) string {
 	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
 }
@@ -87,7 +93,6 @@ func put(path string, h gin.HandlerFunc) routes.Route {
 var AdminRoutes map[string]struct{} = map[string]struct{}{}
 
 var Routes = routes.NamedRoutes{
-	"Info":      get("/info", errorHandler(Info)),
 	"AuthToken": get("/authtoken", errorHandler(AuthToken)),
 
 	// app controller files see application/*.go

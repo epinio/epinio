@@ -89,29 +89,32 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	ginLogger := ginlogr.Ginlogr(logger, time.RFC3339, true)
 	ginRecoveryLogger := ginlogr.RecoveryWithLogr(logger, time.RFC3339, true, true)
 
-	// Register routes
-	// No authentication, no logging, no session. This is the healthcheck.
+	// Register routes - No authentication, no logging, no session.
+	// This is the healthcheck.
 	router.GET("/ready", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
-
+	// And the API self-description
 	router.GET("/api/swagger.json", swaggerHandler)
 
-	// add common middlewares to all the routes
+	// Add common middlewares to all the routes declared after
 	router.Use(
 		ginLogger,
 		ginRecoveryLogger,
 		initContextMiddleware(logger),
 	)
 
+	// No authentication, no session. This is epinio's version and auth information.
+	router.GET("/api/v1/info",
+		versionMiddleware,
+		apiv1.ErrorHandler(apiv1.Info),
+	)
+
 	// Dex or no dex ?
-
-	dexPEMPath := "/etc/ssl/certs/dex-tls.pem"
-
-	if _, err := os.Stat(dexPEMPath); err == nil {
+	if _, err := os.Stat(apiv1.DexPEMPath); err == nil {
 		// dex secret is present, load contained cert
 
-		err := auth.ExtendLocalTrustFromFile(dexPEMPath)
+		err := auth.ExtendLocalTrustFromFile(apiv1.DexPEMPath)
 		if err != nil {
 			return nil, errors.Wrap(err, "extending local trust with dex")
 		}

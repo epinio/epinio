@@ -60,13 +60,14 @@ var _ = Describe("Command 'epinio info'", func() {
 			stdout, _, _ := executeCmd(infoCmd, []string{}, output, nil)
 
 			lines := strings.Split(stdout, "\n")
-			Expect(lines).To(HaveLen(6), stdout)
+			Expect(lines).To(HaveLen(7), stdout)
 
 			Expect(lines[0]).To(Equal("✔️  Epinio Environment"))
 			Expect(lines[1]).To(Equal("Platform: k8s-platform"))
 			Expect(lines[2]).To(Equal("Kubernetes Version: v1.22.33"))
 			Expect(lines[3]).To(Equal("Epinio Server Version: v1.2.3"))
 			Expect(lines[4]).To(Equal("Epinio Client Version: v0.0.0-dev"))
+			Expect(lines[5]).To(Equal("OIDC enabled: false"))
 		})
 	})
 
