@@ -171,7 +171,7 @@ jobs:
         run: |
           # EPINIO_UPGRADED triggers starting with a released epinio in suite setup, and the upgrade sequence
           echo "System Domain: $GKE_DOMAIN"
-          export EPINIO_CURRENT_TAG="$(git describe --tags)"
+          export EPINIO_CURRENT_TAG="test-$(git describe --tags)"
           # Run GKE integrated install + upgrade test
           mkdir dist
           scripts/get-latest-epinio.sh

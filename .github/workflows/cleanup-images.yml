@@ -29,7 +29,7 @@ jobs:
           account-type: org
           org-name: epinio
           keep-at-least: 1
-          filter-tags: v*-[0-9]*-g*
+          filter-tags: "v*-[0-9]*-g*", "test-*"
           filter-include-untagged: true
           token: ${{ secrets.IMG_CLEANUP_TOKEN }}
       - name: Delete untagged containers older than a week
