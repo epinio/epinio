@@ -422,6 +422,20 @@ var _ = Describe("Apps", LApplication, func() {
 				))
 			})
 
+			It("ignores scheme prefixes in routes", func() {
+				route := "mycustomdomain.org/api"
+
+				out, err := env.Epinio("", "app", "update", appName,
+					"-r", "https://"+route)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "show", appName)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "1m").Should(HaveATable(WithRow(".*", route)))
+			})
+
 			Context("app charts", func() {
 				var chartName string
 				var tempFile string
@@ -686,7 +700,39 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal(route))
 		})
+
+		It("ignores scheme prefixes in the custom route", func() {
+			route := "mycustomdomain.org/api"
+			pushOutput, err := env.Epinio("", "apps", "push",
+				"--name", appName,
+				"--container-image-url", containerImageURL,
+				"--route", "http://"+route,
+			)
+			Expect(err).ToNot(HaveOccurred(), pushOutput)
+
+			routeObj := routes.FromString(route)
+			out, err := proc.Kubectl("get", "ingress",
+				"--namespace", namespace,
+				"--selector=app.kubernetes.io/name="+appName,
+				"-o", "jsonpath={.items[*].spec.rules[0].host}")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal(routeObj.Domain))
+
+			out, err = proc.Kubectl("get", "ingress",
+				"--namespace", namespace,
+				"--selector=app.kubernetes.io/name="+appName,
+				"-o", "jsonpath={.items[*].spec.rules[0].http.paths[0].path}")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal(routeObj.Path))
+
+			out, err = proc.Kubectl("get", "app",
+				"--namespace", namespace, appName,
+				"-o", "jsonpath={.spec.routes[0]}")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal(route))
+		})
 	})
+
 	When("pushing with custom builder flag", func() {
 		AfterEach(func() {
 			env.DeleteApp(appName)
