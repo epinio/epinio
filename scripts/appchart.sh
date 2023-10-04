@@ -40,7 +40,9 @@ echo "Nginx internal ip: $NGINX_IP (epinio-acceptance network)"
 
 echo "Patching appchart"
 
+now=$(date +%s)
+
 kubectl patch appchart -n epinio standard --type json \
-    --patch '[{"op": "replace", "path": "/spec/helmChart", "value": "http://'$NGINX_IP'/'$TARBALL'"}]'
+    --patch '[{"op": "replace", "path": "/spec/helmChart", "value": "http://'$NGINX_IP'/'$TARBALL'?t='$now'"}]'
 
 echo "To stop the Nginx container just run 'docker stop nginx'"
