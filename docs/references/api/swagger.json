@@ -2943,7 +2943,7 @@
         },
         "dex_available": {
           "type": "boolean",
-          "x-go-name": "DEXAvailable"
+          "x-go-name": "OIDCEnabled"
         },
         "kube_version": {
           "type": "string",
