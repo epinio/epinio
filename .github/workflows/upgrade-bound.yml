@@ -89,7 +89,7 @@ jobs:
         env:
           REGEX: Upgrade2
         run: |
-          export EPINIO_CURRENT_TAG="$(git describe --tags)"
+          export EPINIO_CURRENT_TAG="test-$(git describe --tags)"
           # We have to export the EPINIO_SYSTEM_DOMAIN
           # before executing the ginkgo test
           source scripts/helpers.sh
