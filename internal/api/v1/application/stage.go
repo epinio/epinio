@@ -572,6 +572,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 						// Allow communication with the Registry even before the proxy is ready
 						"config.linkerd.io/skip-outbound-ports": "443",
 						models.EpinioCreatedByAnnotation:        app.Username,
+						"kubernetes.io/ingress-bandwidth": "100k",
+						"kubernetes.io/egress-bandwidth": "100k",
 					},
 				},
 				Spec: corev1.PodSpec{
