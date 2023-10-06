@@ -13,10 +13,27 @@ package middleware
 
 import (
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
+	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 )
 
 func EpinioVersion(ctx *gin.Context) {
 	ctx.Header(v1.VersionHeader, version.Version)
+}
+
+// InitContext initialize the Request Context injecting the logger and the requestID
+func InitContext(logger logr.Logger) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		reqCtx := ctx.Request.Context()
+
+		requestID := uuid.NewString()
+		baseLogger := logger.WithValues("requestId", requestID)
+
+		reqCtx = requestctx.WithID(reqCtx, requestID)
+		reqCtx = requestctx.WithLogger(reqCtx, baseLogger)
+		ctx.Request = ctx.Request.WithContext(reqCtx)
+	}
 }
