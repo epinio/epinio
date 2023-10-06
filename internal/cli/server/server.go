@@ -31,7 +31,6 @@ import (
 	"github.com/epinio/epinio/internal/dex"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helmchart"
-	"github.com/epinio/epinio/internal/version"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
@@ -107,7 +106,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	// No authentication, no session. This is epinio's version and auth information.
 	router.GET("/api/v1/info",
-		versionMiddleware,
+		middleware.EpinioVersion,
 		apiv1.ErrorHandler(apiv1.Info),
 	)
 
@@ -130,7 +129,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	{
 		apiRoutesGroup := router.Group(apiv1.Root,
 			authMiddleware,
-			versionMiddleware,
+			middleware.EpinioVersion,
 			middleware.NamespaceExists,
 			middleware.NamespaceAuthorization,
 			middleware.GitconfigAuthorization,
@@ -142,7 +141,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	{
 		wapiRoutesGroup := router.Group(apiv1.WsRoot,
 			tokenAuthMiddleware,
-			versionMiddleware,
+			middleware.EpinioVersion,
 			middleware.NamespaceExists,
 			middleware.NamespaceAuthorization,
 			// gitconfig has no websocket routes
@@ -230,10 +229,6 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 	}
 
 	return oidcProvider, nil
-}
-
-func versionMiddleware(ctx *gin.Context) {
-	ctx.Header(apiv1.VersionHeader, version.Version)
 }
 
 // authMiddleware authenticates the user either using the basic auth or the bearer token (OIDC)
