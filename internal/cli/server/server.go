@@ -24,6 +24,7 @@ import (
 	"github.com/epinio/epinio/helpers/authtoken"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/api/v1/middleware"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -130,9 +131,9 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		apiRoutesGroup := router.Group(apiv1.Root,
 			authMiddleware,
 			versionMiddleware,
-			apiv1.NamespaceMiddleware,
-			apiv1.NamespaceAuthorizationMiddleware,
-			apiv1.GitconfigAuthorizationMiddleware,
+			middleware.NamespaceExists,
+			middleware.NamespaceAuthorization,
+			middleware.GitconfigAuthorization,
 		)
 		apiv1.Lemon(apiRoutesGroup)
 	}
@@ -142,8 +143,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		wapiRoutesGroup := router.Group(apiv1.WsRoot,
 			tokenAuthMiddleware,
 			versionMiddleware,
-			apiv1.NamespaceMiddleware,
-			apiv1.NamespaceAuthorizationMiddleware,
+			middleware.NamespaceExists,
+			middleware.NamespaceAuthorization,
 			// gitconfig has no websocket routes
 		)
 		apiv1.Spice(wapiRoutesGroup)
