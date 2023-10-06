@@ -9,7 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1
+package middleware
 
 import (
 	"fmt"
@@ -22,9 +22,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// NamespaceMiddleware is a gin middleware used to check if a namespaced route is valid.
+// NamespaceExists is a gin middleware used to check if a namespaced route is valid.
 // It checks the validity of the requested namespace, returning a 404 if it doesn't exists
-func NamespaceMiddleware(c *gin.Context) {
+func NamespaceExists(c *gin.Context) {
 	logger := requestctx.Logger(c.Request.Context()).WithName("NamespaceMiddleware")
 	ctx := c.Request.Context()
 

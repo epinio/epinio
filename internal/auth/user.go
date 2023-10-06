@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -32,42 +31,6 @@ type User struct {
 	Gitconfigs []string // list of gitconfigs this user has created (and thus access to)
 
 	secretName string
-}
-
-// NewUserFromSecret create an Epinio User from a Secret
-func NewUserFromSecret(secret corev1.Secret) User {
-	user := User{
-		Username:   string(secret.Data["username"]),
-		Password:   string(secret.Data["password"]),
-		CreatedAt:  secret.ObjectMeta.CreationTimestamp.Time,
-		Role:       secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey],
-		Namespaces: []string{},
-		Gitconfigs: []string{},
-
-		secretName: secret.GetName(),
-	}
-
-	if ns, found := secret.Data["namespaces"]; found {
-		namespaces := strings.TrimSpace(string(ns))
-		for _, namespace := range strings.Split(namespaces, "\n") {
-			namespace = strings.TrimSpace(namespace)
-			if namespace != "" {
-				user.Namespaces = append(user.Namespaces, namespace)
-			}
-		}
-	}
-
-	if gcs, found := secret.Data["gitconfigs"]; found {
-		gitconfigs := strings.TrimSpace(string(gcs))
-		for _, gitconfig := range strings.Split(gitconfigs, "\n") {
-			gitconfig = strings.TrimSpace(gitconfig)
-			if gitconfig != "" {
-				user.Gitconfigs = append(user.Gitconfigs, gitconfig)
-			}
-		}
-	}
-
-	return user
 }
 
 // AddNamespace adds the namespace to the User's namespaces, if it not already exists
@@ -134,4 +97,42 @@ func (u *User) RemoveGitconfig(gitconfig string) bool {
 
 	u.Gitconfigs = updatedGitconfigs
 	return removed
+}
+
+// newUserFromSecret create an Epinio User from a Secret
+// this is an internal function that should not be used from the outside.
+// It could contain internals details on how create a user from a secret.
+func newUserFromSecret(secret corev1.Secret) User {
+	user := User{
+		Username:   string(secret.Data["username"]),
+		Password:   string(secret.Data["password"]),
+		CreatedAt:  secret.ObjectMeta.CreationTimestamp.Time,
+		Role:       secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey],
+		Namespaces: []string{},
+		Gitconfigs: []string{},
+
+		secretName: secret.GetName(),
+	}
+
+	if ns, found := secret.Data["namespaces"]; found {
+		namespaces := strings.TrimSpace(string(ns))
+		for _, namespace := range strings.Split(namespaces, "\n") {
+			namespace = strings.TrimSpace(namespace)
+			if namespace != "" {
+				user.Namespaces = append(user.Namespaces, namespace)
+			}
+		}
+	}
+
+	if gcs, found := secret.Data["gitconfigs"]; found {
+		gitconfigs := strings.TrimSpace(string(gcs))
+		for _, gitconfig := range strings.Split(gitconfigs, "\n") {
+			gitconfig = strings.TrimSpace(gitconfig)
+			if gitconfig != "" {
+				user.Gitconfigs = append(user.Gitconfigs, gitconfig)
+			}
+		}
+	}
+
+	return user
 }

@@ -61,7 +61,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 
 	users := []User{}
 	for _, secret := range secrets {
-		users = append(users, NewUserFromSecret(secret))
+		users = append(users, newUserFromSecret(secret))
 	}
 
 	return users, nil
@@ -110,7 +110,7 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 		return User{}, err
 	}
 
-	return NewUserFromSecret(*createdUserSecret), nil
+	return newUserFromSecret(*createdUserSecret), nil
 }
 
 // AddNamespaceToUser will add the specified namespace to the User

@@ -9,7 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1_test
+package middleware_test
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/api/v1/middleware"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
@@ -56,7 +57,7 @@ var _ = Describe("Authorization Middleware", func() {
 
 		When("url is not restricted", func() {
 			It("returns status code 200", func() {
-				v1.NamespaceAuthorizationMiddleware(c)
+				middleware.NamespaceAuthorization(c)
 				Expect(w.Code).To(Equal(http.StatusOK))
 			})
 		})
@@ -70,7 +71,7 @@ var _ = Describe("Authorization Middleware", func() {
 			})
 
 			It("returns status code 403", func() {
-				v1.NamespaceAuthorizationMiddleware(c)
+				middleware.NamespaceAuthorization(c)
 				Expect(w.Code).To(Equal(http.StatusForbidden))
 			})
 		})
@@ -79,14 +80,14 @@ var _ = Describe("Authorization Middleware", func() {
 			It("returns status code 403 for another namespace", func() {
 				c.Params = []gin.Param{{Key: "namespace", Value: "another-workspace"}}
 
-				v1.NamespaceAuthorizationMiddleware(c)
+				middleware.NamespaceAuthorization(c)
 				Expect(w.Code).To(Equal(http.StatusForbidden))
 			})
 
 			It("returns status code 200 for its namespace", func() {
 				c.Params = []gin.Param{{Key: "namespace", Value: "workspace"}}
 
-				v1.NamespaceAuthorizationMiddleware(c)
+				middleware.NamespaceAuthorization(c)
 				Expect(w.Code).To(Equal(http.StatusOK))
 			})
 		})

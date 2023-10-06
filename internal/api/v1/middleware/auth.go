@@ -9,13 +9,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1
+package middleware
 
 import (
 	"fmt"
 	"net/http"
 	"strings"
 
+	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -23,12 +24,12 @@ import (
 	"github.com/go-logr/logr"
 )
 
-func NamespaceAuthorizationMiddleware(c *gin.Context) {
+func NamespaceAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
 	authorization(c, "namespace", user.Namespaces)
 }
 
-func GitconfigAuthorizationMiddleware(c *gin.Context) {
+func GitconfigAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
 	authorization(c, "gitconfig", user.Gitconfigs)
 }
@@ -104,7 +105,7 @@ func restrictedPath(logger logr.Logger, path string) bool {
 	logger = logger.V(1).WithName("unrestrictedPath")
 
 	// check if the requested path is restricted
-	if _, found := AdminRoutes[path]; found {
+	if _, found := v1.AdminRoutes[path]; found {
 		logger.Info(fmt.Sprintf("path [%s] is an admin route, user unauthorized", path))
 		return true
 	}
