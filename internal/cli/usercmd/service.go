@@ -151,6 +151,10 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 		return errors.Wrap(err, "service show failed")
 	}
 
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(service)
+	}
+
 	if service == nil {
 		return errors.New("Service not found")
 	}
@@ -365,6 +369,11 @@ func (c *EpinioClient) ServiceList() error {
 		return errors.Wrap(err, "service list failed")
 	}
 
+	if c.ui.JSONEnabled() {
+		sort.Sort(services)
+		return c.ui.JSON(services)
+	}
+
 	if len(services) == 0 {
 		c.ui.Normal().Msg("No services found")
 		return nil
@@ -399,6 +408,11 @@ func (c *EpinioClient) ServiceListAll() error {
 	services, err := c.API.AllServices()
 	if err != nil {
 		return errors.Wrap(err, "service list failed")
+	}
+
+	if c.ui.JSONEnabled() {
+		sort.Sort(services)
+		return c.ui.JSON(services)
 	}
 
 	if len(services) == 0 {
