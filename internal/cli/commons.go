@@ -14,7 +14,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -79,67 +78,6 @@ func matchingChartFinder(cmd *cobra.Command, args []string, toComplete string) (
 
 	// #args == 0: chart name.
 	matches := client.ChartMatching(toComplete)
-	return matches, cobra.ShellCompDirectiveNoFileComp
-}
-
-// matchingServiceChartValueFinder returns a list of chart values from the chosen service class
-// whose names match the provided partial name
-func matchingServiceChartValueFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	matches := []string{}
-
-	// We cannot complete beyond the name of the chart value.
-	if strings.Contains(toComplete, "=") {
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	// We cannot complete without a service class providing the available chart values
-	if len(args) == 0 {
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	client.API.DisableVersionWarning()
-
-	// We cannot complete if the specified service class is bogus. That is the same as having no
-	// class at all, see above.
-	catalogService, err := client.API.ServiceCatalogShow(args[0])
-	if err != nil {
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	// With the class retrieved we now can iterate over the settings the class makes available
-	// and match to the given partial.
-	for name := range catalogService.Settings {
-		if strings.HasPrefix(name, toComplete) {
-			matches = append(matches, name+"=")
-		}
-	}
-
-	return matches, cobra.ShellCompDirectiveNoFileComp
-}
-
-// matchingServiceFinder returns a list of matching services from the provided partial command. It
-// only matches for the first command argument.
-func matchingServiceFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) != 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	client.API.DisableVersionWarning()
-
-	matches := client.ServiceMatching(toComplete)
-	return matches, cobra.ShellCompDirectiveNoFileComp
-}
-
-// matchingCatalogFinder returns a list of matching catalogs from the provided partial command. It
-// only matches for the first command argument.
-func matchingCatalogFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) != 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	client.API.DisableVersionWarning()
-
-	matches := client.CatalogMatching(toComplete)
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 

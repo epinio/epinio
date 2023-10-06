@@ -13,6 +13,7 @@ package acceptance_test
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -272,16 +273,19 @@ var _ = Describe("Services", LService, func() {
 	})
 
 	Describe("List", func() {
+		var service string
 
-		It("list a service", func() {
-			service := catalog.NewServiceName()
+		BeforeEach(func() {
+			service = catalog.NewServiceName()
 
 			By("create it")
 			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 			Expect(err).ToNot(HaveOccurred(), out)
+		})
 
+		It("lists a service", func() {
 			By("show it")
-			out, err = env.Epinio("", "service", "list")
+			out, err := env.Epinio("", "service", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(ContainSubstring("Listing Services"))
@@ -307,6 +311,17 @@ var _ = Describe("Services", LService, func() {
 
 			By(fmt.Sprintf("%s/%s up", namespace, service))
 		})
+
+		It("lists services in JSON format", func() {
+			out, err := env.Epinio("", "service", "list", "--output", "json")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			services := models.ServiceList{}
+			err = json.Unmarshal([]byte(out), &services)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(services).ToNot(BeEmpty())
+		})
+
 	})
 
 	Describe("ListAll", func() {

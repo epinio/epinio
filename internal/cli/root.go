@@ -149,7 +149,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		cmd.NewConfigurationCmd(client, cfg),
 		CmdServer,
 		cmdVersion,
-		CmdServices,
+		cmd.NewServicesCmd(client, cfg),
 		cmd.NewLoginCmd(client),
 		cmd.NewLogoutCmd(client),
 		CmdExportRegistries, // See exportregistry.go for implementation
