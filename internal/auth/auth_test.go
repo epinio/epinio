@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/auth/authfakes"
 	"github.com/go-logr/logr"
@@ -32,9 +33,24 @@ import (
 var r *rand.Rand
 
 var _ = Describe("Auth users", func() {
+
 	var authService *auth.AuthService
 	var fakeSecret *authfakes.FakeSecretInterface
 	var fakeConfigMap *authfakes.FakeConfigMapInterface
+
+	var userRole = auth.Role{
+		ID: "user",
+		Actions: []auth.Action{
+			auth.ActionsMap["namespace"],
+		},
+	}
+
+	var anotherRole = auth.Role{
+		ID: "another",
+		Actions: []auth.Action{
+			auth.ActionsMap["app"],
+		},
+	}
 
 	BeforeEach(func() {
 		r = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -47,6 +63,11 @@ var _ = Describe("Auth users", func() {
 			SecretInterface:    fakeSecret,
 			ConfigMapInterface: fakeConfigMap,
 		}
+
+		err := v1.InitAuth()
+		Expect(err).ToNot(HaveOccurred())
+
+		auth.EpinioRoles = append(auth.EpinioRoles, userRole, anotherRole)
 	})
 
 	Describe("GetUsers", func() {
@@ -64,6 +85,7 @@ var _ = Describe("Auth users", func() {
 		When("kubernetes returns an empty list of secrets", func() {
 			It("returns an empty slice", func() {
 				fakeSecret.ListReturns(&corev1.SecretList{Items: []corev1.Secret{}}, nil)
+				fakeConfigMap.ListReturns(&corev1.ConfigMapList{Items: []corev1.ConfigMap{}}, nil)
 
 				users, err := authService.GetUsers(context.Background())
 				Expect(err).ToNot(HaveOccurred())
@@ -78,6 +100,7 @@ var _ = Describe("Auth users", func() {
 					newUserSecret("epinio", "mypass", "user", "workspace\nworkspace2"),
 				}
 				fakeSecret.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
+				fakeConfigMap.ListReturns(&corev1.ConfigMapList{Items: []corev1.ConfigMap{}}, nil)
 
 				users, err := authService.GetUsers(context.Background())
 				Expect(err).ToNot(HaveOccurred())
@@ -110,6 +133,8 @@ var _ = Describe("Auth users", func() {
 				updatedUser3 := newUserSecret("user3", "password", "user", "")
 				fakeSecret.UpdateReturnsOnCall(1, &updatedUser3, nil)
 
+				fakeConfigMap.ListReturns(&corev1.ConfigMapList{Items: []corev1.ConfigMap{}}, nil)
+
 				// do test
 				err := authService.RemoveNamespaceFromUsers(context.Background(), "workspace")
 				Expect(err).ToNot(HaveOccurred())
@@ -130,19 +155,23 @@ var _ = Describe("Auth users", func() {
 		When("updating user with different role and namespaces", func() {
 			It("will be updated", func() {
 				oldUser := newUserSecret("user2", "password", "user", "workspace\nworkspace2")
+				updatedUserSecret := newUserSecret("user2", "password", "another::workspace", "")
 
 				// setup mock
 				fakeSecret.GetReturns(&oldUser, nil)
-				fakeSecret.UpdateReturns(nil, nil)
+				fakeSecret.UpdateReturns(&updatedUserSecret, nil)
 
 				// do test
 				result, err := authService.UpdateUser(context.Background(), auth.User{
-					Role:       "another-role",
+					Roles:      []auth.Role{anotherRole},
 					Namespaces: []string{},
 				})
 
 				Expect(err).ToNot(HaveOccurred())
-				Expect(result.Role).To(Equal("another-role"))
+				role, found := result.Roles.FindByID("another")
+				Expect(role.ID).To(Equal("another"))
+				Expect(role.Namespace).To(Equal("workspace"))
+				Expect(found).To(BeTrue())
 				Expect(result.Namespaces).To(HaveLen(0))
 			})
 		})
@@ -152,11 +181,11 @@ var _ = Describe("Auth users", func() {
 func newUserSecret(username, password, role, namespaces string) corev1.Secret {
 	return corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: username,
-			Labels: map[string]string{
-				kubernetes.EpinioAPISecretRoleLabelKey: role,
-			},
+			Name:              username,
 			CreationTimestamp: metav1.NewTime(newRandomDate()),
+			Annotations: map[string]string{
+				kubernetes.EpinioAPISecretRolesAnnotationKey: role,
+			},
 		},
 		Data: map[string][]byte{
 			"username":   []byte(username),

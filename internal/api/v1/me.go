@@ -26,9 +26,19 @@ import (
 func Me(c *gin.Context) APIErrors {
 	user := requestctx.User(c.Request.Context())
 
+	roles := []models.Role{}
+	for _, r := range user.Roles {
+		roles = append(roles, models.Role{
+			ID:        r.ID,
+			Name:      r.Name,
+			Namespace: r.Namespace,
+			Default:   r.Default,
+		})
+	}
+
 	response.OKReturn(c, models.MeResponse{
 		User:       user.Username,
-		Role:       user.Role,
+		Roles:      roles,
 		Namespaces: user.Namespaces,
 		Gitconfigs: user.Gitconfigs,
 	})

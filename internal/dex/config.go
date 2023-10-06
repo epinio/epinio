@@ -34,8 +34,9 @@ type ProviderGroups struct {
 }
 
 type Group struct {
-	ID   string `yaml:"id"`
-	Role string `yaml:"role"`
+	ID    string   `yaml:"id"`
+	Role  string   `yaml:"role"`
+	Roles []string `yaml:"roles"`
 }
 
 func NewConfig(issuer, clientID string) (Config, error) {

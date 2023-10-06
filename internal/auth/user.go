@@ -19,6 +19,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/names"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -28,10 +29,11 @@ type User struct {
 	Username   string
 	Password   string
 	CreatedAt  time.Time
-	Role       string
+	Roles      Roles
 	Namespaces []string // list of namespaces this user has created (and thus access to)
 	Gitconfigs []string // list of gitconfigs this user has created (and thus access to)
 
+	roleIDs    []string
 	secretName string
 }
 
@@ -101,19 +103,62 @@ func (u *User) RemoveGitconfig(gitconfig string) bool {
 	return removed
 }
 
+func (u *User) IsAllowed(method, fullPath string, params map[string]string) bool {
+	// if this is a namespaced endpoint, check if the user has namespaced roles
+	if namespace, found := params["namespace"]; found {
+		namespacedRoles := filterRolesByNamespace(u.Roles, namespace)
+		if len(namespacedRoles) > 0 {
+			return namespacedRoles.IsAllowed(method, fullPath)
+		}
+	}
+
+	globalRoles := filterRolesByNamespace(u.Roles, "")
+	return globalRoles.IsAllowed(method, fullPath)
+}
+
+func filterRolesByNamespace(roles Roles, namespace string) Roles {
+	filteredRoles := Roles{}
+	for _, role := range roles {
+		if role.Namespace == namespace {
+			filteredRoles = append(filteredRoles, role)
+		}
+	}
+	return filteredRoles
+}
+
 // newUserFromSecret create an Epinio User from a Secret
 // this is an internal function that should not be used from the outside.
 // It could contain internals details on how create a user from a secret.
-func newUserFromSecret(secret corev1.Secret) User {
+func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 	user := User{
 		Username:   string(secret.Data["username"]),
 		Password:   string(secret.Data["password"]),
 		CreatedAt:  secret.ObjectMeta.CreationTimestamp.Time,
-		Role:       secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey],
+		Roles:      Roles{},
 		Namespaces: []string{},
 		Gitconfigs: []string{},
 
 		secretName: secret.GetName(),
+	}
+
+	// find the roles of the user
+	rolesAnnotation := secret.Annotations[kubernetes.EpinioAPISecretRolesAnnotationKey]
+	if rolesAnnotation != "" {
+		user.roleIDs = strings.Split(rolesAnnotation, ",")
+	}
+
+	for _, userRole := range user.roleIDs {
+		userRoleID, userRoleNamespace := ExtractRoleIDNamespace(userRole)
+
+		// find the role for the user
+		userRole, found := EpinioRoles.FindByID(userRoleID)
+		if !found {
+			logger.V(1).Info("role not found", "user", user.Username, "role", userRoleID)
+			continue
+		}
+
+		userRole.Namespace = userRoleNamespace
+		user.Roles = append(user.Roles, userRole)
 	}
 
 	if ns, found := secret.Data["namespaces"]; found {
@@ -155,6 +200,9 @@ func newSecretFromUser(user User) *corev1.Secret {
 			Labels: map[string]string{
 				kubernetes.EpinioAPISecretLabelKey: "true",
 			},
+			Annotations: map[string]string{
+				kubernetes.EpinioAPISecretRolesAnnotationKey: user.Roles.IDs(),
+			},
 		},
 	}
 
@@ -163,8 +211,10 @@ func newSecretFromUser(user User) *corev1.Secret {
 
 // updateUserSecretData updates the userSecret with the data of the User
 func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
-	labels := userSecret.ObjectMeta.Labels
-	labels[kubernetes.EpinioAPISecretRoleLabelKey] = user.Role
+	annotations := userSecret.ObjectMeta.Annotations
+	if len(user.Roles) > 0 {
+		annotations[kubernetes.EpinioAPISecretRolesAnnotationKey] = user.Roles.IDs()
+	}
 
 	userSecret.StringData = map[string]string{
 		"username":   user.Username,

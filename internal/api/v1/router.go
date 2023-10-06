@@ -14,6 +14,7 @@
 package v1
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
@@ -240,4 +242,64 @@ func Spice(router *gin.RouterGroup) {
 	for _, r := range WsRoutes {
 		router.Handle(r.Method, r.Path, r.Handler)
 	}
+}
+
+func InitAuthAndRoles(rolesGetter auth.RolesGetter) error {
+	if err := InitAuth(); err != nil {
+		return err
+	}
+
+	return auth.InitRoles(rolesGetter)
+}
+
+func InitAuth() error {
+	actions, err := auth.LoadActions()
+	if err != nil {
+		return err
+	}
+
+	// maps to check the routes and wsRoutes assigned to the actions.
+	// They are used to validate that we have put every API to at least an action
+	// and that we have not forget to map any of them.
+	assignedRoutes := make(map[string]struct{})
+	assignedWsRoutes := make(map[string]struct{})
+
+	for _, a := range actions {
+		for _, routeID := range a.Routes {
+			endpoint := auth.NewEndpoint(Routes[routeID])
+			a.Endpoints = append(a.Endpoints, endpoint)
+
+			assignedRoutes[routeID] = struct{}{}
+		}
+
+		for _, routeID := range a.WsRoutes {
+			endpoint := auth.NewWsEndpoint(WsRoutes[routeID])
+			a.Endpoints = append(a.Endpoints, endpoint)
+
+			assignedWsRoutes[routeID] = struct{}{}
+		}
+
+		auth.ActionsMap[a.ID] = a
+	}
+
+	if err := validateActionRoutes(Routes, assignedRoutes); err != nil {
+		return err
+	}
+
+	if err := validateActionRoutes(WsRoutes, assignedWsRoutes); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateActionRoutes will check if the routes were mapped to actions.
+// This will prevent to have some unavailable routes that cannot be reached.
+func validateActionRoutes(availableRoutes routes.NamedRoutes, assignedRoutes map[string]struct{}) error {
+	for routeID := range availableRoutes {
+		if _, found := assignedRoutes[routeID]; !found {
+			return fmt.Errorf("route %s is unreachable. Not assigned to any action", routeID)
+		}
+	}
+	return nil
 }

@@ -22,6 +22,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
+
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -72,15 +73,40 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 
 	users := []User{}
 	usernames := []string{}
+
 	for _, secret := range secrets {
-		user := newUserFromSecret(secret)
+		user := newUserFromSecret(s.Logger, secret)
 		usernames = append(usernames, user.Username)
+
 		users = append(users, user)
 	}
 
 	s.Logger.V(1).Info(fmt.Sprintf("found %d users", len(users)), "users", strings.Join(usernames, ","))
 
 	return users, nil
+}
+
+func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
+	s.Logger.V(1).Info("GetRoles")
+
+	roleConfigs, err := s.getRolesConfigMaps(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting roles configmaps")
+	}
+
+	// load the Epinio roles
+	epinioRoles := Roles{}
+	for _, roleConfig := range roleConfigs {
+		role, err := newRoleFromConfigMap(roleConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "loading Epinio roles")
+		}
+		epinioRoles = append(epinioRoles, role)
+	}
+
+	s.Logger.V(1).Info(fmt.Sprintf("found %d roles", len(epinioRoles)), "roles", epinioRoles.IDs())
+
+	return epinioRoles, nil
 }
 
 // GetUserByUsername returns the user with the provided username
@@ -117,7 +143,7 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 
 	s.Logger.V(1).Info("user saved")
 
-	return newUserFromSecret(*createdUserSecret), nil
+	return newUserFromSecret(s.Logger, *createdUserSecret), nil
 }
 
 // UpdateUser will update an existing user
@@ -130,14 +156,15 @@ func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
 	}
 	userSecret = updateUserSecretData(user, userSecret)
 
-	err = s.updateUserSecret(ctx, userSecret)
+	updatedUserSecret, err := s.updateUserSecret(ctx, userSecret)
 	if err != nil {
 		return User{}, errors.Wrapf(err, "error updating user [%s]", user.Username)
 	}
+	updatedUser := newUserFromSecret(s.Logger, *updatedUserSecret)
 
 	s.Logger.V(1).Info("user updated")
 
-	return user, nil
+	return updatedUser, nil
 }
 
 // RemoveNamespaceFromUsers will remove the specified namespace from all users
@@ -216,12 +243,37 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 	return secretList.Items, nil
 }
 
-func (s *AuthService) updateUserSecret(ctx context.Context, userSecret *corev1.Secret) error {
-	// note: Wrap (nil, ...) returns nil.
-	return errors.Wrap(retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		_, err := s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
-		return err
-	}), fmt.Sprintf("error updating the user secret [%s]", userSecret.Name))
+func (s *AuthService) updateUserSecret(ctx context.Context, userSecret *corev1.Secret) (*corev1.Secret, error) {
+	var updatedSecret *corev1.Secret
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var updateErr error
+		updatedSecret, updateErr = s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
+
+		return updateErr
+	})
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "error updating the user secret [%s]", userSecret.Name)
+	}
+
+	return updatedSecret, nil
+}
+
+func (s *AuthService) getRolesConfigMaps(ctx context.Context) ([]corev1.ConfigMap, error) {
+	configSelector := labels.Set(map[string]string{
+		kubernetes.EpinioAPIConfigMapRolesLabelKey: "true",
+	}).AsSelector().String()
+
+	// Find all user credential secrets
+	configList, err := s.ConfigMapInterface.List(ctx, metav1.ListOptions{
+		LabelSelector: configSelector,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting the list of the roles configurations")
+	}
+
+	return configList.Items, nil
 }
 
 type NamespacedResource interface {
@@ -230,7 +282,8 @@ type NamespacedResource interface {
 
 // FilterResources returns only the NamespacedResources where the user has permissions
 func FilterResources[T NamespacedResource](user User, resources []T) []T {
-	if user.Role == "admin" {
+	adminRole, found := user.Roles.FindByID("admin")
+	if found && adminRole.Namespace == "" {
 		return resources
 	}
 
@@ -255,7 +308,8 @@ type GitconfigResource interface {
 
 // FilterResources returns only the GitconfigResources where the user has permissions
 func FilterGitconfigResources[T GitconfigResource](user User, resources []T) []T {
-	if user.Role == "admin" {
+	adminRole, found := user.Roles.FindByID("admin")
+	if found && adminRole.Namespace == "" {
 		return resources
 	}
 

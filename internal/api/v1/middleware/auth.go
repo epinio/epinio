@@ -24,6 +24,24 @@ import (
 	"github.com/go-logr/logr"
 )
 
+func RoleAuthorization(c *gin.Context) {
+	user := requestctx.User(c.Request.Context())
+
+	params := map[string]string{}
+	for _, p := range c.Params {
+		params[p.Key] = p.Value
+	}
+
+	allowed := user.IsAllowed(c.Request.Method, c.FullPath(), params)
+
+	if !allowed {
+		err := apierrors.NewAPIError("user unauthorized", http.StatusForbidden)
+		response.Error(c, err)
+		c.Abort()
+		return
+	}
+}
+
 func NamespaceAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
 	authorization(c, "namespace", user.Namespaces)
@@ -41,42 +59,44 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	method := c.Request.Method
 	path := c.Request.URL.Path
 
-	logger.Info(fmt.Sprintf("authorization request from user [%s] with role [%s] for [%s - %s]", user.Username, user.Role, method, path))
+	logger.Info(fmt.Sprintf("authorization request from user [%s] with roles [%s] for [%s - %s]", user.Username, user.Roles.IDs(), method, path))
 
-	switch user.Role {
-	case "admin":
+	adminRole, adminFound := user.Roles.FindByID("admin")
+	// it needs to be a global admin to be fully authorized
+	if adminFound && adminRole.Namespace == "" {
 		logger.V(1).WithName("authorizeAdmin").Info("user [admin] is authorized")
 		return
+	}
 
-	case "user":
-		if restrictedPath(logger, path) {
-			response.Error(c, apierrors.NewAPIError("user unauthorized, path restricted",
-				http.StatusForbidden))
+	// not an admin, check if path is restricted
+	if restrictedPath(logger, path) {
+		err := apierrors.NewAPIError("user unauthorized, path restricted", http.StatusForbidden)
+		response.Error(c, err)
+		c.Abort()
+		return
+	}
+
+	// extract the resources
+	resourceName := c.Param(label)
+	var resourceNames []string
+	resourceNames, found := c.GetQueryArray(label + "s[]")
+	if !found {
+		resourceNames = append(resourceNames, resourceName)
+	}
+
+	for _, rsrc := range resourceNames {
+		authorized := authorizeUser(logger, label, rsrc, allowed)
+
+		logger.Info(fmt.Sprintf(
+			"user [%s] with roles [%s] authorized [%t] for %s [%s]",
+			user.Username, user.Roles.IDs(), authorized, label, rsrc,
+		))
+
+		if !authorized {
+			err := apierrors.NewAPIError(fmt.Sprintf("user unauthorized for %s %s", label, rsrc), http.StatusForbidden)
+			response.Error(c, err)
 			c.Abort()
 			return
-		}
-
-		// extract the resources
-		resourceName := c.Param(label)
-		var resourceNames []string
-		resourceNames, found := c.GetQueryArray(label + "s[]")
-		if !found {
-			resourceNames = append(resourceNames, resourceName)
-		}
-
-		for _, rsrc := range resourceNames {
-			authorized := authorizeUser(logger, label, rsrc, allowed)
-			logger.Info(fmt.Sprintf("user [%s] with role [%s] authorized [%t] for %s [%s]",
-				user.Username, user.Role, authorized, label, rsrc))
-
-			if !authorized {
-				response.Error(c,
-					apierrors.NewAPIError(fmt.Sprintf("user unauthorized for %s %s",
-						label, rsrc),
-						http.StatusForbidden))
-				c.Abort()
-				return
-			}
 		}
 	}
 }

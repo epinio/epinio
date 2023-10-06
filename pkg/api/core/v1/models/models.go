@@ -312,9 +312,16 @@ type InfoResponse struct {
 // MeResponse contains information about the current authenticated user
 type MeResponse struct {
 	User       string   `json:"user,omitempty"`
-	Role       string   `json:"role,omitempty"`
+	Roles      []Role   `json:"roles,omitempty"`
 	Namespaces []string `json:"namespaces,omitempty"`
 	Gitconfigs []string `json:"gitconfigs,omitempty"`
+}
+
+type Role struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Default   bool   `json:"default"`
 }
 
 // AuthTokenResponse contains an auth token

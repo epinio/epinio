@@ -54,6 +54,16 @@ func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, st
 		},
 	}
 
+	// build roles (default for global role, and admin for its namespaces)
+	roles := []string{role}
+	for _, namespace := range namespaces {
+		roles = append(roles, "admin::"+namespace)
+	}
+
+	secret.ObjectMeta.Annotations = map[string]string{
+		"epinio.io/roles": strings.Join(roles, ","),
+	}
+
 	secretTmpFile := catalog.NewTmpName("tmpUserFile") + `.json`
 	file, err := os.Create(secretTmpFile)
 	Expect(err).ToNot(HaveOccurred())

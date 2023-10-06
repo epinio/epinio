@@ -13,6 +13,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers/kubernetes"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/middleware"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -129,6 +131,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 			middleware.Authentication,
 			middleware.EpinioVersion,
 			middleware.NamespaceExists,
+			middleware.RoleAuthorization,
 			middleware.NamespaceAuthorization,
 			middleware.GitconfigAuthorization,
 		)
@@ -145,6 +148,16 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 			// gitconfig has no websocket routes
 		)
 		apiv1.Spice(wapiRoutesGroup)
+	}
+
+	cluster, err := kubernetes.GetCluster(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	authservice := auth.NewAuthService(logger, cluster)
+
+	if err := apiv1.InitAuthAndRoles(authservice); err != nil {
+		return nil, errors.Wrap(err, "initializing authentication")
 	}
 
 	// print all registered routes

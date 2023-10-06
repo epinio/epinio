@@ -123,9 +123,9 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 		return auth.User{}, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized)
 	}
 
-	role := getRoleFromProviderGroups(logger, oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
+	roles := getRolesFromProviderGroups(logger, oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
 
-	user, err := getOrCreateUserByEmail(ctx, logger, claims.Email, role)
+	user, err := getOrCreateUserByEmail(ctx, logger, claims.Email, roles)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err, "getting/creating user with email")
 	}
@@ -166,11 +166,11 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 	return oidcProvider, nil
 }
 
-// getRoleFromProviderGroups returns the user role, looking for it in the groups defined for the provider.
-// If there are no groups that matches then the default role 'user' is returned.
+// getRolesFromProviderGroups returns the user roles, looking for it in the groups defined for the provider.
+// If there are no groups that matches then the default role 'epinio-read-role' is returned.
 // If a user has more than one group matching, the first from the Dex Configuration will be returned.
-func getRoleFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvider, providerID string, groups []string) string {
-	defaultRole := "user"
+func getRolesFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvider, providerID string, groups []string) []string {
+	defaultRole := []string{"epinio-read-role"}
 
 	pg, err := oidcProvider.GetProviderGroups(providerID)
 	if err != nil {
@@ -194,7 +194,7 @@ func getRoleFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvide
 		return defaultRole
 	}
 
-	return roles[0]
+	return roles
 }
 
 func loadUsersMap(ctx context.Context, logger logr.Logger) (map[string]auth.User, error) {
@@ -216,13 +216,28 @@ func loadUsersMap(ctx context.Context, logger logr.Logger) (map[string]auth.User
 	return userMap, nil
 }
 
-func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email, role string) (auth.User, error) {
+func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email string, roles []string) (auth.User, error) {
 	user := auth.User{}
 	var err error
 
 	authService, err := auth.NewAuthServiceFromContext(ctx, logger)
 	if err != nil {
 		return user, errors.Wrap(err, "couldn't create auth service from context")
+	}
+
+	userRoles := auth.Roles{}
+	for _, id := range roles {
+		roleID, namespace := auth.ExtractRoleIDNamespace(id)
+		if role, found := auth.EpinioRoles.FindByID(roleID); found {
+			role.Namespace = namespace
+			userRoles = append(userRoles, role)
+		}
+	}
+
+	if len(userRoles) == 0 {
+		defaultRole, _ := auth.EpinioRoles.Default()
+		logger.Info("no roles found, assigning default global role", "role", defaultRole.ID)
+		userRoles = append(userRoles, defaultRole)
 	}
 
 	user, err = authService.GetUserByUsername(ctx, email)
@@ -235,7 +250,7 @@ func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email, role
 		// no user was found, create a new one
 
 		user.Username = email
-		user.Role = role
+		user.Roles = userRoles
 		user, err = authService.SaveUser(ctx, user)
 		if err != nil {
 			return user, errors.Wrap(err, "couldn't create user")
@@ -243,7 +258,7 @@ func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email, role
 	}
 
 	// update the existing user
-	user.Role = role
+	user.Roles = userRoles
 	user, err = authService.UpdateUser(ctx, user)
 	if err != nil {
 		return user, errors.Wrap(err, "couldn't create user")
