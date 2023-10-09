@@ -132,6 +132,10 @@ func (c *EpinioClient) Apps(all bool) error {
 
 	sort.Sort(apps)
 
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(apps)
+	}
+
 	if all {
 		msg = c.ui.Success().WithTable("Namespace", "Name", "Created", "Status", "Routes",
 			"Configurations", "Status Details")
@@ -230,6 +234,10 @@ func (c *EpinioClient) AppShow(appName string) error {
 	app, err := c.API.AppShow(c.Settings.Namespace, appName)
 	if err != nil {
 		return err
+	}
+
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(app)
 	}
 
 	if err := c.printAppDetails(app); err != nil {
@@ -528,7 +536,7 @@ func (c *EpinioClient) AppPortForward(ctx context.Context, appName, instance str
 }
 
 // Delete removes one or more applications, specified by name
-func (c *EpinioClient) Delete(ctx context.Context, appNames []string, all bool) error {
+func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all bool) error {
 	if all {
 		c.ui.Note().
 			WithStringValue("Namespace", c.Settings.Namespace).

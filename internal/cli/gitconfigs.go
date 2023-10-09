@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"strings"
 
+	clicmd "github.com/epinio/epinio/internal/cli/cmd"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -43,7 +45,8 @@ func init() {
 	flags := CmdGitconfigDelete.Flags()
 	flags.BoolVar(&gGitconfigAllFlag, "all", false, "delete all git configurations")
 
-	gitProviderOption(CmdGitconfigCreate)
+	// TODO :: make private again when gitconfig ensemble has moved into cmd package
+	clicmd.GitProviderOption(CmdGitconfigCreate)
 	flags = CmdGitconfigCreate.Flags()
 	flags.Bool("skip-ssl", false, "skip ssl")
 	flags.String("username", "", "user name for logging into the host")
