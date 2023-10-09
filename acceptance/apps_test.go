@@ -1549,6 +1549,16 @@ configuration:
 			)
 		})
 
+		It("lists all apps in the namespace in JSON format", func() {
+			out, err := env.Epinio("", "app", "list", "--output", "json")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			apps := models.AppList{}
+			err = json.Unmarshal([]byte(out), &apps)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(apps).ToNot(BeEmpty())
+		})
+
 		It("shows the details of an app", func() {
 			out, err := env.Epinio("", "app", "show", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
