@@ -111,6 +111,9 @@ acceptance-cluster-setup:
 acceptance-cluster-setup-kind:
 	@./scripts/acceptance-cluster-setup-kind.sh
 
+acceptance-cluster-setup-several-k8s-versions:
+	@./scripts/acceptance-cluster-setup-several-k8s-versions.sh
+
 test-acceptance: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/. acceptance/api/v1/. acceptance/apps/.
 
@@ -147,6 +150,10 @@ test-acceptance-upgrade: showfocus
 test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2
 	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} acceptance/install/.
+
+test-acceptance-api-apps-critical-endpoints: showfocus
+	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "application" acceptance/api/v1/application_exec_test.go
+	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "application" acceptance/api/v1/application_portforward_test.go
 
 showfocus:
 	@if test `cat acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go ; echo ; fi
