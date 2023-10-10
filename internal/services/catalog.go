@@ -13,7 +13,9 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 
 	apiv1 "github.com/epinio/application/api/v1"
@@ -99,7 +101,7 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 	}
 
 	// if a secret was specified try to load the credentials from it
-	var repoUsername, repoPassword string
+	var repoUsername, repoPassword, repoCerts string
 	if catalogService.Spec.HelmRepo.Secret != "" {
 		authSecret, err := s.kubeClient.GetSecret(
 			context.Background(),
@@ -112,6 +114,20 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 
 		repoUsername = string(authSecret.Data["username"])
 		repoPassword = string(authSecret.Data["password"])
+		// Optional cert information.
+		if pemData, ok := authSecret.Data["certs"]; ok {
+			// Compute file name as hash from the certs.
+			fileName := "/tmp/rep-" + base64.RawURLEncoding.EncodeToString([]byte(pemData)) + ".pem"
+			if _, err := os.Stat(fileName); err != nil {
+				// Create file if missing.
+				err = os.WriteFile(fileName, []byte(pemData), 0600)
+				if err != nil {
+					return err
+				}
+			}
+			// File exists (either created now, or in the past)
+			repoCerts = fileName
+		}
 	}
 
 	secretTypes := []string{}
@@ -138,6 +154,7 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 			Auth: models.HelmAuth{
 				Username: repoUsername,
 				Password: repoPassword,
+				Certs:    repoCerts,
 			},
 		},
 		Values:   catalogService.Spec.Values,
