@@ -37,6 +37,7 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
+	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/registry"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -154,7 +155,14 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 			// if auth credentials are available try to login
 			if repoAuth.Username != "" && repoAuth.Password != "" {
 				registryHostname := strings.TrimPrefix(serviceRepoURL, "oci://")
-				err = client.RegistryLogin(registryHostname, repoAuth.Username, repoAuth.Password)
+
+				// if a supporting cert is declared, tell the the helm packages
+				rOpts := []action.RegistryLoginOpt{}
+				if repoAuth.Certs != "" {
+					logger.Info("Cert support, OCI", "cert-file", repoAuth.Certs)
+					rOpts = append(rOpts, action.WithCAFile(repoAuth.Certs))
+				}
+				err = client.RegistryLogin(registryHostname, repoAuth.Username, repoAuth.Password, rOpts...)
 				if err != nil {
 					return errors.Wrap(err, "logging into the helm registry")
 				}
@@ -162,13 +170,19 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 
 		} else { // else add and update the repository
 			name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(serviceRepoURL)))
-			err = client.AddOrUpdateChartRepo(repo.Entry{
+			origin := repo.Entry{
 				Name: name,
 				URL:  serviceRepoURL,
 				// support for private repositories
 				Username: repoAuth.Username,
 				Password: repoAuth.Password,
-			})
+			}
+			// if a supporting cert is declared, tell the the helm packages
+			if repoAuth.Certs != "" {
+				logger.Info("Cert support, plain", "cert-file", repoAuth.Certs)
+				origin.CAFile = repoAuth.Certs
+			}
+			err = client.AddOrUpdateChartRepo(origin)
 			if err != nil {
 				return errors.Wrap(err, "creating the chart repository")
 			}
