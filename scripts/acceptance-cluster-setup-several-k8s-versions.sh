@@ -80,7 +80,7 @@ if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   echo "----------------------------------------------------"
 
   k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
-elsess
+else
   # Exposing ports on the host:
   k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server:0' -p '443:443@server:0' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 fi
