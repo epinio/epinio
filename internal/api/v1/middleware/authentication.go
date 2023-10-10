@@ -70,7 +70,7 @@ func basicAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 	logger := requestctx.Logger(reqCtx).WithName("basicAuthentication")
 	logger.V(1).Info("starting Basic Authentication")
 
-	userMap, err := loadUsersMap(ctx)
+	userMap, err := loadUsersMap(ctx, logger)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err)
 	}
@@ -124,7 +124,7 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 
 	role := getRoleFromProviderGroups(logger, oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
 
-	user, err := getOrCreateUserByEmail(ctx, claims.Email, role)
+	user, err := getOrCreateUserByEmail(ctx, logger, claims.Email, role)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err, "getting/creating user with email")
 	}
@@ -196,8 +196,8 @@ func getRoleFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvide
 	return roles[0]
 }
 
-func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {
-	authService, err := auth.NewAuthServiceFromContext(ctx)
+func loadUsersMap(ctx context.Context, logger logr.Logger) (map[string]auth.User, error) {
+	authService, err := auth.NewAuthServiceFromContext(ctx, logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create auth service from context")
 	}
@@ -215,11 +215,11 @@ func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {
 	return userMap, nil
 }
 
-func getOrCreateUserByEmail(ctx context.Context, email, role string) (auth.User, error) {
+func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email, role string) (auth.User, error) {
 	user := auth.User{}
 	var err error
 
-	authService, err := auth.NewAuthServiceFromContext(ctx)
+	authService, err := auth.NewAuthServiceFromContext(ctx, logger)
 	if err != nil {
 		return user, errors.Wrap(err, "couldn't create auth service from context")
 	}

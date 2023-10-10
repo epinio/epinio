@@ -53,7 +53,7 @@ func TokenAuth(ctx *gin.Context) {
 		return
 	}
 
-	authService, err := auth.NewAuthServiceFromContext(ctx)
+	authService, err := auth.NewAuthServiceFromContext(ctx, logger)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err))
 		ctx.Abort()

@@ -18,7 +18,9 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/names"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // User is a struct containing all the information of an Epinio User
@@ -135,4 +137,28 @@ func newUserFromSecret(secret corev1.Secret) User {
 	}
 
 	return user
+}
+
+// newSecretFromUser create a Secret from an Epinio User
+func newSecretFromUser(user User) corev1.Secret {
+	userSecretName := "r" + names.GenerateResourceName("user", user.Username)
+
+	return corev1.Secret{
+		Type: "Opaque",
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      userSecretName,
+			Namespace: "epinio",
+			Labels: map[string]string{
+				kubernetes.EpinioAPISecretLabelKey:     "true",
+				kubernetes.EpinioAPISecretRoleLabelKey: user.Role,
+			},
+		},
+		StringData: map[string]string{
+			"username": user.Username,
+		},
+	}
 }

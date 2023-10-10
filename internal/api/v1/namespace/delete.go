@@ -21,6 +21,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
@@ -39,6 +40,7 @@ import (
 // This includes all the applications and configurations in it.
 func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	logger := requestctx.Logger(ctx)
 	namespaceName := c.Param("namespace")
 
 	var namespaceNames []string
@@ -52,6 +54,8 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	authService := auth.NewAuthService(logger, cluster)
+
 	for _, namespace := range namespaceNames {
 		err = deleteApps(ctx, cluster, namespace)
 		if err != nil {
@@ -63,9 +67,11 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			return apierror.InternalError(err)
 		}
 
-		err = deleteNamespaceFromUsers(ctx, namespace)
+		// delete the namespace from all the Users
+		err = authService.RemoveNamespaceFromUsers(ctx, namespace)
 		if err != nil {
-			return apierror.InternalError(err)
+			errDetail := fmt.Sprintf("error removing namespace [%s] from users", namespace)
+			return apierror.InternalError(err, errDetail)
 		}
 
 		configurationList, err := configurations.List(ctx, cluster, namespace)
@@ -152,19 +158,4 @@ func deleteServices(ctx context.Context, cluster *kubernetes.Cluster, namespace 
 	}
 
 	return kubeServiceClient.DeleteAll(ctx, namespace)
-}
-
-// deleteNamespaceFromUsers will delete the namespace from all the Users
-func deleteNamespaceFromUsers(ctx context.Context, namespace string) error {
-	authService, err := auth.NewAuthServiceFromContext(ctx)
-	if err != nil {
-		return errors.Wrap(err, "error creating auth service")
-	}
-
-	err = authService.RemoveNamespaceFromUsers(ctx, namespace)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error removing namespace [%s] from users", namespace))
-	}
-
-	return nil
 }
