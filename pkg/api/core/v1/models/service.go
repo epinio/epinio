@@ -128,13 +128,18 @@ type CatalogService struct {
 // HelmRepo matches github.com/epinio/application/api/v1 HelmRepo
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type HelmRepo struct {
-	Name string   `json:"name,omitempty"`
-	URL  string   `json:"url,omitempty"`
+	Name string `json:"name,omitempty"`
+	URL  string `json:"url,omitempty"`
+	// "Secret string" - Name of kube secret containing auth information, i.e
+	// username, password, certs. Optional. See `convertUnstructuredIntoCatalogService`
+	// for the code initializing this field from the kube secret.
 	Auth HelmAuth `json:"-"`
 }
 
-// HelmAuth contains the credentials to login into an OCI registry or a private Helm repository
+// HelmAuth contains the credentials to login into an OCI registry or a private Helm
+// repository. It may contain the path to a pod-local CERT file for securing the channel.
 type HelmAuth struct {
 	Username string `json:"-"`
 	Password string `json:"-"`
+	Certs    string `json:"-"`
 }
