@@ -14,6 +14,7 @@ package usercmdfakes
 
 import (
 	"context"
+	"net/http"
 	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -660,15 +661,15 @@ type FakeAPIClient struct {
 		result1 models.GitconfigsMatchResponse
 		result2 error
 	}
-	HeadersStub        func() map[string]string
+	HeadersStub        func() http.Header
 	headersMutex       sync.RWMutex
 	headersArgsForCall []struct {
 	}
 	headersReturns struct {
-		result1 map[string]string
+		result1 http.Header
 	}
 	headersReturnsOnCall map[int]struct {
-		result1 map[string]string
+		result1 http.Header
 	}
 	InfoStub        func() (models.InfoResponse, error)
 	infoMutex       sync.RWMutex
@@ -3911,7 +3912,7 @@ func (fake *FakeAPIClient) GitconfigsMatchReturnsOnCall(i int, result1 models.Gi
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) Headers() map[string]string {
+func (fake *FakeAPIClient) Headers() http.Header {
 	fake.headersMutex.Lock()
 	ret, specificReturn := fake.headersReturnsOnCall[len(fake.headersArgsForCall)]
 	fake.headersArgsForCall = append(fake.headersArgsForCall, struct {
@@ -3935,32 +3936,32 @@ func (fake *FakeAPIClient) HeadersCallCount() int {
 	return len(fake.headersArgsForCall)
 }
 
-func (fake *FakeAPIClient) HeadersCalls(stub func() map[string]string) {
+func (fake *FakeAPIClient) HeadersCalls(stub func() http.Header) {
 	fake.headersMutex.Lock()
 	defer fake.headersMutex.Unlock()
 	fake.HeadersStub = stub
 }
 
-func (fake *FakeAPIClient) HeadersReturns(result1 map[string]string) {
+func (fake *FakeAPIClient) HeadersReturns(result1 http.Header) {
 	fake.headersMutex.Lock()
 	defer fake.headersMutex.Unlock()
 	fake.HeadersStub = nil
 	fake.headersReturns = struct {
-		result1 map[string]string
+		result1 http.Header
 	}{result1}
 }
 
-func (fake *FakeAPIClient) HeadersReturnsOnCall(i int, result1 map[string]string) {
+func (fake *FakeAPIClient) HeadersReturnsOnCall(i int, result1 http.Header) {
 	fake.headersMutex.Lock()
 	defer fake.headersMutex.Unlock()
 	fake.HeadersStub = nil
 	if fake.headersReturnsOnCall == nil {
 		fake.headersReturnsOnCall = make(map[int]struct {
-			result1 map[string]string
+			result1 http.Header
 		})
 	}
 	fake.headersReturnsOnCall[i] = struct {
-		result1 map[string]string
+		result1 http.Header
 	}{result1}
 }
 

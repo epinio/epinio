@@ -128,8 +128,10 @@ func DoWithHandlers[T any](
 		return response, err
 	}
 
-	for key, value := range c.customHeaders {
-		request.Header.Set(key, value)
+	for key, values := range c.customHeaders {
+		for _, value := range values {
+			request.Header.Set(key, value)
+		}
 	}
 
 	reqLog := requestLogger(c.log, request)

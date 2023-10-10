@@ -235,7 +235,7 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printC
 	}
 
 	websocketURL := fmt.Sprintf("%s%s/%s?%s", c.Settings.WSS, api.WsRoot, endpoint, queryParams.Encode())
-	webSocketConn, resp, err := websocket.DefaultDialer.Dial(websocketURL, http.Header{})
+	webSocketConn, resp, err := websocket.DefaultDialer.Dial(websocketURL, c.Headers())
 	if err != nil {
 		// Report detailed error found in the server response
 		if resp != nil && resp.StatusCode != http.StatusOK {
