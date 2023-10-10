@@ -433,7 +433,6 @@ jobs:
   acceptance-api-latest-last-k8s:
     needs:
       - linter
-      - acceptance-cli-services
     runs-on: [self-hosted, epinio]
 
     env:
