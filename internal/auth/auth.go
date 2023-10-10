@@ -22,7 +22,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
-	"github.com/epinio/epinio/internal/names"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,31 +38,44 @@ var (
 //counterfeiter:generate -header ../../LICENSE_HEADER k8s.io/client-go/kubernetes/typed/core/v1.SecretInterface
 
 type AuthService struct {
+	logger logr.Logger
 	typedcorev1.SecretInterface
 }
 
-func NewAuthServiceFromContext(ctx context.Context) (*AuthService, error) {
+func NewAuthServiceFromContext(ctx context.Context, logger logr.Logger) (*AuthService, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting kubernetes cluster")
 	}
 
+	return NewAuthService(logger, cluster), nil
+}
+
+func NewAuthService(logger logr.Logger, cluster *kubernetes.Cluster) *AuthService {
 	return &AuthService{
+		logger:          logger.WithName("AuthService"),
 		SecretInterface: cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
-	}, nil
+	}
 }
 
 // GetUsers returns all the Epinio users
 func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
+	s.logger.V(1).Info("GetUsers")
+
 	secrets, err := s.getUsersSecrets(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting users secrets")
 	}
 
 	users := []User{}
+	usernames := []string{}
 	for _, secret := range secrets {
-		users = append(users, newUserFromSecret(secret))
+		user := newUserFromSecret(secret)
+		usernames = append(usernames, user.Username)
+		users = append(users, user)
 	}
+
+	s.logger.V(1).Info(fmt.Sprintf("found %d users", len(users)), "users", strings.Join(usernames, ","))
 
 	return users, nil
 }
@@ -70,6 +83,8 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 // GetUserByUsername returns the user with the provided username
 // It will return a UserNotFound error if the user is not found
 func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	s.logger.V(1).Info("GetUserByUsername", "username", username)
+
 	users, err := s.GetUsers(ctx)
 	if err != nil {
 		return User{}, errors.Wrap(err, "error getting users")
@@ -80,41 +95,32 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 			return user, nil
 		}
 	}
+
+	s.logger.V(1).Info("user not found")
+
 	return User{}, ErrUserNotFound
 }
 
+// SaveUser will save the user
 func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
-	userSecretName := "r" + names.GenerateResourceName("user", user.Username)
+	s.logger.V(1).Info("SaveUser", "username", user.Username)
 
-	userSecret := &corev1.Secret{
-		Type: "Opaque",
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      userSecretName,
-			Namespace: "epinio",
-			Labels: map[string]string{
-				kubernetes.EpinioAPISecretLabelKey:     "true",
-				kubernetes.EpinioAPISecretRoleLabelKey: user.Role,
-			},
-		},
-		StringData: map[string]string{
-			"username": user.Username,
-		},
-	}
+	userSecret := newSecretFromUser(user)
 
-	createdUserSecret, err := s.Create(ctx, userSecret, metav1.CreateOptions{})
+	createdUserSecret, err := s.Create(ctx, &userSecret, metav1.CreateOptions{})
 	if err != nil {
 		return User{}, err
 	}
+
+	s.logger.V(1).Info("user saved")
 
 	return newUserFromSecret(*createdUserSecret), nil
 }
 
 // AddNamespaceToUser will add the specified namespace to the User
 func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespace string) error {
+	s.logger.V(1).Info("AddNamespaceToUser", "username", username, "namespace", namespace)
+
 	user, err := s.GetUserByUsername(ctx, username)
 	if err != nil {
 		return errors.Wrapf(err, "error getting user [%s] by username", username)
@@ -127,6 +133,8 @@ func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespac
 
 // RemoveNamespaceFromUsers will remove the specified namespace from all users
 func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace string) error {
+	s.logger.V(1).Info("RemoveNamespaceFromUsers", "namespace", namespace)
+
 	users, err := s.GetUsers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error getting users")
@@ -142,6 +150,7 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 
 		err = s.updateUserSecret(ctx, user)
 		if err != nil {
+			s.logger.V(1).Error(err, "error removing namespace from user", "namespace", namespace, "user", user.Username)
 			errorMessages = append(errorMessages, err.Error())
 		}
 	}
@@ -154,6 +163,8 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 
 // AddGitconfigToUser will add the specified gitconfig to the User
 func (s *AuthService) AddGitconfigToUser(ctx context.Context, username, gitconfig string) error {
+	s.logger.V(1).Info("AddGitconfigToUser", "username", username, "gitconfig", gitconfig)
+
 	user, err := s.GetUserByUsername(ctx, username)
 	if err != nil {
 		return errors.Wrapf(err, "error getting user [%s] by username", username)
@@ -166,6 +177,8 @@ func (s *AuthService) AddGitconfigToUser(ctx context.Context, username, gitconfi
 
 // RemoveGitconfigFromUsers will remove the specified gitconfig from all users
 func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig string) error {
+	s.logger.V(1).Info("RemoveGitconfigFromUsers", "gitconfig", gitconfig)
+
 	users, err := s.GetUsers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error getting users")
@@ -181,6 +194,7 @@ func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig st
 
 		err = s.updateUserSecret(ctx, user)
 		if err != nil {
+			s.logger.V(1).Error(err, "error removing gitconfig from user", "gitconfig", gitconfig, "user", user.Username)
 			errorMessages = append(errorMessages, err.Error())
 		}
 	}

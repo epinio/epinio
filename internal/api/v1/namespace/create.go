@@ -12,7 +12,7 @@
 package namespace
 
 import (
-	"context"
+	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -21,7 +21,6 @@ import (
 	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/gin-gonic/gin"
@@ -31,11 +30,15 @@ import (
 // It creates a namespace with the specified name.
 func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	logger := requestctx.Logger(ctx)
+	user := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
+
+	authService := auth.NewAuthService(logger, cluster)
 
 	var request models.NamespaceCreateRequest
 	err = c.BindJSON(&request)
@@ -66,28 +69,13 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = addNamespaceToUser(ctx, namespaceName)
+	// add the namespace to the User's namespaces
+	err = authService.AddNamespaceToUser(ctx, user.Username, namespaceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		errDetail := fmt.Sprintf("error adding namespace [%s] to user [%s]", namespaceName, user.Username)
+		return apierror.InternalError(err, errDetail)
 	}
 
 	response.Created(c)
-	return nil
-}
-
-// addNamespaceToUser will add the namespace to the User's namespaces
-func addNamespaceToUser(ctx context.Context, namespace string) error {
-	user := requestctx.User(ctx)
-
-	authService, err := auth.NewAuthServiceFromContext(ctx)
-	if err != nil {
-		return errors.Wrap(err, "error creating auth service")
-	}
-
-	err = authService.AddNamespaceToUser(ctx, user.Username, namespace)
-	if err != nil {
-		return errors.Wrapf(err, "error adding namespace [%s] to user [%s]",
-			namespace, user.Username)
-	}
 	return nil
 }

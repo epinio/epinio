@@ -12,7 +12,6 @@
 package gitconfig
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -23,7 +22,6 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 )
 
 // Delete handles the API endpoint /gitconfigs/:gitconfig (DELETE).
@@ -44,6 +42,8 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	authService := auth.NewAuthService(logger, cluster)
+
 	manager, err := gitbridge.NewManager(logger, cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
 	if err != nil {
 		return apierror.InternalError(err, "creating git configuration manager")
@@ -62,9 +62,11 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			continue
 		}
 
-		err = deleteGitconfigFromUsers(ctx, gitconfig)
+		// delete the gitconfig from all the Users
+		err = authService.RemoveGitconfigFromUsers(ctx, gitconfig)
 		if err != nil {
-			return apierror.InternalError(err)
+			errDetail := fmt.Sprintf("error removing gitconfig [%s] from users", gitconfig)
+			return apierror.InternalError(err, errDetail)
 		}
 
 		err := cluster.DeleteSecret(ctx, helmchart.Namespace(), gitconfig)
@@ -74,20 +76,5 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	response.OK(c)
-	return nil
-}
-
-// deleteGitconfigFromUsers will delete the gitconfig from all the Users
-func deleteGitconfigFromUsers(ctx context.Context, gitconfig string) error {
-	authService, err := auth.NewAuthServiceFromContext(ctx)
-	if err != nil {
-		return errors.Wrap(err, "error creating auth service")
-	}
-
-	err = authService.RemoveGitconfigFromUsers(ctx, gitconfig)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error removing gitconfig [%s] from users", gitconfig))
-	}
-
 	return nil
 }

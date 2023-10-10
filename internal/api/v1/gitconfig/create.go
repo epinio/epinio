@@ -12,7 +12,7 @@
 package gitconfig
 
 import (
-	"context"
+	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -22,7 +22,6 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/gin-gonic/gin"
@@ -33,11 +32,14 @@ import (
 func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx)
+	user := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
+
+	authService := auth.NewAuthService(logger, cluster)
 
 	var request models.GitconfigCreateRequest
 	err = c.BindJSON(&request)
@@ -89,28 +91,13 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = addGitconfigToUser(ctx, request.ID)
+	// add the gitconfig to the User's gitconfigs
+	err = authService.AddGitconfigToUser(ctx, user.Username, request.ID)
 	if err != nil {
-		return apierror.InternalError(err)
+		errDetail := fmt.Sprintf("error adding gitconfig [%s] to user [%s]", request.ID, user.Username)
+		return apierror.InternalError(err, errDetail)
 	}
 
 	response.Created(c)
-	return nil
-}
-
-// addGitconfigToUser will add the gitconfig to the User's gitconfigs
-func addGitconfigToUser(ctx context.Context, gitconfig string) error {
-	user := requestctx.User(ctx)
-
-	authService, err := auth.NewAuthServiceFromContext(ctx)
-	if err != nil {
-		return errors.Wrap(err, "error creating auth service")
-	}
-
-	err = authService.AddGitconfigToUser(ctx, user.Username, gitconfig)
-	if err != nil {
-		return errors.Wrapf(err, "error adding gitconfig [%s] to user [%s]",
-			gitconfig, user.Username)
-	}
 	return nil
 }
