@@ -20,8 +20,20 @@ export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
 K3S_IMAGE_LATEST=$(curl -sH "Accept: application/vnd.github.v3+json" 'https://api.github.com/repos/k3s-io/k3s/releases' | jq -r '.[] | select (.assets[].name == "k3s") | .name' | grep -v '\-rc' | sort -r | head -n1 | tr + -)
 K3S_IMAGE_OLDEST=$(curl -sH "Accept: application/vnd.github.v3+json" 'https://api.github.com/repos/k3s-io/k3s/releases' | jq -r '.[] | select (.assets[].name == "k3s") | .name' | grep -v '\-rc' | sort -r | tail -n1 | tr + -)
 
-# K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:$K3S_IMAGE_LATEST}
+# To run the script export $KUBERNETES_VERSION 
+# to either K3S_IMAGE_LATEST or K3S_IMAGE_OLDEST
+
+if [[ "$KUBERNETES_VERSION" == "" ]]; then
+echo "--------------------------------------------------------------------------------"
+echo "Flag KUBERNETES_VERSION set empty, using LATEST k3s version: '$K3S_IMAGE_LATEST'"
+echo "--------------------------------------------------------------------------------"
+K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:$K3S_IMAGE_LATEST}
+else
+echo "---------------------------------------------------------------------------------"
+echo "Flag KUBERNETES_VERSION detected, using k3s version: '$KUBERNETES_VERSION'"
+echo "---------------------------------------------------------------------------------"
 K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:$KUBERNETES_VERSION}
+fi
 
 check_deps() {
   if ! command -v k3d &> /dev/null
@@ -75,10 +87,6 @@ EOF
 echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-  echo "----------------------------------------------------"
-  echo "K3S_IMAGE" = $K3S_IMAGE
-  echo "----------------------------------------------------"
-
   k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:

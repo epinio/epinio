@@ -154,6 +154,8 @@ test-acceptance-install: showfocus
 test-acceptance-api-apps-critical-endpoints: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "application_exec_test.go" --label-filter "application" acceptance/api/v1/ .
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "application_portforward_test.go" --label-filter "application" acceptance/api/v1/ .
+	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "application_logs_test.go" --label-filter "application" acceptance/api/v1/ .
+	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "service_portforward_test.go" --label-filter "service" acceptance/api/v1/ .
 
 showfocus:
 	@if test `cat acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go ; echo ; fi
