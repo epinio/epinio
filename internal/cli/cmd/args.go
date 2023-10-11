@@ -12,9 +12,12 @@
 package cmd
 
 import (
+	"context"
 	"strings"
 
+	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/cli/usercmd"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/spf13/cobra"
 )
 
@@ -62,6 +65,31 @@ type ConfigurationAppMatcher interface {
 	GetAPI() usercmd.APIClient
 	ConfigurationMatching(toComplete string) []string
 	AppsMatching(toComplete string) []string
+}
+
+//counterfeiter:generate -header ../../../LICENSE_HEADER . AppMatcher
+type AppMatcher interface {
+	GetAPI() usercmd.APIClient
+	AppsMatching(toComplete string) []string
+}
+
+//counterfeiter:generate -header ../../../LICENSE_HEADER . AppChartMatcher
+type AppChartMatcher interface {
+	GetAPI() usercmd.APIClient
+	ChartMatching(toComplete string) []string
+}
+
+//counterfeiter:generate -header ../../../LICENSE_HEADER . AppVarMatcher
+type AppVarMatcher interface {
+	GetAPI() usercmd.APIClient
+	AppsMatching(toComplete string) []string
+	EnvMatching(ctx context.Context, appname, toComplete string) []string
+}
+
+//counterfeiter:generate -header ../../../LICENSE_HEADER . RegistryMatcher
+type RegistryMatcher interface {
+	GetAPI() usercmd.APIClient
+	ExportregistryMatching(toComplete string) []string
 }
 
 // NewNamespaceMatcherFunc returns a function returning list of matching namespaces from the
@@ -233,6 +261,99 @@ func NewServiceChartValueFunc(matcher ServiceChartValueMatcher) FlagCompletionFu
 	}
 }
 
+// NewAppMatcherFirstFunc returns a function returning list of matching apps from the
+// provided partial command.  It only matches for the first command argument.
+func NewAppMatcherFirstFunc(matcher AppMatcher) ValidArgsFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matcher.GetAPI().DisableVersionWarning()
+
+		matches := matcher.AppsMatching(toComplete)
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// NewAppMatcherAnyFunc returns a function returning a list of matching apps
+// from the provided partial command.  It matches for all command arguments
+func NewAppMatcherAnyFunc(matcher AppMatcher) ValidArgsFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		matcher.GetAPI().DisableVersionWarning()
+
+		matches := FilteredMatchingFinder(args, toComplete, matcher.AppsMatching)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// NewAppChartMatcherFirstFunc returns a function returning list of matching app charts from the
+// provided partial command.  It only matches for the first command argument.
+func NewAppChartMatcherFirstFunc(matcher AppChartMatcher) ValidArgsFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matcher.GetAPI().DisableVersionWarning()
+
+		matches := matcher.ChartMatching(toComplete)
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+func NewAppChartMatcherValueFunc(matcher AppChartMatcher) FlagCompletionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matcher.GetAPI().DisableVersionWarning()
+
+		matches := matcher.ChartMatching(toComplete)
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// NewAppVarMatcherFunc returns a function returning a list of matching configurations and
+// apps from the provided partial command.  It matches for the first (configurations) and second
+// arguments (applications)
+func NewAppVarMatcherFunc(matcher AppVarMatcher) ValidArgsFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		// #args == 2, 3, ... nothing matches
+		if len(args) > 1 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matcher.GetAPI().DisableVersionWarning()
+
+		if len(args) == 1 {
+			// #args == 1: environment variable name (in application)
+			matches := matcher.EnvMatching(cmd.Context(), args[0], toComplete)
+			return matches, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		// #args == 0: application name.
+		matches := matcher.AppsMatching(toComplete)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+func NewRegistryMatcherValueFunc(matcher RegistryMatcher) FlagCompletionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matcher.GetAPI().DisableVersionWarning()
+
+		matches := matcher.ExportregistryMatching(toComplete)
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
 // FilteredMatchingFinder uses the finder function to find the resources matching the given prefix.
 // It then filters the matches, removing the provided args, and returns that as its result.
 func FilteredMatchingFinder(args []string, prefix string, finder func(prefix string) []string) []string {
@@ -255,4 +376,84 @@ func FilteredMatchingFinder(args []string, prefix string, finder func(prefix str
 	}
 
 	return filteredMatches
+}
+
+// ///////////////////////////////////////////////////////////
+/// manifest and other options shared between app create/update/push
+
+// gitProviderOption initializes the --git-provider option for the provided command
+func GitProviderOption(cmd *cobra.Command) {
+	// TODO :: make private again when gitconfig ensemble has moved into cmd package
+
+	cmd.Flags().String("git-provider", "", "Git provider code (default 'git')")
+	bindFlag(cmd, "git-provider")
+	bindFlagCompletionFunc(cmd, "git-provider",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			matches := []string{}
+			for _, candidate := range models.ValidProviders {
+				if strings.HasPrefix(string(candidate), toComplete) {
+					matches = append(matches, string(candidate))
+				}
+			}
+			return matches, cobra.ShellCompDirectiveDefault
+		})
+}
+
+// instancesOption initializes the --instances/-i option for the provided command
+func instancesOption(cmd *cobra.Command) {
+	cmd.Flags().Int32P("instances", "i", application.DefaultInstances,
+		"The number of instances the application should have")
+}
+
+func routeOption(cmd *cobra.Command) {
+	cmd.Flags().BoolP("clear-routes", "z", false, "clear routes / no routes")
+	cmd.Flags().StringSliceP("route", "r", []string{}, "Custom route to use for the application (a subdomain of the default domain will be used if this is not set). Can be set multiple times to use multiple routes with the same application.")
+}
+
+// bindOption initializes the --bind/-b option for the provided command
+func bindOption(cmd *cobra.Command, client ApplicationsService) {
+	cmd.Flags().StringSliceP("bind", "b", []string{}, "configurations to bind immediately")
+	// nolint:errcheck // Unable to handle error in init block this will be called from
+	cmd.RegisterFlagCompletionFunc("bind",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			// `cmd`, `args` are ignored.  `toComplete` is the option value entered so far.
+			//
+			// This is a StringSlice option. This means that the option value is a comma-
+			// separated string of values.
+			//
+			// Completion has to happen only for the last segment in that string, i.e. after
+			// the last comma.  Note that cobra does not feed us a slice, just the string.
+			// We are responsible for splitting into segments, and expanding only the last
+			// segment.
+
+			values := strings.Split(toComplete, ",")
+			if len(values) == 0 {
+				// Nothing. Report all possible matches
+				matches := client.ConfigurationMatching(toComplete)
+				return matches, cobra.ShellCompDirectiveNoFileComp
+			}
+
+			// Expand the last segment. The returned matches are
+			// the string with its last segment replaced by the
+			// expansions for that segment.
+
+			matches := []string{}
+			for _, match := range client.ConfigurationMatching(values[len(values)-1]) {
+				values[len(values)-1] = match
+				matches = append(matches, strings.Join(values, ","))
+			}
+
+			return matches, cobra.ShellCompDirectiveDefault
+		})
+}
+
+// envOption initializes the --env/-e option for the provided command
+func envOption(cmd *cobra.Command) {
+	cmd.Flags().StringSliceP("env", "e", []string{}, "environment variables to be used")
+}
+
+// chartValueOptionX initializes the --chartValue/-c option for the provided command
+func chartValueOptionX(cmd *cobra.Command) {
+	// TODO re-unify with `chartValueOption` (services.go) - command config structure
+	cmd.Flags().StringSliceP("chart-value", "v", []string{}, "chart customization to be used")
 }

@@ -55,32 +55,6 @@ func CreateKubeClient(configPath string) kubernetes.Interface {
 	return clientset
 }
 
-// matchingAppsFinder returns a list of matching apps from the provided partial command. It only
-// matches for the first command argument.
-func matchingAppsFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) != 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	client.API.DisableVersionWarning()
-
-	matches := client.AppsMatching(toComplete)
-	return matches, cobra.ShellCompDirectiveNoFileComp
-}
-
-// matchingChartFinder returns a list of application charts whose names match the provided partial name
-func matchingChartFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) > 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	client.API.DisableVersionWarning()
-
-	// #args == 0: chart name.
-	matches := client.ChartMatching(toComplete)
-	return matches, cobra.ShellCompDirectiveNoFileComp
-}
-
 // matchingGitconfigFinder returns a list of matching git configurations from the provided partial
 // command. It only matches for the first command argument.
 func matchingGitconfigFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -91,18 +65,5 @@ func matchingGitconfigFinder(cmd *cobra.Command, args []string, toComplete strin
 	client.API.DisableVersionWarning()
 
 	matches := client.GitconfigsMatching(toComplete)
-	return matches, cobra.ShellCompDirectiveNoFileComp
-}
-
-// matchingRegistryFinder returns a list of export registries whose names match the provided partial name
-func matchingRegistryFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) > 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	client.API.DisableVersionWarning()
-
-	// #args == 0: registry name.
-	matches := client.ExportregistryMatching(toComplete)
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }

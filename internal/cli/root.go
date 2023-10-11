@@ -143,8 +143,8 @@ func NewRootCmd() (*cobra.Command, error) {
 		cmd.NewClientSyncCmd(client),
 		CmdGitconfig,
 		cmd.NewNamespaceCmd(client, cfg),
-		CmdAppPush, // shorthand access to `app push`
-		CmdApp,
+		cmd.NewAppPushCmd(client), // shorthand access to `app push`
+		cmd.NewApplicationsCmd(client, cfg),
 		cmd.NewTargetCmd(client),
 		cmd.NewConfigurationCmd(client, cfg),
 		CmdServer,

@@ -43,7 +43,7 @@ type PushParams struct {
 // * wait for staging to be done (complete or fail)
 // * deploy
 // * wait for app
-func (c *EpinioClient) Push(ctx context.Context, manifest models.ApplicationManifest) error { // nolint: gocyclo // Many ifs for view purposes
+func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationManifest) error { // nolint: gocyclo // Many ifs for view purposes
 
 	// Use settings default if user did not specify --app-chart
 	if manifest.Configuration.AppChart == "" {
