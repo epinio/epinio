@@ -137,7 +137,8 @@ type HelmRepo struct {
 }
 
 // HelmAuth contains the credentials to login into an OCI registry or a private Helm
-// repository. It may contain the path to a pod-local CERT file for securing the channel.
+// repository. It may contain the PEM-encoded data of additional certs used to secure
+// the channel.
 type HelmAuth struct {
 	Username string `json:"-"`
 	Password string `json:"-"`
