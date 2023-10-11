@@ -309,6 +309,14 @@ type InfoResponse struct {
 	OIDCEnabled         bool   `json:"oidc_enabled,omitempty"`
 }
 
+// MeResponse contains information about the current authenticated user
+type MeResponse struct {
+	User       string   `json:"user,omitempty"`
+	Role       string   `json:"role,omitempty"`
+	Namespaces []string `json:"namespaces,omitempty"`
+	Gitconfigs []string `json:"gitconfigs,omitempty"`
+}
+
 // AuthTokenResponse contains an auth token
 type AuthTokenResponse struct {
 	Token string `json:"token,omitempty"`

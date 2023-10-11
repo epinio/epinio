@@ -104,6 +104,13 @@ func gitproxy(body io.Reader) ([]byte, int) {
 	return curl(http.MethodPost, endpoint, body)
 }
 
+func me() ([]byte, int) {
+	GinkgoHelper()
+
+	endpoint := makeEndpoint("me")
+	return curl(http.MethodGet, endpoint, nil)
+}
+
 func curl(method, endpoint string, body io.Reader) ([]byte, int) {
 	GinkgoHelper()
 

@@ -337,6 +337,6 @@ func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, c
 		}
 	}
 
-	_, err := apiClient.Namespaces()
+	_, err := apiClient.Me()
 	return errors.Wrap(err, "error while connecting to the Epinio server")
 }

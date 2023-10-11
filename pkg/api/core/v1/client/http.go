@@ -318,7 +318,7 @@ func requestLogger(log logr.Logger, request *http.Request) logr.Logger {
 	if log.V(5).Enabled() {
 		log = log.WithValues(
 			"method", request.Method,
-			"uri", request.RequestURI,
+			"url", request.URL,
 			"body", bodyString,
 			"header", request.Header,
 		)

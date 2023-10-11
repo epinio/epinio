@@ -22,3 +22,11 @@ func (c *Client) Info() (models.InfoResponse, error) {
 
 	return Get(c, endpoint, response)
 }
+
+// Me returns the current user
+func (c *Client) Me() (models.MeResponse, error) {
+	response := models.MeResponse{}
+	endpoint := "me"
+
+	return Get(c, endpoint, response)
+}
