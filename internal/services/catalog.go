@@ -13,9 +13,7 @@ package services
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"os"
 	"strings"
 
 	apiv1 "github.com/epinio/application/api/v1"
@@ -115,18 +113,23 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 		repoUsername = string(authSecret.Data["username"])
 		repoPassword = string(authSecret.Data["password"])
 		// Optional cert information.
-		if pemData, ok := authSecret.Data["certs"]; ok {
-			// Compute file name as hash from the certs.
-			fileName := "/tmp/rep-" + base64.RawURLEncoding.EncodeToString([]byte(pemData)) + ".pem"
-			if _, err := os.Stat(fileName); err != nil {
-				// Create file if missing.
-				err = os.WriteFile(fileName, []byte(pemData), 0600)
-				if err != nil {
-					return nil, err
-				}
+		if pemSecret, ok := authSecret.Data["certs"]; ok {
+			// `certs` refers (by name) to the kube secret holding the cert PEM data.
+			// See `api/v1/applications/export.go`, loadCerts and caller as well.
+
+			cert, err := s.kubeClient.GetSecret(
+				context.Background(),
+				helmchart.Namespace(), string(pemSecret))
+			if err != nil {
+				return nil, err
 			}
-			// File exists (either created now, or in the past)
-			repoCerts = fileName
+			pemData, ok := cert.Data["tls.crt"]
+			if !ok {
+				return nil, fmt.Errorf("Cert secret %s not suitable, no key 'tls.crt'",
+					pemSecret)
+			}
+
+			repoCerts = string(pemData)
 		}
 	}
 
