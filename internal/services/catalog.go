@@ -122,7 +122,7 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 				// Create file if missing.
 				err = os.WriteFile(fileName, []byte(pemData), 0600)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			// File exists (either created now, or in the past)
