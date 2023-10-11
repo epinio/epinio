@@ -20,7 +20,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Me endpoint", LMisc, func() {
+var _ = Describe("Me endpoint", LMisc, func() {
 
 	When("user is authenticated", func() {
 		It("returns info about the current user", func() {
