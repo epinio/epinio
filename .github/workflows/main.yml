@@ -71,363 +71,363 @@ jobs:
           name: unittests
           path: ./coverprofile.out
 
-  # acceptance-cli:
-  #   needs:
-  #     - linter
-  #   runs-on: [self-hosted, epinio]
-
-  #   env:
-  #     GOCOVERDIR: /tmp
-
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #       with:
-  #         submodules: recursive
-  #         fetch-depth: 0
-
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v4
-  #       timeout-minutes: 5
-  #       with:
-  #         cache: false
-  #         go-version: ${{ env.SETUP_GO_VERSION }}
-
-  #     - name: Setup Ginkgo Test Framework
-  #       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
-
-  #     - name: Cache Tools
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ${{ github.workspace }}/tools
-  #         key: ${{ runner.os }}-tools
-
-  #     - name: Login to Docker Hub
-  #       uses: docker/login-action@v2
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  #     - name: Install Tools
-  #       run: make tools-install
-
-  #     - name: Add Tools to PATH
-  #       run: |
-  #         echo "`pwd`/output/bin" >> $GITHUB_PATH
-
-  #     - name: CLI Acceptance Tests
-  #       env:
-  #         REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-  #         EPINIO_TIMEOUT_MULTIPLIER: 3
-  #       run: |
-  #         rm -f /tmp/cov*
-  #         make acceptance-cluster-setup
-  #         export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-  #         make install-cert-manager
-  #         make prepare_environment_k3d
-  #         make test-acceptance-cli-other
-  #         scripts/collect-coverage.sh
-
-  #     - uses: actions/upload-artifact@v3
-  #       with:
-  #         name: acceptance-cli
-  #         path: ./coverprofile.out
-
-  #     - name: Cleanup k3d cluster
-  #       if: always()
-  #       run: make acceptance-cluster-delete
-
-  #     - name: Clean all
-  #       if: ${{ github.event_name == 'schedule' }}
-  #       uses: colpal/actions-clean@v1
-
-  # acceptance-cli-apps:
-  #   needs:
-  #     - linter
-  #   runs-on: [self-hosted, epinio]
-
-  #   env:
-  #     GOCOVERDIR: /tmp
-
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #       with:
-  #         submodules: recursive
-  #         fetch-depth: 0
-
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v4
-  #       timeout-minutes: 5
-  #       with:
-  #         cache: false
-  #         go-version: ${{ env.SETUP_GO_VERSION }}
-
-  #     - name: Setup Ginkgo Test Framework
-  #       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
-
-  #     - name: Cache Tools
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ${{ github.workspace }}/tools
-  #         key: ${{ runner.os }}-tools
-
-  #     - name: Login to Docker Hub
-  #       uses: docker/login-action@v2
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  #     - name: Install Tools
-  #       run: make tools-install
-
-  #     - name: Add Tools to PATH
-  #       run: |
-  #         echo "`pwd`/output/bin" >> $GITHUB_PATH
-
-  #     - name: CLI Acceptance Tests
-  #       env:
-  #         REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-  #         EPINIO_TIMEOUT_MULTIPLIER: 3
-  #         PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
-  #       run: |
-  #         rm -f /tmp/cov*
-  #         make acceptance-cluster-setup
-  #         export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-  #         make install-cert-manager
-  #         make prepare_environment_k3d
-  #         make test-acceptance-cli-apps
-  #         scripts/collect-coverage.sh
-
-  #     - uses: actions/upload-artifact@v3
-  #       with:
-  #         name: acceptance-cli-apps
-  #         path: ./coverprofile.out
-
-  #     - name: Cleanup k3d cluster
-  #       if: always()
-  #       run: make acceptance-cluster-delete
-
-  #     - name: Clean all
-  #       if: ${{ github.event_name == 'schedule' }}
-  #       uses: colpal/actions-clean@v1
-
-  # acceptance-cli-services:
-  #   needs:
-  #     - linter
-  #   runs-on: [self-hosted, epinio]
-
-  #   env:
-  #     GOCOVERDIR: /tmp
-
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #       with:
-  #         submodules: recursive
-  #         fetch-depth: 0
-
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v4
-  #       timeout-minutes: 5
-  #       with:
-  #         cache: false
-  #         go-version: ${{ env.SETUP_GO_VERSION }}
-
-  #     - name: Setup Ginkgo Test Framework
-  #       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
-
-  #     - name: Cache Tools
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ${{ github.workspace }}/tools
-  #         key: ${{ runner.os }}-tools
-
-  #     - name: Login to Docker Hub
-  #       uses: docker/login-action@v2
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  #     - name: Install Tools
-  #       run: make tools-install
-
-  #     - name: Add Tools to PATH
-  #       run: |
-  #         echo "`pwd`/output/bin" >> $GITHUB_PATH
-
-  #     - name: CLI Acceptance Tests
-  #       env:
-  #         REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-  #         EPINIO_TIMEOUT_MULTIPLIER: 3
-  #       run: |
-  #         rm -f /tmp/cov*
-  #         make acceptance-cluster-setup
-  #         export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-  #         make install-cert-manager
-  #         make prepare_environment_k3d
-  #         make test-acceptance-cli-services
-  #         scripts/collect-coverage.sh
-
-  #     - uses: actions/upload-artifact@v3
-  #       with:
-  #         name: acceptance-cli-services
-  #         path: ./coverprofile.out
-
-  #     - name: Cleanup k3d cluster
-  #       if: always()
-  #       run: make acceptance-cluster-delete
-
-  #     - name: Clean all
-  #       if: ${{ github.event_name == 'schedule' }}
-  #       uses: colpal/actions-clean@v1
-
-  # acceptance-api:
-  #   needs:
-  #     - linter
-  #     - acceptance-api-services
-  #   runs-on: [self-hosted, epinio]
-
-  #   env:
-  #     GOCOVERDIR: /tmp
-
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #       with:
-  #         submodules: recursive
-  #         fetch-depth: 0
-
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v4
-  #       timeout-minutes: 5
-  #       with:
-  #         cache: false
-  #         go-version: ${{ env.SETUP_GO_VERSION }}
-
-  #     - name: Setup Ginkgo Test Framework
-  #       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
-
-  #     - name: Cache Tools
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ${{ github.workspace }}/tools
-  #         key: ${{ runner.os }}-tools
-
-  #     - name: Login to Docker Hub
-  #       uses: docker/login-action@v2
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  #     - name: Install Tools
-  #       run: make tools-install
-
-  #     - name: Add Tools to PATH
-  #       run: |
-  #         echo "`pwd`/output/bin" >> $GITHUB_PATH
-
-  #     - name: API Acceptance Tests
-  #       env:
-  #         REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-  #         EPINIO_TIMEOUT_MULTIPLIER: 3
-  #       run: |
-  #         rm -f /tmp/cov*
-  #         make acceptance-cluster-setup
-  #         export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-  #         make install-cert-manager
-  #         make prepare_environment_k3d
-  #         make test-acceptance-api-other
-  #         scripts/collect-coverage.sh
-
-  #     - uses: actions/upload-artifact@v3
-  #       with:
-  #         name: acceptance-api
-  #         path: ./coverprofile.out
-
-  #     - name: Cleanup k3d cluster
-  #       if: always()
-  #       run: make acceptance-cluster-delete
-
-  #     - name: Clean all
-  #       if: ${{ github.event_name == 'schedule' }}
-  #       uses: colpal/actions-clean@v1
-
-  # acceptance-api-apps:
-  #   needs:
-  #     - linter
-  #     - acceptance-cli-services
-  #   runs-on: [self-hosted, epinio]
-
-  #   env:
-  #     GOCOVERDIR: /tmp
-
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #       with:
-  #         submodules: recursive
-  #         fetch-depth: 0
-
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v4
-  #       timeout-minutes: 5
-  #       with:
-  #         cache: false
-  #         go-version: ${{ env.SETUP_GO_VERSION }}
-
-  #     - name: Setup Ginkgo Test Framework
-  #       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
-
-  #     - name: Cache Tools
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ${{ github.workspace }}/tools
-  #         key: ${{ runner.os }}-tools
-
-  #     - name: Login to Docker Hub
-  #       uses: docker/login-action@v2
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  #     - name: Install Tools
-  #       run: make tools-install
-
-  #     - name: Add Tools to PATH
-  #       run: |
-  #         echo "`pwd`/output/bin" >> $GITHUB_PATH
-
-  #     - name: API Acceptance Tests
-  #       env:
-  #         REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-  #         EPINIO_TIMEOUT_MULTIPLIER: 3
-  #       run: |
-  #         rm -f /tmp/cov*
-  #         make acceptance-cluster-setup
-  #         export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-  #         make install-cert-manager
-  #         make prepare_environment_k3d
-  #         make test-acceptance-api-apps
-  #         scripts/collect-coverage.sh
-
-  #     - uses: actions/upload-artifact@v3
-  #       with:
-  #         name: acceptance-api-apps
-  #         path: ./coverprofile.out
-
-  #     - name: Cleanup k3d cluster
-  #       if: always()
-  #       run: make acceptance-cluster-delete
-
-  #     - name: Clean all
-  #       if: ${{ github.event_name == 'schedule' }}
-  #       uses: colpal/actions-clean@v1
+  acceptance-cli:
+    needs:
+      - linter
+    runs-on: [self-hosted, epinio]
+
+    env:
+      GOCOVERDIR: /tmp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        timeout-minutes: 5
+        with:
+          cache: false
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: CLI Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+        run: |
+          rm -f /tmp/cov*
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install-cert-manager
+          make prepare_environment_k3d
+          make test-acceptance-cli-other
+          scripts/collect-coverage.sh
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-cli
+          path: ./coverprofile.out
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
+
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
+
+  acceptance-cli-apps:
+    needs:
+      - linter
+    runs-on: [self-hosted, epinio]
+
+    env:
+      GOCOVERDIR: /tmp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        timeout-minutes: 5
+        with:
+          cache: false
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: CLI Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+          PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
+        run: |
+          rm -f /tmp/cov*
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install-cert-manager
+          make prepare_environment_k3d
+          make test-acceptance-cli-apps
+          scripts/collect-coverage.sh
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-cli-apps
+          path: ./coverprofile.out
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
+
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
+
+  acceptance-cli-services:
+    needs:
+      - linter
+    runs-on: [self-hosted, epinio]
+
+    env:
+      GOCOVERDIR: /tmp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        timeout-minutes: 5
+        with:
+          cache: false
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: CLI Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+        run: |
+          rm -f /tmp/cov*
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install-cert-manager
+          make prepare_environment_k3d
+          make test-acceptance-cli-services
+          scripts/collect-coverage.sh
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-cli-services
+          path: ./coverprofile.out
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
+
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
+
+  acceptance-api:
+    needs:
+      - linter
+      - acceptance-api-services
+    runs-on: [self-hosted, epinio]
+
+    env:
+      GOCOVERDIR: /tmp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        timeout-minutes: 5
+        with:
+          cache: false
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: API Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+        run: |
+          rm -f /tmp/cov*
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install-cert-manager
+          make prepare_environment_k3d
+          make test-acceptance-api-other
+          scripts/collect-coverage.sh
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-api
+          path: ./coverprofile.out
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
+
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
+
+  acceptance-api-apps:
+    needs:
+      - linter
+      - acceptance-cli-services
+    runs-on: [self-hosted, epinio]
+
+    env:
+      GOCOVERDIR: /tmp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        timeout-minutes: 5
+        with:
+          cache: false
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: API Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+        run: |
+          rm -f /tmp/cov*
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install-cert-manager
+          make prepare_environment_k3d
+          make test-acceptance-api-apps
+          scripts/collect-coverage.sh
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-api-apps
+          path: ./coverprofile.out
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
+
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
 
   ###########################################
   acceptance-api-latest-last-k8s:
@@ -543,216 +543,216 @@ jobs:
         uses: colpal/actions-clean@v1
 
   ###########################################
-  # acceptance-api-services:
-  #   needs:
-  #     - linter
-  #   runs-on: [self-hosted, epinio]
+  acceptance-api-services:
+    needs:
+      - linter
+    runs-on: [self-hosted, epinio]
 
-  #   env:
-  #     GOCOVERDIR: /tmp
+    env:
+      GOCOVERDIR: /tmp
 
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #       with:
-  #         submodules: recursive
-  #         fetch-depth: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v4
-  #       timeout-minutes: 5
-  #       with:
-  #         cache: false
-  #         go-version: ${{ env.SETUP_GO_VERSION }}
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        timeout-minutes: 5
+        with:
+          cache: false
+          go-version: ${{ env.SETUP_GO_VERSION }}
 
-  #     - name: Setup Ginkgo Test Framework
-  #       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
 
-  #     - name: Cache Tools
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ${{ github.workspace }}/tools
-  #         key: ${{ runner.os }}-tools
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
 
-  #     - name: Login to Docker Hub
-  #       uses: docker/login-action@v2
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-  #     - name: Install Tools
-  #       run: make tools-install
+      - name: Install Tools
+        run: make tools-install
 
-  #     - name: Add Tools to PATH
-  #       run: |
-  #         echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-  #     - name: API Acceptance Tests
-  #       env:
-  #         REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-  #         EPINIO_TIMEOUT_MULTIPLIER: 3
-  #       run: |
-  #         rm -f /tmp/cov*
-  #         make acceptance-cluster-setup
-  #         export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-  #         make install-cert-manager
-  #         make prepare_environment_k3d
-  #         make test-acceptance-api-services
-  #         scripts/collect-coverage.sh
+      - name: API Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+        run: |
+          rm -f /tmp/cov*
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install-cert-manager
+          make prepare_environment_k3d
+          make test-acceptance-api-services
+          scripts/collect-coverage.sh
 
-  #     - uses: actions/upload-artifact@v3
-  #       with:
-  #         name: acceptance-api-services
-  #         path: ./coverprofile.out
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-api-services
+          path: ./coverprofile.out
 
-  #     - name: Cleanup k3d cluster
-  #       if: always()
-  #       run: make acceptance-cluster-delete
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
 
-  #     - name: Clean all
-  #       if: ${{ github.event_name == 'schedule' }}
-  #       uses: colpal/actions-clean@v1
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
 
-  # acceptance-apps:
-  #   needs:
-  #     - linter
-  #     - acceptance-cli
-  #   runs-on: [self-hosted, epinio]
+  acceptance-apps:
+    needs:
+      - linter
+      - acceptance-cli
+    runs-on: [self-hosted, epinio]
 
-  #   env:
-  #     GOCOVERDIR: /tmp
+    env:
+      GOCOVERDIR: /tmp
 
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #       with:
-  #         submodules: recursive
-  #         fetch-depth: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v4
-  #       timeout-minutes: 5
-  #       with:
-  #         cache: false
-  #         go-version: ${{ env.SETUP_GO_VERSION }}
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        timeout-minutes: 5
+        with:
+          cache: false
+          go-version: ${{ env.SETUP_GO_VERSION }}
 
-  #     - name: Setup Ginkgo Test Framework
-  #       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
 
-  #     - name: Cache Tools
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ${{ github.workspace }}/tools
-  #         key: ${{ runner.os }}-tools
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
 
-  #     - name: Login to Docker Hub
-  #       uses: docker/login-action@v2
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-  #     - name: Install Tools
-  #       run: make tools-install
+      - name: Install Tools
+        run: make tools-install
 
-  #     - name: Add Tools to PATH
-  #       run: |
-  #         echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-  #     - name: Apps Acceptance Tests
-  #       env:
-  #         REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-  #         EPINIO_TIMEOUT_MULTIPLIER: 5
-  #       run: |
-  #         rm -f /tmp/cov*
-  #         make acceptance-cluster-setup
-  #         export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-  #         make install-cert-manager
-  #         make prepare_environment_k3d
-  #         make test-acceptance-apps
-  #         scripts/collect-coverage.sh
+      - name: Apps Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 5
+        run: |
+          rm -f /tmp/cov*
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install-cert-manager
+          make prepare_environment_k3d
+          make test-acceptance-apps
+          scripts/collect-coverage.sh
 
-  #     - uses: actions/upload-artifact@v3
-  #       with:
-  #         name: acceptance-apps
-  #         path: ./coverprofile.out
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-apps
+          path: ./coverprofile.out
 
-  #     - name: Failure Logs
-  #       if: failure()
-  #       run: |
-  #         mkdir -p tmp
-  #         kubectl get -A pod,service,ingress -o json > tmp/cluster.json
-  #         kubectl get -A events > tmp/events.log
-  #         docker logs k3d-epinio-acceptance-server-0 &> tmp/k3s.log
-  #         docker exec k3d-epinio-acceptance-server-0 sh -c 'cd /var/log/containers; grep -r "." .' > tmp/containers.log
+      - name: Failure Logs
+        if: failure()
+        run: |
+          mkdir -p tmp
+          kubectl get -A pod,service,ingress -o json > tmp/cluster.json
+          kubectl get -A events > tmp/events.log
+          docker logs k3d-epinio-acceptance-server-0 &> tmp/k3s.log
+          docker exec k3d-epinio-acceptance-server-0 sh -c 'cd /var/log/containers; grep -r "." .' > tmp/containers.log
 
-  #     - name: Upload Logs
-  #       uses: actions/upload-artifact@v3
-  #       if: failure()
-  #       with:
-  #         name: acceptance-logs-${{ github.sha }}-${{ github.run_id }}
-  #         path: |
-  #           tmp/*.json
-  #           tmp/*.log
-  #         retention-days: 2
+      - name: Upload Logs
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: acceptance-logs-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            tmp/*.json
+            tmp/*.log
+          retention-days: 2
 
-  #     - name: Cleanup k3d cluster
-  #       if: always()
-  #       run: make acceptance-cluster-delete
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
 
-  #     - name: Clean all
-  #       if: ${{ github.event_name == 'schedule' }}
-  #       uses: colpal/actions-clean@v1
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
 
-  # upload-coverage:
-  #   needs:
-  #     - acceptance-api
-  #     - acceptance-api-apps
-  #     - acceptance-apps
-  #     - acceptance-cli-apps
+  upload-coverage:
+    needs:
+      - acceptance-api
+      - acceptance-api-apps
+      - acceptance-apps
+      - acceptance-cli-apps
 
-  #   runs-on: [self-hosted, epinio]
+    runs-on: [self-hosted, epinio]
 
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-  #     - name: Download artifacts
-  #       uses: actions/download-artifact@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
 
-  #     - name: Upload unittests coverage to Codecov
-  #       uses: codecov/codecov-action@v3
-  #       with:
-  #         name: codecov-epinio
-  #         files: ./unittests/coverprofile.out
-  #         flags: unittests
-  #         verbose: true
-  #         fail_ci_if_error: true
+      - name: Upload unittests coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          name: codecov-epinio
+          files: ./unittests/coverprofile.out
+          flags: unittests
+          verbose: true
+          fail_ci_if_error: true
 
-  #     - name: Upload acceptance-api coverage to Codecov
-  #       uses: codecov/codecov-action@v3
-  #       with:
-  #         name: codecov-epinio
-  #         files: ./acceptance-api/coverprofile.out,./acceptance-api-apps/coverprofile.out,./acceptance-api-services/coverprofile.out
-  #         flags: acceptance-api
-  #         verbose: true
-  #         fail_ci_if_error: true
+      - name: Upload acceptance-api coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          name: codecov-epinio
+          files: ./acceptance-api/coverprofile.out,./acceptance-api-apps/coverprofile.out,./acceptance-api-services/coverprofile.out
+          flags: acceptance-api
+          verbose: true
+          fail_ci_if_error: true
 
-  #     - name: Upload acceptance-cli coverage to Codecov
-  #       uses: codecov/codecov-action@v3
-  #       with:
-  #         name: codecov-epinio
-  #         files: ./acceptance-cli/coverprofile.out,./acceptance-cli-apps/coverprofile.out,./acceptance-cli-services/coverprofile.out
-  #         flags: acceptance-cli
-  #         verbose: true
-  #         fail_ci_if_error: true
+      - name: Upload acceptance-cli coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          name: codecov-epinio
+          files: ./acceptance-cli/coverprofile.out,./acceptance-cli-apps/coverprofile.out,./acceptance-cli-services/coverprofile.out
+          flags: acceptance-cli
+          verbose: true
+          fail_ci_if_error: true
 
-  #     - name: Upload acceptance-apps coverage to Codecov
-  #       uses: codecov/codecov-action@v3
-  #       with:
-  #         name: codecov-epinio
-  #         files: ./acceptance-apps/coverprofile.out
-  #         flags: acceptance-apps
-  #         verbose: true
-  #         fail_ci_if_error: true
+      - name: Upload acceptance-apps coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          name: codecov-epinio
+          files: ./acceptance-apps/coverprofile.out
+          flags: acceptance-apps
+          verbose: true
+          fail_ci_if_error: true
