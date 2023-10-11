@@ -17,6 +17,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -99,8 +100,10 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 		}
 		client.API.DisableVersionWarning()
 
-		for k, v := range customHeaders {
-			client.API.SetHeader(k, v)
+		for k, values := range customHeaders {
+			for _, v := range values {
+				client.API.SetHeader(k, v)
+			}
 		}
 
 		// we don't need anything, just checking if the namespace exist and we have permissions
@@ -320,7 +323,7 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 	return epinioSettings, nil
 }
 
-func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, customHeaders map[string]string) error {
+func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, customHeaders http.Header) error {
 	// Ensure that the settings have a location to get passed the client's check for it.
 	// Here it is ok to not have an actual location and file, because we are logging in, and at
 	// the end of the operation the relevant file will be created. Only having an API matters,
@@ -328,8 +331,10 @@ func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, c
 	epinioSettings.Location = "fake"
 	apiClient := epinioapi.New(ctx, epinioSettings)
 
-	for k, v := range customHeaders {
-		apiClient.SetHeader(k, v)
+	for k, values := range customHeaders {
+		for _, v := range values {
+			apiClient.SetHeader(k, v)
+		}
 	}
 
 	_, err := apiClient.Namespaces()

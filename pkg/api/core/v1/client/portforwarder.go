@@ -170,7 +170,7 @@ func (pf *ServicePortForwarder) handleConnection(localConn net.Conn) error {
 
 	portForwardURL.Scheme = "wss"
 
-	c, _, err := websocket.DefaultDialer.Dial(portForwardURL.String(), nil)
+	c, _, err := websocket.DefaultDialer.Dial(portForwardURL.String(), pf.Client.Headers())
 	if err != nil {
 		pf.Client.log.V(1).Error(err, "error dialing")
 		return err

@@ -16,6 +16,7 @@ package usercmd
 
 import (
 	"context"
+	"net/http"
 	"runtime"
 
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -135,7 +136,7 @@ type APIClient interface {
 	VersionWarningEnabled() bool
 
 	SetHeader(k, v string)
-	Headers() map[string]string
+	Headers() http.Header
 }
 
 func New() (*EpinioClient, error) {
