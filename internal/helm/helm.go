@@ -17,6 +17,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -146,7 +147,33 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	serviceRepoURL := catalogService.HelmRepo.URL
 	repoAuth := catalogService.HelmRepo.Auth
 
+	// Prepare cert file for repo login/setup, if available.
+	// The variable is here to make it possible to disable
+	// the deferal when we enter async mode. The async goroutine
+	// will create its own deferal.
+	certFile := ""
+
 	if serviceRepoURL != "" {
+		if repoAuth.Certs != "" {
+			certFile := fmt.Sprintf("/tmp/svc-cert-%d.pem", time.Now().UnixNano())
+			err = os.WriteFile(certFile, []byte(repoAuth.Certs), 0600)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				// (**) Do nothing when disabled by async mode.
+				if certFile == "" {
+					return
+				}
+				err := os.RemoveAll(certFile)
+				if err != nil {
+					logger.Error(fmt.Errorf("error cleaning up local cert-file"),
+						"path", certFile,
+						"error", err.Error())
+				}
+			}()
+		}
+
 		// if the repository is an OCI registry we install the chart from it
 		if registry.IsOCI(serviceRepoURL) {
 			// with OCI install with 'helm install foo oci://registry/chart'
@@ -158,9 +185,9 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 
 				// if a supporting cert is declared, tell the the helm packages
 				rOpts := []action.RegistryLoginOpt{}
-				if repoAuth.Certs != "" {
-					logger.Info("Cert support, OCI", "cert-file", repoAuth.Certs)
-					rOpts = append(rOpts, action.WithCAFile(repoAuth.Certs))
+				if certFile != "" {
+					logger.Info("Cert support, OCI", "cert-file", certFile)
+					rOpts = append(rOpts, action.WithCAFile(certFile))
 				}
 				err = client.RegistryLogin(registryHostname, repoAuth.Username, repoAuth.Password, rOpts...)
 				if err != nil {
@@ -178,9 +205,9 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 				Password: repoAuth.Password,
 			}
 			// if a supporting cert is declared, tell the the helm packages
-			if repoAuth.Certs != "" {
-				logger.Info("Cert support, plain", "cert-file", repoAuth.Certs)
-				origin.CAFile = repoAuth.Certs
+			if certFile != "" {
+				logger.Info("Cert support, plain", "cert-file", certFile)
+				origin.CAFile = certFile
 			}
 			err = client.AddOrUpdateChartRepo(origin)
 			if err != nil {
@@ -206,7 +233,25 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		// Note: We are backgrounding the action. The incoming context cannot be used, as it
 		// is linked to the request. We will get a `context canceled` error. To avoid this a
 		// background context is used instead.
-		go func() {
+
+		localCert := certFile // copy of certFile, for use in the goroutine
+		certFile = ""         // nolint:ineffassign // this is not ineffective due
+		// to the defered removal at (**). The defered function has this variable in
+		// it closure. The assignment disables the defered removal.
+
+		go func(certFile string) {
+			// recreate defered removal of cert file for the async path, if necessary
+			if certFile != "" {
+				defer func(certFile string) {
+					err := os.RemoveAll(certFile)
+					if err != nil {
+						logger.Error(fmt.Errorf("error cleaning up local cert-file, ASYNC"),
+							"path", certFile,
+							"error", err.Error())
+					}
+				}(certFile)
+			}
+
 			err = installOrUpgradeChartWithRetry(context.Background(), logger, client, &chartSpec)
 			if err != nil {
 				logger.Error(err, "installing or upgrading service ASYNC")
@@ -224,7 +269,7 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 			}
 
 			logger.Info("completed service deployment ASYNC")
-		}()
+		}(localCert)
 		return nil
 	}
 
