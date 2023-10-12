@@ -147,6 +147,8 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	serviceRepoURL := catalogService.HelmRepo.URL
 	repoAuth := catalogService.HelmRepo.Auth
 
+	logger.Info("service helm setup", "repo-url", serviceRepoURL)
+
 	// Prepare cert file for repo login/setup, if available.
 	// The variable is here to make it possible to disable
 	// the deferal when we enter async mode. The async goroutine
@@ -160,11 +162,17 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 			if err != nil {
 				return err
 			}
+
+			logger.Info("service helm setup", "repo-auth-cert-file", certFile)
+
 			defer func() {
 				// (**) Do nothing when disabled by async mode.
 				if certFile == "" {
 					return
 				}
+
+				logger.Info("service helm cleanup", "repo-auth-cert-file", certFile)
+
 				err := os.RemoveAll(certFile)
 				if err != nil {
 					logger.Error(fmt.Errorf("error cleaning up local cert-file"),
@@ -189,6 +197,9 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 					logger.Info("Cert support, OCI", "cert-file", certFile)
 					rOpts = append(rOpts, action.WithCAFile(certFile))
 				}
+
+				logger.Info("service helm repo oci login", "registry", registryHostname)
+
 				err = client.RegistryLogin(registryHostname, repoAuth.Username, repoAuth.Password, rOpts...)
 				if err != nil {
 					return errors.Wrap(err, "logging into the helm registry")
@@ -204,6 +215,9 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 				Username: repoAuth.Username,
 				Password: repoAuth.Password,
 			}
+
+			logger.Info("service helm repo add/update", "repo-url", serviceRepoURL)
+
 			// if a supporting cert is declared, tell the the helm packages
 			if certFile != "" {
 				logger.Info("Cert support, plain", "cert-file", certFile)
@@ -217,6 +231,10 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 			helmChart = fmt.Sprintf("%s/%s", name, helmChart)
 		}
 	}
+
+	logger.Info("service helm install/upgrade", "relase", releaseName)
+	logger.Info("service helm install/upgrade", "chart", helmChart)
+	logger.Info("service helm install/upgrade", "version", helmVersion)
 
 	chartSpec := hc.ChartSpec{
 		ReleaseName: releaseName,
@@ -240,9 +258,13 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		// it closure. The assignment disables the defered removal.
 
 		go func(certFile string) {
+			logger.Info("service helm setup ASYNC", "repo-auth-cert-file", certFile)
+
 			// recreate defered removal of cert file for the async path, if necessary
 			if certFile != "" {
 				defer func(certFile string) {
+					logger.Info("service helm cleanup ASYNC", "repo-auth-cert-file", certFile)
+
 					err := os.RemoveAll(certFile)
 					if err != nil {
 						logger.Error(fmt.Errorf("error cleaning up local cert-file, ASYNC"),
