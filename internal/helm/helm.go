@@ -157,7 +157,7 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 
 	if serviceRepoURL != "" {
 		if repoAuth.Certs != "" {
-			certFile := fmt.Sprintf("/tmp/svc-cert-%d.pem", time.Now().UnixNano())
+			certFile = fmt.Sprintf("/tmp/svc-cert-%d.pem", time.Now().UnixNano())
 			err = os.WriteFile(certFile, []byte(repoAuth.Certs), 0600)
 			if err != nil {
 				return err
