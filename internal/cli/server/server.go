@@ -101,6 +101,13 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		apiv1.ErrorHandler(apiv1.Info),
 	)
 
+	// authenticated /me endpoint returns the current user (no other checks/middlewares needed)
+	router.GET("/api/v1/me",
+		middleware.Authentication,
+		middleware.EpinioVersion,
+		apiv1.ErrorHandler(apiv1.Me),
+	)
+
 	// Dex or no dex ?
 	if _, err := os.Stat(apiv1.DexPEMPath); err == nil {
 		// dex secret is present, load contained cert

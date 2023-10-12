@@ -46,6 +46,7 @@ type EpinioClient struct {
 //counterfeiter:generate -header ../../../LICENSE_HEADER . APIClient
 type APIClient interface {
 	AuthToken() (models.AuthTokenResponse, error)
+	Me() (models.MeResponse, error)
 
 	// app
 	AppCreate(req models.ApplicationCreateRequest, namespace string) (models.Response, error)

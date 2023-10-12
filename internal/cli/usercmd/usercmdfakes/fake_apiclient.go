@@ -683,6 +683,18 @@ type FakeAPIClient struct {
 		result1 models.InfoResponse
 		result2 error
 	}
+	MeStub        func() (models.MeResponse, error)
+	meMutex       sync.RWMutex
+	meArgsForCall []struct {
+	}
+	meReturns struct {
+		result1 models.MeResponse
+		result2 error
+	}
+	meReturnsOnCall map[int]struct {
+		result1 models.MeResponse
+		result2 error
+	}
 	NamespaceCreateStub        func(models.NamespaceCreateRequest) (models.Response, error)
 	namespaceCreateMutex       sync.RWMutex
 	namespaceCreateArgsForCall []struct {
@@ -4021,6 +4033,62 @@ func (fake *FakeAPIClient) InfoReturnsOnCall(i int, result1 models.InfoResponse,
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) Me() (models.MeResponse, error) {
+	fake.meMutex.Lock()
+	ret, specificReturn := fake.meReturnsOnCall[len(fake.meArgsForCall)]
+	fake.meArgsForCall = append(fake.meArgsForCall, struct {
+	}{})
+	stub := fake.MeStub
+	fakeReturns := fake.meReturns
+	fake.recordInvocation("Me", []interface{}{})
+	fake.meMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) MeCallCount() int {
+	fake.meMutex.RLock()
+	defer fake.meMutex.RUnlock()
+	return len(fake.meArgsForCall)
+}
+
+func (fake *FakeAPIClient) MeCalls(stub func() (models.MeResponse, error)) {
+	fake.meMutex.Lock()
+	defer fake.meMutex.Unlock()
+	fake.MeStub = stub
+}
+
+func (fake *FakeAPIClient) MeReturns(result1 models.MeResponse, result2 error) {
+	fake.meMutex.Lock()
+	defer fake.meMutex.Unlock()
+	fake.MeStub = nil
+	fake.meReturns = struct {
+		result1 models.MeResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) MeReturnsOnCall(i int, result1 models.MeResponse, result2 error) {
+	fake.meMutex.Lock()
+	defer fake.meMutex.Unlock()
+	fake.MeStub = nil
+	if fake.meReturnsOnCall == nil {
+		fake.meReturnsOnCall = make(map[int]struct {
+			result1 models.MeResponse
+			result2 error
+		})
+	}
+	fake.meReturnsOnCall[i] = struct {
+		result1 models.MeResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeAPIClient) NamespaceCreate(arg1 models.NamespaceCreateRequest) (models.Response, error) {
 	fake.namespaceCreateMutex.Lock()
 	ret, specificReturn := fake.namespaceCreateReturnsOnCall[len(fake.namespaceCreateArgsForCall)]
@@ -5365,6 +5433,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.headersMutex.RUnlock()
 	fake.infoMutex.RLock()
 	defer fake.infoMutex.RUnlock()
+	fake.meMutex.RLock()
+	defer fake.meMutex.RUnlock()
 	fake.namespaceCreateMutex.RLock()
 	defer fake.namespaceCreateMutex.RUnlock()
 	fake.namespaceDeleteMutex.RLock()
