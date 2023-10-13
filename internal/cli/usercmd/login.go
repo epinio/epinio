@@ -25,6 +25,7 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/termui"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
 	"golang.org/x/term"
@@ -338,5 +339,24 @@ func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, c
 	}
 
 	_, err := apiClient.Me()
-	return errors.Wrap(err, "error while connecting to the Epinio server")
+	// all good
+	if err == nil {
+		return nil
+	}
+
+	// check if the error was a NotFound, for backward compatibility.
+	// Epinio versions up to v1.10.0 don't have the /me endpoint
+	// TODO: remove this check in a couple of releases.
+	epinioAPIError := &client.APIError{}
+	if !errors.As(err, &epinioAPIError) ||
+		epinioAPIError.StatusCode != http.StatusNotFound {
+		return errors.Wrap(err, "error while connecting to the Epinio server")
+	}
+
+	// backward compatible check
+	_, err = apiClient.Namespaces()
+	if err != nil {
+		return errors.Wrap(err, "error while connecting to the Epinio server")
+	}
+	return nil
 }
