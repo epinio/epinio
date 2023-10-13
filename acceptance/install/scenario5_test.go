@@ -168,6 +168,12 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", fu
 				"-o", "jsonpath='{.items[*].spec.issuerRef.name}'")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal("'letsencrypt-staging'"))
+
+			// Wait until all the CertRequests in all namespaces are Ready -> the CSRs have been approved and signed
+			out, err = proc.RunW("kubectl", "wait", "--for=condition=Ready",
+				"certificaterequest", "--selector", "app.kubernetes.io/managed-by=Helm",
+				"--all-namespaces", "--timeout=120s")
+			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
 		By("Delete an app", func() {
