@@ -87,7 +87,7 @@ func basicAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 
 	err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
 	if err != nil {
-		return auth.User{}, apierrors.NewAPIError("wrong password", http.StatusUnauthorized)
+		return auth.User{}, apierrors.NewAPIError("wrong user or password", http.StatusUnauthorized)
 	}
 
 	return userMap[username], nil
