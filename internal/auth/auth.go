@@ -107,7 +107,7 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 
 	userSecret := newSecretFromUser(user)
 
-	createdUserSecret, err := s.Create(ctx, &userSecret, metav1.CreateOptions{})
+	createdUserSecret, err := s.Create(ctx, userSecret, metav1.CreateOptions{})
 	if err != nil {
 		return User{}, err
 	}
@@ -117,18 +117,24 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 	return newUserFromSecret(*createdUserSecret), nil
 }
 
-// AddNamespaceToUser will add the specified namespace to the User
-func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespace string) error {
-	s.logger.V(1).Info("AddNamespaceToUser", "username", username, "namespace", namespace)
+// UpdateUser will update an existing user
+func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
+	s.logger.V(1).Info("UpdateUser", "username", user.Username)
 
-	user, err := s.GetUserByUsername(ctx, username)
+	userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "error getting user [%s] by username", username)
+		return User{}, errors.Wrapf(err, "error getting the user secret [%s]", user.Username)
 	}
-	user.AddNamespace(namespace)
+	userSecret = updateUserSecretData(user, userSecret)
 
-	err = s.updateUserSecret(ctx, user)
-	return errors.Wrapf(err, "error updating user secret [%s]", username)
+	err = s.updateUserSecret(ctx, userSecret)
+	if err != nil {
+		return User{}, errors.Wrapf(err, "error updating user [%s]", user.Username)
+	}
+
+	s.logger.V(1).Info("user updated")
+
+	return user, nil
 }
 
 // RemoveNamespaceFromUsers will remove the specified namespace from all users
@@ -148,7 +154,7 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 			continue
 		}
 
-		err = s.updateUserSecret(ctx, user)
+		_, err = s.UpdateUser(ctx, user)
 		if err != nil {
 			s.logger.V(1).Error(err, "error removing namespace from user", "namespace", namespace, "user", user.Username)
 			errorMessages = append(errorMessages, err.Error())
@@ -159,20 +165,6 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 		return fmt.Errorf("some error occurred while cleaning users: [%s]", strings.Join(errorMessages, ", "))
 	}
 	return nil
-}
-
-// AddGitconfigToUser will add the specified gitconfig to the User
-func (s *AuthService) AddGitconfigToUser(ctx context.Context, username, gitconfig string) error {
-	s.logger.V(1).Info("AddGitconfigToUser", "username", username, "gitconfig", gitconfig)
-
-	user, err := s.GetUserByUsername(ctx, username)
-	if err != nil {
-		return errors.Wrapf(err, "error getting user [%s] by username", username)
-	}
-	user.AddGitconfig(gitconfig)
-
-	err = s.updateUserSecret(ctx, user)
-	return errors.Wrapf(err, "error updating user secret [%s]", username)
 }
 
 // RemoveGitconfigFromUsers will remove the specified gitconfig from all users
@@ -192,7 +184,7 @@ func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig st
 			continue
 		}
 
-		err = s.updateUserSecret(ctx, user)
+		_, err = s.UpdateUser(ctx, user)
 		if err != nil {
 			s.logger.V(1).Error(err, "error removing gitconfig from user", "gitconfig", gitconfig, "user", user.Username)
 			errorMessages = append(errorMessages, err.Error())
@@ -221,22 +213,12 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 	return secretList.Items, nil
 }
 
-func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
+func (s *AuthService) updateUserSecret(ctx context.Context, userSecret *corev1.Secret) error {
 	// note: Wrap (nil, ...) returns nil.
 	return errors.Wrap(retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
-		if err != nil {
-			return errors.Wrapf(err, "error getting the user secret [%s]", user.Username)
-		}
-
-		userSecret.StringData = map[string]string{
-			"namespaces": strings.Join(user.Namespaces, "\n"),
-			"gitconfigs": strings.Join(user.Gitconfigs, "\n"),
-		}
-
-		_, err = s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
+		_, err := s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
 		return err
-	}), fmt.Sprintf("error updating the user secret [%s]", user))
+	}), fmt.Sprintf("error updating the user secret [%s]", userSecret.Name))
 }
 
 type NamespacedResource interface {
