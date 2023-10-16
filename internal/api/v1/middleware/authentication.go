@@ -227,17 +227,26 @@ func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email, role
 
 	user, err = authService.GetUserByUsername(ctx, email)
 	if err != nil {
+		// something bad happened
 		if err != auth.ErrUserNotFound {
 			return user, errors.Wrap(err, "couldn't get user")
 		}
 
+		// no user was found, create a new one
+
 		user.Username = email
 		user.Role = role
 		user, err = authService.SaveUser(ctx, user)
-		if err != auth.ErrUserNotFound {
+		if err != nil {
 			return user, errors.Wrap(err, "couldn't create user")
 		}
 	}
 
+	// update the existing user
+	user.Role = role
+	user, err = authService.UpdateUser(ctx, user)
+	if err != nil {
+		return user, errors.Wrap(err, "couldn't create user")
+	}
 	return user, nil
 }

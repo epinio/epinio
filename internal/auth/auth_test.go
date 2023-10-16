@@ -81,37 +81,6 @@ var _ = Describe("Auth users", func() {
 		})
 	})
 
-	Describe("AddNamespaceToUser", func() {
-
-		When("user doesn't have the namespace", func() {
-			It("will be added", func() {
-				userSecrets := []corev1.Secret{
-					newUserSecret("user1", "password", "admin", ""),
-					newUserSecret("user2", "password", "user", "workspace\nworkspace2"),
-					newUserSecret("user3", "password", "user", "workspace"),
-				}
-
-				// setup mock
-				fake.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
-				fake.GetReturns(&userSecrets[2], nil)
-				updatedUserSecret := newUserSecret("user3", "password", "user", "workspace\nworkspace2")
-				fake.UpdateReturns(&updatedUserSecret, nil)
-
-				// do test
-				err := authService.AddNamespaceToUser(context.Background(), "user3", "workspace2")
-				Expect(err).ToNot(HaveOccurred())
-
-				_, secretName, _ := fake.GetArgsForCall(0)
-				Expect(secretName).To(Equal("user3"))
-
-				_, secret, _ := fake.UpdateArgsForCall(0)
-				Expect(secret.StringData).To(HaveLen(2))
-				Expect(secret.StringData["gitconfigs"]).To(Equal(""))
-				Expect(secret.StringData["namespaces"]).To(Equal("workspace\nworkspace2"))
-			})
-		})
-	})
-
 	Describe("RemoveNamespaceFromUsers", func() {
 
 		When("users have the namespace", func() {
@@ -144,6 +113,29 @@ var _ = Describe("Auth users", func() {
 				Expect(secretName).To(Equal("user3"))
 
 				Expect(fake.GetCallCount()).To(Equal(2))
+			})
+		})
+	})
+
+	Describe("UpdateUsers", func() {
+
+		When("updating user with different role and namespaces", func() {
+			It("will be updated", func() {
+				oldUser := newUserSecret("user2", "password", "user", "workspace\nworkspace2")
+
+				// setup mock
+				fake.GetReturns(&oldUser, nil)
+				fake.UpdateReturns(nil, nil)
+
+				// do test
+				result, err := authService.UpdateUser(context.Background(), auth.User{
+					Role:       "another-role",
+					Namespaces: []string{},
+				})
+
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result.Role).To(Equal("another-role"))
+				Expect(result.Namespaces).To(HaveLen(0))
 			})
 		})
 	})

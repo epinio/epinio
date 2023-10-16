@@ -70,7 +70,8 @@ func Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	// add the namespace to the User's namespaces
-	err = authService.AddNamespaceToUser(ctx, user.Username, namespaceName)
+	user.AddNamespace(namespaceName)
+	user, err = authService.UpdateUser(ctx, user)
 	if err != nil {
 		errDetail := fmt.Sprintf("error adding namespace [%s] to user [%s]", namespaceName, user.Username)
 		return apierror.InternalError(err, errDetail)

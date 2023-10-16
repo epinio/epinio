@@ -140,10 +140,10 @@ func newUserFromSecret(secret corev1.Secret) User {
 }
 
 // newSecretFromUser create a Secret from an Epinio User
-func newSecretFromUser(user User) corev1.Secret {
+func newSecretFromUser(user User) *corev1.Secret {
 	userSecretName := "r" + names.GenerateResourceName("user", user.Username)
 
-	return corev1.Secret{
+	userSecret := &corev1.Secret{
 		Type: "Opaque",
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -153,12 +153,24 @@ func newSecretFromUser(user User) corev1.Secret {
 			Name:      userSecretName,
 			Namespace: "epinio",
 			Labels: map[string]string{
-				kubernetes.EpinioAPISecretLabelKey:     "true",
-				kubernetes.EpinioAPISecretRoleLabelKey: user.Role,
+				kubernetes.EpinioAPISecretLabelKey: "true",
 			},
 		},
-		StringData: map[string]string{
-			"username": user.Username,
-		},
 	}
+
+	return updateUserSecretData(user, userSecret)
+}
+
+// updateUserSecretData updates the userSecret with the data of the User
+func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
+	labels := userSecret.ObjectMeta.Labels
+	labels[kubernetes.EpinioAPISecretRoleLabelKey] = user.Role
+
+	userSecret.StringData = map[string]string{
+		"username":   user.Username,
+		"namespaces": strings.Join(user.Namespaces, "\n"),
+		"gitconfigs": strings.Join(user.Gitconfigs, "\n"),
+	}
+
+	return userSecret
 }

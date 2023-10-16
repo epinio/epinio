@@ -92,7 +92,8 @@ func Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	// add the gitconfig to the User's gitconfigs
-	err = authService.AddGitconfigToUser(ctx, user.Username, request.ID)
+	user.AddGitconfig(request.ID)
+	user, err = authService.UpdateUser(ctx, user)
 	if err != nil {
 		errDetail := fmt.Sprintf("error adding gitconfig [%s] to user [%s]", request.ID, user.Username)
 		return apierror.InternalError(err, errDetail)
