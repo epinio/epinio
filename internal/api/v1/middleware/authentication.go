@@ -70,6 +70,12 @@ func basicAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 	logger := requestctx.Logger(reqCtx).WithName("basicAuthentication")
 	logger.V(1).Info("starting Basic Authentication")
 
+	// Bail early if the request has no proper credentials embedded into it.
+	username, password, ok := ctx.Request.BasicAuth()
+	if !ok {
+		return auth.User{}, apierrors.NewInternalError("Couldn't extract user or password from the auth header")
+	}
+
 	userMap, err := loadUsersMap(ctx, logger)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err)
@@ -79,14 +85,9 @@ func basicAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 		return auth.User{}, apierrors.NewAPIError("no user found", http.StatusUnauthorized)
 	}
 
-	username, password, ok := ctx.Request.BasicAuth()
-	if !ok {
-		return auth.User{}, apierrors.NewInternalError("Couldn't extract user from the auth header")
-	}
-
 	err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
 	if err != nil {
-		return auth.User{}, apierrors.NewAPIError("wrong password", http.StatusUnauthorized)
+		return auth.User{}, apierrors.NewAPIError("wrong user or password", http.StatusUnauthorized)
 	}
 
 	return userMap[username], nil
