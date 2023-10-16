@@ -17,22 +17,20 @@ NETWORK_NAME=epinio-acceptance
 MIRROR_NAME=epinio-acceptance-registry-mirror
 CLUSTER_NAME=epinio-acceptance
 export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
+K3S_RELEASES=$(curl -sH "Accept: application/vnd.github.v3+json" 'https://api.github.com/repos/k3s-io/k3s/releases' | jq -r '.[] | select (.assets[].name == "k3s") | .name' | grep -v '\-rc' | sort -r | tr + -)
 
+
+# Get all available k3s releases, sort them, get rid of RCs and use tag format
 # k3s version selection (latest is default)
-if [[ "$K3S_KIND" == "latest" || "$K3S_KIND" == ""  ]]; then 
-    K3S_IMAGE_LATEST=$(curl -sH "Accept: application/vnd.github.v3+json" 'https://api.github.com/repos/k3s-io/k3s/releases' | jq -r '.[] | select (.assets[].name == "k3s") | .name' | grep -v '\-rc' | sort -r | tr + - | head -n1)
-    echo "-------------------------------------------------------------------------------------------------"
-    echo "Flag K3S_RELEASES set to latest k3s version or empty, using LATEST k3s version: $K3S_IMAGE_LATEST"
-    echo "-------------------------------------------------------------------------------------------------"
-    K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:$K3S_IMAGE_LATEST}
-
+if [[ "$K3S_KIND" == "latest" || "$K3S_KIND" == "" ]]; then
+    K3S_IMAGE_TAG=$(echo $K3S_RELEASES | awk '{print $1}')
 elif [[ "$K3S_KIND" == "oldest" ]]; then 
-    K3S_IMAGE_OLDEST=$(curl -sH "Accept: application/vnd.github.v3+json" 'https://api.github.com/repos/k3s-io/k3s/releases' | jq -r '.[] | select (.assets[].name == "k3s") | .name' | grep -v '\-rc' | sort -r | tr + - | tail -n1)
-    echo "------------------------------------------------------------------------"
-    echo "Flag K3S_RELEASES set empty, using OLDEST k3s version: $K3S_IMAGE_OLDEST"
-    echo "------------------------------------------------------------------------"
-    K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:$K3S_IMAGE_OLDEST}
+    K3S_IMAGE_TAG=$(echo $K3S_RELEASES | awk '{print $NF}')
 fi
+K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:$K3S_IMAGE_TAG}
+echo "----------------------------------------------"
+echo "Selected k3s image: $K3S_IMAGE"
+echo "----------------------------------------------"
 
 check_deps() {
   if ! command -v k3d &> /dev/null
