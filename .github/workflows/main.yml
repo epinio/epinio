@@ -496,10 +496,6 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
       - name: API Acceptance Tests on OLDEST K3S version
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
