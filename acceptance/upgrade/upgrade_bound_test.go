@@ -83,6 +83,7 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 		pushLog, err := env.EpinioPush("",
 			appName,
 			"--name", appName,
+			"--builder-image", "paketobuildpacks/builder:0.2.443-full",
 			"--git", wordpress,
 			"-e", "BP_PHP_WEB_DIR=wordpress",
 			"-e", "BP_PHP_VERSION=8.0.x",

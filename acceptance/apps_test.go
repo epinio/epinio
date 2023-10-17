@@ -54,6 +54,12 @@ var _ = Describe("Apps", LApplication, func() {
 	containerImageURL := "splatform/sample-app"
 	wordpress := "https://github.com/epinio/example-wordpress"
 	privateRepo := "https://github.com/epinio/example-go-private"
+	wpBuilder := "paketobuildpacks/builder:0.2.443-full"
+
+	// defaultBuilder := "paketobuildpacks/builder:full"
+	defaultBuilder := "paketobuildpacks/builder-jammy-full:0.3.290"
+	// tinyBuilder := "paketobuildpacks/builder:tiny"
+	tinyBuilder := "paketobuildpacks/builder-jammy-tiny:0.0.197"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
@@ -259,6 +265,7 @@ var _ = Describe("Apps", LApplication, func() {
 				appName,
 				"--name", appName,
 				"--git", wordpress,
+				"--builder-image", wpBuilder,
 				"-e", "BP_PHP_WEB_DIR=wordpress",
 				"-e", "BP_PHP_VERSION=8.0.x",
 				"-e", "BP_PHP_SERVER=nginx")
@@ -284,6 +291,7 @@ var _ = Describe("Apps", LApplication, func() {
 				appName,
 				"--name", appName,
 				"--git", wordpress+",main",
+				"--builder-image", wpBuilder,
 				"-e", "BP_PHP_WEB_DIR=wordpress",
 				"-e", "BP_PHP_VERSION=8.0.x",
 				"-e", "BP_PHP_SERVER=nginx")
@@ -309,6 +317,7 @@ var _ = Describe("Apps", LApplication, func() {
 				appName,
 				"--name", appName,
 				"--git", wordpress+",68af5bad11d8f3b95bdf547986fe3348324919c5",
+				"--builder-image", wpBuilder,
 				"-e", "BP_PHP_WEB_DIR=wordpress",
 				"-e", "BP_PHP_VERSION=8.0.x",
 				"-e", "BP_PHP_SERVER=nginx")
@@ -351,6 +360,7 @@ var _ = Describe("Apps", LApplication, func() {
 					appName,
 					"--name", appName,
 					"--git", wordpress+",main",
+					"--builder-image", wpBuilder,
 					"-e", "BP_PHP_WEB_DIR=wordpress",
 					"-e", "BP_PHP_VERSION=8.0.x",
 					"-e", "BP_PHP_SERVER=nginx")
@@ -744,7 +754,7 @@ var _ = Describe("Apps", LApplication, func() {
 			pushLog, err := env.EpinioPush(appDir,
 				appName,
 				"--name", appName,
-				"--builder-image", "paketobuildpacks/builder:tiny")
+				"--builder-image", tinyBuilder)
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			By("checking if the staging is using custom builder image")
@@ -754,7 +764,7 @@ var _ = Describe("Apps", LApplication, func() {
 				"-l", labels,
 				"-o", "jsonpath={.items[0].spec.containers[*].image}")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(imageList).To(ContainSubstring("paketobuildpacks/builder:tiny"))
+			Expect(imageList).To(ContainSubstring(tinyBuilder))
 		})
 	})
 
@@ -781,7 +791,8 @@ var _ = Describe("Apps", LApplication, func() {
 				// Ignore any errors. When the main thread pushes the app again,
 				// this command will probably fail with an error because the helm release
 				// will be deleted by the other `push`.
-				_, _ = env.EpinioPush(tmpDir, appName, "--name", appName, "--builder-image", "paketobuildpacks/builder:full")
+				_, _ = env.EpinioPush(tmpDir, appName, "--name", appName,
+					"--builder-image", defaultBuilder)
 			}()
 
 			// Wait until previous staging job is complete
@@ -838,7 +849,8 @@ var _ = Describe("Apps", LApplication, func() {
 			// Fix the problem (so that the app now deploys fine) and push again
 			By("fixing the problem and pushing the application again")
 			os.Remove(path.Join(tmpDir, "Procfile"))
-			out, err := env.EpinioPush(tmpDir, appName, "--name", appName, "--builder-image", "paketobuildpacks/builder:full")
+			out, err := env.EpinioPush(tmpDir, appName, "--name", appName,
+				"--builder-image", defaultBuilder)
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 	})

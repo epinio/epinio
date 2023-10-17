@@ -168,7 +168,8 @@ var _ = Describe("RubyOnRails", func() {
 
 	It("can deploy Rails", func() {
 		out, err := env.EpinioPush(rails.Dir, rails.Name,
-			"--name", rails.Name)
+			"--name", rails.Name,
+			"--builder-image", "paketobuildpacks/builder:0.2.443-full")
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		route := testenv.AppRouteFromOutput(out)

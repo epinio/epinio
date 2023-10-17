@@ -33,6 +33,9 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 		deployRequest models.DeployRequest
 	)
 
+	// defaultBuilder := "paketobuildpacks/builder:full"
+	defaultBuilder := "paketobuildpacks/builder-jammy-full:0.3.290"
+
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
@@ -78,7 +81,7 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 						},
 					},
 					BlobUID:      oldBlob,
-					BuilderImage: "paketobuildpacks/builder:full",
+					BuilderImage: defaultBuilder,
 				}
 				By("staging the application")
 				_ = stageApplication(appName, namespace, stageRequest)
@@ -97,7 +100,7 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 						},
 					},
 					BlobUID:      newBlob,
-					BuilderImage: "paketobuildpacks/builder:full",
+					BuilderImage: defaultBuilder,
 				}
 				stageResponse := stageApplication(appName, namespace, stageRequest)
 
@@ -130,7 +133,7 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 						},
 					},
 					BlobUID:      theOnlyBlob,
-					BuilderImage: "paketobuildpacks/builder:full",
+					BuilderImage: defaultBuilder,
 				}
 
 				By("staging the application")

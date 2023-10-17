@@ -38,6 +38,9 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 		namespace string
 	)
 
+	// defaultBuilder := "paketobuildpacks/builder:full"
+	defaultBuilder := "paketobuildpacks/builder-jammy-full:0.3.290"
+
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
@@ -88,7 +91,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 					},
 				},
 				BlobUID:      uploadResponse2.BlobUID, // Code 2
-				BuilderImage: "paketobuildpacks/builder:full",
+				BuilderImage: defaultBuilder,
 			}
 			b, err := json.Marshal(request)
 			Expect(err).NotTo(HaveOccurred())
@@ -127,7 +130,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 					},
 				},
 				BlobUID:      oldBlob,
-				BuilderImage: "paketobuildpacks/builder:full",
+				BuilderImage: defaultBuilder,
 			}
 			By("staging the application")
 			stageResponse := stageApplication(appName, namespace, stageRequest)
@@ -147,7 +150,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 						Namespace: namespace,
 					},
 				},
-				BuilderImage: "paketobuildpacks/builder:full",
+				BuilderImage: defaultBuilder,
 			}
 			By("staging the application again")
 			stageResponse = stageApplication(appName, namespace, stageRequest)
@@ -166,7 +169,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 			By("uploading the code")
 			uploadResponse := uploadApplication(appName, namespace)
 			oldBlob := uploadResponse.BlobUID
-			builderImage := "paketobuildpacks/builder:full"
+			builderImage := defaultBuilder
 
 			stageRequest := models.StageRequest{
 				App: models.AppRef{
@@ -220,7 +223,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 					},
 				},
 				BlobUID:      uploadResponse.BlobUID,
-				BuilderImage: "paketobuildpacks/builder:full",
+				BuilderImage: defaultBuilder,
 			}
 
 			By("staging the application")
@@ -292,7 +295,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 					},
 				},
 				BlobUID:      uploadResponse.BlobUID,
-				BuilderImage: "paketobuildpacks/builder:full",
+				BuilderImage: defaultBuilder,
 			}
 
 			By("staging the application")
