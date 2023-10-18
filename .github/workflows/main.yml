@@ -13,11 +13,6 @@ name: CI
 
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Select desired Epinio branch (default latest) 
-        required: false
-        type: string
   push:
     branches: [ main ]
     paths-ignore:
