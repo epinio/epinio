@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -171,42 +172,19 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Find staging script spec based on the builder image and what images are supported by each spec
+	// This also resolves a `base` reference, if present.
+
 	config, err := DetermineStagingScripts(ctx, log, cluster, helmchart.Namespace(), builderImage)
 	if err != nil {
 		return apierror.InternalError(err, "failed to retrieve staging configuration")
 	}
 
-	// Resolve an optional redirect through `base` to the actual spec holding the scripts.
-	// Note that this does __not__ apply to the user and group ids. These are always taken
-	// from primary spec.
-	scriptConfig := *config
-	if config.Data["base"] != "" {
-		config, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), config.Data["base"])
-		if err != nil {
-			return apierror.InternalError(err, "failed to retrieve staging image refs")
-		}
-
-		scriptConfig = *config
-	}
-
-	userID, err := strconv.ParseInt(config.Data["userID"], 10, 64)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	groupID, err := strconv.ParseInt(config.Data["groupID"], 10, 64)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	downloadImage := scriptConfig.Data["downloadImage"]
-	unpackImage := scriptConfig.Data["unpackImage"]
-
-	log.Info("staging app", "scripts", scriptConfig.Name)
+	log.Info("staging app", "scripts", config.Name)
 	log.Info("staging app", "builder", builderImage)
-	log.Info("staging app", "download", downloadImage)
-	log.Info("staging app", "unpack", unpackImage)
-	log.Info("staging app", "userid", userID)
-	log.Info("staging app", "groupid", groupID)
+	log.Info("staging app", "download", config.DownloadImage)
+	log.Info("staging app", "unpack", config.UnpackImage)
+	log.Info("staging app", "userid", config.UserID)
+	log.Info("staging app", "groupid", config.GroupID)
 	log.Info("staging app", "namespace", namespace, "app", req)
 
 	staging, err := application.IsCurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
@@ -279,8 +257,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
-		DownloadImage:       downloadImage,
-		UnpackImage:         unpackImage,
+		DownloadImage:       config.DownloadImage,
+		UnpackImage:         config.UnpackImage,
 		ServiceAccountName:  serviceAccountName,
 		CPURequest:          cpuRequest,
 		MemoryRequest:       memoryRequest,
@@ -294,9 +272,9 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		Username:            username,
 		RegistryCAHash:      registryCertificateHash,
 		RegistryCASecret:    registryCertificateSecret,
-		UserID:              userID,
-		GroupID:             groupID,
-		Scripts:             scriptConfig.Name,
+		UserID:              config.UserID,
+		GroupID:             config.GroupID,
+		Scripts:             config.Name,
 	}
 
 	err = ensurePVC(ctx, cluster, req.App, diskRequest)
@@ -875,8 +853,21 @@ func appendEnvVar(envs []corev1.EnvVar, name, value string) []corev1.EnvVar {
 	return append(envs, corev1.EnvVar{Name: name, Value: value})
 }
 
-func DetermineStagingScripts(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
-	namespace, builder string) (*v1.ConfigMap, error) {
+type StagingScriptConfig struct {
+	Name          string // config name. Needed to mount the resource in the pod
+	Builder       string // glob pattern for builders supported by this resource
+	UserID        int64  // user id to run the build phase with (`cnb` user)
+	GroupID       int64  // group id to run the build hase with
+	Base          string // optional, name of resource to pull the other parts from
+	DownloadImage string // image to run the download phase with
+	UnpackImage   string // image to run the unpack phase with
+}
+
+func DetermineStagingScripts(ctx context.Context,
+	logger logr.Logger,
+	cluster *kubernetes.Cluster,
+	namespace, builder string) (*StagingScriptConfig, error) {
+
 	logger.Info("locate staging scripts", "namespace", namespace, "builder", builder)
 
 	configmapSelector := labels.Set(map[string]string{
@@ -893,18 +884,29 @@ func DetermineStagingScripts(ctx context.Context, logger logr.Logger, cluster *k
 
 	logger.Info("locate staging scripts", "possibles", len(configmapList.Items))
 
-	var fallback *v1.ConfigMap
-
+	var candidates StagingScriptConfigList
 	for _, configmap := range configmapList.Items {
-		pattern := configmap.Data["builder"]
+		config, err := NewStagingScriptConfig(configmap)
+		if err != nil {
+			return nil, err
+		}
+		candidates = append(candidates, config)
+	}
 
-		logger.Info("locate staging scripts - checking", "name", configmap.Name, "for", pattern)
+	// Sort the candidates by name to have a deterministic search order
+	sort.Sort(candidates)
+
+	var fallback *StagingScriptConfig
+
+	for _, config := range candidates {
+		pattern := config.Builder
+
+		logger.Info("locate staging scripts - checking", "name", config.Name, "for", pattern)
 		if pattern == "*" || pattern == "" {
 			logger.Info("locate staging scripts - saving fallback")
 			// This pattern matches everything. It is therefore the fallback to use if
 			// nothing else matches.
-			cm := configmap // Avoid `G601: Implicit memory aliasing in for loop`
-			fallback = &cm
+			fallback = config
 			continue
 		}
 
@@ -913,16 +915,96 @@ func DetermineStagingScripts(ctx context.Context, logger logr.Logger, cluster *k
 			return nil, err
 		}
 		if matched {
-			logger.Info("locate staging scripts - match", "name", configmap.Name, "for",
+			logger.Info("locate staging scripts - match", "name", config.Name, "for",
 				pattern, "builder", builder)
-			return &configmap, nil
+
+			err := StagingScriptConfigResolve(ctx, cluster, config)
+			if err != nil {
+				return nil, err
+			}
+
+			return config, nil
 		}
 	}
 
 	if fallback != nil {
 		logger.Info("locate staging scripts - using fallback", "name", fallback.Name)
+		err := StagingScriptConfigResolve(ctx, cluster, fallback)
+		if err != nil {
+			return nil, err
+		}
 		return fallback, nil
 	}
 
 	return nil, fmt.Errorf("no matches, no fallback")
+}
+
+func StagingScriptConfigResolve(ctx context.Context, cluster *kubernetes.Cluster, config *StagingScriptConfig) error {
+	if config.Base == "" {
+		// nothing to do without a base
+		return nil
+	}
+
+	base, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), config.Base)
+	if err != nil {
+		return apierror.InternalError(err, "failed to retrieve staging base")
+	}
+
+	// Fill config from the base.
+	// BEWARE: Keep user/group data of the incoming config.
+
+	config.Name = base.Name
+	config.DownloadImage = base.Data["downloadImage"]
+	config.UnpackImage = base.Data["unpackImage"]
+
+	return nil
+}
+
+func NewStagingScriptConfig(config v1.ConfigMap) (*StagingScriptConfig, error) {
+	stagingScript := &StagingScriptConfig{
+		Name:          config.Name,
+		Builder:       config.Data["builder"],
+		Base:          config.Data["base"],
+		DownloadImage: config.Data["downloadImage"],
+		UnpackImage:   config.Data["unpackImage"],
+		// user, group id, see below.
+	}
+
+	userID, err := strconv.ParseInt(config.Data["userID"], 10, 64)
+	if err != nil {
+		return nil, apierror.InternalError(err)
+	}
+	groupID, err := strconv.ParseInt(config.Data["groupID"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	stagingScript.GroupID = groupID
+	stagingScript.UserID = userID
+
+	return stagingScript, nil
+}
+
+// StagingScriptConfigList is a collection of script configs
+type StagingScriptConfigList []*StagingScriptConfig
+
+// Implement the Sort interface for config slices
+// Configs are sorted by their names
+
+// Len (Sort interface) returns the length of the StagingScriptConfigList
+func (al StagingScriptConfigList) Len() int {
+	return len(al)
+}
+
+// Swap (Sort interface) exchanges the contents of specified indices
+// in the StagingScriptConfigList
+func (al StagingScriptConfigList) Swap(i, j int) {
+	al[i], al[j] = al[j], al[i]
+}
+
+// Less (Sort interface) compares the contents of the specified
+// indices in the StagingScriptConfigList and returns true if the condition holds, and
+// else false.
+func (al StagingScriptConfigList) Less(i, j int) bool {
+	return al[i].Name < al[j].Name
 }
