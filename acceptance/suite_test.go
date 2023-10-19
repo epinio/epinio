@@ -14,8 +14,10 @@ package acceptance_test
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
@@ -46,6 +48,7 @@ var (
 	serverURL, websocketURL string
 
 	env testenv.EpinioEnv
+	r   *rand.Rand
 )
 
 // BeforeSuiteMessage is a serializable struct that can be passed through the SynchronizedBeforeSuite
@@ -72,6 +75,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	return msg
 }, func(msg []byte) {
+	r = rand.New(rand.NewSource(time.Now().UnixNano()))
+
 	var message BeforeSuiteMessage
 	err := json.Unmarshal(msg, &message)
 	Expect(err).NotTo(HaveOccurred())

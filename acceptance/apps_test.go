@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -46,8 +45,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var r *rand.Rand
-
 var _ = Describe("Apps", LApplication, func() {
 	var (
 		namespace string
@@ -58,7 +55,6 @@ var _ = Describe("Apps", LApplication, func() {
 	privateRepo := "https://github.com/epinio/example-go-private"
 
 	BeforeEach(func() {
-		r = rand.New(rand.NewSource(time.Now().UnixNano()))
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 
