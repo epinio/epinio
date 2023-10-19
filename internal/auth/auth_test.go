@@ -28,12 +28,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var r *rand.Rand
+
 var _ = Describe("Auth users", func() {
 	var authService *auth.AuthService
 	var fake *authfakes.FakeSecretInterface
 
 	BeforeEach(func() {
-		rand.Seed(time.Now().UnixNano())
+		r = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 		fake = &authfakes.FakeSecretInterface{}
 		authService = &auth.AuthService{
@@ -163,6 +165,6 @@ func newRandomDate() time.Time {
 	max := time.Now().Unix()
 	delta := max - min
 
-	sec := rand.Int63n(delta) + min
+	sec := r.Int63n(delta) + min
 	return time.Unix(sec, 0)
 }

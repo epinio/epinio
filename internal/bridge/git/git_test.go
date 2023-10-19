@@ -14,6 +14,7 @@ package git_test
 import (
 	"context"
 	"math/rand"
+	"time"
 
 	"github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -33,7 +34,14 @@ func (m *mockSecretLister) List(ctx context.Context, opts metav1.ListOptions) (*
 	return m.list, m.err
 }
 
+var r *rand.Rand
+
 var _ = Describe("Manager", func() {
+
+	BeforeEach(func() {
+		r = rand.New(rand.NewSource(time.Now().UnixNano()))
+	})
+
 	Describe("NewManager", func() {
 		When("multiple secrets are found", func() {
 			It("returns the configurations in the same order", func() {
@@ -44,7 +52,7 @@ var _ = Describe("Manager", func() {
 					{ObjectMeta: metav1.ObjectMeta{Name: "bbb"}},
 				}
 
-				rand.Shuffle(len(secrets), func(i, j int) {
+				r.Shuffle(len(secrets), func(i, j int) {
 					secrets[i], secrets[j] = secrets[j], secrets[i]
 				})
 

@@ -34,6 +34,8 @@ type MockServiceInterface struct {
 	v1.ServiceInterface
 }
 
+var r *rand.Rand
+
 var _ = Describe("Service Instances", func() {
 
 	var fake *servicesfakes.FakeServiceInterface
@@ -42,7 +44,7 @@ var _ = Describe("Service Instances", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		rand.Seed(time.Now().UnixNano())
+		r = rand.New(rand.NewSource(time.Now().UnixNano()))
 		fake = &servicesfakes.FakeServiceInterface{}
 
 		name = "service-name"
