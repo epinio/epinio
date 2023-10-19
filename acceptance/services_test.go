@@ -16,7 +16,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -1017,7 +1016,7 @@ var _ = Describe("Services", LService, func() {
 		})
 
 		randomPort := func() string {
-			return strconv.Itoa(rand.Intn(20000) + 10000)
+			return strconv.Itoa(r.Intn(20000) + 10000)
 		}
 
 		executePortForwardRequest := func(host, port string) {

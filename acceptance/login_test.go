@@ -14,7 +14,6 @@ package acceptance_test
 import (
 	"bytes"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
 	"strings"
@@ -165,7 +164,7 @@ var _ = Describe("Login", LMisc, func() {
 	})
 
 	It("respects the port when one is present [fixed bug]", func() {
-		randomPort := fmt.Sprintf(`:%d`, rand.Intn(65536))
+		randomPort := fmt.Sprintf(`:%d`, r.Intn(65536))
 		serverURLWithPort := serverURL + randomPort
 
 		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,

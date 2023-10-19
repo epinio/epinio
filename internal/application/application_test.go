@@ -37,6 +37,8 @@ type MockJobListerInterface struct {
 	application.JobLister
 }
 
+var r *rand.Rand
+
 var _ = Describe("application", func() {
 
 	var fake *applicationfakes.FakeJobLister
@@ -45,12 +47,12 @@ var _ = Describe("application", func() {
 	BeforeEach(func() {
 		fake = &applicationfakes.FakeJobLister{}
 
-		rand.Seed(time.Now().UnixNano())
-		namespace = fmt.Sprintf("namespace-%d", rand.Intn(1000))
+		r = rand.New(rand.NewSource(time.Now().UnixNano()))
+		namespace = fmt.Sprintf("namespace-%d", r.Intn(1000))
 	})
 
 	appName := func() string {
-		return fmt.Sprintf("appname-%d", rand.Intn(1000))
+		return fmt.Sprintf("appname-%d", r.Intn(1000))
 	}
 
 	Describe("IsCurrentlyStaging", func() {

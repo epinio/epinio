@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -2092,10 +2091,9 @@ userConfig:
 
 	When("pushing an app with a numeric-only name", func() {
 		BeforeEach(func() {
-			rand.Seed(time.Now().UnixNano())
 			min := 9000
 			max := 10000
-			randNum := rand.Intn(max-min+1) + min
+			randNum := r.Intn(max-min+1) + min
 			appName = strconv.Itoa(randNum)
 		})
 
@@ -2182,7 +2180,6 @@ userConfig:
 
 				appListeningPort := ""
 
-				r := rand.New(rand.NewSource(time.Now().UnixNano()))
 				if port := r.Intn(65536); port <= 1023 {
 					appListeningPort = fmt.Sprintf("%d", 80)
 				} else {
