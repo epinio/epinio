@@ -15,7 +15,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -46,6 +45,7 @@ import (
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"golang.org/x/exp/slices"
 )
 
 type stageParam struct {
@@ -884,7 +884,7 @@ func DetermineStagingScripts(ctx context.Context,
 
 	logger.Info("locate staging scripts", "possibles", len(configmapList.Items))
 
-	var candidates StagingScriptConfigList
+	var candidates []*StagingScriptConfig
 	for _, configmap := range configmapList.Items {
 		config, err := NewStagingScriptConfig(configmap)
 		if err != nil {
@@ -894,7 +894,7 @@ func DetermineStagingScripts(ctx context.Context,
 	}
 
 	// Sort the candidates by name to have a deterministic search order
-	sort.Sort(candidates)
+	slices.SortFunc(candidates, SortByName)
 
 	var fallback *StagingScriptConfig
 
@@ -985,26 +985,6 @@ func NewStagingScriptConfig(config v1.ConfigMap) (*StagingScriptConfig, error) {
 	return stagingScript, nil
 }
 
-// StagingScriptConfigList is a collection of script configs
-type StagingScriptConfigList []*StagingScriptConfig
-
-// Implement the Sort interface for config slices
-// Configs are sorted by their names
-
-// Len (Sort interface) returns the length of the StagingScriptConfigList
-func (al StagingScriptConfigList) Len() int {
-	return len(al)
-}
-
-// Swap (Sort interface) exchanges the contents of specified indices
-// in the StagingScriptConfigList
-func (al StagingScriptConfigList) Swap(i, j int) {
-	al[i], al[j] = al[j], al[i]
-}
-
-// Less (Sort interface) compares the contents of the specified
-// indices in the StagingScriptConfigList and returns true if the condition holds, and
-// else false.
-func (al StagingScriptConfigList) Less(i, j int) bool {
-	return al[i].Name < al[j].Name
+func SortByName(s1, s2 *StagingScriptConfig) bool {
+	return s1.Name < s2.Name
 }
