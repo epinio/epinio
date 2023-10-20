@@ -868,7 +868,8 @@ func DetermineStagingScripts(ctx context.Context,
 	cluster *kubernetes.Cluster,
 	namespace, builder string) (*StagingScriptConfig, error) {
 
-	logger.Info("locate staging scripts", "namespace", namespace, "builder", builder)
+	logger.Info("locate staging scripts", "namespace", namespace)
+	logger.Info("locate staging scripts", "builder", builder)
 
 	configmapSelector := labels.Set(map[string]string{
 		"app.kubernetes.io/component": "epinio-staging",
@@ -898,27 +899,40 @@ func DetermineStagingScripts(ctx context.Context,
 
 	var fallback *StagingScriptConfig
 
+	// Show the entire ordered list (except fallbacks), also save fallbacks, and show last. NOTE
+	// that this loop excises the fallbacks from the regular list to avoid having to check for
+	// them again when matching.
+	var matchable []*StagingScriptConfig
 	for _, config := range candidates {
 		pattern := config.Builder
-
-		logger.Info("locate staging scripts - checking", "name", config.Name, "for", pattern)
 		if pattern == "*" || pattern == "" {
-			logger.Info("locate staging scripts - saving fallback")
-			// This pattern matches everything. It is therefore the fallback to use if
-			// nothing else matches.
 			fallback = config
 			continue
 		}
+		logger.Info("locate staging scripts - found",
+			"name", config.Name, "match", pattern)
+		matchable = append(matchable, config)
+	}
+	if fallback != nil {
+		logger.Info("locate staging scripts - fallback",
+			"name", fallback.Name, "match", fallback.Builder)
+	}
+
+	// match by pattern
+	for _, config := range matchable {
+		pattern := config.Builder
+		logger.Info("locate staging scripts - checking",
+			"name", config.Name, "match", pattern)
 
 		matched, err := filepath.Match(pattern, builder)
 		if err != nil {
 			return nil, err
 		}
 		if matched {
-			logger.Info("locate staging scripts - match", "name", config.Name, "for",
-				pattern, "builder", builder)
+			logger.Info("locate staging scripts - match",
+				"name", config.Name, "match", pattern, "builder", builder)
 
-			err := StagingScriptConfigResolve(ctx, cluster, config)
+			err := StagingScriptConfigResolve(ctx, logger, cluster, config)
 			if err != nil {
 				return nil, err
 			}
@@ -929,7 +943,7 @@ func DetermineStagingScripts(ctx context.Context,
 
 	if fallback != nil {
 		logger.Info("locate staging scripts - using fallback", "name", fallback.Name)
-		err := StagingScriptConfigResolve(ctx, cluster, fallback)
+		err := StagingScriptConfigResolve(ctx, logger, cluster, fallback)
 		if err != nil {
 			return nil, err
 		}
@@ -939,11 +953,13 @@ func DetermineStagingScripts(ctx context.Context,
 	return nil, fmt.Errorf("no matches, no fallback")
 }
 
-func StagingScriptConfigResolve(ctx context.Context, cluster *kubernetes.Cluster, config *StagingScriptConfig) error {
+func StagingScriptConfigResolve(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, config *StagingScriptConfig) error {
 	if config.Base == "" {
 		// nothing to do without a base
 		return nil
 	}
+
+	logger.Info("locate staging scripts - inherit", "base", config.Base)
 
 	base, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), config.Base)
 	if err != nil {
