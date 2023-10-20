@@ -116,6 +116,12 @@ func (u *User) IsAllowed(method, fullPath string, params map[string]string) bool
 	return globalRoles.IsAllowed(method, fullPath)
 }
 
+// IsAdmin returns true if a user has a global admin role
+func (u *User) IsAdmin() bool {
+	adminRole, found := u.Roles.FindByID("admin")
+	return found && adminRole.Namespace == ""
+}
+
 func filterRolesByNamespace(roles Roles, namespace string) Roles {
 	filteredRoles := Roles{}
 	for _, role := range roles {
@@ -148,7 +154,7 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 	}
 
 	for _, userRole := range user.roleIDs {
-		userRoleID, userRoleNamespace := ExtractRoleIDNamespace(userRole)
+		userRoleID, userRoleNamespace := ParseRoleID(userRole)
 
 		// find the role for the user
 		userRole, found := EpinioRoles.FindByID(userRoleID)

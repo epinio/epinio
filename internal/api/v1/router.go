@@ -253,7 +253,7 @@ func InitAuthAndRoles(rolesGetter auth.RolesGetter) error {
 }
 
 func InitAuth() error {
-	actions, err := auth.LoadActions()
+	actions, err := auth.InitActions()
 	if err != nil {
 		return err
 	}

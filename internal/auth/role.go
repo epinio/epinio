@@ -167,10 +167,16 @@ func InitRoles(rolesGetter RolesGetter) error {
 	return nil
 }
 
-func ExtractRoleIDNamespace(idNamespace string) (string, string) {
-	userRoleNamespace := strings.Split(idNamespace, "::")
-	if len(userRoleNamespace) > 1 {
-		return userRoleNamespace[0], userRoleNamespace[1]
+//	will parse the roleID, returning the roleID without the namespace, and the namespace
+//
+// i.e.:
+//
+//	"admin" will return "admin" and ""
+//	"admin::workspace" will return "admin" and "workspace"
+func ParseRoleID(roleID string) (string, string) {
+	roleIDAndNamespace := strings.Split(roleID, "::")
+	if len(roleIDAndNamespace) > 1 {
+		return roleIDAndNamespace[0], roleIDAndNamespace[1]
 	}
-	return userRoleNamespace[0], ""
+	return roleIDAndNamespace[0], ""
 }

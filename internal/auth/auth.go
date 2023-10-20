@@ -282,8 +282,7 @@ type NamespacedResource interface {
 
 // FilterResources returns only the NamespacedResources where the user has permissions
 func FilterResources[T NamespacedResource](user User, resources []T) []T {
-	adminRole, found := user.Roles.FindByID("admin")
-	if found && adminRole.Namespace == "" {
+	if user.IsAdmin() {
 		return resources
 	}
 
@@ -308,8 +307,7 @@ type GitconfigResource interface {
 
 // FilterResources returns only the GitconfigResources where the user has permissions
 func FilterGitconfigResources[T GitconfigResource](user User, resources []T) []T {
-	adminRole, found := user.Roles.FindByID("admin")
-	if found && adminRole.Namespace == "" {
+	if user.IsAdmin() {
 		return resources
 	}
 

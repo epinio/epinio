@@ -24,6 +24,8 @@ import (
 	"github.com/go-logr/logr"
 )
 
+// RoleAuthorization middleware is used to check if the user is allowed for the incoming request
+// checking the verb, path and eventually the params of it.
 func RoleAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
 
@@ -44,7 +46,16 @@ func RoleAuthorization(c *gin.Context) {
 
 func NamespaceAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
-	authorization(c, "namespace", user.Namespaces)
+	allowedNamespaces := user.Namespaces
+
+	// if the user has a Role attached to a namespace then it means he's allowed for it
+	for _, role := range user.Roles {
+		if role.Namespace != "" {
+			allowedNamespaces = append(allowedNamespaces, role.Namespace)
+		}
+	}
+
+	authorization(c, "namespace", allowedNamespaces)
 }
 
 func GitconfigAuthorization(c *gin.Context) {
@@ -61,9 +72,7 @@ func authorization(c *gin.Context, label string, allowed []string) {
 
 	logger.Info(fmt.Sprintf("authorization request from user [%s] with roles [%s] for [%s - %s]", user.Username, user.Roles.IDs(), method, path))
 
-	adminRole, adminFound := user.Roles.FindByID("admin")
-	// it needs to be a global admin to be fully authorized
-	if adminFound && adminRole.Namespace == "" {
+	if user.IsAdmin() {
 		logger.V(1).WithName("authorizeAdmin").Info("user [admin] is authorized")
 		return
 	}

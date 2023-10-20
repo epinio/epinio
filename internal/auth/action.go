@@ -60,7 +60,7 @@ func (e *Endpoint) FullPath() string {
 	return e.BasePath + e.Path
 }
 
-func LoadActions() ([]Action, error) {
+func InitActions() ([]Action, error) {
 	actions := []Action{}
 
 	err := yaml.Unmarshal(actionsYAML, &actions)
