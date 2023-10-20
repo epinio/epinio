@@ -16,9 +16,9 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/spf13/viper"
 
 	"github.com/gin-gonic/gin"
 
@@ -45,12 +45,7 @@ func Info(c *gin.Context) APIErrors {
 
 	platform := cluster.GetPlatform()
 
-	stageConfig, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), helmchart.EpinioStageScriptsName)
-	if err != nil {
-		return InternalError(err, "failed to retrieve staging image refs")
-	}
-
-	defaultBuilderImage := stageConfig.Data["builderImage"]
+	defaultBuilderImage := viper.GetString("default-builder-image")
 
 	_, dexError := os.Stat(DexPEMPath)
 

@@ -14,18 +14,23 @@ package application
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/utils/pointer"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -40,6 +45,7 @@ import (
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"golang.org/x/exp/slices"
 )
 
 type stageParam struct {
@@ -60,6 +66,9 @@ type stageParam struct {
 	PreviousStageID     string
 	RegistryCASecret    string
 	RegistryCAHash      string
+	UserID              int64
+	GroupID             int64
+	Scripts             string
 }
 
 // ImageURL returns the URL of the container image to be, using the
@@ -152,11 +161,6 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
-	config, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), helmchart.EpinioStageScriptsName)
-	if err != nil {
-		return apierror.InternalError(err, "failed to retrieve staging image refs")
-	}
-
 	// get builder image from either request, application, or default as final fallback
 
 	builderImage, builderErr := getBuilderImage(req, app)
@@ -164,12 +168,23 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return builderErr
 	}
 	if builderImage == "" {
-		builderImage = config.Data["builderImage"]
+		builderImage = viper.GetString("default-builder-image")
 	}
 
-	downloadImage := config.Data["downloadImage"]
-	unpackImage := config.Data["unpackImage"]
+	// Find staging script spec based on the builder image and what images are supported by each spec
+	// This also resolves a `base` reference, if present.
 
+	config, err := DetermineStagingScripts(ctx, log, cluster, helmchart.Namespace(), builderImage)
+	if err != nil {
+		return apierror.InternalError(err, "failed to retrieve staging configuration")
+	}
+
+	log.Info("staging app", "scripts", config.Name)
+	log.Info("staging app", "builder", builderImage)
+	log.Info("staging app", "download", config.DownloadImage)
+	log.Info("staging app", "unpack", config.UnpackImage)
+	log.Info("staging app", "userid", config.UserID)
+	log.Info("staging app", "groupid", config.GroupID)
 	log.Info("staging app", "namespace", namespace, "app", req)
 
 	staging, err := application.IsCurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
@@ -242,8 +257,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
-		DownloadImage:       downloadImage,
-		UnpackImage:         unpackImage,
+		DownloadImage:       config.DownloadImage,
+		UnpackImage:         config.UnpackImage,
 		ServiceAccountName:  serviceAccountName,
 		CPURequest:          cpuRequest,
 		MemoryRequest:       memoryRequest,
@@ -257,6 +272,9 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		Username:            username,
 		RegistryCAHash:      registryCertificateHash,
 		RegistryCASecret:    registryCertificateSecret,
+		UserID:              config.UserID,
+		GroupID:             config.GroupID,
+		Scripts:             config.Name,
 	}
 
 	err = ensurePVC(ctx, cluster, req.App, diskRequest)
@@ -377,7 +395,6 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 // holding the job's environment. Which is a copy of the app
 // environment + standard variables.
 func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
-
 	jobName := names.GenerateResourceName("stage", app.Namespace, app.Name, app.Stage.ID)
 
 	// fake stage params of the previous to pull the old image url from.
@@ -397,18 +414,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	buildpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageBuild)
 
 	// build configuration
-	stageEnv := []corev1.EnvVar{}
-
-	protocol := "http"
-	if app.S3ConnectionDetails.UseSSL {
-		protocol = "https"
-	}
-	stageEnv = appendEnvVar(stageEnv, "PROTOCOL", protocol)
-	stageEnv = appendEnvVar(stageEnv, "ENDPOINT", app.S3ConnectionDetails.Endpoint)
-	stageEnv = appendEnvVar(stageEnv, "BUCKET", app.S3ConnectionDetails.Bucket)
-	stageEnv = appendEnvVar(stageEnv, "BLOBID", app.BlobUID)
-	stageEnv = appendEnvVar(stageEnv, "PREIMAGE", previous.ImageURL(previous.RegistryURL))
-	stageEnv = appendEnvVar(stageEnv, "APPIMAGE", app.ImageURL(app.RegistryURL))
+	// - shared between all the phases, even if each phase uses only part of the set
+	stageEnv := assembleStageEnv(app, previous)
 
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -452,7 +459,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: helmchart.EpinioStageScriptsName,
+						Name: app.Scripts,
 					},
 					DefaultMode: pointer.Int32(420),
 				},
@@ -612,8 +619,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 							Env:          stageEnv,
 							VolumeMounts: volumeMounts,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:  pointer.Int64(1000),
-								RunAsGroup: pointer.Int64(1000),
+								RunAsUser:  pointer.Int64(app.UserID),
+								RunAsGroup: pointer.Int64(app.GroupID),
 							},
 						},
 					},
@@ -626,6 +633,26 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	addResourceRequests(job, app)
 	return job, jobenv
+}
+
+func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
+	stageEnv := []corev1.EnvVar{}
+
+	protocol := "http"
+	if app.S3ConnectionDetails.UseSSL {
+		protocol = "https"
+	}
+
+	stageEnv = appendEnvVar(stageEnv, "PROTOCOL", protocol)
+	stageEnv = appendEnvVar(stageEnv, "ENDPOINT", app.S3ConnectionDetails.Endpoint)
+	stageEnv = appendEnvVar(stageEnv, "BUCKET", app.S3ConnectionDetails.Bucket)
+	stageEnv = appendEnvVar(stageEnv, "BLOBID", app.BlobUID)
+	stageEnv = appendEnvVar(stageEnv, "PREIMAGE", previous.ImageURL(previous.RegistryURL))
+	stageEnv = appendEnvVar(stageEnv, "APPIMAGE", app.ImageURL(app.RegistryURL))
+	stageEnv = appendEnvVar(stageEnv, "USERID", strconv.FormatInt(app.UserID, 10))
+	stageEnv = appendEnvVar(stageEnv, "GROUPID", strconv.FormatInt(app.GroupID, 10))
+
+	return stageEnv
 }
 
 func addResourceRequests(job *batchv1.Job, app stageParam) {
@@ -824,4 +851,156 @@ func mountRegistryCerts(app stageParam, volumes []corev1.Volume, volumeMounts []
 
 func appendEnvVar(envs []corev1.EnvVar, name, value string) []corev1.EnvVar {
 	return append(envs, corev1.EnvVar{Name: name, Value: value})
+}
+
+type StagingScriptConfig struct {
+	Name          string // config name. Needed to mount the resource in the pod
+	Builder       string // glob pattern for builders supported by this resource
+	UserID        int64  // user id to run the build phase with (`cnb` user)
+	GroupID       int64  // group id to run the build hase with
+	Base          string // optional, name of resource to pull the other parts from
+	DownloadImage string // image to run the download phase with
+	UnpackImage   string // image to run the unpack phase with
+}
+
+func DetermineStagingScripts(ctx context.Context,
+	logger logr.Logger,
+	cluster *kubernetes.Cluster,
+	namespace, builder string) (*StagingScriptConfig, error) {
+
+	logger.Info("locate staging scripts", "namespace", namespace)
+	logger.Info("locate staging scripts", "builder", builder)
+
+	configmapSelector := labels.Set(map[string]string{
+		"app.kubernetes.io/component": "epinio-staging",
+	}).AsSelector().String()
+
+	configmapList, err := cluster.Kubectl.CoreV1().ConfigMaps(namespace).List(ctx,
+		metav1.ListOptions{
+			LabelSelector: configmapSelector,
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Info("locate staging scripts", "possibles", len(configmapList.Items))
+
+	var candidates []*StagingScriptConfig
+	for _, configmap := range configmapList.Items {
+		config, err := NewStagingScriptConfig(configmap)
+		if err != nil {
+			return nil, err
+		}
+		candidates = append(candidates, config)
+	}
+
+	// Sort the candidates by name to have a deterministic search order
+	slices.SortFunc(candidates, SortByName)
+
+	var fallback *StagingScriptConfig
+
+	// Show the entire ordered list (except fallbacks), also save fallbacks, and show last. NOTE
+	// that this loop excises the fallbacks from the regular list to avoid having to check for
+	// them again when matching.
+	var matchable []*StagingScriptConfig
+	for _, config := range candidates {
+		pattern := config.Builder
+		if pattern == "*" || pattern == "" {
+			fallback = config
+			continue
+		}
+		logger.Info("locate staging scripts - found",
+			"name", config.Name, "match", pattern)
+		matchable = append(matchable, config)
+	}
+	if fallback != nil {
+		logger.Info("locate staging scripts - fallback",
+			"name", fallback.Name, "match", fallback.Builder)
+	}
+
+	// match by pattern
+	for _, config := range matchable {
+		pattern := config.Builder
+		logger.Info("locate staging scripts - checking",
+			"name", config.Name, "match", pattern)
+
+		matched, err := filepath.Match(pattern, builder)
+		if err != nil {
+			return nil, err
+		}
+		if matched {
+			logger.Info("locate staging scripts - match",
+				"name", config.Name, "match", pattern, "builder", builder)
+
+			err := StagingScriptConfigResolve(ctx, logger, cluster, config)
+			if err != nil {
+				return nil, err
+			}
+
+			return config, nil
+		}
+	}
+
+	if fallback != nil {
+		logger.Info("locate staging scripts - using fallback", "name", fallback.Name)
+		err := StagingScriptConfigResolve(ctx, logger, cluster, fallback)
+		if err != nil {
+			return nil, err
+		}
+		return fallback, nil
+	}
+
+	return nil, fmt.Errorf("no matches, no fallback")
+}
+
+func StagingScriptConfigResolve(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, config *StagingScriptConfig) error {
+	if config.Base == "" {
+		// nothing to do without a base
+		return nil
+	}
+
+	logger.Info("locate staging scripts - inherit", "base", config.Base)
+
+	base, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), config.Base)
+	if err != nil {
+		return apierror.InternalError(err, "failed to retrieve staging base")
+	}
+
+	// Fill config from the base.
+	// BEWARE: Keep user/group data of the incoming config.
+
+	config.Name = base.Name
+	config.DownloadImage = base.Data["downloadImage"]
+	config.UnpackImage = base.Data["unpackImage"]
+
+	return nil
+}
+
+func NewStagingScriptConfig(config v1.ConfigMap) (*StagingScriptConfig, error) {
+	stagingScript := &StagingScriptConfig{
+		Name:          config.Name,
+		Builder:       config.Data["builder"],
+		Base:          config.Data["base"],
+		DownloadImage: config.Data["downloadImage"],
+		UnpackImage:   config.Data["unpackImage"],
+		// user, group id, see below.
+	}
+
+	userID, err := strconv.ParseInt(config.Data["userID"], 10, 64)
+	if err != nil {
+		return nil, apierror.InternalError(err)
+	}
+	groupID, err := strconv.ParseInt(config.Data["groupID"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	stagingScript.GroupID = groupID
+	stagingScript.UserID = userID
+
+	return stagingScript, nil
+}
+
+func SortByName(s1, s2 *StagingScriptConfig) bool {
+	return s1.Name < s2.Name
 }

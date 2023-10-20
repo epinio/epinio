@@ -90,6 +90,12 @@ func init() {
 	err = viper.BindEnv("app-image-exporter", "APP_IMAGE_EXPORTER")
 	checkErr(err)
 
+	flags.String("default-builder-image", "", "(DEFAULT_BUILDER_IMAGE) Name of the container image used to build images from staged sources.")
+	err = viper.BindPFlag("default-builder-image", flags.Lookup("default-builder-image"))
+	checkErr(err)
+	err = viper.BindEnv("default-builder-image", "DEFAULT_BUILDER_IMAGE")
+	checkErr(err)
+
 	flags.Bool("disable-tracking", false, "(DISABLE_TRACKING) Disable tracking of the running Epinio and Kubernetes versions")
 	err = viper.BindPFlag("disable-tracking", flags.Lookup("disable-tracking"))
 	checkErr(err)
