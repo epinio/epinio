@@ -22,6 +22,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/auth/authfakes"
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -32,14 +33,19 @@ var r *rand.Rand
 
 var _ = Describe("Auth users", func() {
 	var authService *auth.AuthService
-	var fake *authfakes.FakeSecretInterface
+	var fakeSecret *authfakes.FakeSecretInterface
+	var fakeConfigMap *authfakes.FakeConfigMapInterface
 
 	BeforeEach(func() {
 		r = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-		fake = &authfakes.FakeSecretInterface{}
+		fakeSecret = &authfakes.FakeSecretInterface{}
+		fakeConfigMap = &authfakes.FakeConfigMapInterface{}
+
 		authService = &auth.AuthService{
-			SecretInterface: fake,
+			Logger:             logr.Discard(),
+			SecretInterface:    fakeSecret,
+			ConfigMapInterface: fakeConfigMap,
 		}
 	})
 
@@ -47,7 +53,7 @@ var _ = Describe("Auth users", func() {
 
 		When("kubernetes returns an error", func() {
 			It("returns an error and an empty slice", func() {
-				fake.ListReturns(nil, errors.New("an error"))
+				fakeSecret.ListReturns(nil, errors.New("an error"))
 
 				users, err := authService.GetUsers(context.Background())
 				Expect(err).To(HaveOccurred())
@@ -57,7 +63,7 @@ var _ = Describe("Auth users", func() {
 
 		When("kubernetes returns an empty list of secrets", func() {
 			It("returns an empty slice", func() {
-				fake.ListReturns(&corev1.SecretList{Items: []corev1.Secret{}}, nil)
+				fakeSecret.ListReturns(&corev1.SecretList{Items: []corev1.Secret{}}, nil)
 
 				users, err := authService.GetUsers(context.Background())
 				Expect(err).ToNot(HaveOccurred())
@@ -71,7 +77,7 @@ var _ = Describe("Auth users", func() {
 					newUserSecret("admin", "password", "admin", ""),
 					newUserSecret("epinio", "mypass", "user", "workspace\nworkspace2"),
 				}
-				fake.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
+				fakeSecret.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
 
 				users, err := authService.GetUsers(context.Background())
 				Expect(err).ToNot(HaveOccurred())
@@ -94,27 +100,27 @@ var _ = Describe("Auth users", func() {
 				}
 
 				// setup mock
-				fake.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
+				fakeSecret.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
 
-				fake.GetReturnsOnCall(0, &userSecrets[1], nil)
+				fakeSecret.GetReturnsOnCall(0, &userSecrets[1], nil)
 				updatedUser2 := newUserSecret("user2", "password", "user", "workspace2")
-				fake.UpdateReturnsOnCall(0, &updatedUser2, nil)
+				fakeSecret.UpdateReturnsOnCall(0, &updatedUser2, nil)
 
-				fake.GetReturnsOnCall(1, &userSecrets[2], nil)
+				fakeSecret.GetReturnsOnCall(1, &userSecrets[2], nil)
 				updatedUser3 := newUserSecret("user3", "password", "user", "")
-				fake.UpdateReturnsOnCall(1, &updatedUser3, nil)
+				fakeSecret.UpdateReturnsOnCall(1, &updatedUser3, nil)
 
 				// do test
 				err := authService.RemoveNamespaceFromUsers(context.Background(), "workspace")
 				Expect(err).ToNot(HaveOccurred())
 
-				_, secretName, _ := fake.GetArgsForCall(0)
+				_, secretName, _ := fakeSecret.GetArgsForCall(0)
 				Expect(secretName).To(Equal("user2"))
 
-				_, secretName, _ = fake.GetArgsForCall(1)
+				_, secretName, _ = fakeSecret.GetArgsForCall(1)
 				Expect(secretName).To(Equal("user3"))
 
-				Expect(fake.GetCallCount()).To(Equal(2))
+				Expect(fakeSecret.GetCallCount()).To(Equal(2))
 			})
 		})
 	})
@@ -126,8 +132,8 @@ var _ = Describe("Auth users", func() {
 				oldUser := newUserSecret("user2", "password", "user", "workspace\nworkspace2")
 
 				// setup mock
-				fake.GetReturns(&oldUser, nil)
-				fake.UpdateReturns(nil, nil)
+				fakeSecret.GetReturns(&oldUser, nil)
+				fakeSecret.UpdateReturns(nil, nil)
 
 				// do test
 				result, err := authService.UpdateUser(context.Background(), auth.User{
