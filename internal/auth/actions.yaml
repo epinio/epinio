@@ -157,6 +157,7 @@
   dependsOn:
     - service_read
     - service_write
+    - service_portforward
 
 # Service Read
 - id: service_read
@@ -226,7 +227,7 @@
     - GitconfigBatchDelete
 
 # Export Registries
-- id: export_registries
+- id: export_registries_read
   name: Export Registries
   routes:
     - Exportregistries
