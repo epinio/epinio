@@ -144,27 +144,33 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 		Namespaces: []string{},
 		Gitconfigs: []string{},
 
+		roleIDs:    []string{},
 		secretName: secret.GetName(),
 	}
 
 	// find the roles of the user
 	rolesAnnotation := secret.Annotations[kubernetes.EpinioAPISecretRolesAnnotationKey]
-	if rolesAnnotation != "" {
+	if rolesAnnotation == "" {
+		// no roles defined, load the default role
+		defaultRole, _ := EpinioRoles.Default()
+		user.Roles = Roles{defaultRole}
+	} else {
+		// load the roles
 		user.roleIDs = strings.Split(rolesAnnotation, ",")
-	}
 
-	for _, userRole := range user.roleIDs {
-		userRoleID, userRoleNamespace := ParseRoleID(userRole)
+		for _, userRole := range user.roleIDs {
+			userRoleID, userRoleNamespace := ParseRoleID(userRole)
 
-		// find the role for the user
-		userRole, found := EpinioRoles.FindByID(userRoleID)
-		if !found {
-			logger.V(1).Info("role not found", "user", user.Username, "role", userRoleID)
-			continue
+			// find the role for the user
+			userRole, found := EpinioRoles.FindByID(userRoleID)
+			if !found {
+				logger.V(1).Info("role not found", "user", user.Username, "role", userRoleID)
+				continue
+			}
+
+			userRole.Namespace = userRoleNamespace
+			user.Roles = append(user.Roles, userRole)
 		}
-
-		userRole.Namespace = userRoleNamespace
-		user.Roles = append(user.Roles, userRole)
 	}
 
 	if ns, found := secret.Data["namespaces"]; found {
