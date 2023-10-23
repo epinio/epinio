@@ -8,19 +8,19 @@ date: {2023-10-13}
 ## Authorization
 
 Until version `v1.10.0` Epinio has a very simple authorization mechanism. A user can be `admin` or `user`.  
-An admin can perform everything, while a user can do anything but only in the namespaces he created or where has permissions.
+Admins can access everything, while users are restricted to the namespaces they created or they were given permission to.
 
 This was pretty simple to implement but not very flexible.
 
 ## Decision Drivers
 
-A new more flexible authorization was needed (https://github.com/epinio/epinio/issues/1946).
+A more flexible authorization is requested (https://github.com/epinio/epinio/issues/1946).
 
 Some of the requirements:
 - Be easy to understand and administer
 - Provide least privileges
 - Allow separate roles for listing, reading details, editing, and creating
-- Allow soft multi-tenancy across namespaces (e.g. user A has read write access for apps on one namespace but read only on another namespace)
+- Allow soft multi-tenancy across namespaces (e.g. user A has read/write access to apps in one namespace, but read-only access on another namespace)
 - Not require too many changes to the existing code base
 
 ## Considered Options
@@ -31,7 +31,7 @@ Some of the requirements:
 
 ## Decision Outcome
 
-Chosen option 3 (__"ConfigMaps defined Roles with predefined Actions"__). It was the easier and more flexible solution. It will not require many changes in the code, and it will be easy to customize and implement.
+Chosen option 3 (__"ConfigMaps defined Roles with predefined Actions"__). It is believed to be the easiest and most flexible solution. It will not require many changes in the code, and it will be easy to customize and implement.
 We could also define some basic roles that can be used.
 
 
@@ -73,8 +73,8 @@ Additionally, as long as the secret/configmap is mounted in the pod without any 
 
 #### Cons
 
-* Not sure how to handle newly created namespace
-* Some operations are not strictly tight to a "resource". How to avoid the `exec` but allowing the creation of apps?
+* Not sure how to handle newly created namespaces
+* Some operations are not strictly tied to a "resource". How to avoid the `exec` but allowing the creation of apps?
 
 ### Role Bindings as their own CRDs
 
@@ -104,11 +104,11 @@ metadata:
 ```
 
 *Note:*
-an annotation will be used because labels have some limitations about the lenght and we don't want to be restricted about the number of roles. Also we don't need to perform any kind of lookup over the role.
+An annotation will be used because labels have length-limitations and we don't want to be restricted about the number of roles. Also we don't need to perform any kind of lookup over the role.
 
-In the previous example the user will have the `epinio-role-reader` and `admin::workspace` roles. When working in the workspace namespace the `admin` role will be used, otherwise the `epinio-role-reader` will take over.
+In the previous example the user has the roles `epinio-role-reader` and `admin::workspace`. When working in the  namespace `workspace` the `admin` role will be used, otherwise the role `epinio-role-reader`.
 
-A Role can be simply defined as a ConfigMap (no need to be a secret) with a special label (`epinio.io/role: "true"`). This role contains the `actions` that this role can perform, and some metadata that can be used as descriptions (i.e.: the `name`):
+A `Role` is defined as a kubernetes `ConfigMap` (no need to be a `Secret`) with a special label (`epinio.io/role: "true"`). This resource contains the `actions` that the role can perform, and some metadata that can be used for descriptions (i.e.: the `name`):
 
 ```yaml
 apiVersion: v1
@@ -124,9 +124,9 @@ data:
     namespace
 ```
 
-This actions could be **hardcoded** in a yaml file. This simplify the management of them, and also the flexibility. An action can have some "dependencies", i.e.: the `namespace` action is a union of the `namespace_show`, `namespace_delete`, and so on.
+The actions are **hardcoded** as an embedded yaml file. This simplifies their management, and also enhances flexibility. An action can have some "dependencies", i.e.: the `namespace` action is a union of the `namespace_show`, `namespace_delete`, and so on.
 
-Every action will have a set of endpoints that will allow. Some Epinio operations are formed by multiple endpoints, i.e. the `app_push` consists of a Create, Update and others.
+Every action lists the set of endpoints it allows. Note that some Epinio operations are formed from multiple endpoints, i.e. the `app_push` consists of a Create, Update and others.
 
 Example of part of the `actions.yaml` file:
 
