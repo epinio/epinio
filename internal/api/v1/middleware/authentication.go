@@ -200,7 +200,7 @@ func getRolesFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvid
 
 		userRole, found := auth.EpinioRoles.FindByID(roleID)
 		if !found {
-			logger.Info(fmt.Sprintf("no role found in Epinio with roleID '%s'", roleID))
+			logger.Info(fmt.Sprintf("role not found in Epinio with roleID '%s'", roleID))
 			continue
 		}
 
