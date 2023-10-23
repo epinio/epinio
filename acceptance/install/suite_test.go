@@ -76,7 +76,7 @@ func InstallTraefik() {
 	out, err = proc.RunW("helm", "upgrade", "--install", "traefik", "traefik/traefik",
 		"-n", "traefik",
 		"--create-namespace",
-		"--set", "ports.web.redirectTo=websecure",
+		"--set", "ports.web.redirectTo.port=websecure",
 		"--set", "ingressClass.enabled=true",
 		"--set", "ingressClass.isDefaultClass=true",
 	)
