@@ -260,7 +260,7 @@ func InitAuth() error {
 
 	// maps to check the routes and wsRoutes assigned to the actions.
 	// They are used to validate that we have put every API to at least an action
-	// and that we have not forget to map any of them.
+	// and that we have not forgotten to map any of them.
 	assignedRoutes := make(map[string]struct{})
 	assignedWsRoutes := make(map[string]struct{})
 

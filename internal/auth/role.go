@@ -10,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// AdminRole is a special role, that has permission of every action
+// AdminRole is a special role. It permits all actions.
 var AdminRole = Role{
 	ID:   "admin",
 	Name: "Admin Role",
