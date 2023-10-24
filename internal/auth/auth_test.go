@@ -155,7 +155,7 @@ var _ = Describe("Auth users", func() {
 		When("updating user with different role and namespaces", func() {
 			It("will be updated", func() {
 				oldUser := newUserSecret("user2", "password", "user", "workspace\nworkspace2")
-				updatedUserSecret := newUserSecret("user2", "password", "another::workspace", "")
+				updatedUserSecret := newUserSecret("user2", "password", "another:workspace", "")
 
 				// setup mock
 				fakeSecret.GetReturns(&oldUser, nil)

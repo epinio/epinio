@@ -57,7 +57,7 @@ func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, st
 	// build roles (default for global role, and admin for its namespaces)
 	roles := []string{role}
 	for _, namespace := range namespaces {
-		roles = append(roles, "admin::"+namespace)
+		roles = append(roles, "admin:"+namespace)
 	}
 
 	secret.ObjectMeta.Annotations = map[string]string{

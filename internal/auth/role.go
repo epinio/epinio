@@ -10,16 +10,20 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// AdminRole is a special role. It permits all actions.
-var AdminRole = Role{
-	ID:   "admin",
-	Name: "Admin Role",
-}
+const RoleNamespaceDelimiter = ":"
 
-// EpinioRoles are all the available Epinio roles.
-// It is initialized with the AdminRole, and then it will load the other available Roles
-// with the auth.InitRoles function.
-var EpinioRoles Roles = Roles{AdminRole}
+var (
+	// AdminRole is a special role. It permits all actions.
+	AdminRole = Role{
+		ID:   "admin",
+		Name: "Admin Role",
+	}
+
+	// EpinioRoles are all the available Epinio roles.
+	// It is initialized with the AdminRole, and then it will load the other available Roles
+	// with the auth.InitRoles function.
+	EpinioRoles Roles = Roles{AdminRole}
+)
 
 type Roles []Role
 
@@ -52,7 +56,7 @@ func (roles Roles) IDs() string {
 	for _, role := range roles {
 		id := role.ID
 		if role.Namespace != "" {
-			id = id + "::" + role.Namespace
+			id = role.ID + RoleNamespaceDelimiter + role.Namespace
 		}
 		ids = append(ids, id)
 	}
@@ -172,9 +176,9 @@ func InitRoles(rolesGetter RolesGetter) error {
 // i.e.:
 //
 //	"admin" will return "admin" and ""
-//	"admin::workspace" will return "admin" and "workspace"
+//	"admin:workspace" will return "admin" and "workspace"
 func ParseRoleID(roleID string) (string, string) {
-	roleIDAndNamespace := strings.Split(roleID, "::")
+	roleIDAndNamespace := strings.Split(roleID, RoleNamespaceDelimiter)
 	if len(roleIDAndNamespace) > 1 {
 		return roleIDAndNamespace[0], roleIDAndNamespace[1]
 	}
