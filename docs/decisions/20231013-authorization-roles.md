@@ -119,41 +119,95 @@ metadata:
   name: epinio-role-namespace
   namespace: epinio
 data:
+  id: namespace-role
   name: Epinio Namespace Role
+  default: "true"
   actions: |
     namespace
+    app_read
+    configuration_read
 ```
 
-The actions are **hardcoded** as an embedded yaml file. This simplifies their management, and also enhances flexibility. An action can have some "dependencies", i.e.: the `namespace` action is a union of the `namespace_show`, `namespace_delete`, and so on.
+#### Fields
 
-Every action lists the set of endpoints it allows. Note that some Epinio operations are formed from multiple endpoints, i.e. the `app_push` consists of a Create, Update and others.
+| Key     | Description 
+|---------|-------------
+| id      | The ID of the Role
+| name    | A friendly name for the Role
+| default | (optional) if set to _true_ the role will be the one selected as default if no other roles were assigned to the user
+| actions | The actions the roles can perform
 
-Example of part of the `actions.yaml` file:
+#### Actions
 
-```yaml
-# Namespace related actions
-- id: namespace
-  name: Namespace
-  dependsOn:
-    - namespace_list
-    - namespace_show
-    - namespace_create
-    - namespace_delete
-# Namespace List
-- id: namespace_list
-  name: Namespace List
-  routes:
-    - Namespaces
-# Namespace Show
-- id: namespace_show
-  name: Namespace Show
-  routes:
-    - NamespaceShow
-    - NamespacesMatch
-    - NamespacesMatch0
-```
+The actions are **hardcoded** as an embedded yaml file. This simplifies their management, and also enhances flexibility. An action can have some "dependencies", i.e.: the `namespace` action is a union of the `namespace_read` and `namespace_write`.
 
-This mapping can be used to match closer to the actions/commands performed from the CLI.
+Every action lists the set of endpoints it allows. Note that some Epinio operations are formed from multiple endpoints, i.e. the `app push` consists of a Create, Update and others.
+
+The following actions are the one defined in the `actions.yaml` file (in the `internal/auth` package).
+
+##### Namespace
+
+These actions enable operations on Namespace commands and resources.
+
+| Action ID         | Description 
+|-------------------|-------------
+| `namespace_read`    | Read permissions (list, show)
+| `namespace_write`   | Write permissions (create, delete)<br/>Depends on: `namespace_read`
+| `namespace`         | All the above<br/>Depends on: `namespace_read`, `namespace_write`
+
+##### App
+
+These actions enable operations on App commands and resources. They also enable commands related to  AppCharts (`epinio app chart`) and application environment variables.
+
+| Action ID       | Description 
+|-----------------|-------------
+| `app_read`        | Read permissions (app list and show, env list and show)
+| `app_logs`        | Read application logs
+| `app_write`       | Write permissions (app create, delete, push, export, stage, env set and unset)<br/>Depends on: `app_read`, `app_logs`
+| `app_exec`        | Perform an exec into a running application
+| `app_portforward` | Open a tunnel with the `port-forward` command
+| `app`             | All the above<br/>Depends on: `app_read`, `app_logs`, `app_write`, `app_exec`, `app_portforward`
+
+##### Configuration
+
+These actions enable operations on Configuration commands and resources. Be aware that to bind a configuration you still need the `app_write` permission as well.
+
+
+| Action ID           | Description 
+|----------------------|-------------
+| `configuration_read`  | Read permissions (list, show)
+| `configuration_write` | Write permissions (create, delete)<br/>Depends on: `configuration_read`
+| `configuration`       | All the above<br/>Depends on: `configuration_read`, `configuration_write`
+
+##### Service
+
+These actions enable operations on Service commands and resources. 
+
+| Action ID             | Description 
+|-----------------------|-------------
+| `service_read`        | Read permissions (list, show)
+| `service_write`       | Write permissions (create, delete, bind, unbind)<br/>Depends on: `service_read`
+| `service_portforward` | Open a tunnel with the `port-forward` command
+| `service`             | All the above<br/>Depends on: `service_read`, `service_write`, `service_portforward`
+
+##### Gitconfig
+
+These actions enable operations on Gitconfig commands and resources.
+
+| Action ID         | Description 
+|-------------------|-------------
+| `gitconfig_read`    | Read permissions (list, show)
+| `gitconfig_write`   | Write permissions (create, delete)<br/>Depends on: `gitconfig_read`
+| `gitconfig`         | All the above<br/>Depends on: `gitconfig_read`, `gitconfig_write`
+
+##### Export Registries
+
+This action enable operations on Export Registries commands and resources. Only read operations are available.
+
+| Action ID                 | Description 
+|---------------------------|-------------
+| `export_registries_read`  | Read permissions
+
 
 #### Pros
 
