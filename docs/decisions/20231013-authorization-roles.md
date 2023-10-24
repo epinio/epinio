@@ -91,14 +91,14 @@ Building custom Role Bindings as their own CRDs.
 
 ### ConfigMaps defined Roles with predefined Actions
 
-To avoid changing the current implementation too much we can add "roles" to an Epinio user. While a user can only have one role at the moment, this can be extended in the future with a list instead of a single value. Furthermore a role can be namespace-scoped by adding a `::` delimiter.
+To avoid changing the current implementation too much we can add "roles" to an Epinio user. While a user can only have one role at the moment, this can be extended in the future with a list instead of a single value. Furthermore a role can be namespace-scoped by adding a `:` delimiter.
 
 The Secret with the definition of the User can contain an annotation with the assigned roles.
 
 ```yaml
 metadata:
   annotations:
-    epinio.io/roles: epinio-role-reader,admin::workspace
+    epinio.io/roles: epinio-role-reader,admin:workspace
   labels:
     epinio.io/role: user
 ```
@@ -106,7 +106,7 @@ metadata:
 *Note:*
 An annotation will be used because labels have length-limitations and we don't want to be restricted about the number of roles. Also we don't need to perform any kind of lookup over the role.
 
-In the previous example the user has the roles `epinio-role-reader` and `admin::workspace`. When working in the  namespace `workspace` the `admin` role will be used, otherwise the role `epinio-role-reader`.
+In the previous example the user has the roles `epinio-role-reader` and `admin:workspace`. When working in the  namespace `workspace` the `admin` role will be used, otherwise the role `epinio-role-reader`.
 
 A `Role` is defined as a kubernetes `ConfigMap` (no need to be a `Secret`) with a special label (`epinio.io/role: "true"`). This resource contains the `actions` that the role can perform, and some metadata that can be used for descriptions (i.e.: the `name`):
 
