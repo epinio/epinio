@@ -91,7 +91,7 @@ Building custom Role Bindings as their own CRDs.
 
 ### ConfigMaps defined Roles with predefined Actions
 
-To avoid changing too much the current implementation we can add "roles" to an Epinio user. At the moment the user can only have one role, but this can be extended with a list instead of a fixed value. Also the role can be namescoped adding a `::` delimiter.
+To avoid changing the current implementation too much we can add "roles" to an Epinio user. While a user can only have one role at the moment, this can be extended in the future with a list instead of a single value. Furthermore a role can be namespace-scoped by adding a `::` delimiter.
 
 The Secret with the definition of the User can contain an annotation with the assigned roles.
 
