@@ -127,11 +127,9 @@ func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
 			// TODO - remove once v1.11.0 is released - temporary workaround for upgrade tests
 			By("Write Procfile for golang-sample-app pre-upgrade (needed for v1.10.0)", func() {
 				currentDir, err := os.Getwd()
-				fmt.Println(currentDir)
 				ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-				appDir := currentDir + "assets/golang-sample-app"
-				fmt.Println(appDir)
+				// currentDir is ~/actions-runner/_work/epinio/epinio/acceptance/install
+				appDir := currentDir + "/../../assets/golang-sample-app"
 				procfile_content := "web: golang-sample-app\n"
 				procfile_filePath := appDir + "/Procfile"
 
@@ -243,11 +241,9 @@ func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
 			// TODO - remove once v1.11.0 is released - temporary workaround for upgrade tests
 			By("Remove Procfile from golang-sample-app post-upgrade (needed for v1.10.0)", func() {
 				currentDir, err := os.Getwd()
-				fmt.Println(currentDir)
 				ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-				appDir := currentDir + "assets/golang-sample-app"
-				fmt.Println(appDir)
+				// currentDir is ~/actions-runner/_work/epinio/epinio/acceptance/install
+				appDir := currentDir + "/../../assets/golang-sample-app"
 				procfile_filePath := appDir + "/Procfile"
 
 				err = os.Remove(procfile_filePath)
