@@ -124,6 +124,23 @@ func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
 			By("Versions before upgrade")
 			env.Versions()
 
+			// TODO - remove once v1.11.0 is released - temporary workaround for upgrade tests
+			By("Write Procfile for golang-sample-app pre-upgrade (needed for v1.10.0)", func() {
+				currentDir, err := os.Getwd()
+				ExpectWithOffset(1, err).ToNot(HaveOccurred())
+				// currentDir is ~/actions-runner/_work/epinio/epinio/acceptance/install
+				appDir := currentDir + "/../../assets/golang-sample-app"
+				procfile_content := "web: golang-sample-app\n"
+				procfile_filePath := appDir + "/Procfile"
+
+				file, err := os.Create(procfile_filePath)
+				Expect(err).NotTo(HaveOccurred())
+				defer file.Close()
+
+				_, err = file.WriteString(procfile_content)
+				Expect(err).NotTo(HaveOccurred())
+			})
+
 			// Deploy a simple application before upgrading Epinio, check that it is reachable
 			By("Deploy application pre-upgrade")
 			env.MakeGolangApp(beforeApp, 1, true)
@@ -220,6 +237,18 @@ func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
 			out, err = env.Epinio("", "service", "catalog")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring(afterCatalog))
+
+			// TODO - remove once v1.11.0 is released - temporary workaround for upgrade tests
+			By("Remove Procfile from golang-sample-app post-upgrade (needed for v1.10.0)", func() {
+				currentDir, err := os.Getwd()
+				ExpectWithOffset(1, err).ToNot(HaveOccurred())
+				// currentDir is ~/actions-runner/_work/epinio/epinio/acceptance/install
+				appDir := currentDir + "/../../assets/golang-sample-app"
+				procfile_filePath := appDir + "/Procfile"
+
+				err = os.Remove(procfile_filePath)
+				Expect(err).NotTo(HaveOccurred())
+			})
 
 			// Check that we can create an application after the upgrade, incl. reachability
 			By("Create application post-upgrade")
