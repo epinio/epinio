@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -93,7 +92,7 @@ func NewRole(id, name, defaultVal string, actionIDs []string) (Role, error) {
 	for _, actionID := range actionIDs {
 		action, found := ActionsMap[actionID]
 		if !found {
-			return role, fmt.Errorf("action '%s' defined in role '%s' does not exists", actionID, id)
+			return role, fmt.Errorf("action '%s' in role '%s' does not exists", actionID, id)
 		}
 
 		actions = append(actions, action)
@@ -130,19 +129,11 @@ func (r *Role) IsAllowed(method, fullpath string) bool {
 }
 
 func newRoleFromConfigMap(config corev1.ConfigMap) (Role, error) {
-	actionsData := strings.TrimSpace(config.Data["actions"])
-	actionIDs := strings.Split(actionsData, "\n")
+	actionIDs := []string{}
 
-	// init the actions with the default action
-	actions := []Action{ActionsMap["default"]}
-
-	for _, actionID := range actionIDs {
-		action, found := ActionsMap[actionID]
-		if !found {
-			return Role{}, fmt.Errorf("action '%s' in role '%s' does not exists", actionID, config.Name)
-		}
-
-		actions = append(actions, action)
+	if actionsData, found := config.Data["actions"]; found {
+		actionsData = strings.TrimSpace(actionsData)
+		actionIDs = strings.Split(actionsData, "\n")
 	}
 
 	return NewRole(
@@ -163,10 +154,6 @@ func InitRoles(rolesGetter RolesGetter) error {
 		return err
 	}
 	EpinioRoles = append(EpinioRoles, roles...)
-
-	if _, found := EpinioRoles.Default(); !found {
-		return errors.New("cannot InitRoles: missing default role")
-	}
 
 	return nil
 }

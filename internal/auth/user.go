@@ -150,11 +150,9 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 
 	// find the roles of the user
 	rolesAnnotation := secret.Annotations[kubernetes.EpinioAPISecretRolesAnnotationKey]
-	if rolesAnnotation == "" {
-		// no roles defined, load the default role
-		defaultRole, _ := EpinioRoles.Default()
-		user.Roles = Roles{defaultRole}
-	} else {
+	rolesAnnotation = strings.TrimSpace(rolesAnnotation)
+
+	if rolesAnnotation != "" {
 		// load the roles
 		user.roleIDs = strings.Split(rolesAnnotation, ",")
 
@@ -171,6 +169,11 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 			userRole.Namespace = userRoleNamespace
 			user.Roles = append(user.Roles, userRole)
 		}
+	}
+
+	defaultRole, foundDefault := EpinioRoles.Default()
+	if len(user.Roles) == 0 && foundDefault {
+		user.Roles = Roles{defaultRole}
 	}
 
 	if ns, found := secret.Data["namespaces"]; found {

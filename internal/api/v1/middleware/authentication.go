@@ -130,7 +130,7 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 		return auth.User{}, apierrors.InternalError(err, "getting/creating user with email")
 	}
 
-	logger.V(1).Info("token verified", "user", fmt.Sprintf("%#v", user))
+	logger.V(1).Info("token verified", "user", user.Username)
 
 	return user, nil
 }
@@ -167,10 +167,8 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 }
 
 // getRolesFromProviderGroups returns the user roles, looking for it in the groups defined for the provider.
-// If there are no groups that matches then the default role is returned.
-// If a user has more than one group matching, the first from the Dex Configuration will be returned.
 func getRolesFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvider, providerID string, groups []string) auth.Roles {
-	defaultRole, _ := auth.EpinioRoles.Default()
+	roles := auth.Roles{}
 
 	pg, err := oidcProvider.GetProviderGroups(providerID)
 	if err != nil {
@@ -179,7 +177,7 @@ func getRolesFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvid
 			"provider", providerID,
 		)
 
-		return auth.Roles{defaultRole}
+		return roles
 	}
 
 	roleIDs := pg.GetRolesFromGroups(groups...)
@@ -191,10 +189,9 @@ func getRolesFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvid
 			"groups", strings.Join(groups, ","),
 		)
 
-		return auth.Roles{defaultRole}
+		return roles
 	}
 
-	assignedRoles := auth.Roles{}
 	for _, fullRoleID := range roleIDs {
 		roleID, namespace := auth.ParseRoleID(fullRoleID)
 
@@ -205,10 +202,10 @@ func getRolesFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvid
 		}
 
 		userRole.Namespace = namespace
-		assignedRoles = append(assignedRoles, userRole)
+		roles = append(roles, userRole)
 	}
 
-	return assignedRoles
+	return roles
 }
 
 func loadUsersMap(ctx context.Context, logger logr.Logger) (map[string]auth.User, error) {
@@ -230,6 +227,12 @@ func loadUsersMap(ctx context.Context, logger logr.Logger) (map[string]auth.User
 	return userMap, nil
 }
 
+// getOrCreateUserByEmail returns the user with the matching email, or if it not exists, it will create a new user.
+// If some roles are provided then the user will be created or updated with those roles.
+// If no roles are provided then we are going to check if a 'default' role was set. If so the user will be created
+// or updated with the default role. The only exception to this behavior is if the user already exists and
+// it had already some roles defined, maybe manually assigned.
+// We don't want to clear/delete existing roles if no groups were provided.
 func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email string, userRoles auth.Roles) (auth.User, error) {
 	user := auth.User{}
 	var err error
@@ -239,6 +242,8 @@ func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email strin
 		return user, errors.Wrap(err, "couldn't create auth service from context")
 	}
 
+	defaultRole, foundDefault := auth.EpinioRoles.Default()
+
 	user, err = authService.GetUserByUsername(ctx, email)
 	if err != nil {
 		// something bad happened
@@ -246,17 +251,37 @@ func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email strin
 			return user, errors.Wrap(err, "couldn't get user")
 		}
 
-		// no user was found, create a new one
-
+		// user not found, create a new one
 		user.Username = email
+
+		// if no roles were found and a default was set create the user with the default
+		if len(userRoles) == 0 && foundDefault {
+			userRoles = append(userRoles, defaultRole)
+		}
+
 		user.Roles = userRoles
 		user, err = authService.SaveUser(ctx, user)
 		if err != nil {
 			return user, errors.Wrap(err, "couldn't create user")
 		}
+		return user, nil
 	}
 
-	// update the existing user
+	// no incoming roles where found
+	if len(userRoles) == 0 {
+		// the user already had some roles (maybe manually assigned)
+		// we want to keep them without updating the user
+		if len(user.Roles) > 0 {
+			return user, nil
+		}
+
+		// if the user had no role we want to check if a default role was available
+		if foundDefault {
+			userRoles = append(userRoles, defaultRole)
+		}
+	}
+
+	// update the roles of the existing user (with default, or the incoming roles)
 	user.Roles = userRoles
 	user, err = authService.UpdateUser(ctx, user)
 	if err != nil {
