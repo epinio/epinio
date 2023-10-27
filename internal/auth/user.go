@@ -14,12 +14,14 @@
 package auth
 
 import (
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/go-logr/logr"
+	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -171,11 +173,6 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 		}
 	}
 
-	defaultRole, foundDefault := EpinioRoles.Default()
-	if len(user.Roles) == 0 && foundDefault {
-		user.Roles = Roles{defaultRole}
-	}
-
 	if ns, found := secret.Data["namespaces"]; found {
 		namespaces := strings.TrimSpace(string(ns))
 		for _, namespace := range strings.Split(namespaces, "\n") {
@@ -227,9 +224,7 @@ func newSecretFromUser(user User) *corev1.Secret {
 // updateUserSecretData updates the userSecret with the data of the User
 func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 	annotations := userSecret.ObjectMeta.Annotations
-	if len(user.Roles) > 0 {
-		annotations[kubernetes.EpinioAPISecretRolesAnnotationKey] = user.Roles.IDs()
-	}
+	annotations[kubernetes.EpinioAPISecretRolesAnnotationKey] = user.Roles.IDs()
 
 	userSecret.StringData = map[string]string{
 		"username":   user.Username,
@@ -238,4 +233,81 @@ func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 	}
 
 	return userSecret
+}
+
+// IsUpdateUserNeeded returns whetever a user needs to be updates, and the user with the updated informations
+func IsUpdateUserNeeded(logger logr.Logger, user User) (User, bool) {
+	var updateNeeded bool
+
+	newRoles, needsUpdate := isUpdateUserRoleNeeded(user.roleIDs, strings.Split(user.Roles.IDs(), ","))
+	if needsUpdate {
+		logger.Info(
+			"user needs update for different roles",
+			"old", strings.Join(user.roleIDs, ","),
+			"new", strings.Join(newRoles, ","),
+		)
+		updateNeeded = true
+		user.roleIDs = newRoles
+	}
+
+	newNamespaces, needsUpdate := isUpdateUserNamespacesNeeded(user.Namespaces, user.Roles)
+	if needsUpdate {
+		logger.Info(
+			"user needs update for different namespaces",
+			"old", strings.Join(user.Namespaces, ","),
+			"new", strings.Join(newNamespaces, ","),
+		)
+		updateNeeded = true
+		user.Namespaces = newNamespaces
+	}
+
+	return user, updateNeeded
+}
+
+// isUpdateUserRoleNeeded returns whetever the roles of a user needs to be updated, and the updated roles
+func isUpdateUserRoleNeeded(previousRoles, actualRoles []string) ([]string, bool) {
+
+	// if they differs they are not the same
+	if len(previousRoles) != len(actualRoles) {
+		return actualRoles, true
+	}
+
+	sort.Strings(previousRoles)
+	sort.Strings(actualRoles)
+
+	// length is the same, we need to check the values
+	for i := range previousRoles {
+		// if one is different we can break and return
+		if previousRoles[i] != actualRoles[i] {
+			return actualRoles, true
+		}
+	}
+
+	return previousRoles, false
+}
+
+// isUpdateUserNamespacesNeeded returns whetever the namespaces of a user needs to be updated, and the updated namespaces
+func isUpdateUserNamespacesNeeded(namespaces []string, roles Roles) ([]string, bool) {
+	namespaceMap := map[string]struct{}{}
+
+	for _, ns := range namespaces {
+		namespaceMap[ns] = struct{}{}
+	}
+
+	// add to the namespaces also the one coming from the roles
+	for _, role := range roles {
+		if role.Namespace != "" {
+			namespaceMap[role.Namespace] = struct{}{}
+		}
+	}
+
+	mergedNamespaces := maps.Keys(namespaceMap)
+
+	// if they differs then we added some new namespace
+	if len(namespaces) != len(mergedNamespaces) {
+		sort.Strings(mergedNamespaces)
+		return mergedNamespaces, true
+	}
+
+	return namespaces, false
 }
