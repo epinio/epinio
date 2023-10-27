@@ -61,7 +61,11 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	method := c.Request.Method
 	path := c.Request.URL.Path
 
-	logger.Info(fmt.Sprintf("authorization request from user [%s] with roles [%s] for [%s - %s]", user.Username, user.Roles.IDs(), method, path))
+	roleIDs := strings.Join(user.Roles.IDs(), ",")
+	logger.Info(fmt.Sprintf(
+		"authorization request from user [%s] with roles [%s] for [%s - %s]",
+		user.Username, roleIDs, method, path,
+	))
 
 	if user.IsAdmin() {
 		logger.V(1).WithName("authorizeAdmin").Info("user [admin] is authorized")
@@ -87,9 +91,10 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	for _, rsrc := range resourceNames {
 		authorized := authorizeUser(logger, label, rsrc, allowed)
 
+		roleIDs := strings.Join(user.Roles.IDs(), ",")
 		logger.Info(fmt.Sprintf(
 			"user [%s] with roles [%s] authorized [%t] for %s [%s]",
-			user.Username, user.Roles.IDs(), authorized, label, rsrc,
+			user.Username, roleIDs, authorized, label, rsrc,
 		))
 
 		if !authorized {

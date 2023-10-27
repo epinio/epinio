@@ -9,7 +9,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const RoleNamespaceDelimiter = ":"
+const (
+	RolesDelimiter         = ","
+	RoleNamespaceDelimiter = ":"
+)
 
 var (
 	// AdminRole is a special role. It permits all actions.
@@ -48,8 +51,8 @@ func (roles Roles) Default() (Role, bool) {
 	return Role{}, false
 }
 
-// IDs return the concatenated IDs of the roles (namescoped)
-func (roles Roles) IDs() string {
+// IDs return the IDs of the roles (namescoped)
+func (roles Roles) IDs() []string {
 	ids := make([]string, 0)
 
 	for _, role := range roles {
@@ -60,7 +63,7 @@ func (roles Roles) IDs() string {
 		ids = append(ids, id)
 	}
 
-	return strings.Join(ids, ",")
+	return ids
 }
 
 // FindByID return the role matching the id (not namescoped)

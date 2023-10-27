@@ -104,7 +104,8 @@ func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
 		epinioRoles = append(epinioRoles, role)
 	}
 
-	s.Logger.V(1).Info(fmt.Sprintf("found %d roles", len(epinioRoles)), "roles", epinioRoles.IDs())
+	roleIDs := strings.Join(epinioRoles.IDs(), ",")
+	s.Logger.V(1).Info(fmt.Sprintf("found %d roles", len(epinioRoles)), "roles", roleIDs)
 
 	return epinioRoles, nil
 }

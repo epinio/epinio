@@ -212,6 +212,8 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 func newSecretFromUser(user User) *corev1.Secret {
 	userSecretName := "r" + names.GenerateResourceName("user", user.Username)
 
+	roleIDs := strings.Join(user.Roles.IDs(), RolesDelimiter)
+
 	userSecret := &corev1.Secret{
 		Type: "Opaque",
 		TypeMeta: metav1.TypeMeta{
@@ -225,7 +227,7 @@ func newSecretFromUser(user User) *corev1.Secret {
 				kubernetes.EpinioAPISecretLabelKey: "true",
 			},
 			Annotations: map[string]string{
-				kubernetes.EpinioAPISecretRolesAnnotationKey: user.Roles.IDs(),
+				kubernetes.EpinioAPISecretRolesAnnotationKey: roleIDs,
 			},
 		},
 	}
@@ -236,7 +238,8 @@ func newSecretFromUser(user User) *corev1.Secret {
 // updateUserSecretData updates the userSecret with the data of the User
 func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 	annotations := userSecret.ObjectMeta.Annotations
-	annotations[kubernetes.EpinioAPISecretRolesAnnotationKey] = user.Roles.IDs()
+	roleIDs := strings.Join(user.Roles.IDs(), RolesDelimiter)
+	annotations[kubernetes.EpinioAPISecretRolesAnnotationKey] = roleIDs
 
 	userSecret.StringData = map[string]string{
 		"username":   user.Username,
@@ -251,7 +254,7 @@ func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 func IsUpdateUserNeeded(logger logr.Logger, user User) (User, bool) {
 	var updateNeeded bool
 
-	newRoles, needsUpdate := isUpdateUserRoleNeeded(user.roleIDs, strings.Split(user.Roles.IDs(), ","))
+	newRoles, needsUpdate := isUpdateUserRoleNeeded(user.roleIDs, user.Roles.IDs())
 	if needsUpdate {
 		logger.Info(
 			"user needs update for different roles",
