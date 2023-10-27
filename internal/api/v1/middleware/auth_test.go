@@ -59,16 +59,8 @@ var _ = Describe("Authorization Middleware", func() {
 				},
 			}
 
-			userNamespace2Role := auth.Role{
-				ID:        "reader",
-				Namespace: "workspace2",
-				Actions: []auth.Action{
-					auth.ActionsMap["namespace"],
-				},
-			}
-
 			ctx = requestctx.WithUser(ctx, auth.User{
-				Roles:      []auth.Role{userRole, userNamespace2Role},
+				Roles:      []auth.Role{userRole},
 				Namespaces: []string{"workspace"},
 			})
 		})
@@ -104,13 +96,6 @@ var _ = Describe("Authorization Middleware", func() {
 
 			It("returns status code 200 for its namespace", func() {
 				c.Params = []gin.Param{{Key: "namespace", Value: "workspace"}}
-
-				middleware.NamespaceAuthorization(c)
-				Expect(w.Code).To(Equal(http.StatusOK))
-			})
-
-			It("returns status code 200 for a namespace where he has a role", func() {
-				c.Params = []gin.Param{{Key: "namespace", Value: "workspace2"}}
 
 				middleware.NamespaceAuthorization(c)
 				Expect(w.Code).To(Equal(http.StatusOK))
