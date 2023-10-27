@@ -54,21 +54,33 @@ func (u *User) AddNamespace(namespace string) {
 	u.Namespaces = append(u.Namespaces, namespace)
 }
 
-// RemoveNamespace removes a namespace from the User's namespaces.
+// RemoveNamespace removes a namespace from the User's namespaces and any namescoped roles.
 // It returns false if the namespace was not there
-func (u *User) RemoveNamespace(namespace string) bool {
-	updatedNamespaces := []string{}
+func (u *User) RemoveNamespace(namespaceToRemove string) bool {
 	removed := false
 
+	updatedNamespaces := []string{}
+	updatedRoles := Roles{}
+
 	for _, ns := range u.Namespaces {
-		if ns != namespace {
-			updatedNamespaces = append(updatedNamespaces, ns)
-		} else {
+		if ns == namespaceToRemove {
 			removed = true
+		} else {
+			updatedNamespaces = append(updatedNamespaces, ns)
+		}
+	}
+
+	for _, role := range u.Roles {
+		if role.Namespace == namespaceToRemove {
+			removed = true
+		} else {
+			updatedRoles = append(updatedRoles, role)
 		}
 	}
 
 	u.Namespaces = updatedNamespaces
+	u.Roles = updatedRoles
+
 	return removed
 }
 

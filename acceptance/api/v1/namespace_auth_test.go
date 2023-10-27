@@ -190,9 +190,9 @@ var _ = Describe("Users Namespace", LNamespace, func() {
 					response.Body.Close()
 				})
 
-				It("shows the other user's namespace", func() {
+				It("doesn't show the other user's namespace", func() {
 					response := showNamespace(user1, passwordUser1, commonNamespace)
-					Expect(response.StatusCode).To(Equal(http.StatusOK))
+					Expect(response.StatusCode).To(Equal(http.StatusForbidden))
 					response.Body.Close()
 				})
 			})
