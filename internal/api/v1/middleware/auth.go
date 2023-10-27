@@ -46,16 +46,7 @@ func RoleAuthorization(c *gin.Context) {
 
 func NamespaceAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
-	allowedNamespaces := user.Namespaces
-
-	// if the user has a Role attached to a namespace then it means he's allowed for it
-	for _, role := range user.Roles {
-		if role.Namespace != "" {
-			allowedNamespaces = append(allowedNamespaces, role.Namespace)
-		}
-	}
-
-	authorization(c, "namespace", allowedNamespaces)
+	authorization(c, "namespace", user.Namespaces)
 }
 
 func GitconfigAuthorization(c *gin.Context) {

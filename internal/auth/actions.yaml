@@ -3,6 +3,7 @@
 - id: default
   name: Default
   routes:
+    - AuthToken
     - GitProxy
 
 # Namespace related actions
@@ -97,8 +98,6 @@
 # App Logs
 - id: app_logs
   name: App Logs
-  routes:
-    - AuthToken
   wsRoutes:
     - AppLogs
     - StagingLogs
@@ -106,16 +105,12 @@
 # App Exec
 - id: app_exec
   name: App Exec
-  routes:
-    - AuthToken
   wsRoutes:
     - AppExec
 
 # App PortForward
 - id: app_portforward
   name: App PortForward
-  routes:
-    - AuthToken
   wsRoutes:
     - AppPortForward
 
@@ -195,8 +190,6 @@
 # Service Write
 - id: service_portforward
   name: Service Port Forward
-  routes:
-    - AuthToken
   wsRoutes:
     - ServicePortForward
 
