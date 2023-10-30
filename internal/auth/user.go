@@ -250,7 +250,7 @@ func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 	return userSecret
 }
 
-// IsUpdateUserNeeded returns whetever a user needs to be updates, and the user with the updated informations
+// IsUpdateUserNeeded returns whenever a user needs to be updated, and the user with the updated information
 func IsUpdateUserNeeded(logger logr.Logger, user User) (User, bool) {
 	var updateNeeded bool
 
@@ -279,7 +279,7 @@ func IsUpdateUserNeeded(logger logr.Logger, user User) (User, bool) {
 	return user, updateNeeded
 }
 
-// isUpdateUserRoleNeeded returns whetever the roles of a user needs to be updated, and the updated roles
+// isUpdateUserRoleNeeded returns whenever the roles of a user need to be updated, and the updated roles
 func isUpdateUserRoleNeeded(previousRoles, actualRoles []string) ([]string, bool) {
 
 	// if they differs they are not the same
@@ -301,7 +301,7 @@ func isUpdateUserRoleNeeded(previousRoles, actualRoles []string) ([]string, bool
 	return previousRoles, false
 }
 
-// isUpdateUserNamespacesNeeded returns whetever the namespaces of a user needs to be updated, and the updated namespaces
+// isUpdateUserNamespacesNeeded returns whenever the namespaces of a user need to be updated, and the updated namespaces
 func isUpdateUserNamespacesNeeded(namespaces []string, roles Roles) ([]string, bool) {
 	namespaceMap := map[string]struct{}{}
 

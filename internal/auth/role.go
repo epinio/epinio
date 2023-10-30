@@ -161,7 +161,7 @@ func InitRoles(rolesGetter RolesGetter) error {
 	return nil
 }
 
-//	will parse the roleID, returning the roleID without the namespace, and the namespace
+// ParseRoleID parses the "full" roleID, returning the roleID without the namespace, and the namespace
 //
 // i.e.:
 //

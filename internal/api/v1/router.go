@@ -244,6 +244,7 @@ func Spice(router *gin.RouterGroup) {
 	}
 }
 
+// InitAuthAndRoles will init the Auth (loading the Actions and Endpoints) and the Roles
 func InitAuthAndRoles(rolesGetter auth.RolesGetter) error {
 	if err := InitAuth(); err != nil {
 		return err
@@ -252,6 +253,8 @@ func InitAuthAndRoles(rolesGetter auth.RolesGetter) error {
 	return auth.InitRoles(rolesGetter)
 }
 
+// InitAuth will init the Actions, and it will add to the actions the relevant endpoints.
+// This was needed because the Routes cannot be referred in the auth package for a cycle dependency.
 func InitAuth() error {
 	actions, err := auth.InitActions()
 	if err != nil {
@@ -294,7 +297,7 @@ func InitAuth() error {
 }
 
 // validateActionRoutes will check if the routes were mapped to actions.
-// This will prevent to have some unavailable routes that cannot be reached.
+// This prevents the existence of unavailable routes that cannot be reached.
 func validateActionRoutes(availableRoutes routes.NamedRoutes, assignedRoutes map[string]struct{}) error {
 	for routeID := range availableRoutes {
 		if _, found := assignedRoutes[routeID]; !found {

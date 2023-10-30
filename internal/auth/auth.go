@@ -292,13 +292,6 @@ func FilterResources[T NamespacedResource](user User, resources []T) []T {
 		namespacesMap[ns] = struct{}{}
 	}
 
-	// if the user has a Role attached to a namespace then it means he's allowed for it
-	for _, role := range user.Roles {
-		if role.Namespace != "" {
-			namespacesMap[role.Namespace] = struct{}{}
-		}
-	}
-
 	filteredResources := []T{}
 	for _, resource := range resources {
 		if _, allowed := namespacesMap[resource.Namespace()]; allowed {

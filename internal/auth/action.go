@@ -60,6 +60,7 @@ func (e *Endpoint) FullPath() string {
 	return e.BasePath + e.Path
 }
 
+// InitActions will load the yaml containing the Actions/Routes mapping, and their dependencies
 func InitActions() ([]Action, error) {
 	actions := []Action{}
 
