@@ -144,6 +144,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 			middleware.TokenAuth,
 			middleware.EpinioVersion,
 			middleware.NamespaceExists,
+			middleware.RoleAuthorization,
 			middleware.NamespaceAuthorization,
 			// gitconfig has no websocket routes
 		)
