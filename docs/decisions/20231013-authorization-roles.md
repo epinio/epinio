@@ -202,7 +202,7 @@ These actions enable operations on Gitconfig commands and resources.
 
 ##### Export Registries
 
-This action enable operations on Export Registries commands and resources. Only read operations are available.
+This action enables operations on Export Registries commands and resources. Only read operations are available.
 
 | Action ID                 | Description 
 |---------------------------|-------------
