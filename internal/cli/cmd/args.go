@@ -24,16 +24,19 @@ import (
 // ValidArgsFunc is a shorthand type for cobra argument validation functions.
 type ValidArgsFunc func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
 
-//counterfeiter:generate -header ../../../LICENSE_HEADER . NamespaceMatcher
-type NamespaceMatcher interface {
-	GetAPI() usercmd.APIClient
-	NamespacesMatching(toComplete string) []string
+type MatcherFunc func(toComplete string) []string
+
+type EpinioMatcher struct {
+	ArgLimit int
+	Filter   func(oldMatches, newMatches []string) []string
+	Matchers []MatcherFunc
 }
 
-//counterfeiter:generate -header ../../../LICENSE_HEADER . CatalogMatcher
-type CatalogMatcher interface {
-	GetAPI() usercmd.APIClient
-	CatalogMatching(toComplete string) []string
+func NewEpinioMatcher(matchers ...MatcherFunc) *EpinioMatcher {
+	return &EpinioMatcher{
+		ArgLimit: len(matchers),
+		Matchers: matchers,
+	}
 }
 
 //counterfeiter:generate -header ../../../LICENSE_HEADER . ServiceMatcher
@@ -52,12 +55,6 @@ type ServiceAppMatcher interface {
 //counterfeiter:generate -header ../../../LICENSE_HEADER . ServiceChartValueMatcher
 type ServiceChartValueMatcher interface {
 	GetAPI() usercmd.APIClient
-}
-
-//counterfeiter:generate -header ../../../LICENSE_HEADER . ConfigurationMatcher
-type ConfigurationMatcher interface {
-	GetAPI() usercmd.APIClient
-	ConfigurationMatching(toComplete string) []string
 }
 
 //counterfeiter:generate -header ../../../LICENSE_HEADER . ConfigurationAppMatcher
@@ -98,46 +95,50 @@ type GitconfigMatcher interface {
 	GitconfigsMatching(toComplete string) []string
 }
 
-// NewNamespaceMatcherFunc returns a function returning list of matching namespaces from the
-// provided partial command.  It only matches for the first command argument.
-func NewNamespaceMatcherFunc(matcher NamespaceMatcher) ValidArgsFunc {
+func NewEpinioArgValidator(matcher *EpinioMatcher) ValidArgsFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
+		if matcher.ArgLimit != -1 && len(args) >= matcher.ArgLimit {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matcher.GetAPI().DisableVersionWarning()
+		// the len of the args indicates the matcher to apply
+		// i.e.: when we are looking for the first arg len(arg) is 0, then the matcher to apply is the first
+		matcherIndex := len(args)
 
-		matches := matcher.NamespacesMatching(toComplete)
+		// If the ArgLimit is negative we need to "loop" over the matchers.
+		// This is used to get the "any" validator
+		if matcher.ArgLimit < 0 {
+			matcherIndex = len(args) % len(matcher.Matchers)
+		}
+
+		// this shoud never happen, but better to avoid a nil pointer
+		if len(matcher.Matchers)-1 < matcherIndex {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matcherFn := matcher.Matchers[matcherIndex]
+		matches := matcherFn(toComplete)
+
+		// apply filter for already matched resources
+		if matcher.Filter != nil {
+			matches = matcher.Filter(args, matches)
+		}
+
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
 }
 
-// NewConfigurationMatcherFirstFunc returns a function returning list of matching configurations from the
-// provided partial command.  It only matches for the first command argument.
-func NewConfigurationMatcherFirstFunc(matcher ConfigurationMatcher) ValidArgsFunc {
-	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matcher.GetAPI().DisableVersionWarning()
-
-		matches := matcher.ConfigurationMatching(toComplete)
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	}
+func FirstArgValidator(matcher MatcherFunc) ValidArgsFunc {
+	return NewEpinioArgValidator(NewEpinioMatcher(matcher))
 }
 
-// NewConfigurationMatcherAnyFunc returns a function returning a list of matching configurations
-// from the provided partial command.  It matches for all command arguments
-func NewConfigurationMatcherAnyFunc(matcher ConfigurationMatcher) ValidArgsFunc {
-	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		matcher.GetAPI().DisableVersionWarning()
+func AnyArgsValidator(matcher MatcherFunc) ValidArgsFunc {
+	epinioMatcher := NewEpinioMatcher(matcher)
 
-		matches := FilteredMatchingFinder(args, toComplete, matcher.ConfigurationMatching)
+	epinioMatcher.Filter = FilterMatches
+	epinioMatcher.ArgLimit = -1
 
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	}
+	return NewEpinioArgValidator(epinioMatcher)
 }
 
 // NewConfigurationAppMatcherFunc returns a function returning a list of matching configurations and
@@ -160,21 +161,6 @@ func NewConfigurationAppMatcherFunc(matcher ConfigurationAppMatcher) ValidArgsFu
 		// #args == 0: configuration name.
 
 		matches := matcher.ConfigurationMatching(toComplete)
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	}
-}
-
-// NewCatalogMatcher returns a function returning list of matching services from the
-// provided partial command.  It only matches for the first command argument.
-func NewCatalogMatcher(matcher CatalogMatcher) ValidArgsFunc {
-	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matcher.GetAPI().DisableVersionWarning()
-
-		matches := matcher.CatalogMatching(toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
 }
@@ -358,6 +344,25 @@ func NewRegistryMatcherValueFunc(matcher RegistryMatcher) FlagCompletionFunc {
 		matches := matcher.ExportregistryMatching(toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
+}
+
+func FilterMatches(args, matches []string) []string {
+	// map to check for already selected resources
+	alreadyMatched := map[string]struct{}{}
+	for _, resource := range args {
+		alreadyMatched[resource] = struct{}{}
+	}
+
+	filteredMatches := []string{}
+
+	for _, resource := range matches {
+		// return only the not already matched resources
+		if _, found := alreadyMatched[resource]; !found {
+			filteredMatches = append(filteredMatches, resource)
+		}
+	}
+
+	return filteredMatches
 }
 
 // FilteredMatchingFinder uses the finder function to find the resources matching the given prefix.

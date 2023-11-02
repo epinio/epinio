@@ -24,8 +24,7 @@ type NamespaceService interface {
 	Namespaces() error
 	DeleteNamespace(namespaces []string, force, all bool) error
 	ShowNamespace(namespace string) error
-
-	NamespaceMatcher
+	NamespacesMatching(toComplete string) []string
 }
 
 // NewNamespaceCmd returns a new 'epinio namespace' command
@@ -106,7 +105,7 @@ func NewNamespaceDeleteCmd(client NamespaceService) *cobra.Command {
 	namespaceDeleteCmd := &cobra.Command{
 		Use:               "delete NAME",
 		Short:             "Deletes an epinio-controlled namespace",
-		ValidArgsFunction: NewNamespaceMatcherFunc(client),
+		ValidArgsFunction: FirstArgValidator(client.NamespacesMatching),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
@@ -135,7 +134,7 @@ func NewNamespaceShowCmd(client NamespaceService, rootCfg *RootConfig) *cobra.Co
 		Use:               "show NAME",
 		Short:             "Shows the details of an epinio-controlled namespace",
 		Args:              cobra.ExactArgs(1),
-		ValidArgsFunction: NewNamespaceMatcherFunc(client),
+		ValidArgsFunction: FirstArgValidator(client.NamespacesMatching),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 

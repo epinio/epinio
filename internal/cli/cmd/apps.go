@@ -43,7 +43,7 @@ type ApplicationsService interface {
 	AppMatcher
 	AppChartMatcher
 	RegistryMatcher
-	ConfigurationMatcher // --bind
+	ConfigurationMatching(toComplete string) []string // --bind
 
 	// interfaces for the env and chart sub-ensembles
 	AppenvService

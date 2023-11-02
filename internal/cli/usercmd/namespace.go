@@ -56,6 +56,8 @@ func (c *EpinioClient) NamespacesMatching(prefix string) []string {
 
 	result := []string{}
 
+	c.API.DisableVersionWarning()
+
 	resp, err := c.API.NamespacesMatch(prefix)
 	if err != nil {
 		return result

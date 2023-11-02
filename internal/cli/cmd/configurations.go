@@ -33,7 +33,6 @@ type ConfigurationService interface {
 	BindConfiguration(configuration, application string) error
 	UnbindConfiguration(configuration, application string) error
 
-	ConfigurationMatcher
 	ConfigurationAppMatcher
 }
 
@@ -118,7 +117,7 @@ func NewConfigurationShowCmd(client ConfigurationService, rootCfg *RootConfig) *
 
 			return nil
 		},
-		ValidArgsFunction: NewConfigurationMatcherFirstFunc(client),
+		ValidArgsFunction: FirstArgValidator(client.ConfigurationMatching),
 	}
 
 	cmd.Flags().VarP(rootCfg.Output, "output", "o", "sets output format [text|json]")
@@ -206,7 +205,7 @@ func NewConfigurationDeleteCmd(client ConfigurationService) *cobra.Command {
 
 			return nil
 		},
-		ValidArgsFunction: NewConfigurationMatcherAnyFunc(client),
+		ValidArgsFunction: AnyArgsValidator(client.ConfigurationMatching),
 	}
 
 	cmd.Flags().BoolVar(&cfg.all, "all", false, "delete all configurations")
@@ -244,7 +243,7 @@ func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 
 			return nil
 		},
-		ValidArgsFunction: NewConfigurationMatcherFirstFunc(client),
+		ValidArgsFunction: FirstArgValidator(client.ConfigurationMatching),
 	}
 
 	changeOptions(cmd, &cfg)
