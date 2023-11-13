@@ -302,6 +302,8 @@ release:
   replace_existing_draft: true
   # Keep the release notes
   mode: keep-existing
+  # Detect release candidates, mark as pre-release (and hopefully not as `latest`).
+  prerelease: auto
 
   extra_files:
     - glob: ./helm-charts/chart/epinio/crds/*
