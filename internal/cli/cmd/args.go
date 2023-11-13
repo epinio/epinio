@@ -404,7 +404,7 @@ func NewGitconfigMatcherFunc(matcher GitconfigMatcher) ValidArgsFunc {
 
 // gitProviderOption initializes the --git-provider option for the provided command
 func gitProviderOption(cmd *cobra.Command) {
-	cmd.Flags().String("git-provider", "git", "Git provider code (default 'git')")
+	cmd.Flags().String("git-provider", "", "Git provider code [git|github|github_enterprise|gitlab|gitlab_enterprise]")
 	bindFlag(cmd, "git-provider")
 	bindFlagCompletionFunc(cmd, "git-provider", NewStaticFlagsCompletionFunc(models.ValidProviders))
 }
