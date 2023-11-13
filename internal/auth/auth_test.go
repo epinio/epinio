@@ -168,7 +168,7 @@ var _ = Describe("Auth users", func() {
 				})
 
 				Expect(err).ToNot(HaveOccurred())
-				role, found := result.Roles.FindByID("another")
+				role, found := result.Roles.FindByIDAndNamespace("another", "workspace")
 				Expect(role.ID).To(Equal("another"))
 				Expect(role.Namespace).To(Equal("workspace"))
 				Expect(found).To(BeTrue())
