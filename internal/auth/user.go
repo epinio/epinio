@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/go-logr/logr"
 	"golang.org/x/exp/maps"
@@ -132,8 +133,8 @@ func (u *User) IsAllowed(method, fullPath string, params map[string]string) bool
 
 // IsAdmin returns true if a user has a global admin role
 func (u *User) IsAdmin() bool {
-	adminRole, found := u.Roles.FindByID("admin")
-	return found && adminRole.Namespace == ""
+	_, found := u.Roles.FindByID("admin")
+	return found
 }
 
 func filterRolesByNamespace(roles Roles, namespace string) Roles {
@@ -205,14 +206,29 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 		}
 	}
 
+	// LEGACY UPDATE v1.11.0 (remove in a few release)
+	// When a user with the old auth role is found update its roles
+	if oldRole, found := secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey]; found {
+		role, found := EpinioRoles.FindByID(oldRole)
+		if found {
+			user.Roles = append(user.Roles, role)
+		}
+
+		if oldRole == "user" {
+			for _, ns := range user.Namespaces {
+				adminRole := AdminRole
+				adminRole.Namespace = ns
+				user.Roles = append(user.Roles, adminRole)
+			}
+		}
+	}
+
 	return user
 }
 
 // newSecretFromUser create a Secret from an Epinio User
 func newSecretFromUser(user User) *corev1.Secret {
 	userSecretName := "r" + names.GenerateResourceName("user", user.Username)
-
-	roleIDs := strings.Join(user.Roles.IDs(), RolesDelimiter)
 
 	userSecret := &corev1.Secret{
 		Type: "Opaque",
@@ -222,12 +238,9 @@ func newSecretFromUser(user User) *corev1.Secret {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      userSecretName,
-			Namespace: "epinio",
+			Namespace: helmchart.Namespace(),
 			Labels: map[string]string{
 				kubernetes.EpinioAPISecretLabelKey: "true",
-			},
-			Annotations: map[string]string{
-				kubernetes.EpinioAPISecretRolesAnnotationKey: roleIDs,
 			},
 		},
 	}
@@ -237,8 +250,11 @@ func newSecretFromUser(user User) *corev1.Secret {
 
 // updateUserSecretData updates the userSecret with the data of the User
 func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
+	// cleanup duplicate roles
+	uniqueRoles := uniqueAndSort(user.Roles.IDs())
+	roleIDs := strings.Join(uniqueRoles, RolesDelimiter)
+
 	annotations := userSecret.ObjectMeta.Annotations
-	roleIDs := strings.Join(user.Roles.IDs(), RolesDelimiter)
 	annotations[kubernetes.EpinioAPISecretRolesAnnotationKey] = roleIDs
 
 	userSecret.StringData = map[string]string{
@@ -246,6 +262,10 @@ func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 		"namespaces": strings.Join(user.Namespaces, "\n"),
 		"gitconfigs": strings.Join(user.Gitconfigs, "\n"),
 	}
+
+	// LEGACY UPDATE v1.11.0 (remove in a few release)
+	// When a user with the old auth role is found update cleanup the old label
+	delete(userSecret.Labels, kubernetes.EpinioAPISecretRoleLabelKey)
 
 	return userSecret
 }
@@ -325,4 +345,16 @@ func isUpdateUserNamespacesNeeded(namespaces []string, roles Roles) ([]string, b
 	}
 
 	return namespaces, false
+}
+
+func uniqueAndSort(arr []string) []string {
+	uniqueMap := map[string]struct{}{}
+	for _, roleID := range arr {
+		uniqueMap[roleID] = struct{}{}
+	}
+
+	unique := maps.Keys(uniqueMap)
+	sort.Strings(unique)
+
+	return unique
 }

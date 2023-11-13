@@ -68,8 +68,13 @@ func (roles Roles) IDs() []string {
 
 // FindByID return the role matching the id (not namescoped)
 func (roles Roles) FindByID(id string) (Role, bool) {
+	return roles.FindByIDAndNamespace(id, "")
+}
+
+// FindByIDAndNamespace return the role matching the id and namescoped
+func (roles Roles) FindByIDAndNamespace(id, namespace string) (Role, bool) {
 	for _, role := range roles {
-		if role.ID == id {
+		if role.ID == id && role.Namespace == namespace {
 			return role, true
 		}
 	}
