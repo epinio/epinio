@@ -462,9 +462,7 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().StringP("path", "p", "", "Path to application sources.")
 	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
 
-	// TODO :: make private again when gitconfig ensemble has moved into cmd package
-	GitProviderOption(cmd)
-
+	gitProviderOption(cmd)
 	routeOption(cmd)
 	bindOption(cmd, client)
 	envOption(cmd)

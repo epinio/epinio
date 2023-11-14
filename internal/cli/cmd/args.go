@@ -92,6 +92,12 @@ type RegistryMatcher interface {
 	ExportregistryMatching(toComplete string) []string
 }
 
+//counterfeiter:generate -header ../../../LICENSE_HEADER . GitconfigMatcher
+type GitconfigMatcher interface {
+	GetAPI() usercmd.APIClient
+	GitconfigsMatching(toComplete string) []string
+}
+
 // NewNamespaceMatcherFunc returns a function returning list of matching namespaces from the
 // provided partial command.  It only matches for the first command argument.
 func NewNamespaceMatcherFunc(matcher NamespaceMatcher) ValidArgsFunc {
@@ -378,25 +384,29 @@ func FilteredMatchingFinder(args []string, prefix string, finder func(prefix str
 	return filteredMatches
 }
 
+// NewGitconfigMatcherFunc returns a list of matching git configurations from the provided partial
+// command. It only matches for the first command argument.
+func NewGitconfigMatcherFunc(matcher GitconfigMatcher) ValidArgsFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matcher.GetAPI().DisableVersionWarning()
+
+		matches := matcher.GitconfigsMatching(toComplete)
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
 // ///////////////////////////////////////////////////////////
 /// manifest and other options shared between app create/update/push
 
 // gitProviderOption initializes the --git-provider option for the provided command
-func GitProviderOption(cmd *cobra.Command) {
-	// TODO :: make private again when gitconfig ensemble has moved into cmd package
-
-	cmd.Flags().String("git-provider", "", "Git provider code (default 'git')")
+func gitProviderOption(cmd *cobra.Command) {
+	cmd.Flags().String("git-provider", "", "Git provider code [git|github|github_enterprise|gitlab|gitlab_enterprise]")
 	bindFlag(cmd, "git-provider")
-	bindFlagCompletionFunc(cmd, "git-provider",
-		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			matches := []string{}
-			for _, candidate := range models.ValidProviders {
-				if strings.HasPrefix(string(candidate), toComplete) {
-					matches = append(matches, string(candidate))
-				}
-			}
-			return matches, cobra.ShellCompDirectiveDefault
-		})
+	bindFlagCompletionFunc(cmd, "git-provider", NewStaticFlagsCompletionFunc(models.ValidProviders))
 }
 
 // instancesOption initializes the --instances/-i option for the provided command
