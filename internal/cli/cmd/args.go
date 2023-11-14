@@ -39,6 +39,20 @@ func NewEpinioMatcher(matchers ...MatcherFunc) *EpinioMatcher {
 	}
 }
 
+// Any will not limit the check for the numbers of matchers, but it will loop through them.
+// I.e: with 3 args and 2 matchers the first arg will be checked against the 1st matcher,
+// the 2nd arg with the 2nd matcher, and the 3rd arg again with the first matcher.
+func (m *EpinioMatcher) Any() *EpinioMatcher {
+	m.ArgLimit = -1
+	return m
+}
+
+// FilterMatches enables the filtering of the already matched suggestions
+func (m *EpinioMatcher) FilterMatches() *EpinioMatcher {
+	m.Filter = FilterMatches
+	return m
+}
+
 //counterfeiter:generate -header ../../../LICENSE_HEADER . ServiceMatcher
 type ServiceMatcher interface {
 	GetAPI() usercmd.APIClient
@@ -134,11 +148,7 @@ func FirstArgValidator(matcher MatcherFunc) ValidArgsFunc {
 
 func AnyArgsValidator(matcher MatcherFunc) ValidArgsFunc {
 	epinioMatcher := NewEpinioMatcher(matcher)
-
-	epinioMatcher.Filter = FilterMatches
-	epinioMatcher.ArgLimit = -1
-
-	return NewEpinioArgValidator(epinioMatcher)
+	return NewEpinioArgValidator(epinioMatcher.Any().FilterMatches())
 }
 
 // NewConfigurationAppMatcherFunc returns a function returning a list of matching configurations and
@@ -346,6 +356,7 @@ func NewRegistryMatcherValueFunc(matcher RegistryMatcher) FlagCompletionFunc {
 	}
 }
 
+// FilterMatches will check the args for the suggested matches, filtering the one already matched from the args
 func FilterMatches(args, matches []string) []string {
 	// map to check for already selected resources
 	alreadyMatched := map[string]struct{}{}
