@@ -21,7 +21,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/gorilla/websocket"
-	"k8s.io/apiserver/pkg/util/wsstream"
+	"k8s.io/apimachinery/pkg/util/httpstream/wsstream"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

@@ -44,7 +44,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // ExportToRegistry handles the API endpoint GET /namespaces/:namespace/applications/:app/export
@@ -522,7 +522,7 @@ func createCopyJob(logger logr.Logger, localPath, destinationPath, authSecret, c
 			Annotations: map[string]string{},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: pointer.Int32(0),
+			BackoffLimit: ptr.To[int32](0),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labels,

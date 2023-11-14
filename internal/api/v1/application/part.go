@@ -44,7 +44,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	restclient "k8s.io/client-go/rest"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 const imageExportVolume = "/image-export/"
@@ -276,7 +276,7 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 			Annotations: map[string]string{},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: pointer.Int32(0),
+			BackoffLimit: ptr.To[int32](0),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labels,

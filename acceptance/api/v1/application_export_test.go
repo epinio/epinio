@@ -94,12 +94,12 @@ var _ = Describe("AppPart Endpoint", LApplication, func() {
 
 		expecting := fmt.Sprintf(`name: %s
 configuration:
-  instances: 1
-  routes:
-  - %s
-  appchart: standard
+    instances: 1
+    routes:
+        - %s
+    appchart: standard
 origin:
-  container: splatform/sample-app
+    container: splatform/sample-app
 namespace: %s
 `, app, domain, namespace)
 
