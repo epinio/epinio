@@ -38,7 +38,8 @@ type ServicesService interface {
 	ServiceMatcher
 	ServiceChartValueMatcher
 	ServiceAppMatcher
-	CatalogMatcher
+
+	CatalogMatching(toComplete string) []string
 }
 
 // NewServicesCmd returns a new 'epinio services' command
@@ -78,7 +79,7 @@ func NewServiceCatalogCmd(client ServicesService) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "catalog [NAME]",
 		Short:             "Lists all available Epinio catalog services, or show the details of the specified one",
-		ValidArgsFunction: NewCatalogMatcher(client),
+		ValidArgsFunction: FirstArgValidator(client.CatalogMatching),
 		Args:              cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
@@ -113,7 +114,7 @@ func NewServiceCreateCmd(client ServicesService) *cobra.Command {
 		Use:               "create CATALOGSERVICENAME SERVICENAME",
 		Short:             "Create a service SERVICENAME of an Epinio catalog service CATALOGSERVICENAME",
 		Args:              cobra.ExactArgs(2),
-		ValidArgsFunction: NewCatalogMatcher(client),
+		ValidArgsFunction: FirstArgValidator(client.CatalogMatching),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 

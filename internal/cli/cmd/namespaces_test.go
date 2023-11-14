@@ -17,9 +17,7 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/cmd"
 	"github.com/epinio/epinio/internal/cli/cmd/cmdfakes"
-	"github.com/epinio/epinio/internal/cli/usercmd/usercmdfakes"
 
-	//	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -28,15 +26,12 @@ var _ = Describe("Command 'epinio namespace'", func() {
 
 	var (
 		mockNamespaceService *cmdfakes.FakeNamespaceService
-		mockAPIClient        *usercmdfakes.FakeAPIClient
 		output, outputErr    io.ReadWriter
 		args                 []string
 	)
 
 	BeforeEach(func() {
 		mockNamespaceService = &cmdfakes.FakeNamespaceService{}
-		mockAPIClient = &usercmdfakes.FakeAPIClient{}
-		mockNamespaceService.GetAPIReturns(mockAPIClient)
 
 		args = []string{}
 	})

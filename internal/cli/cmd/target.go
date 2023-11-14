@@ -23,7 +23,7 @@ func NewTargetCmd(client *usercmd.EpinioClient) *cobra.Command {
 		Use:               "target [namespace]",
 		Short:             "Targets an epinio-controlled namespace.",
 		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: NewNamespaceMatcherFunc(client),
+		ValidArgsFunction: FirstArgValidator(client.NamespacesMatching),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 

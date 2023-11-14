@@ -468,6 +468,8 @@ func (c *EpinioClient) CatalogMatching(prefix string) []string {
 
 	result := []string{}
 
+	c.API.DisableVersionWarning()
+
 	resp, err := c.API.ServiceCatalogMatch(prefix)
 	if err != nil {
 		return result

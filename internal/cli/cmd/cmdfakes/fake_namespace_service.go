@@ -16,7 +16,6 @@ import (
 	"sync"
 
 	"github.com/epinio/epinio/internal/cli/cmd"
-	"github.com/epinio/epinio/internal/cli/usercmd"
 )
 
 type FakeNamespaceService struct {
@@ -43,16 +42,6 @@ type FakeNamespaceService struct {
 	}
 	deleteNamespaceReturnsOnCall map[int]struct {
 		result1 error
-	}
-	GetAPIStub        func() usercmd.APIClient
-	getAPIMutex       sync.RWMutex
-	getAPIArgsForCall []struct {
-	}
-	getAPIReturns struct {
-		result1 usercmd.APIClient
-	}
-	getAPIReturnsOnCall map[int]struct {
-		result1 usercmd.APIClient
 	}
 	NamespacesStub        func() error
 	namespacesMutex       sync.RWMutex
@@ -216,59 +205,6 @@ func (fake *FakeNamespaceService) DeleteNamespaceReturnsOnCall(i int, result1 er
 	}
 	fake.deleteNamespaceReturnsOnCall[i] = struct {
 		result1 error
-	}{result1}
-}
-
-func (fake *FakeNamespaceService) GetAPI() usercmd.APIClient {
-	fake.getAPIMutex.Lock()
-	ret, specificReturn := fake.getAPIReturnsOnCall[len(fake.getAPIArgsForCall)]
-	fake.getAPIArgsForCall = append(fake.getAPIArgsForCall, struct {
-	}{})
-	stub := fake.GetAPIStub
-	fakeReturns := fake.getAPIReturns
-	fake.recordInvocation("GetAPI", []interface{}{})
-	fake.getAPIMutex.Unlock()
-	if stub != nil {
-		return stub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fakeReturns.result1
-}
-
-func (fake *FakeNamespaceService) GetAPICallCount() int {
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
-	return len(fake.getAPIArgsForCall)
-}
-
-func (fake *FakeNamespaceService) GetAPICalls(stub func() usercmd.APIClient) {
-	fake.getAPIMutex.Lock()
-	defer fake.getAPIMutex.Unlock()
-	fake.GetAPIStub = stub
-}
-
-func (fake *FakeNamespaceService) GetAPIReturns(result1 usercmd.APIClient) {
-	fake.getAPIMutex.Lock()
-	defer fake.getAPIMutex.Unlock()
-	fake.GetAPIStub = nil
-	fake.getAPIReturns = struct {
-		result1 usercmd.APIClient
-	}{result1}
-}
-
-func (fake *FakeNamespaceService) GetAPIReturnsOnCall(i int, result1 usercmd.APIClient) {
-	fake.getAPIMutex.Lock()
-	defer fake.getAPIMutex.Unlock()
-	fake.GetAPIStub = nil
-	if fake.getAPIReturnsOnCall == nil {
-		fake.getAPIReturnsOnCall = make(map[int]struct {
-			result1 usercmd.APIClient
-		})
-	}
-	fake.getAPIReturnsOnCall[i] = struct {
-		result1 usercmd.APIClient
 	}{result1}
 }
 
@@ -454,8 +390,6 @@ func (fake *FakeNamespaceService) Invocations() map[string][][]interface{} {
 	defer fake.createNamespaceMutex.RUnlock()
 	fake.deleteNamespaceMutex.RLock()
 	defer fake.deleteNamespaceMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
 	fake.namespacesMutex.RLock()
 	defer fake.namespacesMutex.RUnlock()
 	fake.namespacesMatchingMutex.RLock()

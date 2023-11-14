@@ -111,6 +111,8 @@ func (c *EpinioClient) ConfigurationMatching(prefix string) []string {
 
 	result := []string{}
 
+	c.API.DisableVersionWarning()
+
 	resp, err := c.API.ConfigurationMatch(c.Settings.Namespace, prefix)
 	if err != nil {
 		return result
