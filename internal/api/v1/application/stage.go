@@ -16,13 +16,14 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -461,7 +462,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: app.Scripts,
 					},
-					DefaultMode: pointer.Int32(420),
+					DefaultMode: ptr.To[int32](420),
 				},
 			},
 		},
@@ -471,7 +472,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  jobName,
-					DefaultMode: pointer.Int32(420),
+					DefaultMode: ptr.To[int32](420),
 				},
 			},
 		},
@@ -495,7 +496,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  helmchart.S3ConnectionDetailsSecretName,
-					DefaultMode: pointer.Int32(420),
+					DefaultMode: ptr.To[int32](420),
 				},
 			},
 		},
@@ -504,7 +505,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  registry.CredentialsSecretName,
-					DefaultMode: pointer.Int32(420),
+					DefaultMode: ptr.To[int32](420),
 					Items: []corev1.KeyToPath{
 						{
 							Key:  ".dockerconfigjson",
@@ -563,7 +564,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: pointer.Int32(0),
+			BackoffLimit: ptr.To[int32](0),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
@@ -619,8 +620,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 							Env:          stageEnv,
 							VolumeMounts: volumeMounts,
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:  pointer.Int64(app.UserID),
-								RunAsGroup: pointer.Int64(app.GroupID),
+								RunAsUser:  ptr.To[int64](app.UserID),
+								RunAsGroup: ptr.To[int64](app.GroupID),
 							},
 						},
 					},
@@ -810,7 +811,7 @@ func mountS3Certs(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) ([
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  s3CertificateSecret,
-					DefaultMode: pointer.Int32(420),
+					DefaultMode: ptr.To[int32](420),
 				},
 			},
 		})
@@ -833,7 +834,7 @@ func mountRegistryCerts(app stageParam, volumes []corev1.Volume, volumeMounts []
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  app.RegistryCASecret,
-					DefaultMode: pointer.Int32(420),
+					DefaultMode: ptr.To[int32](420),
 				},
 			},
 		})
@@ -1001,6 +1002,6 @@ func NewStagingScriptConfig(config v1.ConfigMap) (*StagingScriptConfig, error) {
 	return stagingScript, nil
 }
 
-func SortByName(s1, s2 *StagingScriptConfig) bool {
-	return s1.Name < s2.Name
+func SortByName(s1, s2 *StagingScriptConfig) int {
+	return strings.Compare(s1.Name, s2.Name)
 }
