@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes/config"
@@ -148,11 +147,11 @@ func NewRootCmd() (*cobra.Command, error) {
 		cmd.NewTargetCmd(client),
 		cmd.NewConfigurationCmd(client, cfg),
 		CmdServer,
-		cmdVersion,
+		cmd.NewVersionCmd(),
 		cmd.NewServicesCmd(client, cfg),
 		cmd.NewLoginCmd(client),
 		cmd.NewLogoutCmd(client),
-		CmdExportRegistries, // See exportregistry.go for implementation
+		cmd.NewExportRegistriesCmd(client),
 	)
 
 	// Hidden command providing developer tools
@@ -174,15 +173,6 @@ func Execute() {
 		termui.NewUI().Problem().Msg(err.Error())
 		os.Exit(-1)
 	}
-}
-
-var cmdVersion = &cobra.Command{
-	Use:   "version",
-	Short: "Print the version number",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Epinio Version: %s\n", version.Version)
-		fmt.Printf("Go Version: %s\n", runtime.Version())
-	},
 }
 
 func checkErr(err error) {

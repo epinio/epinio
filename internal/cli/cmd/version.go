@@ -9,27 +9,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli
+package cmd
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+	"runtime"
+
+	"github.com/epinio/epinio/internal/version"
 	"github.com/spf13/cobra"
 )
 
-// CmdExportRegistries implements the command: epinio export-registries
-var CmdExportRegistries = &cobra.Command{
-	Use:   "export-registries",
-	Short: "List export registries",
-	Long:  "List export registries",
-	Args:  cobra.ExactArgs(0),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.SilenceUsage = true
-
-		err := client.ExportregistryList(cmd.Context())
-		if err != nil {
-			return errors.Wrap(err, "error listing export registries")
-		}
-
-		return nil
-	},
+// NewVersionCmd returns a new 'epinio version' command
+func NewVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print the version number",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("Epinio Version: %s\n", version.Version)
+			fmt.Printf("Go Version: %s\n", runtime.Version())
+		},
+	}
 }
