@@ -32,6 +32,9 @@ import (
 
 // Authentication middleware authenticates the user either using the basic auth or the bearer token (OIDC)
 func Authentication(ctx *gin.Context) {
+	reqCtx := ctx.Request.Context()
+	logger := requestctx.Logger(reqCtx).WithName("Authentication")
+
 	// we need this check to return a 401 instead of an error
 	authorizationHeader := ctx.Request.Header.Get("Authorization")
 	if authorizationHeader == "" {
@@ -40,11 +43,18 @@ func Authentication(ctx *gin.Context) {
 		return
 	}
 
+	authService, err := auth.NewAuthServiceFromContext(ctx, logger)
+	if err != nil {
+		response.Error(ctx, apierrors.InternalError(err, "couldn't create auth service from context"))
+		ctx.Abort()
+		return
+	}
+
 	var user auth.User
 	var authError apierrors.APIErrors
 
 	if strings.HasPrefix(authorizationHeader, "Basic ") {
-		user, authError = basicAuthentication(ctx)
+		user, authError = basicAuthentication(ctx, logger, authService)
 	} else if strings.HasPrefix(authorizationHeader, "Bearer ") {
 		user, authError = oidcAuthentication(ctx)
 	} else {
@@ -57,6 +67,16 @@ func Authentication(ctx *gin.Context) {
 		return
 	}
 
+	updatedUser, needsUpdate := auth.IsUpdateUserNeeded(logger, user)
+	if needsUpdate {
+		user, err = authService.UpdateUser(ctx, updatedUser)
+		if err != nil {
+			response.Error(ctx, apierrors.InternalError(err, "updating user"))
+			ctx.Abort()
+			return
+		}
+	}
+
 	// Write the user info in the context. It's needed by the next middleware
 	// to write it into the session.
 	newCtx := ctx.Request.Context()
@@ -65,9 +85,8 @@ func Authentication(ctx *gin.Context) {
 }
 
 // basicAuthentication performs the Basic Authentication
-func basicAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
-	reqCtx := ctx.Request.Context()
-	logger := requestctx.Logger(reqCtx).WithName("basicAuthentication")
+func basicAuthentication(ctx *gin.Context, logger logr.Logger, authService *auth.AuthService) (auth.User, apierrors.APIErrors) {
+	logger = logger.WithName("basicAuthentication")
 	logger.V(1).Info("starting Basic Authentication")
 
 	// Bail early if the request has no proper credentials embedded into it.
@@ -76,21 +95,40 @@ func basicAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 		return auth.User{}, apierrors.NewInternalError("Couldn't extract user or password from the auth header")
 	}
 
-	userMap, err := loadUsersMap(ctx, logger)
+	userMap, err := loadUsersMap(ctx, authService)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err)
 	}
 
 	if len(userMap) == 0 {
-		return auth.User{}, apierrors.NewAPIError("no user found", http.StatusUnauthorized)
+		return auth.User{}, apierrors.NewAPIError("no users found", http.StatusUnauthorized)
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
+	user, found := userMap[username]
+	if !found {
+		return auth.User{}, apierrors.NewAPIError("user not found", http.StatusUnauthorized).
+			WithDetailsf("username '%s' not found in user map", username)
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		return auth.User{}, apierrors.NewAPIError("wrong user or password", http.StatusUnauthorized)
 	}
 
-	return userMap[username], nil
+	// if user has roles return
+	if len(user.Roles) > 0 {
+		return user, nil
+	}
+
+	// no roles found
+
+	// if default is defined update the user with default role
+	defaultRole, hasDefault := auth.EpinioRoles.Default()
+	if hasDefault {
+		user.Roles = auth.Roles{defaultRole}
+	}
+
+	return user, nil
 }
 
 // oidcAuthentication perform the OIDC authentication with dex
@@ -123,14 +161,14 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 		return auth.User{}, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized)
 	}
 
-	role := getRoleFromProviderGroups(logger, oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
+	roles := getRolesFromProviderGroups(logger, oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
 
-	user, err := getOrCreateUserByEmail(ctx, logger, claims.Email, role)
+	user, err := getOrCreateUserByEmail(ctx, logger, claims.Email, roles)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err, "getting/creating user with email")
 	}
 
-	logger.V(1).Info("token verified", "user", fmt.Sprintf("%#v", user))
+	logger.V(1).Info("token verified", "user", user.Username)
 
 	return user, nil
 }
@@ -166,11 +204,9 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 	return oidcProvider, nil
 }
 
-// getRoleFromProviderGroups returns the user role, looking for it in the groups defined for the provider.
-// If there are no groups that matches then the default role 'user' is returned.
-// If a user has more than one group matching, the first from the Dex Configuration will be returned.
-func getRoleFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvider, providerID string, groups []string) string {
-	defaultRole := "user"
+// getRolesFromProviderGroups returns the user roles, looking for it in the groups defined for the provider.
+func getRolesFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvider, providerID string, groups []string) auth.Roles {
+	roles := auth.Roles{}
 
 	pg, err := oidcProvider.GetProviderGroups(providerID)
 	if err != nil {
@@ -179,11 +215,11 @@ func getRoleFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvide
 			"provider", providerID,
 		)
 
-		return defaultRole
+		return roles
 	}
 
-	roles := pg.GetRolesFromGroups(groups...)
-	if len(roles) == 0 {
+	roleIDs := pg.GetRolesFromGroups(groups...)
+	if len(roleIDs) == 0 {
 		logger.Info(
 			"no matching groups found in provider groups",
 			"provider", providerID,
@@ -191,18 +227,26 @@ func getRoleFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvide
 			"groups", strings.Join(groups, ","),
 		)
 
-		return defaultRole
+		return roles
 	}
 
-	return roles[0]
+	for _, fullRoleID := range roleIDs {
+		roleID, namespace := auth.ParseRoleID(fullRoleID)
+
+		userRole, found := auth.EpinioRoles.FindByID(roleID)
+		if !found {
+			logger.Info(fmt.Sprintf("role not found in Epinio with roleID '%s'", roleID))
+			continue
+		}
+
+		userRole.Namespace = namespace
+		roles = append(roles, userRole)
+	}
+
+	return roles
 }
 
-func loadUsersMap(ctx context.Context, logger logr.Logger) (map[string]auth.User, error) {
-	authService, err := auth.NewAuthServiceFromContext(ctx, logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't create auth service from context")
-	}
-
+func loadUsersMap(ctx context.Context, authService *auth.AuthService) (map[string]auth.User, error) {
 	users, err := authService.GetUsers(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't get users")
@@ -216,7 +260,13 @@ func loadUsersMap(ctx context.Context, logger logr.Logger) (map[string]auth.User
 	return userMap, nil
 }
 
-func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email, role string) (auth.User, error) {
+// getOrCreateUserByEmail returns the user with the matching email, or if it not exists, it will create a new user.
+// If some roles are provided then the user will be created or updated with those roles.
+// If no roles are provided then we are going to check if a 'default' role was set. If so the user will be created
+// or updated with the default role. The only exception to this behavior is if the user already exists and
+// it had already some roles defined, maybe manually assigned.
+// We don't want to clear/delete existing roles if no groups were provided.
+func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email string, userRoles auth.Roles) (auth.User, error) {
 	user := auth.User{}
 	var err error
 
@@ -225,6 +275,8 @@ func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email, role
 		return user, errors.Wrap(err, "couldn't create auth service from context")
 	}
 
+	defaultRole, foundDefault := auth.EpinioRoles.Default()
+
 	user, err = authService.GetUserByUsername(ctx, email)
 	if err != nil {
 		// something bad happened
@@ -232,21 +284,38 @@ func getOrCreateUserByEmail(ctx context.Context, logger logr.Logger, email, role
 			return user, errors.Wrap(err, "couldn't get user")
 		}
 
-		// no user was found, create a new one
-
+		// user not found, create a new one
 		user.Username = email
-		user.Role = role
+
+		// if no roles were found and a default was set create the user with the default
+		if len(userRoles) == 0 && foundDefault {
+			userRoles = append(userRoles, defaultRole)
+		}
+
+		user.Roles = userRoles
 		user, err = authService.SaveUser(ctx, user)
 		if err != nil {
 			return user, errors.Wrap(err, "couldn't create user")
 		}
+		return user, nil
 	}
 
-	// update the existing user
-	user.Role = role
-	user, err = authService.UpdateUser(ctx, user)
-	if err != nil {
-		return user, errors.Wrap(err, "couldn't create user")
+	// no incoming roles where found
+	if len(userRoles) == 0 {
+		// the user already had some roles (maybe manually assigned)
+		// we want to keep them without updating the user
+		if len(user.Roles) > 0 {
+			return user, nil
+		}
+
+		// if the user had no role we want to check if a default role was available
+		if foundDefault {
+			userRoles = append(userRoles, defaultRole)
+		}
 	}
+
+	// update the roles of the existing user (with default, or the incoming roles)
+	user.Roles = userRoles
+
 	return user, nil
 }

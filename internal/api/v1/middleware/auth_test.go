@@ -38,6 +38,9 @@ var _ = Describe("Authorization Middleware", func() {
 		c, _ = gin.CreateTestContext(w)
 		ctx = requestctx.WithLogger(context.Background(), logr.Discard())
 		url = "http://url.com/endpoint"
+
+		err := v1.InitAuth()
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	JustBeforeEach(func() {
@@ -49,8 +52,15 @@ var _ = Describe("Authorization Middleware", func() {
 	Context("user has Role 'user'", func() {
 
 		BeforeEach(func() {
+			userRole := auth.Role{
+				ID: "user",
+				Actions: []auth.Action{
+					auth.ActionsMap["namespace"],
+				},
+			}
+
 			ctx = requestctx.WithUser(ctx, auth.User{
-				Role:       "user",
+				Roles:      []auth.Role{userRole},
 				Namespaces: []string{"workspace"},
 			})
 		})

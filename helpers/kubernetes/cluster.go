@@ -55,6 +55,9 @@ var (
 	EpinioAPIGitCredentialsLabelKey = fmt.Sprintf("%s/%s", APISGroupName, "api-git-credentials")
 	EpinioAPISecretRoleLabelKey     = fmt.Sprintf("%s/%s", APISGroupName, "role")
 	EpinioAPIExportRegistryLabelKey = fmt.Sprintf("%s/%s", APISGroupName, "api-export-registry")
+
+	EpinioAPIConfigMapRolesLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "role")
+	EpinioAPISecretRolesAnnotationKey = fmt.Sprintf("%s/%s", APISGroupName, "roles")
 )
 
 // Memoization of GetCluster

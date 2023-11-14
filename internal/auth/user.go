@@ -14,11 +14,15 @@
 package auth
 
 import (
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
+	"github.com/go-logr/logr"
+	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -28,10 +32,11 @@ type User struct {
 	Username   string
 	Password   string
 	CreatedAt  time.Time
-	Role       string
+	Roles      Roles
 	Namespaces []string // list of namespaces this user has created (and thus access to)
 	Gitconfigs []string // list of gitconfigs this user has created (and thus access to)
 
+	roleIDs    []string
 	secretName string
 }
 
@@ -50,21 +55,33 @@ func (u *User) AddNamespace(namespace string) {
 	u.Namespaces = append(u.Namespaces, namespace)
 }
 
-// RemoveNamespace removes a namespace from the User's namespaces.
+// RemoveNamespace removes a namespace from the User's namespaces and any namescoped roles.
 // It returns false if the namespace was not there
-func (u *User) RemoveNamespace(namespace string) bool {
-	updatedNamespaces := []string{}
+func (u *User) RemoveNamespace(namespaceToRemove string) bool {
 	removed := false
 
+	updatedNamespaces := []string{}
+	updatedRoles := Roles{}
+
 	for _, ns := range u.Namespaces {
-		if ns != namespace {
-			updatedNamespaces = append(updatedNamespaces, ns)
-		} else {
+		if ns == namespaceToRemove {
 			removed = true
+		} else {
+			updatedNamespaces = append(updatedNamespaces, ns)
+		}
+	}
+
+	for _, role := range u.Roles {
+		if role.Namespace == namespaceToRemove {
+			removed = true
+		} else {
+			updatedRoles = append(updatedRoles, role)
 		}
 	}
 
 	u.Namespaces = updatedNamespaces
+	u.Roles = updatedRoles
+
 	return removed
 }
 
@@ -101,19 +118,72 @@ func (u *User) RemoveGitconfig(gitconfig string) bool {
 	return removed
 }
 
+func (u *User) IsAllowed(method, fullPath string, params map[string]string) bool {
+	// if this is a namespaced endpoint, check if the user has namespaced roles
+	if namespace, found := params["namespace"]; found {
+		namespacedRoles := filterRolesByNamespace(u.Roles, namespace)
+		if len(namespacedRoles) > 0 {
+			return namespacedRoles.IsAllowed(method, fullPath)
+		}
+	}
+
+	globalRoles := filterRolesByNamespace(u.Roles, "")
+	return globalRoles.IsAllowed(method, fullPath)
+}
+
+// IsAdmin returns true if a user has a global admin role
+func (u *User) IsAdmin() bool {
+	_, found := u.Roles.FindByID("admin")
+	return found
+}
+
+func filterRolesByNamespace(roles Roles, namespace string) Roles {
+	filteredRoles := Roles{}
+	for _, role := range roles {
+		if role.Namespace == namespace {
+			filteredRoles = append(filteredRoles, role)
+		}
+	}
+	return filteredRoles
+}
+
 // newUserFromSecret create an Epinio User from a Secret
 // this is an internal function that should not be used from the outside.
 // It could contain internals details on how create a user from a secret.
-func newUserFromSecret(secret corev1.Secret) User {
+func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 	user := User{
 		Username:   string(secret.Data["username"]),
 		Password:   string(secret.Data["password"]),
 		CreatedAt:  secret.ObjectMeta.CreationTimestamp.Time,
-		Role:       secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey],
+		Roles:      Roles{},
 		Namespaces: []string{},
 		Gitconfigs: []string{},
 
+		roleIDs:    []string{},
 		secretName: secret.GetName(),
+	}
+
+	// find the roles of the user
+	rolesAnnotation := secret.Annotations[kubernetes.EpinioAPISecretRolesAnnotationKey]
+	rolesAnnotation = strings.TrimSpace(rolesAnnotation)
+
+	if rolesAnnotation != "" {
+		// load the roles
+		user.roleIDs = strings.Split(rolesAnnotation, ",")
+
+		for _, userRole := range user.roleIDs {
+			userRoleID, userRoleNamespace := ParseRoleID(userRole)
+
+			// find the role for the user
+			userRole, found := EpinioRoles.FindByID(userRoleID)
+			if !found {
+				logger.V(1).Info("role not found", "user", user.Username, "role", userRoleID)
+				continue
+			}
+
+			userRole.Namespace = userRoleNamespace
+			user.Roles = append(user.Roles, userRole)
+		}
 	}
 
 	if ns, found := secret.Data["namespaces"]; found {
@@ -136,6 +206,23 @@ func newUserFromSecret(secret corev1.Secret) User {
 		}
 	}
 
+	// LEGACY UPDATE v1.11.0 (remove in a few release)
+	// When a user with the old auth role is found update its roles
+	if oldRole, found := secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey]; found {
+		role, found := EpinioRoles.FindByID(oldRole)
+		if found {
+			user.Roles = append(user.Roles, role)
+		}
+
+		if oldRole == "user" {
+			for _, ns := range user.Namespaces {
+				adminRole := AdminRole
+				adminRole.Namespace = ns
+				user.Roles = append(user.Roles, adminRole)
+			}
+		}
+	}
+
 	return user
 }
 
@@ -151,7 +238,7 @@ func newSecretFromUser(user User) *corev1.Secret {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      userSecretName,
-			Namespace: "epinio",
+			Namespace: helmchart.Namespace(),
 			Labels: map[string]string{
 				kubernetes.EpinioAPISecretLabelKey: "true",
 			},
@@ -163,8 +250,12 @@ func newSecretFromUser(user User) *corev1.Secret {
 
 // updateUserSecretData updates the userSecret with the data of the User
 func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
-	labels := userSecret.ObjectMeta.Labels
-	labels[kubernetes.EpinioAPISecretRoleLabelKey] = user.Role
+	// cleanup duplicate roles
+	uniqueRoles := uniqueAndSort(user.Roles.IDs())
+	roleIDs := strings.Join(uniqueRoles, RolesDelimiter)
+
+	annotations := userSecret.ObjectMeta.Annotations
+	annotations[kubernetes.EpinioAPISecretRolesAnnotationKey] = roleIDs
 
 	userSecret.StringData = map[string]string{
 		"username":   user.Username,
@@ -172,5 +263,98 @@ func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 		"gitconfigs": strings.Join(user.Gitconfigs, "\n"),
 	}
 
+	// LEGACY UPDATE v1.11.0 (remove in a few release)
+	// When a user with the old auth role is found update cleanup the old label
+	delete(userSecret.Labels, kubernetes.EpinioAPISecretRoleLabelKey)
+
 	return userSecret
+}
+
+// IsUpdateUserNeeded returns whenever a user needs to be updated, and the user with the updated information
+func IsUpdateUserNeeded(logger logr.Logger, user User) (User, bool) {
+	var updateNeeded bool
+
+	newRoles, needsUpdate := isUpdateUserRoleNeeded(user.roleIDs, user.Roles.IDs())
+	if needsUpdate {
+		logger.Info(
+			"user needs update for different roles",
+			"old", strings.Join(user.roleIDs, ","),
+			"new", strings.Join(newRoles, ","),
+		)
+		updateNeeded = true
+		user.roleIDs = newRoles
+	}
+
+	newNamespaces, needsUpdate := isUpdateUserNamespacesNeeded(user.Namespaces, user.Roles)
+	if needsUpdate {
+		logger.Info(
+			"user needs update for different namespaces",
+			"old", strings.Join(user.Namespaces, ","),
+			"new", strings.Join(newNamespaces, ","),
+		)
+		updateNeeded = true
+		user.Namespaces = newNamespaces
+	}
+
+	return user, updateNeeded
+}
+
+// isUpdateUserRoleNeeded returns whenever the roles of a user need to be updated, and the updated roles
+func isUpdateUserRoleNeeded(previousRoles, actualRoles []string) ([]string, bool) {
+
+	// if they differs they are not the same
+	if len(previousRoles) != len(actualRoles) {
+		return actualRoles, true
+	}
+
+	sort.Strings(previousRoles)
+	sort.Strings(actualRoles)
+
+	// length is the same, we need to check the values
+	for i := range previousRoles {
+		// if one is different we can break and return
+		if previousRoles[i] != actualRoles[i] {
+			return actualRoles, true
+		}
+	}
+
+	return previousRoles, false
+}
+
+// isUpdateUserNamespacesNeeded returns whenever the namespaces of a user need to be updated, and the updated namespaces
+func isUpdateUserNamespacesNeeded(namespaces []string, roles Roles) ([]string, bool) {
+	namespaceMap := map[string]struct{}{}
+
+	for _, ns := range namespaces {
+		namespaceMap[ns] = struct{}{}
+	}
+
+	// add to the namespaces also the one coming from the roles
+	for _, role := range roles {
+		if role.Namespace != "" {
+			namespaceMap[role.Namespace] = struct{}{}
+		}
+	}
+
+	mergedNamespaces := maps.Keys(namespaceMap)
+
+	// if they differs then we added some new namespace
+	if len(namespaces) != len(mergedNamespaces) {
+		sort.Strings(mergedNamespaces)
+		return mergedNamespaces, true
+	}
+
+	return namespaces, false
+}
+
+func uniqueAndSort(arr []string) []string {
+	uniqueMap := map[string]struct{}{}
+	for _, roleID := range arr {
+		uniqueMap[roleID] = struct{}{}
+	}
+
+	unique := maps.Keys(uniqueMap)
+	sort.Strings(unique)
+
+	return unique
 }

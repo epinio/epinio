@@ -138,7 +138,7 @@ func (pg *ProviderGroups) GetRolesFromGroups(groupIDs ...string) []string {
 
 	for _, g := range pg.Groups {
 		if slices.Contains(groupIDs, g.ID) {
-			roles = append(roles, g.Role)
+			roles = append(roles, g.Roles...)
 		}
 	}
 

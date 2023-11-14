@@ -71,6 +71,12 @@ func Create(c *gin.Context) apierror.APIErrors {
 
 	// add the namespace to the User's namespaces
 	user.AddNamespace(namespaceName)
+
+	adminRole := auth.AdminRole
+	adminRole.Namespace = namespaceName
+
+	user.Roles = append(user.Roles, adminRole)
+
 	user, err = authService.UpdateUser(ctx, user)
 	if err != nil {
 		errDetail := fmt.Sprintf("error adding namespace [%s] to user [%s]", namespaceName, user.Username)

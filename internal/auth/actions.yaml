@@ -1,0 +1,228 @@
+# Default action
+# This action will contain all the endpoints that are allowed by default
+- id: default
+  name: Default
+  routes:
+    - AuthToken
+    - GitProxy
+
+# Namespace related actions
+- id: namespace
+  name: Namespace
+  dependsOn:
+    - namespace_read
+    - namespace_write
+
+# Namespace Read
+- id: namespace_read
+  name: Namespace Read
+  routes:
+    # neamespace read endpoints
+    - Namespaces
+    - NamespaceShow
+    # autocomplete
+    - NamespacesMatch
+    - NamespacesMatch0
+
+# Namespace Write
+- id: namespace_write
+  name: Namespace Write
+  dependsOn:
+    - namespace_read
+  routes:
+    - NamespaceCreate
+    - NamespaceDelete
+    - NamespaceBatchDelete
+
+# Applications related actions
+- id: app
+  name: App
+  dependsOn:
+    - app_read
+    - app_write
+    - app_logs
+    - app_exec
+    - app_portforward
+
+# App Read
+- id: app_read
+  name: App Read
+  routes:
+    # app read endpoints
+    - AllApps
+    - Apps
+    - AppShow
+    - StagingComplete
+    - AppRunning
+    - AppValidateCV
+    # app autocomplete
+    - AppMatch
+    - AppMatch0
+    # app env endpoints
+    - EnvList
+    - EnvShow
+    # app env autocomplete
+    - EnvMatch
+    - EnvMatch0
+    # app chart endpoints
+    - ChartList
+    - ChartShow
+    - ChartMatch
+    - ChartMatch0
+
+# App Write
+- id: app_write
+  name: App Write
+  dependsOn:
+    - app_read
+    - app_logs
+  routes:
+    - AppCreate
+    - AppDelete
+    - AppBatchDelete
+    - AppDeploy
+    - AppImportGit
+    - AppRestart
+    - AppStage
+    - AppUpdate
+    - AppUpload
+    - AppPart # export part
+    - AppExport # export to registry
+    # app env
+    - EnvSet
+    - EnvUnset
+    # configuration bindings
+    - ConfigurationBindingCreate
+    - ConfigurationBindingDelete
+
+# App Logs
+- id: app_logs
+  name: App Logs
+  wsRoutes:
+    - AppLogs
+    - StagingLogs
+
+# App Exec
+- id: app_exec
+  name: App Exec
+  wsRoutes:
+    - AppExec
+
+# App PortForward
+- id: app_portforward
+  name: App PortForward
+  wsRoutes:
+    - AppPortForward
+
+# Configuration related actions
+- id: configuration
+  name: Configuration
+  dependsOn:
+    - configuration_read
+    - configuration_write
+
+# Configuration Read
+- id: configuration_read
+  name: Configuration Read
+  routes:
+    # configuration read endpoints
+    - ConfigurationApps
+    - AllConfigurations
+    - Configurations
+    - ConfigurationShow
+    # configuration autocomplete
+    - ConfigurationMatch
+    - ConfigurationMatch0
+
+# Configuration Write
+- id: configuration_write
+  name: Configuration Write
+  dependsOn:
+    - configuration_read
+  routes:
+    - ConfigurationCreate
+    - ConfigurationBatchDelete
+    - ConfigurationDelete
+    - ConfigurationUpdate
+    - ConfigurationReplace
+
+# Service related actions
+- id: service
+  name: Service
+  dependsOn:
+    - service_read
+    - service_write
+    - service_portforward
+
+# Service Read
+- id: service_read
+  name: Service Read
+  routes:
+    # service catalog endpoints
+    - ServiceCatalog
+    - ServiceCatalogShow
+    - ServiceCatalogMatch
+    - ServiceCatalogMatch0
+    # service read endpoints
+    - ServiceApps
+    - AllServices
+    - ServiceList
+    - ServiceShow
+    # service autocomplete endpoints
+    - ServiceMatch
+    - ServiceMatch0
+
+# Service Write
+- id: service_write
+  name: Service Write
+  dependsOn:
+    - service_read
+  routes:
+    # service write endpoints
+    - ServiceCreate
+    - ServiceDelete
+    - ServiceBatchDelete
+    - ServiceUpdate
+    - ServiceReplace
+    - ServiceBind
+    - ServiceUnbind
+
+# Service Write
+- id: service_portforward
+  name: Service Port Forward
+  wsRoutes:
+    - ServicePortForward
+
+# Gitconfig related actions
+- id: gitconfig
+  name: Gitconfig
+  dependsOn:
+    - gitconfig_read
+    - gitconfig_write
+
+# Gitconfig Read
+- id: gitconfig_read
+  name: Gitconfig Read
+  routes:
+    - Gitconfigs
+    - GitconfigShow
+    - GitconfigsMatch
+    - GitconfigsMatch0
+
+# Gitconfig Write
+- id: gitconfig_write
+  name: Gitconfig Write
+  dependsOn:
+    - gitconfig_read
+  routes:
+    - GitconfigCreate
+    - GitconfigDelete
+    - GitconfigBatchDelete
+
+# Export Registries
+- id: export_registries_read
+  name: Export Registries
+  routes:
+    - Exportregistries
+    - ExportregistriesMatch
+    - ExportregistriesMatch0
