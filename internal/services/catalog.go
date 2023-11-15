@@ -99,7 +99,7 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 	}
 
 	// if a secret was specified try to load the credentials from it
-	var repoUsername, repoPassword string
+	var repoUsername, repoPassword, repoCerts string
 	if catalogService.Spec.HelmRepo.Secret != "" {
 		authSecret, err := s.kubeClient.GetSecret(
 			context.Background(),
@@ -112,6 +112,25 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 
 		repoUsername = string(authSecret.Data["username"])
 		repoPassword = string(authSecret.Data["password"])
+		// Optional cert information.
+		if pemSecret, ok := authSecret.Data["certs"]; ok {
+			// `certs` refers (by name) to the kube secret holding the cert PEM data.
+			// See `api/v1/applications/export.go`, loadCerts and caller as well.
+
+			cert, err := s.kubeClient.GetSecret(
+				context.Background(),
+				helmchart.Namespace(), string(pemSecret))
+			if err != nil {
+				return nil, err
+			}
+			pemData, ok := cert.Data["tls.crt"]
+			if !ok {
+				return nil, fmt.Errorf("Cert secret %s not suitable, no key 'tls.crt'",
+					pemSecret)
+			}
+
+			repoCerts = string(pemData)
+		}
 	}
 
 	secretTypes := []string{}
@@ -138,6 +157,7 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 			Auth: models.HelmAuth{
 				Username: repoUsername,
 				Password: repoPassword,
+				Certs:    repoCerts,
 			},
 		},
 		Values:   catalogService.Spec.Values,
