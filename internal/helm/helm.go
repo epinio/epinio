@@ -37,6 +37,7 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
+	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/registry"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -131,56 +132,27 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	catalogService := parameters.CatalogService
-
-	helmChart := catalogService.HelmChart
-	helmVersion := catalogService.ChartVersion
+	// cleanup old release
 	releaseName := names.ServiceReleaseName(parameters.Name)
-
 	err = cleanupReleaseIfNeeded(logger, client, releaseName)
 	if err != nil {
 		return errors.Wrap(err, "cleaning up release")
 	}
 
-	serviceRepoURL := catalogService.HelmRepo.URL
-	repoAuth := catalogService.HelmRepo.Auth
+	catalogService := parameters.CatalogService
 
-	if serviceRepoURL != "" {
-		// if the repository is an OCI registry we install the chart from it
-		if registry.IsOCI(serviceRepoURL) {
-			// with OCI install with 'helm install foo oci://registry/chart'
-			helmChart = fmt.Sprintf("%s/%s", serviceRepoURL, helmChart)
-
-			// if auth credentials are available try to login
-			if repoAuth.Username != "" && repoAuth.Password != "" {
-				registryHostname := strings.TrimPrefix(serviceRepoURL, "oci://")
-				err = client.RegistryLogin(registryHostname, repoAuth.Username, repoAuth.Password)
-				if err != nil {
-					return errors.Wrap(err, "logging into the helm registry")
-				}
-			}
-
-		} else { // else add and update the repository
-			name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(serviceRepoURL)))
-			err = client.AddOrUpdateChartRepo(repo.Entry{
-				Name: name,
-				URL:  serviceRepoURL,
-				// support for private repositories
-				Username: repoAuth.Username,
-				Password: repoAuth.Password,
-			})
-			if err != nil {
-				return errors.Wrap(err, "creating the chart repository")
-			}
-
-			helmChart = fmt.Sprintf("%s/%s", name, helmChart)
-		}
+	// helmChart is the full helmChart name
+	// i.e.: epinio/mychart, or oci://registry/chart for OCI charts
+	// This will also login into the OCI registry or add/update the helm repository
+	helmChart, err := initHelmOCIRegistryOrRepository(client, catalogService)
+	if err != nil {
+		return errors.Wrap(err, "initializing Helm repository or OCI registry")
 	}
 
 	chartSpec := hc.ChartSpec{
 		ReleaseName: releaseName,
 		ChartName:   helmChart,
-		Version:     helmVersion,
+		Version:     catalogService.ChartVersion,
 		Namespace:   parameters.Namespace,
 		Wait:        parameters.Wait,
 		ValuesYaml:  string(parameters.Values),
@@ -250,6 +222,86 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 
 	logger.Info("completed service deployment SYNC")
 	return nil
+}
+
+// initHelmOCIRegistryOrRepository will perform the initial setup for the helm Client and the specified Service,
+// and return the final helm chart name. If the service is from an OCI registry it will perform a login, if needed,
+// and return a 'oci://repoURL/chart' value. Else if a standard repoURL is provided it will add the repo, caching the index,
+// and updating the repositories if the chart is not found.
+func initHelmOCIRegistryOrRepository(client *SynchronizedClient, service models.CatalogService) (string, error) {
+	// chart to install
+	chartName := service.HelmChart
+	chartVersion := service.ChartVersion
+
+	// repo settings
+	repoName := service.HelmRepo.Name
+	repoURL := service.HelmRepo.URL
+
+	// auth
+	username := service.HelmRepo.Auth.Username
+	password := service.HelmRepo.Auth.Password
+
+	// if no friendly name was given we can hash the repoURL
+	if repoName == "" {
+		repoName = base64.RawURLEncoding.EncodeToString([]byte(repoURL))
+	}
+
+	// if repoURL is not set just return the 'repoName/chart'
+	if repoURL == "" {
+		return fmt.Sprintf("%s/%s", repoName, chartName), nil
+	}
+
+	// for an OCI registry check if we need to login and return the 'oci://registry/chart' chart name
+	if registry.IsOCI(repoURL) {
+		// if auth credentials are available try to login
+		if username != "" && password != "" {
+			registryHostname := strings.TrimPrefix(repoURL, "oci://")
+			err := client.RegistryLogin(registryHostname, username, password)
+			if err != nil {
+				return "", errors.Wrap(err, "logging into the helm registry")
+			}
+		}
+
+		// with OCI install with 'helm install foo oci://registry/chart'
+		return fmt.Sprintf("%s/%s", repoURL, chartName), nil
+	}
+
+	// for all the other case we add the repo (if it doesn't exists)
+	err := client.AddOrUpdateChartRepo(repo.Entry{
+		Name: repoName,
+		URL:  repoURL,
+		// support for private repositories
+		Username: username,
+		Password: password,
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "creating the chart repository")
+	}
+
+	// because of this PR (https://github.com/mittwald/go-helm-client/pull/177) the previous AddOrUpdateChartRepo
+	// method will NOT update the repository, so we need to check if the chart is available.
+	// If not we can try to update the repos and check again
+	helmChart := fmt.Sprintf("%s/%s", repoName, chartName)
+
+	chartOpts := &action.ChartPathOptions{
+		Username: username,
+		Password: password,
+		Version:  chartVersion,
+	}
+
+	_, _, err = client.GetChart(helmChart, chartOpts)
+	// probably chart not found, try to update repositories
+	if err != nil {
+		if err := client.UpdateChartRepos(); err != nil {
+			return "", errors.Wrap(err, "updating the chart repositories")
+		}
+
+		if _, _, err = client.GetChart(helmChart, chartOpts); err != nil {
+			return "", errors.Wrapf(err, "looking for the '%s' chart [version: %s] [repoURL: %s]", helmChart, chartVersion, repoURL)
+		}
+	}
+
+	return helmChart, nil
 }
 
 // Local type definitions for proper marshalling of the
