@@ -34,15 +34,19 @@ import (
 
 var (
 	ErrUserNotFound = errors.New("user not found")
+	ErrUserMultiple = errors.New("user defined multiple times, please talk to the operator")
 )
 
 //counterfeiter:generate -header ../../LICENSE_HEADER k8s.io/client-go/kubernetes/typed/core/v1.SecretInterface
 //counterfeiter:generate -header ../../LICENSE_HEADER k8s.io/client-go/kubernetes/typed/core/v1.ConfigMapInterface
 
+type DefinitionCount map[string]int
+
 type AuthService struct {
 	Logger logr.Logger
 	typedcorev1.SecretInterface
 	typedcorev1.ConfigMapInterface
+	Counts DefinitionCount
 }
 
 func NewAuthServiceFromContext(ctx context.Context, logger logr.Logger) (*AuthService, error) {
@@ -75,7 +79,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 	usernames := []string{}
 
 	// Check for duplicate user names.
-	userCount := map[string]int{}
+	userCount := DefinitionCount{}
 
 	for _, secret := range secrets {
 		name := string(secret.Data["username"])
@@ -86,6 +90,8 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 		}
 		userCount[name] = count + 1
 	}
+
+	s.Counts = userCount
 
 	// Convert the secrets into users, and skip the duplicates now
 
@@ -145,6 +151,13 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 		if user.Username == username {
 			return user, nil
 		}
+	}
+
+	count, ok := s.Counts[username]
+	if ok && (count > 1) {
+		s.Logger.V(1).Info("user defined multiple times", "user", username, "count", count)
+
+		return User{}, ErrUserMultiple
 	}
 
 	s.Logger.V(1).Info("user not found")

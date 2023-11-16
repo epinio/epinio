@@ -106,6 +106,13 @@ func basicAuthentication(ctx *gin.Context, logger logr.Logger, authService *auth
 
 	user, found := userMap[username]
 	if !found {
+		count, ok := authService.Counts[username]
+		if ok && (count > 1) {
+			return auth.User{}, apierrors.NewAPIError("user defined multiple times, talk to operator",
+				http.StatusUnauthorized).
+				WithDetailsf("username '%s' defined %d times", username, count)
+		}
+
 		return auth.User{}, apierrors.NewAPIError("user not found", http.StatusUnauthorized).
 			WithDetailsf("username '%s' not found in user map", username)
 	}
