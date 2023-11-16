@@ -74,7 +74,28 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 	users := []User{}
 	usernames := []string{}
 
+	// Check for duplicate user names.
+	userCount := map[string]int{}
+
 	for _, secret := range secrets {
+		name := string(secret.Data["username"])
+		count, ok := userCount[name]
+		if !ok {
+			userCount[name] = 1
+			continue
+		}
+		userCount[name] = count + 1
+	}
+
+	// Convert the secrets into users, and skip the duplicates now
+
+	for _, secret := range secrets {
+		name := string(secret.Data["username"])
+		if userCount[name] > 1 {
+			s.Logger.V(1).Info("skip duplicate user", "user", name)
+			continue
+		}
+
 		user := newUserFromSecret(s.Logger, secret)
 		usernames = append(usernames, user.Username)
 
