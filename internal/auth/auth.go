@@ -34,7 +34,7 @@ import (
 
 var (
 	ErrUserNotFound     = errors.New("user not found")
-	ErrUsernameConflict = errors.New("this user is defined multiple times, please talk to the operator")
+	ErrUsernameConflict = errors.New("user is defined multiple times")
 )
 
 //counterfeiter:generate -header ../../LICENSE_HEADER k8s.io/client-go/kubernetes/typed/core/v1.SecretInterface
@@ -76,34 +76,27 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, er
 		return nil, nil, errors.Wrap(err, "error getting users secrets")
 	}
 
-	users := []User{}
-	usernames := []string{}
-
-	// map of per-user definition counts, to detect users with conflicting definitions
+	// convert secrets into users and count definitions
+	allUsers := []User{}
 	userCount := DefinitionCount{}
 
 	for _, secret := range secrets {
-		name := string(secret.Data["username"])
-		count, ok := userCount[name]
-		if !ok {
-			userCount[name] = 1
-			continue
-		}
-		userCount[name] = count + 1
+		user := newUserFromSecret(s.Logger, secret)
+		allUsers = append(allUsers, user)
+		userCount[user.Username] = userCount[user.Username] + 1
 	}
 
-	// Convert the secrets into users, and skip the users with conflicting definitions
+	// remove users with conflicting definitions from the final result
+	users := []User{}
+	usernames := []string{} // for logging
 
-	for _, secret := range secrets {
-		name := string(secret.Data["username"])
-		if userCount[name] > 1 {
-			s.Logger.V(1).Info("skip duplicate user", "user", name)
+	for _, user := range allUsers {
+		if userCount[user.Username] > 1 {
+			s.Logger.V(1).Info("skip duplicate user", "user", user.Username)
 			continue
 		}
 
-		user := newUserFromSecret(s.Logger, secret)
 		usernames = append(usernames, user.Username)
-
 		users = append(users, user)
 	}
 
