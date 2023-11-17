@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
+	ErrUserNotFound     = errors.New("user not found")
 	ErrUsernameConflict = errors.New("this user is defined multiple times, please talk to the operator")
 )
 
@@ -46,7 +46,6 @@ type AuthService struct {
 	Logger logr.Logger
 	typedcorev1.SecretInterface
 	typedcorev1.ConfigMapInterface
-	Counts DefinitionCount
 }
 
 func NewAuthServiceFromContext(ctx context.Context, logger logr.Logger) (*AuthService, error) {
@@ -66,19 +65,21 @@ func NewAuthService(logger logr.Logger, cluster *kubernetes.Cluster) *AuthServic
 	}
 }
 
-// GetUsers returns all the Epinio users
-func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
+// getUsers returns all the Epinio users with no conflicting definitions. it further returns a map
+// of definition counts enabling the caller to distinguish between `truly does not exist` versus
+// `has conflicting definitions`.
+func (s *AuthService) getUsers(ctx context.Context) ([]User, DefinitionCount, error) {
 	s.Logger.V(1).Info("GetUsers")
 
 	secrets, err := s.getUsersSecrets(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting users secrets")
+		return nil, nil, errors.Wrap(err, "error getting users secrets")
 	}
 
 	users := []User{}
 	usernames := []string{}
 
-	// Check for duplicate user names.
+	// map of per-user definition counts, to detect users with conflicting definitions
 	userCount := DefinitionCount{}
 
 	for _, secret := range secrets {
@@ -91,9 +92,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 		userCount[name] = count + 1
 	}
 
-	s.Counts = userCount
-
-	// Convert the secrets into users, and skip the duplicates now
+	// Convert the secrets into users, and skip the users with conflicting definitions
 
 	for _, secret := range secrets {
 		name := string(secret.Data["username"])
@@ -110,7 +109,11 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 
 	s.Logger.V(1).Info(fmt.Sprintf("found %d users", len(users)), "users", strings.Join(usernames, ","))
 
-	return users, nil
+	// return the good users, and the map of definition counts, enablign the caller to
+	// distinguish actual missing users from users weeded out because of conflicting
+	// definitions.
+
+	return users, userCount, nil
 }
 
 func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
@@ -142,7 +145,7 @@ func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
 func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (User, error) {
 	s.Logger.V(1).Info("GetUserByUsername", "username", username)
 
-	users, err := s.GetUsers(ctx)
+	users, counts, err := s.getUsers(ctx)
 	if err != nil {
 		return User{}, errors.Wrap(err, "error getting users")
 	}
@@ -153,7 +156,10 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 		}
 	}
 
-	count, ok := s.Counts[username]
+	// user not found. check if this was because it was filtered out by getUsers() due to
+	// conflicting definitions for it.
+
+	count, ok := counts[username]
 	if ok && (count > 1) {
 		s.Logger.V(1).Info("user defined multiple times", "user", username, "count", count)
 
@@ -206,7 +212,7 @@ func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
 func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace string) error {
 	s.Logger.V(1).Info("RemoveNamespaceFromUsers", "namespace", namespace)
 
-	users, err := s.GetUsers(ctx)
+	users, _, err := s.getUsers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error getting users")
 	}
@@ -236,7 +242,7 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig string) error {
 	s.Logger.V(1).Info("RemoveGitconfigFromUsers", "gitconfig", gitconfig)
 
-	users, err := s.GetUsers(ctx)
+	users, _, err := s.getUsers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error getting users")
 	}
