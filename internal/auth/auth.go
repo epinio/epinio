@@ -34,7 +34,7 @@ import (
 
 var (
 	ErrUserNotFound = errors.New("user not found")
-	ErrUserMultiple = errors.New("user defined multiple times, please talk to the operator")
+	ErrUsernameConflict = errors.New("this user is defined multiple times, please talk to the operator")
 )
 
 //counterfeiter:generate -header ../../LICENSE_HEADER k8s.io/client-go/kubernetes/typed/core/v1.SecretInterface
@@ -157,7 +157,7 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 	if ok && (count > 1) {
 		s.Logger.V(1).Info("user defined multiple times", "user", username, "count", count)
 
-		return User{}, ErrUserMultiple
+		return User{}, ErrUsernameConflict
 	}
 
 	s.Logger.V(1).Info("user not found")
