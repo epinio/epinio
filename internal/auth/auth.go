@@ -65,10 +65,10 @@ func NewAuthService(logger logr.Logger, cluster *kubernetes.Cluster) *AuthServic
 	}
 }
 
-// getUsers returns all the Epinio users with no conflicting definitions. it further returns a map
+// GetUsers returns all the Epinio users with no conflicting definitions. it further returns a map
 // of definition counts enabling the caller to distinguish between `truly does not exist` versus
 // `has conflicting definitions`.
-func (s *AuthService) getUsers(ctx context.Context) ([]User, DefinitionCount, error) {
+func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, error) {
 	s.Logger.V(1).Info("GetUsers")
 
 	secrets, err := s.getUsersSecrets(ctx)
@@ -145,7 +145,7 @@ func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
 func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (User, error) {
 	s.Logger.V(1).Info("GetUserByUsername", "username", username)
 
-	users, counts, err := s.getUsers(ctx)
+	users, counts, err := s.GetUsers(ctx)
 	if err != nil {
 		return User{}, errors.Wrap(err, "error getting users")
 	}
@@ -156,7 +156,7 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 		}
 	}
 
-	// user not found. check if this was because it was filtered out by getUsers() due to
+	// user not found. check if this was because it was filtered out by GetUsers() due to
 	// conflicting definitions for it.
 
 	count, ok := counts[username]
@@ -212,7 +212,7 @@ func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
 func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace string) error {
 	s.Logger.V(1).Info("RemoveNamespaceFromUsers", "namespace", namespace)
 
-	users, _, err := s.getUsers(ctx)
+	users, _, err := s.GetUsers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error getting users")
 	}
@@ -242,7 +242,7 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig string) error {
 	s.Logger.V(1).Info("RemoveGitconfigFromUsers", "gitconfig", gitconfig)
 
-	users, _, err := s.getUsers(ctx)
+	users, _, err := s.GetUsers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error getting users")
 	}
