@@ -95,19 +95,9 @@ func basicAuthentication(ctx *gin.Context, logger logr.Logger, authService *auth
 		return auth.User{}, apierrors.NewInternalError("Couldn't extract user or password from the auth header")
 	}
 
-	userMap, err := loadUsersMap(ctx, authService)
+	user, err := authService.GetUserByUsername(ctx, username)
 	if err != nil {
-		return auth.User{}, apierrors.InternalError(err)
-	}
-
-	if len(userMap) == 0 {
-		return auth.User{}, apierrors.NewAPIError("no users found", http.StatusUnauthorized)
-	}
-
-	user, found := userMap[username]
-	if !found {
-		return auth.User{}, apierrors.NewAPIError("user not found", http.StatusUnauthorized).
-			WithDetailsf("username '%s' not found in user map", username)
+		return auth.User{}, apierrors.NewAPIError(err.Error(), http.StatusUnauthorized)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
@@ -244,20 +234,6 @@ func getRolesFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvid
 	}
 
 	return roles
-}
-
-func loadUsersMap(ctx context.Context, authService *auth.AuthService) (map[string]auth.User, error) {
-	users, err := authService.GetUsers(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't get users")
-	}
-
-	userMap := make(map[string]auth.User)
-	for _, user := range users {
-		userMap[user.Username] = user
-	}
-
-	return userMap, nil
 }
 
 // getOrCreateUserByEmail returns the user with the matching email, or if it not exists, it will create a new user.

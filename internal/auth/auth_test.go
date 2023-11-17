@@ -76,7 +76,7 @@ var _ = Describe("Auth users", func() {
 			It("returns an error and an empty slice", func() {
 				fakeSecret.ListReturns(nil, errors.New("an error"))
 
-				users, err := authService.GetUsers(context.Background())
+				users, _, err := authService.GetUsers(context.Background())
 				Expect(err).To(HaveOccurred())
 				Expect(users).To(BeEmpty())
 			})
@@ -87,7 +87,7 @@ var _ = Describe("Auth users", func() {
 				fakeSecret.ListReturns(&corev1.SecretList{Items: []corev1.Secret{}}, nil)
 				fakeConfigMap.ListReturns(&corev1.ConfigMapList{Items: []corev1.ConfigMap{}}, nil)
 
-				users, err := authService.GetUsers(context.Background())
+				users, _, err := authService.GetUsers(context.Background())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(users).To(BeEmpty())
 			})
@@ -102,12 +102,31 @@ var _ = Describe("Auth users", func() {
 				fakeSecret.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
 				fakeConfigMap.ListReturns(&corev1.ConfigMapList{Items: []corev1.ConfigMap{}}, nil)
 
-				users, err := authService.GetUsers(context.Background())
+				users, _, err := authService.GetUsers(context.Background())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(users).To(HaveLen(2))
 				Expect(users[0].Username).To(Equal("admin"))
 				Expect(users[0].Namespaces).To(HaveLen(0))
 				Expect(users[1].Namespaces).To(HaveLen(2))
+			})
+
+			It("returns a list of users with conflicting definitions", func() {
+				userSecrets := []corev1.Secret{
+					newUserSecret("admin", "password", "admin", ""),
+					newUserSecret("epinio", "mypass", "user", "workspace\nworkspace2"),
+					newUserSecret("auser", "passfail", "user", "workspace\nworkspace2"),
+					newUserSecret("auser", "password", "user", "workspace\nworkspace2"),
+				}
+				fakeSecret.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
+				fakeConfigMap.ListReturns(&corev1.ConfigMapList{Items: []corev1.ConfigMap{}}, nil)
+
+				users, counts, err := authService.GetUsers(context.Background())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(users).To(HaveLen(2))                  // 2 users without conflicting definitions
+				Expect(counts).To(HaveLen(3))                 // 3 unique users
+				Expect(counts["auser"]).To(Equal(2))          // `auser` has 2 conflicting definitions
+				Expect(users[0].Username).To(Equal("admin"))  // ok user
+				Expect(users[1].Username).To(Equal("epinio")) // ok user
 			})
 		})
 	})

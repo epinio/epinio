@@ -33,11 +33,14 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
+	ErrUserNotFound     = errors.New("user not found")
+	ErrUsernameConflict = errors.New("user is defined multiple times")
 )
 
 //counterfeiter:generate -header ../../LICENSE_HEADER k8s.io/client-go/kubernetes/typed/core/v1.SecretInterface
 //counterfeiter:generate -header ../../LICENSE_HEADER k8s.io/client-go/kubernetes/typed/core/v1.ConfigMapInterface
+
+type DefinitionCount map[string]int
 
 type AuthService struct {
 	Logger logr.Logger
@@ -62,28 +65,48 @@ func NewAuthService(logger logr.Logger, cluster *kubernetes.Cluster) *AuthServic
 	}
 }
 
-// GetUsers returns all the Epinio users
-func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
+// GetUsers returns all the Epinio users with no conflicting definitions. it further returns a map
+// of definition counts enabling the caller to distinguish between `truly does not exist` versus
+// `has conflicting definitions`.
+func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, error) {
 	s.Logger.V(1).Info("GetUsers")
 
 	secrets, err := s.getUsersSecrets(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting users secrets")
+		return nil, nil, errors.Wrap(err, "error getting users secrets")
 	}
 
-	users := []User{}
-	usernames := []string{}
+	// convert secrets into users and count definitions
+	allUsers := []User{}
+	userCount := DefinitionCount{}
 
 	for _, secret := range secrets {
 		user := newUserFromSecret(s.Logger, secret)
-		usernames = append(usernames, user.Username)
+		allUsers = append(allUsers, user)
+		userCount[user.Username] = userCount[user.Username] + 1
+	}
 
+	// remove users with conflicting definitions from the final result
+	users := []User{}
+	usernames := []string{} // for logging
+
+	for _, user := range allUsers {
+		if userCount[user.Username] > 1 {
+			s.Logger.V(1).Info("skip duplicate user", "user", user.Username)
+			continue
+		}
+
+		usernames = append(usernames, user.Username)
 		users = append(users, user)
 	}
 
 	s.Logger.V(1).Info(fmt.Sprintf("found %d users", len(users)), "users", strings.Join(usernames, ","))
 
-	return users, nil
+	// return the good users, and the map of definition counts, enablign the caller to
+	// distinguish actual missing users from users weeded out because of conflicting
+	// definitions.
+
+	return users, userCount, nil
 }
 
 func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
@@ -115,7 +138,7 @@ func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
 func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (User, error) {
 	s.Logger.V(1).Info("GetUserByUsername", "username", username)
 
-	users, err := s.GetUsers(ctx)
+	users, counts, err := s.GetUsers(ctx)
 	if err != nil {
 		return User{}, errors.Wrap(err, "error getting users")
 	}
@@ -124,6 +147,16 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 		if user.Username == username {
 			return user, nil
 		}
+	}
+
+	// user not found. check if this was because it was filtered out by GetUsers() due to
+	// conflicting definitions for it.
+
+	count, ok := counts[username]
+	if ok && (count > 1) {
+		s.Logger.V(1).Info("user defined multiple times", "user", username, "count", count)
+
+		return User{}, ErrUsernameConflict
 	}
 
 	s.Logger.V(1).Info("user not found")
@@ -172,7 +205,7 @@ func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
 func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace string) error {
 	s.Logger.V(1).Info("RemoveNamespaceFromUsers", "namespace", namespace)
 
-	users, err := s.GetUsers(ctx)
+	users, _, err := s.GetUsers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error getting users")
 	}
@@ -202,7 +235,7 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig string) error {
 	s.Logger.V(1).Info("RemoveGitconfigFromUsers", "gitconfig", gitconfig)
 
-	users, err := s.GetUsers(ctx)
+	users, _, err := s.GetUsers(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error getting users")
 	}

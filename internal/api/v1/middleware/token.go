@@ -60,21 +60,16 @@ func TokenAuth(ctx *gin.Context) {
 		return
 	}
 
-	// find the user and add it in the context
-	users, err := authService.GetUsers(ctx)
+	// find the user and add it to the context
+
+	user, err := authService.GetUserByUsername(ctx, claims.Username)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err))
 		ctx.Abort()
 		return
 	}
 
-	for _, user := range users {
-		if user.Username == claims.Username {
-			newCtx := ctx.Request.Context()
-			newCtx = requestctx.WithUser(newCtx, user)
-			ctx.Request = ctx.Request.Clone(newCtx)
-
-			break
-		}
-	}
+	newCtx := ctx.Request.Context()
+	newCtx = requestctx.WithUser(newCtx, user)
+	ctx.Request = ctx.Request.Clone(newCtx)
 }
