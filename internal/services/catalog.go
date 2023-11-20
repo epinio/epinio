@@ -20,9 +20,11 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -55,7 +57,12 @@ func (s *ServiceClient) GetCatalogService(ctx context.Context, serviceName strin
 		}
 	}
 
-	return nil, errors.New(fmt.Sprintf("error getting service %s from namespace epinio, service not found", serviceName))
+	// Provide a proper not-found to the caller
+	err = apierrors.NewNotFound(schema.GroupResource{
+		Group:    "application.epinio.io",
+		Resource: "service",
+	}, serviceName)
+	return nil, errors.Wrap(err, fmt.Sprintf("error getting service %s from namespace epinio", serviceName))
 }
 
 func (s *ServiceClient) ListCatalogServices(ctx context.Context) ([]*models.CatalogService, error) {
