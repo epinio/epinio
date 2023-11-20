@@ -39,17 +39,23 @@ const (
 )
 
 func (s *ServiceClient) GetCatalogService(ctx context.Context, serviceName string) (*models.CatalogService, error) {
-	result, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).Get(ctx, serviceName, metav1.GetOptions{})
+
+	listResult, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("error getting service %s from namespace epinio", serviceName))
+		return nil, errors.Wrap(err, "error listing services")
 	}
 
-	service, err := s.convertUnstructuredIntoCatalogService(*result)
-	if err != nil {
-		return nil, errors.Wrap(err, "error converting result into Catalog Service")
+	for _, svc := range listResult.Items {
+		service, err := s.convertUnstructuredIntoCatalogService(svc)
+		if err != nil {
+			return nil, errors.Wrap(err, "error converting result into Catalog Service")
+		}
+		if service.Meta.Name == serviceName {
+			return service, nil
+		}
 	}
 
-	return service, nil
+	return nil, errors.New(fmt.Sprintf("error getting service %s from namespace epinio, service not found", serviceName))
 }
 
 func (s *ServiceClient) ListCatalogServices(ctx context.Context) ([]*models.CatalogService, error) {
