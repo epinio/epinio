@@ -39,8 +39,8 @@ var validArchiveTypes = []string{
 }
 
 // Upload handles the API endpoint /namespaces/:namespace/applications/:app/store.
-// It receives the application data as a tarball and stores it. Then
-// it creates the k8s resources needed for staging
+// It receives the application data as an archive (tarball, zip, ...) and stores it.
+// Then it creates the k8s resources needed for staging
 func Upload(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
