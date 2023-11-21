@@ -121,7 +121,7 @@ var _ = Describe("Wordpress", func() {
 	It("can deploy Wordpress", func() {
 		out, err := env.EpinioPush(wordpress.Dir, wordpress.Name, "--name", wordpress.Name,
 			"--builder-image", "paketobuildpacks/builder:0.2.443-full",
-			"-e", "BP_PHP_WEB_DIR=wordpress",
+			"-e", "BP_PHP_WEB_DIR=.",
 			"-e", "BP_PHP_VERSION=8.0.x",
 			"-e", "BP_PHP_SERVER=nginx")
 		Expect(err).ToNot(HaveOccurred(), out)
