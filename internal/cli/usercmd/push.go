@@ -273,23 +273,16 @@ func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, sour
 		return "", err
 	}
 
-	var archive string
+	archive := source
 
 	if fileInfo.IsDir() {
 		// package directory as archive/tarball
 		tmpDir, tarball, err := helpers.Tar(source)
-		defer func() {
-			if tmpDir != "" {
-				_ = os.RemoveAll(tmpDir)
-			}
-		}()
+		defer os.RemoveAll(tmpDir)
 		if err != nil {
 			return "", err
 		}
 		archive = tarball
-	} else {
-		// consider file as the archive
-		archive = source
 	}
 
 	c.ui.Normal().Msg("Uploading application code ...")
