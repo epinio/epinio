@@ -32,7 +32,7 @@ type APIErrors interface {
 type APIError struct {
 	Status  int    `json:"status"`
 	Title   string `json:"title"`
-	Details string `json:"details"`
+	Details string `json:"details,omitempty"`
 }
 
 var _ APIErrors = APIError{}

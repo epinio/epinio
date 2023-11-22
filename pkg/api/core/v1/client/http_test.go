@@ -28,13 +28,14 @@ var _ = Describe("Client HTTP", func() {
 
 	var epinioClient *client.Client
 	var responseBody string
+	var statusHeader int
 	var requestInterceptor func(r *http.Request)
 
 	JustBeforeEach(func() {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer GinkgoRecover()
 
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(statusHeader)
 			fmt.Fprint(w, responseBody)
 
 			requestInterceptor(r)
@@ -47,6 +48,11 @@ var _ = Describe("Client HTTP", func() {
 	})
 
 	Describe("executing a request", func() {
+
+		BeforeEach(func() {
+			statusHeader = http.StatusOK
+		})
+
 		When("custom headers are set", func() {
 			It("gets the additional headers", func() {
 				responseBody = `{"status":"ok"}`
@@ -87,6 +93,40 @@ var _ = Describe("Client HTTP", func() {
 
 				_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
 				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+	})
+
+	Describe("executing a failing request", func() {
+
+		BeforeEach(func() {
+			statusHeader = http.StatusInternalServerError
+		})
+
+		When("server returns an empty response", func() {
+			It("fails", func() {
+				responseBody = ``
+
+				_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("empty"))
+			})
+		})
+
+		When("server returns an error response", func() {
+			It("contains the errors", func() {
+				responseBody = `{
+						"errors": [
+							{
+								"status": 500,
+								"title": "Error title",
+								"details": "something bad happened"
+							}
+						]
+					}`
+
+				_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
+				Expect(err).To(HaveOccurred())
 			})
 		})
 	})

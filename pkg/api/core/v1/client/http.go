@@ -287,16 +287,17 @@ func handleError(logger logr.Logger, response *http.Response) error {
 		return errors.Wrap(err, "reading response body")
 	}
 
-	var responseErr apierrors.ErrorResponse
-	err = json.Unmarshal(bodyBytes, &responseErr)
-	if err != nil {
-		logger.Error(err, "decoding json error")
-		return errors.Wrap(err, "parsing error response")
-	}
-
 	epinioError := &APIError{
 		StatusCode: response.StatusCode,
-		Err:        &responseErr,
+		Err:        &apierrors.ErrorResponse{},
+	}
+
+	if len(bodyBytes) > 0 {
+		err = json.Unmarshal(bodyBytes, epinioError.Err)
+		if err != nil {
+			logger.Error(err, "decoding json error")
+			return errors.Wrap(err, "parsing error response")
+		}
 	}
 
 	logger.V(1).Info("response is not StatusOK: " + epinioError.Error())
