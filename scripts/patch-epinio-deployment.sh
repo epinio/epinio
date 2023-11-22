@@ -29,6 +29,7 @@ timeout=480s
 # Patching the deployment forces the pod to restart with a now existing image
 # and the correct binary is in place.
 
+EPINIO_NAMESPACE="${EPINIO_NAMESPACE:-epinio}"
 export EPINIO_BINARY_PATH="${EPINIO_BINARY_PATH:-dist/epinio-linux-amd64}"
 export EPINIO_BINARY_TAG="${EPINIO_BINARY_TAG:-$(git describe --tags)}"
 
@@ -55,7 +56,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: epinio-binary
-  namespace: epinio
+  namespace: ${EPINIO_NAMESPACE}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -71,7 +72,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: epinio-copier
-  namespace: epinio
+  namespace: ${EPINIO_NAMESPACE}
   annotations:
     linkerd.io/inject: disabled
 spec:
@@ -99,7 +100,7 @@ spec:
 EOF
 
 echo "Waiting for dummy pod to be ready"
-kubectl wait --for=condition=ready --timeout=$timeout pod -n epinio epinio-copier
+kubectl wait --for=condition=ready --timeout=$timeout pod -n ${EPINIO_NAMESPACE} epinio-copier
 
 echo "Copying the binary on the PVC"
 # Notes
@@ -111,13 +112,13 @@ echo "Copying the binary on the PVC"
 
 ( cd       "$(dirname  "${EPINIO_BINARY_PATH}")"
   tar cf - "$(basename "${EPINIO_BINARY_PATH}")"
-) | kubectl exec -i -n epinio -c copier epinio-copier -- tar xf -
-kubectl exec -i -n epinio -c copier epinio-copier -- mv "$(basename "${EPINIO_BINARY_PATH}")" epinio/epinio
-kubectl exec -i -n epinio -c copier epinio-copier -- chmod ugo+x epinio/epinio
-kubectl exec -i -n epinio -c copier epinio-copier -- ls -l epinio
+) | kubectl exec -i -n ${EPINIO_NAMESPACE} -c copier epinio-copier -- tar xf -
+kubectl exec -i -n ${EPINIO_NAMESPACE} -c copier epinio-copier -- mv "$(basename "${EPINIO_BINARY_PATH}")" epinio/epinio
+kubectl exec -i -n ${EPINIO_NAMESPACE} -c copier epinio-copier -- chmod ugo+x epinio/epinio
+kubectl exec -i -n ${EPINIO_NAMESPACE} -c copier epinio-copier -- ls -l epinio
 
 echo "Deleting the epinio-copier to avoid multi-attach issue between pods"
-kubectl delete pod -n epinio epinio-copier
+kubectl delete pod -n ${EPINIO_NAMESPACE} epinio-copier
 
 # On Windows the shasum command is not in the path
 [[ $(uname -s) =~ "MINGW64_NT" ]] && SHASUM=/bin/core_perl/shasum
@@ -178,8 +179,8 @@ PATCH=$(cat <<EOF
 EOF
 )
 
-kubectl patch deployment -n epinio epinio-server -p "${PATCH}"
+kubectl patch deployment -n ${EPINIO_NAMESPACE} epinio-server -p "${PATCH}"
 
 # https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-status-em-
 echo "Waiting for the rollout of the deployment to complete"
-kubectl rollout status deployment -n epinio epinio-server  --timeout=$timeout
+kubectl rollout status deployment -n ${EPINIO_NAMESPACE} epinio-server  --timeout=$timeout
