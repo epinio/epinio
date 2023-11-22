@@ -122,7 +122,7 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 
 	return &models.CatalogService{
 		Meta: models.MetaLite{
-			Name:      catalogService.Spec.Name,
+			Name:      unstructured.GetName(),
 			CreatedAt: unstructured.GetCreationTimestamp(),
 		},
 		SecretTypes:      secretTypes,
