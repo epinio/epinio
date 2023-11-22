@@ -242,6 +242,7 @@ func newSecretFromUser(user User) *corev1.Secret {
 			Labels: map[string]string{
 				kubernetes.EpinioAPISecretLabelKey: "true",
 			},
+			Annotations: map[string]string{},
 		},
 	}
 
