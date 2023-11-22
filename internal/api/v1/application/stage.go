@@ -22,6 +22,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/utils/ptr"
 
@@ -162,6 +163,15 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
+	// quickly reject conflict with (still) active staging
+	staging, err := application.IsCurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if staging {
+		return apierror.NewBadRequestError("staging job for image ID still running")
+	}
+
 	// get builder image from either request, application, or default as final fallback
 
 	builderImage, builderErr := getBuilderImage(req, app)
@@ -186,15 +196,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	log.Info("staging app", "unpack", config.UnpackImage)
 	log.Info("staging app", "userid", config.UserID)
 	log.Info("staging app", "groupid", config.GroupID)
+	log.Info("staging app", "build env", config.Env)
 	log.Info("staging app", "namespace", namespace, "app", req)
-
-	staging, err := application.IsCurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if staging {
-		return apierror.NewBadRequestError("staging job for image ID still running")
-	}
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
@@ -254,6 +257,15 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	cpuRequest := viper.GetString("staging-resource-cpu")
 	memoryRequest := viper.GetString("staging-resource-memory")
 	diskRequest := viper.GetString("staging-resource-disk")
+
+	// merge buildpack and general EV, i.e. `config.Env`, and `environment`.
+	// ATTENTION: in case of conflict the general, i.e. user-specified!, EV has priority.
+	for name, value := range config.Env {
+		if _, found := environment[name]; found {
+			continue
+		}
+		environment[name] = value
+	}
 
 	params := stageParam{
 		AppRef:              req.App,
@@ -520,10 +532,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	volumes, volumeMounts = mountS3Certs(volumes, volumeMounts)
 	volumes, volumeMounts = mountRegistryCerts(app, volumes, volumeMounts)
 
-	// Create job environment as a copy of the app environment, plus standard variable.
+	// Create job environment as a copy of the app environment
 	env := make(map[string][]byte)
-
-	env["CNB_PLATFORM_API"] = []byte("0.4")
 	for _, ev := range app.Environment {
 		env[ev.Name] = []byte(ev.Value)
 	}
@@ -854,14 +864,16 @@ func appendEnvVar(envs []corev1.EnvVar, name, value string) []corev1.EnvVar {
 	return append(envs, corev1.EnvVar{Name: name, Value: value})
 }
 
+// StagingScriptConfig holds all the information for using a (set of) buildpack(s)
 type StagingScriptConfig struct {
-	Name          string // config name. Needed to mount the resource in the pod
-	Builder       string // glob pattern for builders supported by this resource
-	UserID        int64  // user id to run the build phase with (`cnb` user)
-	GroupID       int64  // group id to run the build hase with
-	Base          string // optional, name of resource to pull the other parts from
-	DownloadImage string // image to run the download phase with
-	UnpackImage   string // image to run the unpack phase with
+	Name          string                // config name. Needed to mount the resource in the pod
+	Builder       string                // glob pattern for builders supported by this resource
+	UserID        int64                 // user id to run the build phase with (`cnb` user)
+	GroupID       int64                 // group id to run the build hase with
+	Base          string                // optional, name of resource to pull the other parts from
+	DownloadImage string                // image to run the download phase with
+	UnpackImage   string                // image to run the unpack phase with
+	Env           models.EnvVariableMap // environment settings
 }
 
 func DetermineStagingScripts(ctx context.Context,
@@ -969,6 +981,7 @@ func StagingScriptConfigResolve(ctx context.Context, logger logr.Logger, cluster
 
 	// Fill config from the base.
 	// BEWARE: Keep user/group data of the incoming config.
+	// BEWARE: Keep environment data of the incoming config.
 
 	config.Name = base.Name
 	config.DownloadImage = base.Data["downloadImage"]
@@ -984,7 +997,7 @@ func NewStagingScriptConfig(config v1.ConfigMap) (*StagingScriptConfig, error) {
 		Base:          config.Data["base"],
 		DownloadImage: config.Data["downloadImage"],
 		UnpackImage:   config.Data["unpackImage"],
-		// user, group id, see below.
+		// env, user, group id, see below.
 	}
 
 	userID, err := strconv.ParseInt(config.Data["userID"], 10, 64)
@@ -992,6 +1005,13 @@ func NewStagingScriptConfig(config v1.ConfigMap) (*StagingScriptConfig, error) {
 		return nil, apierror.InternalError(err)
 	}
 	groupID, err := strconv.ParseInt(config.Data["groupID"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	envString := config.Data["env"]
+
+	err = yaml.Unmarshal([]byte(envString), &stagingScript.Env)
 	if err != nil {
 		return nil, err
 	}

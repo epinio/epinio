@@ -76,7 +76,7 @@ func (m *Machine) MakeGolangApp(appName string, instances int, deployFromCurrent
 	return m.MakeAppWithDir(appName, instances, deployFromCurrentDir, appDir)
 }
 
-func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurrentDir bool, appDir string) string {
+func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurrentDir bool, appDir string, more ...string) string {
 	By("creating app " + appName)
 
 	var pushOutput string
@@ -87,8 +87,10 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 		// This means that the command runs with it as the CWD.
 		pushOutput, err = m.EpinioPush(appDir,
 			appName,
-			"--name", appName,
-			"--instances", strconv.Itoa(instances))
+			append([]string{
+				"--name", appName,
+				"--instances", strconv.Itoa(instances),
+			}, more...)...)
 	} else {
 		// Note: appDir is handed as second argument to the epinio cli.
 		// This means that the command gets the sources from that directory instead of CWD.
