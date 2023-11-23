@@ -59,7 +59,6 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	router.NoRoute(func(ctx *gin.Context) {
 		response.Error(ctx, apierrors.NewNotFoundError("route", ctx.Request.URL.Path))
 	})
-	router.Use(middleware.Recovery())
 
 	// Do not set header if nothing is specified.
 	accessControlAllowOrigin := strings.TrimSuffix(viper.GetString("access-control-allow-origin"), "/")
@@ -92,6 +91,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	// Add common middlewares to all the routes declared after
 	router.Use(
 		ginLogger,
+		middleware.Recovery,
 		middleware.InitContext(logger),
 	)
 

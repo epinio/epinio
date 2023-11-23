@@ -12,6 +12,7 @@
 package middleware
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -20,9 +21,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Recovery() gin.HandlerFunc {
-	return gin.CustomRecovery(func(c *gin.Context, anyerr any) {
+func Recovery(c *gin.Context) {
+	stackWriter := &bytes.Buffer{}
+
+	gin.CustomRecoveryWithWriter(stackWriter, func(c *gin.Context, anyerr any) {
 		ctx := c.Request.Context()
+		reqID := requestctx.ID(ctx)
 		logger := requestctx.Logger(ctx).WithName("RecoveryMiddleware")
 
 		err, ok := anyerr.(error)
@@ -30,10 +34,13 @@ func Recovery() gin.HandlerFunc {
 			err = fmt.Errorf("unknown error type occurred [%T]", anyerr)
 		}
 
-		logger.Error(err, "recovered from panic")
+		logger.Error(err, "recovered from panic", "stack", stackWriter.String())
+		fmt.Fprint(gin.DefaultWriter, stackWriter.String())
 
 		// we don't want to expose internal details to the client
-		response.Error(c, apierrors.NewInternalError("something bad happened"))
+		errMsg := fmt.Sprintf("something bad happened [request ID: %s]", reqID)
+		response.Error(c, apierrors.NewInternalError(errMsg))
+
 		c.Abort()
-	})
+	})(c)
 }
