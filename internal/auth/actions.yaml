@@ -5,30 +5,16 @@
   routes:
     - AuthToken
     - GitProxy
-
-# Namespace related actions
-- id: namespace
-  name: Namespace
-  dependsOn:
-    - namespace_read
-    - namespace_write
-
-# Namespace Read
-- id: namespace_read
-  name: Namespace Read
-  routes:
-    # neamespace read endpoints
+    # namespace read endpoints
     - Namespaces
     - NamespaceShow
-    # autocomplete
+    # namespace autocomplete
     - NamespacesMatch
     - NamespacesMatch0
 
 # Namespace Write
 - id: namespace_write
   name: Namespace Write
-  dependsOn:
-    - namespace_read
   routes:
     - NamespaceCreate
     - NamespaceDelete
