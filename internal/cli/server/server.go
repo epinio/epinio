@@ -59,7 +59,6 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	router.NoRoute(func(ctx *gin.Context) {
 		response.Error(ctx, apierrors.NewNotFoundError("route", ctx.Request.URL.Path))
 	})
-	router.Use(gin.Recovery())
 
 	// Do not set header if nothing is specified.
 	accessControlAllowOrigin := strings.TrimSuffix(viper.GetString("access-control-allow-origin"), "/")
@@ -80,7 +79,6 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	}
 
 	ginLogger := ginlogr.Ginlogr(logger, time.RFC3339, true)
-	ginRecoveryLogger := ginlogr.RecoveryWithLogr(logger, time.RFC3339, true, true)
 
 	// Register routes - No authentication, no logging, no session.
 	// This is the healthcheck.
@@ -93,7 +91,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	// Add common middlewares to all the routes declared after
 	router.Use(
 		ginLogger,
-		ginRecoveryLogger,
+		middleware.Recovery,
 		middleware.InitContext(logger),
 	)
 
