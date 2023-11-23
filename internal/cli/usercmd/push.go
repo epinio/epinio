@@ -268,24 +268,31 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, source string) (string, error) {
 	c.ui.Normal().Msg("Collecting the application sources ...")
 
-	tmpDir, tarball, err := helpers.Tar(source)
-	defer func() {
-		if tmpDir != "" {
-			_ = os.RemoveAll(tmpDir)
-		}
-	}()
+	fileInfo, err := os.Stat(source)
 	if err != nil {
 		return "", err
+	}
+
+	archive := source
+
+	if fileInfo.IsDir() {
+		// package directory as archive/tarball
+		tmpDir, tarball, err := helpers.Tar(source)
+		defer os.RemoveAll(tmpDir)
+		if err != nil {
+			return "", err
+		}
+		archive = tarball
 	}
 
 	c.ui.Normal().Msg("Uploading application code ...")
 
 	log.V(1).Info("upload code")
 
-	// open the tarball
-	file, err := os.Open(tarball)
+	// open the archive
+	file, err := os.Open(archive)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to open tarball")
+		return "", errors.Wrap(err, "failed to open archive")
 	}
 	defer file.Close()
 
