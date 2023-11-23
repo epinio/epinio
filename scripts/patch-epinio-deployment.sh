@@ -61,7 +61,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 100Mi
+      storage: 150Mi
 EOF
 
 echo "Creating the dummy copier Pod"
