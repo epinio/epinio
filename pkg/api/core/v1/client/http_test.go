@@ -32,6 +32,8 @@ var _ = Describe("Client HTTP", func() {
 	var requestInterceptor func(r *http.Request)
 
 	JustBeforeEach(func() {
+		requestInterceptor = func(r *http.Request) {}
+
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer GinkgoRecover()
 
