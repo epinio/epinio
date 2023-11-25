@@ -170,12 +170,12 @@ func linkHandler(cmd *cobra.Command, _ string) func(link string) string {
 }
 
 func writeFileHeader(w io.Writer, sidebarLabel string) error {
-	description := sidebarLabel
-	keywords := sidebarLabel
-	docTopic := strings.ReplaceAll(sidebarLabel, " ", "-")
 	if sidebarLabel == "epinio" {
 		sidebarLabel = "epinio cli"
 	}
+	description := sidebarLabel
+	keywords := sidebarLabel
+	docTopic := strings.ReplaceAll(sidebarLabel, " ", "-")
 
 	_, err := fmt.Fprintf(w, `---
 sidebar_label: %s
