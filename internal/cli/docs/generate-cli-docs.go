@@ -173,12 +173,19 @@ func writeFileHeader(w io.Writer, sidebarLabel string) error {
 	if sidebarLabel == "epinio" {
 		sidebarLabel = "epinio cli"
 	}
+	description := sidebarLabel
+	keywords := sidebarLabel
+	docTopic := strings.ReplaceAll(sidebarLabel, " ", "-")
 
 	_, err := fmt.Fprintf(w, `---
-title: ""
-sidebar_label: "%s"
+sidebar_label: %s
+description: %s
+keywords: [epinio, kubernetes, %s]
+doc-type: [reference]
+doc-topic: [epinio, reference, epinio-cli, %s]
+doc-persona: [epinio-developer, epinio-operator]
 ---
-`, sidebarLabel)
+`, sidebarLabel, description, keywords, docTopic)
 
 	return errors.Wrap(err, "error writing file header")
 }
