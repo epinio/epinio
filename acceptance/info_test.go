@@ -12,6 +12,9 @@
 package acceptance_test
 
 import (
+	"encoding/json"
+
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -26,5 +29,16 @@ var _ = Describe("Info", LMisc, func() {
 		Expect(out).To(ContainSubstring(`Epinio Server Version: `))
 		Expect(out).To(ContainSubstring(`Epinio Client Version: `))
 		Expect(out).To(ContainSubstring(`OIDC enabled: `))
+	})
+
+	It("succeeds with JSON", func() {
+		out, err := env.Epinio("", "info", "--output", "json")
+		Expect(err).ToNot(HaveOccurred(), out)
+
+		info := &models.InfoResponse{}
+		err = json.Unmarshal([]byte(out), info)
+		Expect(err).ToNot(HaveOccurred(), out)
+		Expect(info.Platform).ToNot(BeEmpty())
+		Expect(info.Version).ToNot(BeEmpty())
 	})
 })
