@@ -179,6 +179,7 @@ func writeFileHeader(w io.Writer, sidebarLabel string) error {
 
 	_, err := fmt.Fprintf(w, `---
 sidebar_label: %s
+title: ""
 description: %s
 keywords: [epinio, kubernetes, %s]
 doc-type: [reference]
