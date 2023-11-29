@@ -138,7 +138,7 @@ func NewRootCmd() (*cobra.Command, error) {
 	rootCmd.AddCommand(
 		CmdCompletion,
 		cmd.NewSettingsCmd(client),
-		cmd.NewInfoCmd(client),
+		cmd.NewInfoCmd(client, cfg),
 		cmd.NewClientSyncCmd(client),
 		cmd.NewGitconfigCmd(client),
 		cmd.NewNamespaceCmd(client, cfg),

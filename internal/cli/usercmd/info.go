@@ -21,17 +21,21 @@ func (c *EpinioClient) Info() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	v, err := c.API.Info()
+	info, err := c.API.Info()
 	if err != nil {
 		return err
 	}
 
+	if c.ui.JSONEnabled() {
+		return c.ui.JSON(info)
+	}
+
 	c.ui.Success().
-		WithStringValue("Platform", v.Platform).
-		WithStringValue("Kubernetes Version", v.KubeVersion).
-		WithStringValue("Epinio Server Version", v.Version).
+		WithStringValue("Platform", info.Platform).
+		WithStringValue("Kubernetes Version", info.KubeVersion).
+		WithStringValue("Epinio Server Version", info.Version).
 		WithStringValue("Epinio Client Version", version.Version).
-		WithBoolValue("OIDC enabled", v.OIDCEnabled).
+		WithBoolValue("OIDC enabled", info.OIDCEnabled).
 		Msg("Epinio Environment")
 
 	return nil

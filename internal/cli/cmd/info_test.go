@@ -44,7 +44,7 @@ var _ = Describe("Command 'epinio info'", func() {
 		output = &bytes.Buffer{}
 		epinioClient.UI().SetOutput(output)
 
-		infoCmd = cmd.NewInfoCmd(epinioClient)
+		infoCmd = cmd.NewInfoCmd(epinioClient, cmd.NewRootConfig())
 	})
 
 	When("the api returns a complete response", func() {

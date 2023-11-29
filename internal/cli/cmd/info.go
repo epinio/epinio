@@ -18,8 +18,8 @@ import (
 )
 
 // NewInfoCmd returns a new 'epinio info' command
-func NewInfoCmd(client *usercmd.EpinioClient) *cobra.Command {
-	return &cobra.Command{
+func NewInfoCmd(client *usercmd.EpinioClient, rootCfg *RootConfig) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "info",
 		Short: "Shows information about the Epinio environment",
 		Long:  "Shows status and versions for epinio's server-side components.",
@@ -34,4 +34,10 @@ func NewInfoCmd(client *usercmd.EpinioClient) *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().VarP(rootCfg.Output, "output", "o", "sets output format [text|json]")
+	bindFlag(cmd, "output")
+	bindFlagCompletionFunc(cmd, "output", NewStaticFlagsCompletionFunc(rootCfg.Output.Allowed))
+
+	return cmd
 }
