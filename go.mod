@@ -38,7 +38,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.5.0
 	github.com/mholt/archiver/v3 v3.5.1
-	github.com/minio/minio-go/v7 v7.0.63
+	github.com/minio/minio-go/v7 v7.0.64
 	github.com/mittwald/go-helm-client v0.12.3
 	github.com/novln/docker-parser v1.0.0
 	github.com/olekukonko/tablewriter v0.0.5
