@@ -20,7 +20,7 @@ on:
       - 'acceptance/install/scenario5_test.go'
       - '.github/workflows/aks-letsencrypt.yml'
   schedule:
-    - cron:  '0 3 * * *'
+    # - cron:  '0 3 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:

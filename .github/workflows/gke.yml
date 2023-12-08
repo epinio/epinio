@@ -20,7 +20,7 @@ on:
       - 'acceptance/install/scenario1_test.go'
       - '.github/workflows/gke.yml'
   schedule:
-    - cron:  '0 1 * * *'
+    # - cron:  '0 1 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:

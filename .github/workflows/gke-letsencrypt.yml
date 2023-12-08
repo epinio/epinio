@@ -20,7 +20,7 @@ on:
       - 'acceptance/install/scenario2_test.go'
       - '.github/workflows/gke-letsencrypt.yml'
   schedule:
-    - cron:  '0 5 * * *'
+    # - cron:  '0 5 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:

@@ -19,7 +19,7 @@ on:
       - 'acceptance/install/suite_test.go'
       - '.github/workflows/rke-upgrade.yml'
   schedule:
-    - cron:  '30 2 * * *'
+    # - cron:  '30 2 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:

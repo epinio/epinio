@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
   # nightly
   schedule:
-    - cron:  '0 0 * * *'
+    # - cron:  '0 0 * * *'
 
 env:
   EPINIO_RELEASED: true
