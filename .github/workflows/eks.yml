@@ -19,8 +19,6 @@ on:
     paths:
       - 'acceptance/install/scenario4_test.go'
       - '.github/workflows/eks.yml'
-  schedule:
-    # - cron:  '0 4 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:

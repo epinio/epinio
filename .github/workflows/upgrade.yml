@@ -27,9 +27,6 @@ on:
     - 'README.md'
     - '.goreleaser.yml'
   workflow_dispatch:
-  # nightly
-  schedule:
-    # - cron:  '0 0 * * *'
 
 env:
   EPINIO_RELEASED: true

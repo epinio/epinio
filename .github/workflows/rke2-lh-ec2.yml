@@ -20,8 +20,6 @@ on:
     paths:
       - 'acceptance/install/scenario4_test.go'
       - '.github/workflows/rke2-lh-ec2.yml'
-  schedule:
-    # - cron:  '30 3 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:

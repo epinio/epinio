@@ -20,8 +20,6 @@ on:
       - 'acceptance/install/scenario1_test.go'
       - 'acceptance/install/suite_test.go'
       - '.github/workflows/gke-upgrade.yml'
-  schedule:
-    # - cron:  '30 1 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:

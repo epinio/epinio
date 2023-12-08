@@ -28,9 +28,6 @@ on:
       - 'docs/**'
       - 'acceptance/**'
 
-  schedule:
-    # - cron: '0 5 * * 0'
-
 jobs:
   analyse:
     name: Analyse

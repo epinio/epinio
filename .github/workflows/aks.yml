@@ -19,8 +19,6 @@ on:
     paths:
       - 'acceptance/install/scenario6_test.go'
       - '.github/workflows/aks.yml'
-  schedule:
-    # - cron:  '0 0 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:
