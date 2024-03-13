@@ -64,8 +64,13 @@ func (upgr *Upgrader) RoundTrip(req *http.Request) (*http.Response, error) {
 	return upgr.upstreamUpgr.RoundTrip(req)
 }
 
-func NewUpgrader(cfg spdy.RoundTripperConfig) *Upgrader {
-	return &Upgrader{upstreamUpgr: spdy.NewRoundTripperWithConfig(cfg)}
+func NewUpgrader(cfg spdy.RoundTripperConfig) (*Upgrader, error) {
+	roundTripper, err := spdy.NewRoundTripperWithConfig(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating roundtripper for upgrader")
+	}
+
+	return &Upgrader{upstreamUpgr: roundTripper}, nil
 }
 
 // AppCreate creates an application resource
@@ -281,10 +286,13 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 	endpoint := fmt.Sprintf("%s%s/%s",
 		c.Settings.API, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
-	upgradeRoundTripper := NewUpgrader(spdy.RoundTripperConfig{
+	upgradeRoundTripper, err := NewUpgrader(spdy.RoundTripperConfig{
 		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
 		PingPeriod: time.Second * 5,
 	})
+	if err != nil {
+		return errors.Wrap(err, "creating upgrader")
+	}
 
 	execURL, err := url.Parse(endpoint)
 	if err != nil {
@@ -373,10 +381,13 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 		portForwardURL.RawQuery = values.Encode()
 	}
 
-	upgradeRoundTripper := NewUpgrader(spdy.RoundTripperConfig{
+	upgradeRoundTripper, err := NewUpgrader(spdy.RoundTripperConfig{
 		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
 		PingPeriod: time.Second * 5,
 	})
+	if err != nil {
+		return errors.Wrap(err, "creating upgrader")
+	}
 
 	wrapper := transport.NewBearerAuthRoundTripper(c.Settings.Token.AccessToken, upgradeRoundTripper)
 

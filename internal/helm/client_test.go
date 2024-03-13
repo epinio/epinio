@@ -18,9 +18,9 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/internal/helm"
-	"github.com/golang/mock/gomock"
 	hc "github.com/mittwald/go-helm-client"
 	hcmock "github.com/mittwald/go-helm-client/mock"
+	"go.uber.org/mock/gomock"
 	"helm.sh/helm/v3/pkg/release"
 
 	. "github.com/onsi/ginkgo/v2"

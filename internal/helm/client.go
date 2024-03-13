@@ -8,6 +8,8 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/getter"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 )
@@ -170,4 +172,16 @@ func (c *SynchronizedClient) Push(chartref, remote string, opts ...action.PushOp
 
 	registryPushAction := action.NewPushWithOpts(opts...)
 	return registryPushAction.Run(chartref, remote)
+}
+
+func (c *SynchronizedClient) GetProviders() getter.Providers {
+	return c.helmClient.GetProviders()
+}
+
+func (c *SynchronizedClient) GetSettings() *cli.EnvSettings {
+	return c.helmClient.GetSettings()
+}
+
+func (c *SynchronizedClient) RunChartTests(releaseName string) (bool, error) {
+	return c.helmClient.RunChartTests(releaseName)
 }
