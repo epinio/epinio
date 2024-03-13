@@ -13,7 +13,7 @@ name: golangci-lint
 
 env:
   SETUP_GO_VERSION: '1.22.1'
-  GOLANGCI_LINT_VERSION: v1.52
+  GOLANGCI_LINT_VERSION: v1.56
 
 on:
   workflow_dispatch:
