@@ -54,7 +54,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
 
       - name: Lint Epinio
-        uses: golangci/golangci-lint-action@v3.7.0
+        uses: golangci/golangci-lint-action@v4
         timeout-minutes: 10
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
