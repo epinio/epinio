@@ -11,7 +11,7 @@ set -e
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION="5.0.0"
+VERSION="5.6.0"
 
 URL="https://github.com/rancher/k3d/releases/download/v${VERSION}/k3d-linux-amd64"
 SHA256="6744bfd5cea611dc3f2a24da7b25a28fd0dd4b78c486193c238d55619d7b7c43"
