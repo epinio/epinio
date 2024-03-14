@@ -136,10 +136,6 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-cli-apps:
     needs:
       - linter
@@ -208,10 +204,6 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-cli-services:
     needs:
       - linter
@@ -278,10 +270,6 @@ jobs:
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
-
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
 
   acceptance-api:
     needs:
@@ -351,10 +339,6 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-api-apps:
     needs:
       - linter
@@ -422,10 +406,6 @@ jobs:
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
-
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
 
   acceptance-api-cep-different-k8s:
     needs:
@@ -517,10 +497,6 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-api-services:
     needs:
       - linter
@@ -587,10 +563,6 @@ jobs:
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
-
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
 
   acceptance-apps:
     needs:
@@ -678,10 +650,6 @@ jobs:
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
-
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
 
   upload-coverage:
     needs:

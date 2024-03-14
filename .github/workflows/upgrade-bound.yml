@@ -97,7 +97,3 @@ jobs:
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
-
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1

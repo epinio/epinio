@@ -171,8 +171,3 @@ jobs:
         if: ${{ always() && !github.event.inputs.keep_cluster }}
         run: |
           sudo sh /usr/local/bin/rke2-uninstall.sh
-
-      # Only on RKE, as it uses a self-hosted runner
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
