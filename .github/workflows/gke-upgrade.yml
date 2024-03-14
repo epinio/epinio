@@ -172,7 +172,7 @@ jobs:
           export EPINIO_CURRENT_TAG="test-$(git describe --tags)"
           # Run GKE integrated install + upgrade test
           mkdir dist
-          scripts/get-latest-epinio.sh
+          ./scripts/get-latest-epinio.sh
           make test-acceptance-install
 
       - name: Delete GKE cluster

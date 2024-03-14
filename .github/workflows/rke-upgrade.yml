@@ -164,7 +164,7 @@ jobs:
           pwd
           # Run RKE integrated install + upgrade test using latest epinio release
           mkdir dist
-          scripts/get-latest-epinio.sh
+          ./scripts/get-latest-epinio.sh
           make test-acceptance-install
 
       - name: Delete RKE cluster

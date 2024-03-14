@@ -125,7 +125,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-other
-          scripts/collect-coverage.sh
+          ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -193,7 +193,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-apps
-          scripts/collect-coverage.sh
+          ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -260,7 +260,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-services
-          scripts/collect-coverage.sh
+          ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -328,7 +328,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-other
-          scripts/collect-coverage.sh
+          ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -396,7 +396,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-apps
-          scripts/collect-coverage.sh
+          ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -464,7 +464,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
-          scripts/collect-coverage.sh
+          ./scripts/collect-coverage.sh
       - uses: actions/upload-artifact@v3
         with:
           name: acceptance-api-apps
@@ -487,7 +487,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
-          scripts/collect-coverage.sh
+          ./scripts/collect-coverage.sh
       - uses: actions/upload-artifact@v3
         with:
           name: acceptance-api-apps
@@ -553,7 +553,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-services
-          scripts/collect-coverage.sh
+          ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -621,7 +621,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-apps
-          scripts/collect-coverage.sh
+          ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
