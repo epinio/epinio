@@ -31,7 +31,6 @@ env:
   GOLANGCI_LINT_VERSION: v1.56
   GINKGO_NODES: 8
   INGRESS_CONTROLLER: traefik
-  TRACE_LEVEL: 20
 
 jobs:
   linter:
