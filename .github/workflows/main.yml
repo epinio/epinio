@@ -132,6 +132,18 @@ jobs:
           name: acceptance-cli
           path: ./coverprofile.out
 
+      - name: Dump logs
+        if: always()
+        run: |
+          kubectl events -A >> ./logs.out
+          kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out
+
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: acceptance-cli-logs
+          path: ./logs.out
+      
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
@@ -199,6 +211,18 @@ jobs:
         with:
           name: acceptance-cli-apps
           path: ./coverprofile.out
+
+      - name: Dump logs
+        if: always()
+        run: |
+          kubectl events -A >> ./logs.out
+          kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out
+
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: acceptance-cli-apps-logs
+          path: ./logs.out
 
       - name: Cleanup k3d cluster
         if: always()
