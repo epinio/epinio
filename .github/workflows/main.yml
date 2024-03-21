@@ -135,6 +135,7 @@ jobs:
       - name: Dump logs
         if: always()
         run: |
+          export KUBECONFIG=$(k3d kubeconfig write mycluster)
           kubectl events -A >> ./logs.out
           kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out
 
@@ -215,6 +216,7 @@ jobs:
       - name: Dump logs
         if: always()
         run: |
+          export KUBECONFIG=$(k3d kubeconfig write mycluster)
           kubectl events -A >> ./logs.out
           kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out
 
