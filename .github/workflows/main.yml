@@ -125,12 +125,6 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-other
-          ./scripts/collect-coverage.sh
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: acceptance-cli
-          path: ./coverprofile.out
 
       - name: Dump logs
         if: always()
@@ -138,6 +132,14 @@ jobs:
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           kubectl events -A >> ./logs.out
           kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
+  
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-cli
+          path: ./coverprofile.out
 
       - uses: actions/upload-artifact@v3
         if: always()
@@ -206,12 +208,6 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-apps
-          ./scripts/collect-coverage.sh
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: acceptance-cli-apps
-          path: ./coverprofile.out
 
       - name: Dump logs
         if: always()
@@ -219,6 +215,14 @@ jobs:
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           kubectl events -A >> ./logs.out
           kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
+    
+      - uses: actions/upload-artifact@v3
+        with:
+          name: acceptance-cli
+          path: ./coverprofile.out
 
       - uses: actions/upload-artifact@v3
         if: always()
