@@ -83,6 +83,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	// Register routes - No authentication, no logging, no session.
 	// This is the healthcheck.
 	router.GET("/ready", func(c *gin.Context) {
+		time.Sleep(2 * time.Second)
 		c.JSON(http.StatusOK, gin.H{})
 	})
 	// And the API self-description
