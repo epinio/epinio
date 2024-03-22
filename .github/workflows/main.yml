@@ -130,8 +130,8 @@ jobs:
         if: always()
         run: |
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
-          kubectl events -A >> ./logs.out
-          kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out
+          kubectl events -A >> ./logs.out || true
+          kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out || true
 
       - name: Collect coverage
         run: ./scripts/collect-coverage.sh
@@ -213,8 +213,8 @@ jobs:
         if: always()
         run: |
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
-          kubectl events -A >> ./logs.out
-          kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out
+          kubectl events -A >> ./logs.out || true
+          kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out || true
 
       - name: Collect coverage
         run: ./scripts/collect-coverage.sh
