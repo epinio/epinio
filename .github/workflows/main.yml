@@ -83,6 +83,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+    
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -170,6 +176,7 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -254,6 +261,12 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
+
       - name: Setup Go
         uses: actions/setup-go@v4
         timeout-minutes: 5
@@ -321,6 +334,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -390,6 +409,12 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
+
       - name: Setup Go
         uses: actions/setup-go@v4
         timeout-minutes: 5
@@ -456,6 +481,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -547,6 +578,12 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
+
       - name: Setup Go
         uses: actions/setup-go@v4
         timeout-minutes: 5
@@ -614,6 +651,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
