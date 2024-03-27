@@ -36,7 +36,7 @@ env:
 
 jobs:
   upgrade-test:
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -80,7 +80,7 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           # Note: prepare has run build-images!
-          scripts/get-latest-epinio.sh
+          ./scripts/get-latest-epinio.sh
 
       - name: Upgrade Epinio with latest code
         env:
@@ -89,7 +89,7 @@ jobs:
           export EPINIO_CURRENT_TAG="test-$(git describe --tags)"
           # We have to export the EPINIO_SYSTEM_DOMAIN
           # before executing the ginkgo test
-          source scripts/helpers.sh
+          source ./scripts/helpers.sh
           prepare_system_domain
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make test-acceptance-upgrade
@@ -97,7 +97,3 @@ jobs:
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
-
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
