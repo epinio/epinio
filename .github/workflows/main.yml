@@ -135,7 +135,7 @@ jobs:
       - name: Dump logs
         if: always()
         run: |
-          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           kubectl events -A >> ./logs.out || true
           kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out || true
 
@@ -224,7 +224,7 @@ jobs:
       - name: Dump logs
         if: always()
         run: |
-          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           kubectl events -A >> ./logs.out || true
           kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out || true
 
