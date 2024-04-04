@@ -218,12 +218,6 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
-
-          # Ensure the client version won't match the server one
-          # export VSUFFIX=-dev
-          # Don't patch, just install the latest released version
-          # export EPINIO_RELEASED=true
-
           make prepare_environment_k3d
   
       - name: CLI Apps Acceptance Tests
@@ -231,7 +225,9 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
-        run: make test-acceptance-cli-apps
+        run: |
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make test-acceptance-cli-apps
 
       - name: Dump logs
         if: always()
