@@ -72,6 +72,7 @@ jobs:
   acceptance-cli:
     needs:
       - linter
+      - acceptance-cli-apps
     runs-on: ubuntu-latest
 
     env:
@@ -252,6 +253,7 @@ jobs:
   acceptance-cli-services:
     needs:
       - linter
+      - acceptance-cli-apps
     runs-on: ubuntu-latest
 
     env:
@@ -482,6 +484,7 @@ jobs:
   acceptance-api-cep-different-k8s:
     needs:
       - linter
+      - acceptance-cli-apps
     runs-on: ubuntu-latest
 
     env:
@@ -586,6 +589,7 @@ jobs:
   acceptance-api-services:
     needs:
       - linter
+      - acceptance-cli-apps
     runs-on: ubuntu-latest
 
     env:
