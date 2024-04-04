@@ -218,6 +218,12 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
+
+          # Ensure the client version won't match the server one
+          export VSUFFIX=-dev
+          # Don't patch, just install the latest released version
+          export EPINIO_RELEASED=true
+
           make prepare_environment_k3d
   
       - name: CLI Apps Acceptance Tests
