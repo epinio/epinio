@@ -119,18 +119,19 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: CLI Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-cli-other
+
+      - name: CLI Acceptance Tests
+        run: make test-acceptance-cli-other
 
       - name: Dump logs
         if: always()
@@ -207,19 +208,21 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: CLI Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
-          PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-cli-apps
+  
+      - name: CLI Apps Acceptance Tests
+        env:
+          PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
+        run: make test-acceptance-cli-apps
 
       - name: Dump logs
         if: always()
@@ -296,19 +299,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: CLI Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-cli-services
-          ./scripts/collect-coverage.sh
+
+      - name: CLI Services Acceptance Tests
+        run: make test-acceptance-cli-services
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -370,19 +376,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: API Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-other
-          ./scripts/collect-coverage.sh
+
+      - name: API Acceptance Tests
+        run: make test-acceptance-api-other
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -444,19 +453,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: API Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-apps
-          ./scripts/collect-coverage.sh
+
+      - name: API Acceptance Tests
+        run: make test-acceptance-api-apps
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -516,21 +528,25 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
-      
-      - name: API Acceptance Tests on LATEST K3S version
+
+      - name: Deploy k3d (with LATEST K3S) cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           export K3S_KIND=latest
           make acceptance-cluster-setup-several-k8s-versions
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-apps-critical-endpoints
-          ./scripts/collect-coverage.sh
+
+      - name: API Acceptance Tests on LATEST K3S version
+        run: make test-acceptance-api-apps-critical-endpoints
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
+
       - uses: actions/upload-artifact@v3
         with:
           name: acceptance-api-apps
@@ -540,20 +556,24 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: API Acceptance Tests on OLDEST K3S version
+      - name: Deploy k3d (with OLDEST K3S) cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           export K3S_KIND=oldest
           make acceptance-cluster-setup-several-k8s-versions
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-apps-critical-endpoints
-          ./scripts/collect-coverage.sh
+
+      - name: API Acceptance Tests on OLDEST K3S version
+        run: make test-acceptance-api-apps-critical-endpoints
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
+
       - uses: actions/upload-artifact@v3
         with:
           name: acceptance-api-apps
@@ -613,19 +633,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: API Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-services
-          ./scripts/collect-coverage.sh
+
+      - name: API Services Acceptance Tests
+        run: make test-acceptance-api-services
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -687,19 +710,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: Apps Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 5
+          EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-apps
-          ./scripts/collect-coverage.sh
+
+      - name: Apps Acceptance Tests
+        run: make test-acceptance-apps
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
