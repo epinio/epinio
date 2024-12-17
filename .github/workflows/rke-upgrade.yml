@@ -27,7 +27,7 @@ on:
 
 env:
   SETUP_GO_VERSION: '1.20.4'
-  GOLANGCI_LINT_VERSION: v1.52
+  GOLANGCI_LINT_VERSION: v1.56
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
@@ -63,7 +63,7 @@ jobs:
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
       - name: Lint Epinio
-        uses: golangci/golangci-lint-action@v3.7.0
+        uses: golangci/golangci-lint-action@v4
         timeout-minutes: 10
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
@@ -73,7 +73,7 @@ jobs:
   acceptance-scenario3-up:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -164,15 +164,10 @@ jobs:
           pwd
           # Run RKE integrated install + upgrade test using latest epinio release
           mkdir dist
-          scripts/get-latest-epinio.sh
+          ./scripts/get-latest-epinio.sh
           make test-acceptance-install
 
       - name: Delete RKE cluster
         if: ${{ always() && !github.event.inputs.keep_cluster }}
         run: |
           sudo sh /usr/local/bin/rke2-uninstall.sh
-
-      # Only on RKE, as it uses a self-hosted runner
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1

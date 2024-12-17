@@ -28,7 +28,7 @@ on:
 
 env:
   SETUP_GO_VERSION: '1.20.4'
-  GOLANGCI_LINT_VERSION: v1.52
+  GOLANGCI_LINT_VERSION: v1.56
   GINKGO_NODES: 8
   INGRESS_CONTROLLER: traefik
 
@@ -54,7 +54,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
 
       - name: Lint Epinio
-        uses: golangci/golangci-lint-action@v3.7.0
+        uses: golangci/golangci-lint-action@v4
         timeout-minutes: 10
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
@@ -72,7 +72,8 @@ jobs:
   acceptance-cli:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+      - acceptance-cli-apps
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -83,6 +84,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+    
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -113,37 +120,49 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: CLI Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-cli-other
-          scripts/collect-coverage.sh
 
+      - name: CLI Acceptance Tests
+        run: make test-acceptance-cli-other
+
+      - name: Dump logs
+        if: always()
+        run: |
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          kubectl events -A >> ./logs.out || true
+          kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out || true
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
+  
       - uses: actions/upload-artifact@v3
         with:
           name: acceptance-cli
           path: ./coverprofile.out
 
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: acceptance-cli-logs
+          path: ./logs.out
+      
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
-
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
 
   acceptance-cli-apps:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -154,6 +173,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -184,38 +209,56 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: CLI Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
-          PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
+  
+      - name: CLI Apps Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
+        run: |
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make test-acceptance-cli-apps
-          scripts/collect-coverage.sh
 
+      - name: Dump logs
+        if: always()
+        run: |
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          kubectl events -A >> ./logs.out || true
+          kubectl logs -n epinio -l 'app.kubernetes.io/name=epinio-server' >> ./logs.out || true
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
+    
       - uses: actions/upload-artifact@v3
         with:
-          name: acceptance-cli-apps
+          name: acceptance-cli
           path: ./coverprofile.out
+
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: acceptance-cli-apps-logs
+          path: ./logs.out
 
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-cli-services:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+      - acceptance-cli-apps
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -226,6 +269,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -256,19 +305,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: CLI Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-cli-services
-          scripts/collect-coverage.sh
+
+      - name: CLI Services Acceptance Tests
+        run: make test-acceptance-cli-services
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -279,15 +331,11 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-api:
     needs:
       - linter
       - acceptance-api-services
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -298,6 +346,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -328,19 +382,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: API Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-other
-          scripts/collect-coverage.sh
+
+      - name: API Acceptance Tests
+        run: make test-acceptance-api-other
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -351,15 +408,11 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-api-apps:
     needs:
       - linter
       - acceptance-cli-services
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -370,6 +423,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -400,19 +459,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: API Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-apps
-          scripts/collect-coverage.sh
+
+      - name: API Acceptance Tests
+        run: make test-acceptance-api-apps
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -423,14 +485,11 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-api-cep-different-k8s:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+      - acceptance-cli-apps
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -441,6 +500,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -470,21 +535,25 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
-      
-      - name: API Acceptance Tests on LATEST K3S version
+
+      - name: Deploy k3d (with LATEST K3S) cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           export K3S_KIND=latest
           make acceptance-cluster-setup-several-k8s-versions
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-apps-critical-endpoints
-          scripts/collect-coverage.sh
+
+      - name: API Acceptance Tests on LATEST K3S version
+        run: make test-acceptance-api-apps-critical-endpoints
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
+
       - uses: actions/upload-artifact@v3
         with:
           name: acceptance-api-apps
@@ -494,20 +563,24 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: API Acceptance Tests on OLDEST K3S version
+      - name: Deploy k3d (with OLDEST K3S) cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           export K3S_KIND=oldest
           make acceptance-cluster-setup-several-k8s-versions
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-apps-critical-endpoints
-          scripts/collect-coverage.sh
+
+      - name: API Acceptance Tests on OLDEST K3S version
+        run: make test-acceptance-api-apps-critical-endpoints
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
+
       - uses: actions/upload-artifact@v3
         with:
           name: acceptance-api-apps
@@ -517,14 +590,11 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-api-services:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+      - acceptance-cli-apps
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -535,6 +605,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -565,19 +641,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: API Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-api-services
-          scripts/collect-coverage.sh
+
+      - name: API Services Acceptance Tests
+        run: make test-acceptance-api-services
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -588,15 +667,11 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   acceptance-apps:
     needs:
       - linter
       - acceptance-cli
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -607,6 +682,12 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          detached: true
 
       - name: Setup Go
         uses: actions/setup-go@v4
@@ -637,19 +718,22 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: Apps Acceptance Tests
+      - name: Deploy k3d cluster with Epinio
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 5
+          EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cov*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
-          make test-acceptance-apps
-          scripts/collect-coverage.sh
+
+      - name: Apps Acceptance Tests
+        run: make test-acceptance-apps
+
+      - name: Collect coverage
+        run: ./scripts/collect-coverage.sh
 
       - uses: actions/upload-artifact@v3
         with:
@@ -679,10 +763,6 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
-
   upload-coverage:
     needs:
       - acceptance-api
@@ -690,7 +770,7 @@ jobs:
       - acceptance-apps
       - acceptance-cli-apps
 
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
