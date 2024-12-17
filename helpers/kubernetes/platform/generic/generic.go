@@ -61,7 +61,7 @@ func (k *Generic) ExternalIPs() []string {
 	return k.ExternalIP
 }
 
-func (k *Generic) InternalIP() []string {
+func (k *Generic) InternalIPs() []string {
 	return k.InternalIPs
 }
 
