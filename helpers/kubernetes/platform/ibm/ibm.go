@@ -52,10 +52,6 @@ func (k *IBM) ExternalIPs() []string {
 	return k.Generic.ExternalIP
 }
 
-func (k *IBM) InternalIPs() []string {
-	return k.Generic.InternalIP
-}
-
 // NewPlatform returns an instance of ibm struct.
 func NewPlatform() *IBM {
 	return &IBM{}

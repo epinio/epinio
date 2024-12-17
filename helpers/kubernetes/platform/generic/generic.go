@@ -61,6 +61,10 @@ func (k *Generic) ExternalIPs() []string {
 	return k.ExternalIP
 }
 
+func (k *Generic) InternalIP() []string {
+	return k.InternalIPs
+}
+
 func NewPlatform() *Generic {
 	return &Generic{}
 }
