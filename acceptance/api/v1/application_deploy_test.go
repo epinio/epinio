@@ -177,10 +177,10 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 						Namespace: namespace,
 					},
 				},
-				ImageURL: "splatform/sample-app",
+				ImageURL: "epinio/sample-app",
 				Origin: models.ApplicationOrigin{
 					Kind:      models.OriginContainer,
-					Container: "splatform/sample-app",
+					Container: "epinio/sample-app",
 				},
 			}
 		})

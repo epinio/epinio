@@ -30,7 +30,7 @@ var _ = Describe("AppRestart Endpoint", LApplication, func() {
 		namespace string
 		app1      string
 	)
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()

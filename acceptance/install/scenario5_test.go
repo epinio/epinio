@@ -66,7 +66,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", fu
 			"--set", "global.registryURL=registry.hub.docker.com",
 			"--set", "global.registryUsername=" + registryUsername,
 			"--set", "global.registryPassword=" + registryPassword,
-			"--set", "global.registryNamespace=splatform",
+			"--set", "global.registryNamespace=epinio",
 		}
 
 		extraEnvName, name_exists = os.LookupEnv("EXTRAENV_NAME")

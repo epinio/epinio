@@ -32,7 +32,7 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", LNamespace, func() {
 	var catalogService models.CatalogService
 
 	BeforeEach(func() {
-		containerImageURL = "splatform/sample-app"
+		containerImageURL = "epinio/sample-app"
 
 		// Create a Catalog Service
 		catalogService = models.CatalogService{
