@@ -72,7 +72,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 			"--set", "global.registryURL=registry.hub.docker.com",
 			"--set", "global.registryUsername=" + registryUsername,
 			"--set", "global.registryPassword=" + registryPassword,
-			"--set", "global.registryNamespace=splatform",
+			"--set", "global.registryNamespace=epinio",
 		}
 
 		extraEnvName, name_exists = os.LookupEnv("EXTRAENV_NAME")

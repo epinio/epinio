@@ -50,7 +50,7 @@ var _ = Describe("Apps", LApplication, func() {
 		namespace string
 		appName   string
 	)
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 	wordpress := "https://github.com/epinio/example-wordpress"
 	privateRepo := "https://github.com/epinio/example-go-private"
 	wpBuilder := "paketobuildpacks/builder:0.2.443-full"
@@ -1720,7 +1720,7 @@ epinio:
   configpaths: []
   configurations: []
   env: []
-  imageURL: splatform/sample-app
+  imageURL: epinio/sample-app
   ingress: null
   replicaCount: 1
   routes:
@@ -1781,7 +1781,7 @@ userConfig:
   configpaths: []
   configurations: []
   env: []
-  imageURL: splatform/sample-app
+  imageURL: epinio/sample-app
   ingress: null
   replicaCount: 1
   routes:
@@ -1832,7 +1832,7 @@ userConfig:
          "url":           "https://github.com/scures/epinio-sample-app",
          "commit":        "3ce7abe14abd849b374eb68729de8c71e9f3a927"
       }
-  imageURL: splatform/sample-app
+  imageURL: epinio/sample-app
   replicaCount: 1
   routes:
   - domain: %s

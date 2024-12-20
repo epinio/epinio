@@ -29,7 +29,7 @@ import (
 var _ = Describe("Configurations API Application Endpoints, Mutations", LConfiguration, func() {
 	var namespace string
 	const jsOK = `{"status":"ok"}`
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()

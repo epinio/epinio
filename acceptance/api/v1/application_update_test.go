@@ -38,7 +38,7 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 	)
 
 	BeforeEach(func() {
-		containerImageURL = "splatform/sample-app"
+		containerImageURL = "epinio/sample-app"
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 

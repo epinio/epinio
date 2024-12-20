@@ -47,13 +47,13 @@ var _ = Describe("ConnectionDetails", func() {
 	Describe("Validate", func() {
 		var imageURL string
 		BeforeEach(func() {
-			imageURL = "splatform/sample-app"
+			imageURL = "epinio/sample-app"
 		})
 		It("extracts the registry and image parts", func() {
 			registry, image, err := registry.ExtractImageParts(imageURL)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(registry).To(Equal("docker.io"))
-			Expect(image).To(Equal("splatform/sample-app:latest"))
+			Expect(image).To(Equal("epinio/sample-app:latest"))
 		})
 	})
 
@@ -138,7 +138,7 @@ var _ = Describe("ConnectionDetails", func() {
 						{URL: "registry.hub.docker.com"},
 					},
 				}
-				imageURL = "splatform/my-app"
+				imageURL = "epinio/my-app"
 			})
 			It("returns the image url unchanged", func() {
 				newImageURL, err := details.ReplaceWithInternalRegistry(imageURL)

@@ -31,7 +31,7 @@ var _ = Describe("AppBatchDelete Endpoint", LApplication, func() {
 	var (
 		namespace, app1, app2 string
 	)
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()

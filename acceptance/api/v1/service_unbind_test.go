@@ -30,7 +30,7 @@ var _ = Describe("ServiceUnbind Endpoint", LService, func() {
 	var catalogService models.CatalogService
 
 	BeforeEach(func() {
-		containerImageURL = "splatform/sample-app"
+		containerImageURL = "epinio/sample-app"
 
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)

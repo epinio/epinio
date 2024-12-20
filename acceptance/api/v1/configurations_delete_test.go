@@ -91,7 +91,7 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 			BeforeEach(func() {
 				requestBody = `{ "unbind": true }`
 
-				containerImageURL = "splatform/sample-app"
+				containerImageURL = "epinio/sample-app"
 				appName = catalog.NewAppName()
 
 				env.MakeContainerImageApp(appName, 1, containerImageURL)
