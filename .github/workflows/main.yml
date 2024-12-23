@@ -51,7 +51,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Lint Epinio
         uses: golangci/golangci-lint-action@v3.7.0
@@ -92,7 +92,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -136,9 +136,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-cli-apps:
     needs:
@@ -163,7 +164,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -208,9 +209,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-cli-services:
     needs:
@@ -235,7 +237,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -279,9 +281,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-api:
     needs:
@@ -307,7 +310,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -351,9 +354,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-api-apps:
     needs:
@@ -379,7 +383,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -423,9 +427,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-api-cep-different-k8s:
     needs:
@@ -450,7 +455,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -517,9 +522,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-api-services:
     needs:
@@ -544,7 +550,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -588,9 +594,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-apps:
     needs:
@@ -616,7 +623,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -679,9 +686,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   upload-coverage:
     needs:
