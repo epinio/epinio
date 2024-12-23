@@ -17,9 +17,9 @@ URL="https://dl.k8s.io/release/v${VERSION}/bin/linux/amd64/kubectl"
 SHA256="e4e569249798a09f37e31b8b33571970fcfbdecdd99b1b81108adc93ca74b522"
 
 pushd "$TMP_DIR" > /dev/null
-wget -q "$URL" -O kubeclt
-echo "${SHA256} kubeclt" | sha256sum -c
+wget -q "$URL" -O kubectl
+echo "${SHA256} kubectl" | sha256sum -c
 
-chmod +x kubeclt
-mv kubeclt "${OUTPUT_DIR}/kubeclt"
+chmod +x kubectl
+mv kubectl "${OUTPUT_DIR}/kubectl"
 popd > /dev/null
