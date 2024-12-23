@@ -136,9 +136,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-cli-apps:
     needs:
@@ -208,9 +209,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-cli-services:
     needs:
@@ -279,9 +281,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-api:
     needs:
@@ -351,9 +354,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-api-apps:
     needs:
@@ -423,9 +427,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-api-cep-different-k8s:
     needs:
@@ -517,9 +522,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-api-services:
     needs:
@@ -588,9 +594,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   acceptance-apps:
     needs:
@@ -679,9 +686,10 @@ jobs:
         if: always()
         run: make acceptance-cluster-delete
 
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
 
   upload-coverage:
     needs:
