@@ -143,8 +143,8 @@ jobs:
 
   acceptance-cli-apps:
     needs:
-      - linteepinio-runner-set
-    runs-on: [self-hosted, epinio]
+      - linter
+    runs-on: epinio-runner-set
 
     env:
       GOCOVERDIR: /tmp
@@ -215,9 +215,9 @@ jobs:
       #   uses: colpal/actions-clean@v1
 
   acceptance-cli-services:
-    needs:epinio-runner-set
+    needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
 
     env:
       GOCOVERDIR: /tmp
@@ -287,10 +287,10 @@ jobs:
       #   uses: colpal/actions-clean@v1
 
   acceptance-api:
-    needs:epinio-runner-set
+    needs:
       - linter
       - acceptance-api-services
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
 
     env:
       GOCOVERDIR: /tmp
@@ -359,11 +359,11 @@ jobs:
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
-  acceptance-epinio-runner-set
+  acceptance-api-apps:
     needs:
       - linter
       - acceptance-cli-services
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
 
     env:
       GOCOVERDIR: /tmp
@@ -430,12 +430,12 @@ jobs:
       # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
       # - name: Clean all
       #   if: ${{ github.event_name == 'schedule' }}
-      #   useepinio-runner-setan@v1
+      #   uses: colpal/actions-clean@v1
 
   acceptance-api-cep-different-k8s:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
 
     env:
       GOCOVERDIR: /tmp
@@ -524,13 +524,13 @@ jobs:
 
       # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
       # - name: Clean all
-      #   if:epinio-runner-sete == 'schedule' }}
+      #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
   acceptance-api-services:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
 
     env:
       GOCOVERDIR: /tmp
@@ -596,14 +596,14 @@ jobs:
 
       # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
       # - name: Clean all
-      #   if:epinio-runner-sete == 'schedule' }}
+      #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
   acceptance-apps:
     needs:
       - linter
       - acceptance-cli
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
 
     env:
       GOCOVERDIR: /tmp
@@ -690,7 +690,7 @@ jobs:
       # - name: Clean all
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
-epinio-runner-set
+
   upload-coverage:
     needs:
       - acceptance-api
@@ -698,7 +698,7 @@ epinio-runner-set
       - acceptance-apps
       - acceptance-cli-apps
 
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
 
     steps:
       - name: Checkout
