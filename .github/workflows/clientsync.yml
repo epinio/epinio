@@ -35,7 +35,7 @@ env:
 jobs:
   client-sync-test:
     runs-on: epinio-runner-set
-    container: ubuntu:latest
+    container: buildpack-deps:ubuntu
     steps:
       - name: Checkout
         uses: actions/checkout@v3
