@@ -72,7 +72,7 @@ jobs:
   acceptance-cli:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
 
     env:
       GOCOVERDIR: /tmp
@@ -143,7 +143,7 @@ jobs:
 
   acceptance-cli-apps:
     needs:
-      - linter
+      - linteepinio-runner-set
     runs-on: [self-hosted, epinio]
 
     env:
@@ -215,7 +215,7 @@ jobs:
       #   uses: colpal/actions-clean@v1
 
   acceptance-cli-services:
-    needs:
+    needs:epinio-runner-set
       - linter
     runs-on: [self-hosted, epinio]
 
@@ -287,7 +287,7 @@ jobs:
       #   uses: colpal/actions-clean@v1
 
   acceptance-api:
-    needs:
+    needs:epinio-runner-set
       - linter
       - acceptance-api-services
     runs-on: [self-hosted, epinio]
@@ -359,7 +359,7 @@ jobs:
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
-  acceptance-api-apps:
+  acceptance-epinio-runner-set
     needs:
       - linter
       - acceptance-cli-services
@@ -430,7 +430,7 @@ jobs:
       # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
       # - name: Clean all
       #   if: ${{ github.event_name == 'schedule' }}
-      #   uses: colpal/actions-clean@v1
+      #   useepinio-runner-setan@v1
 
   acceptance-api-cep-different-k8s:
     needs:
@@ -524,7 +524,7 @@ jobs:
 
       # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
       # - name: Clean all
-      #   if: ${{ github.event_name == 'schedule' }}
+      #   if:epinio-runner-sete == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
   acceptance-api-services:
@@ -596,7 +596,7 @@ jobs:
 
       # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
       # - name: Clean all
-      #   if: ${{ github.event_name == 'schedule' }}
+      #   if:epinio-runner-sete == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
   acceptance-apps:
@@ -690,7 +690,7 @@ jobs:
       # - name: Clean all
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
-
+epinio-runner-set
   upload-coverage:
     needs:
       - acceptance-api
