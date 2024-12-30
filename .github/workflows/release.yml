@@ -62,7 +62,7 @@ jobs:
 
       - uses: anchore/sbom-action/download-syft@v0.14.3
 
-      - uses: sigstore/cosign-installer@v3.1.1
+      - uses: sigstore/cosign-installer@v3.7.0
 
         # if the release was triggered manually we get the latest tag from git
         # otherwise we will get the info from the 'github.ref_name'
