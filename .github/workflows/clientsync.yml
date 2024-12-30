@@ -35,7 +35,7 @@ env:
 jobs:
   client-sync-test:
     runs-on: epinio-runner-set
-    container: buildpack-deps:jammy
+    # container: buildpack-deps:jammy
     steps:
       - name: Checkout
         uses: actions/checkout@v3
