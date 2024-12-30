@@ -73,6 +73,10 @@ jobs:
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
       - name: Deploy k3d cluster with latest release of Epinio
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
