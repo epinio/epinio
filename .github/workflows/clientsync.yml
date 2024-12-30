@@ -35,7 +35,7 @@ env:
 jobs:
   client-sync-test:
     runs-on: epinio-runner-set
-    container: buildpack-deps:jammy
+    container: summerwind/actions-runner
     steps:
       - name: Checkout
         uses: actions/checkout@v3
