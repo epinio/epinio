@@ -27,7 +27,7 @@ on:
     - '.goreleaser.yml'
 
 env:
-  SETUP_GO_VERSION: '1.20.4'
+  SETUP_GO_VERSION: '1.20.14'
   GOLANGCI_LINT_VERSION: v1.52
   GINKGO_NODES: 8
   INGRESS_CONTROLLER: traefik
