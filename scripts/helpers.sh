@@ -16,7 +16,7 @@ function prepare_system_domain {
   echo "Prepare system domain"
   if [[ -z "${EPINIO_SYSTEM_DOMAIN}" ]]; then
     echo -e "\e[32mEPINIO_SYSTEM_DOMAIN not set. Trying to use a magic domain...\e[0m"
-    EPINIO_CLUSTER_IP=$(docker inspect k3d-epinio-acceptance-server-0 | jq -r '.[0]["NetworkSettings"]["Networks"]["epinio-acceptance"]["IPAddress"]')
+    EPINIO_CLUSTER_IP=$(docker inspect k3d-epinio-acceptance-serverlb | jq -r '.[0]["NetworkSettings"]["Networks"]["epinio-acceptance"]["IPAddress"]')
     if [[ -z $EPINIO_CLUSTER_IP ]]; then
       echo "Couldn't find the cluster's IP address"
       exit 1
