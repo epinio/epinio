@@ -137,9 +137,9 @@ jobs:
         run: make acceptance-cluster-delete
 
       # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
-      # - name: Clean all
-      #   if: ${{ github.event_name == 'schedule' }}
-      #   uses: colpal/actions-clean@v1
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
 
   acceptance-cli-apps:
     needs:
