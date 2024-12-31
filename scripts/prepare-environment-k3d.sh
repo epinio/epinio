@@ -138,6 +138,9 @@ rm -f $HOME/.config/epinio/settings.yaml
 # Retry 5 times and sleep 1s because sometimes it takes a while before epinio server is ready
 
 echo "-------------------------------------"
+echo -n "Checking version"
+retry 5 1 "${EPINIO_BINARY} version"
+echo "-------------------------------------"
 echo -n "Trying to login"
 retry 5 1 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN"
 echo "-------------------------------------"
