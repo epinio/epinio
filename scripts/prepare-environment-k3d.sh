@@ -105,6 +105,9 @@ else
     --set server.disableTracking="true" \
     --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
+    --set kubed.operator.registry="rancher" \
+    --set kubed.operator.repository="mirrored-appscode-kubed" \
+    --set kubed.operator.tag="v0.13.2" \
     epinio helm-charts/chart/epinio --wait "$@"
 
   # compile coverage binary and add required env var
