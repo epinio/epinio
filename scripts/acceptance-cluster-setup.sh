@@ -71,10 +71,10 @@ EOF
 echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" --api-port localhost:5443 $EPINIO_K3D_INSTALL_ARGS
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" --api-port localhost:6443 $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server:0' -p '443:443@server:0' --image "$K3S_IMAGE" --api-port localhost:5443 $EPINIO_K3D_INSTALL_ARGS
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server:0' -p '443:443@server:0' --image "$K3S_IMAGE" --api-port localhost:6443 $EPINIO_K3D_INSTALL_ARGS
 fi
 k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
 echo "$KUBECONFIG"
