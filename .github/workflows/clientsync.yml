@@ -28,7 +28,7 @@ on:
   workflow_dispatch:
 
 env:
-  SETUP_GO_VERSION: '1.20.4'
+  SETUP_GO_VERSION: '1.20.14'
   GINKGO_NODES: 2
   INGRESS_CONTROLLER: traefik
 

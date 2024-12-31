@@ -159,7 +159,7 @@ jobs:
           # EPINIO_UPGRADED triggers starting with a released epinio in suite setup, and the upgrade sequence
           # Get a free IP address on server's network
           export RANGE_IP="$(scripts/get-free-ip.sh)"
-          export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).omg.howdoi.website"
+          export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).sslip.io"
           export EPINIO_CURRENT_TAG="test-$(git describe --tags)"
           pwd
           # Run RKE integrated install + upgrade test using latest epinio release

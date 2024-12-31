@@ -55,7 +55,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 
 		domain = os.Getenv("EPINIO_SYSTEM_DOMAIN")
 		Expect(domain).ToNot(BeEmpty())
-		domainIP = strings.TrimSuffix(domain, ".omg.howdoi.website")
+		domainIP = strings.TrimSuffix(domain, ".sslip.io")
 
 		appName = "external-reg-test-rke"
 
