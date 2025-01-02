@@ -14,7 +14,7 @@ set -e
 VERSION="5.7.5"
 
 URL="https://github.com/k3d-io/k3d/releases/download/v${VERSION}/k3d-linux-amd64"
-SHA256="94f6277990c37ade24b69d3dd1a2dd5656bbcac1402ce33797a5751d93e8863e"
+SHA256="5d3f22817d9e163ab6ed43572189dd49fe724d7a6948075b570067747eca8d3f"
 
 pushd "$TMP_DIR" > /dev/null
 wget -q "$URL" -O k3d
