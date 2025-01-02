@@ -105,6 +105,9 @@ else
     --set server.disableTracking="true" \
     --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
+    --set kubed.operator.registry="rancher" \
+    --set kubed.operator.repository="mirrored-appscode-kubed" \
+    --set kubed.operator.tag="v0.13.2" \
     epinio helm-charts/chart/epinio --wait "$@"
 
   # compile coverage binary and add required env var
@@ -135,8 +138,11 @@ rm -f $HOME/.config/epinio/settings.yaml
 # Retry 5 times and sleep 1s because sometimes it takes a while before epinio server is ready
 
 echo "-------------------------------------"
+echo -n "Checking version"
+retry 5 1 "${EPINIO_BINARY} version"
+echo "-------------------------------------"
 echo -n "Trying to login"
-retry 5 1 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN"
+retry 5 20 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN"
 echo "-------------------------------------"
 echo -n "Trying to getting info"
 retry 5 1 "${EPINIO_BINARY} info"
