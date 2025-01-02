@@ -119,7 +119,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
-          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -194,7 +194,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
           PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
-          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -268,7 +268,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
-          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -343,7 +343,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
-          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -418,7 +418,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
-          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -492,7 +492,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
-          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=latest
@@ -516,7 +516,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
-          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=oldest
@@ -590,7 +590,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
-          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -665,7 +665,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 5
-          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
