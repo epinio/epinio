@@ -73,7 +73,7 @@ jobs:
     needs:
       - linter
     runs-on: epinio-runner-set
-    container: epinio/actions-container:latest
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -147,7 +147,7 @@ jobs:
     needs:
       - linter
     runs-on: epinio-runner-set
-    container: epinio/actions-container:latest
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -222,7 +222,7 @@ jobs:
     needs:
       - linter
     runs-on: epinio-runner-set
-    container: epinio/actions-container:latest
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -297,7 +297,7 @@ jobs:
       - linter
       - acceptance-api-services
     runs-on: epinio-runner-set
-    container: epinio/actions-container:latest
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -372,7 +372,7 @@ jobs:
       - linter
       - acceptance-cli-services
     runs-on: epinio-runner-set
-    container: epinio/actions-container:latest
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -446,7 +446,7 @@ jobs:
     needs:
       - linter
     runs-on: epinio-runner-set
-    container: epinio/actions-container:latest
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -544,7 +544,7 @@ jobs:
     needs:
       - linter
     runs-on: epinio-runner-set
-    container: epinio/actions-container:latest
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -619,7 +619,7 @@ jobs:
       - linter
       - acceptance-cli
     runs-on: epinio-runner-set
-    container: epinio/actions-container:latest
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -716,7 +716,7 @@ jobs:
       - acceptance-cli-apps
 
     runs-on: epinio-runner-set
-    container: epinio/actions-container:latest
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     steps:
       - name: Checkout
