@@ -18,6 +18,7 @@ MIRROR_NAME=epinio-acceptance-registry-mirror
 CLUSTER_NAME=epinio-acceptance
 export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
 K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.30.6-k3s1}
+echo "Operating as user: ${UID}"
 
 check_deps() {
   if ! command -v k3d &> /dev/null

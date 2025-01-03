@@ -37,7 +37,7 @@ jobs:
     runs-on: epinio-runner-set
     container:
       image: ghcr.io/k3d-io/k3d:5-dind
-      options: --user 1001 --privileged
+      options: --privileged
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -67,12 +67,12 @@ jobs:
       #     username: ${{ secrets.DOCKERHUB_USERNAME }}
       #     password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Install Tools
-        run: make tools-install
+      # - name: Install Tools
+      #   run: make tools-install
 
-      - name: Add Tools to PATH
-        run: |
-          echo "`pwd`/output/bin" >> $GITHUB_PATH
+      # - name: Add Tools to PATH
+      #   run: |
+      #     echo "`pwd`/output/bin" >> $GITHUB_PATH
 
       - name: Deploy k3d cluster with latest release of Epinio
         env:
