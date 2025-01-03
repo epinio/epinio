@@ -83,6 +83,8 @@ k3d cluster list
 k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
 cat $KUBECONFIG
 echo "Waiting for node to be ready"
+# try to get errors
+kubectl get nodes -v=10
 kubectl wait --for=condition=Ready nodes --all --timeout=600s
 nodeName=$(kubectl get nodes -o name)
 kubectl wait --for=condition=Ready "$nodeName"
