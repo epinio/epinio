@@ -97,4 +97,8 @@ kubectl wait --for=condition=Available --namespace kube-system deployment/coredn
 kubectl wait --for=condition=Available --namespace kube-system deployment/local-path-provisioner	--timeout=1200s
 date
 
+kubectl create secret docker-registry myregistrykey --docker-server=docker.io --docker-username=${REGISTRY_USERNAME} --docker-password=${REGISTRY_PASSWORD}
+kubectl get secrets myregistrykey
+kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "myregistrykey"}]}'
+
 echo "Done! The cluster is ready."
