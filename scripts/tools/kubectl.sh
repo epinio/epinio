@@ -14,7 +14,7 @@ set -e
 VERSION="1.30.6"
 
 URL="https://dl.k8s.io/release/v${VERSION}/bin/linux/amd64/kubectl"
-SHA256="e4e569249798a09f37e31b8b33571970fcfbdecdd99b1b81108adc93ca74b522"
+SHA256="7a3adf80ca74b1b2afdfc7f4570f0005ca03c2812367ffb6ee2f731d66e45e61"
 
 pushd "$TMP_DIR" > /dev/null
 wget -q "$URL" -O kubectl
