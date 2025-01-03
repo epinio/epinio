@@ -37,6 +37,8 @@ jobs:
     runs-on: epinio-runner-set
     container:
       image: ghcr.io/k3d-io/k3d:5-dind
+      ports:
+        - 6550
       # options: --privileged
     steps:
       - name: Checkout
