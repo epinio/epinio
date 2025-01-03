@@ -69,12 +69,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # - name: Install Tools
-      #   run: make tools-install
+      - name: Install Tools
+        run: make tools-install
 
-      # - name: Add Tools to PATH
-      #   run: |
-      #     echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
 
       - name: Deploy k3d cluster with latest release of Epinio
         env:
