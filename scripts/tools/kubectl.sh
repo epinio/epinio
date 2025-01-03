@@ -11,7 +11,7 @@ set -e
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION="1.25.4"
+VERSION="1.30.6"
 
 URL="https://dl.k8s.io/release/v${VERSION}/bin/linux/amd64/kubectl"
 SHA256="e4e569249798a09f37e31b8b33571970fcfbdecdd99b1b81108adc93ca74b522"
