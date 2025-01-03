@@ -73,7 +73,7 @@ echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
   echo "Creating without exposing ports on the host"
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" --api-port 172.19.0.1:6550 $EPINIO_K3D_INSTALL_ARGS
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --image "$K3S_IMAGE" --api-port 172.19.0.1:6550 $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
   echo "Creating with exposing ports on the host"
