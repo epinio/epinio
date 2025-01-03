@@ -37,15 +37,15 @@ if [[ "$(existingCluster)" != "" ]]; then
   exit 0
 fi
 
-# echo "Ensuring a network"
-# docker network create $NETWORK_NAME || echo "Network already exists"
+echo "Ensuring a network"
+docker network create $NETWORK_NAME || echo "Network already exists"
 
 if [[ "$SHARED_REGISTRY_MIRROR" == "" ]]; then
   echo "Ensuring registry mirror (even if it's stopped)"
   existingMirror=$(docker ps -a --filter name=$MIRROR_NAME -q)
   if [[ $existingMirror  == "" ]]; then
     echo "No mirror found, creating one"
-    docker run -d --name $MIRROR_NAME \
+    docker run -d --network $NETWORK_NAME --name $MIRROR_NAME \
       -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io \
       -e REGISTRY_PROXY_USERNAME="${REGISTRY_USERNAME}" \
       -e REGISTRY_PROXY_PASSWORD="${REGISTRY_PASSWORD}" \
@@ -73,11 +73,11 @@ echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
   echo "Creating without exposing ports on the host"
-  k3d cluster create $CLUSTER_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" --api-port 0.0.0.0:6550 $EPINIO_K3D_INSTALL_ARGS
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" --api-port 127.0.0.1:6550 $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
   echo "Creating with exposing ports on the host"
-  k3d cluster create $CLUSTER_NAME --registry-config $TMP_CONFIG -p '80:80@loadbalancer' -p '443:443@loadbalancer' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@loadbalancer' -p '443:443@loadbalancer' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 fi
 k3d cluster list
 k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
