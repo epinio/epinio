@@ -27,7 +27,7 @@ on:
     - '.goreleaser.yml'
 
 env:
-  SETUP_GO_VERSION: '1.20.4'
+  SETUP_GO_VERSION: '1.20.14'
   GOLANGCI_LINT_VERSION: v1.52
   GINKGO_NODES: 8
   INGRESS_CONTROLLER: traefik
@@ -72,7 +72,8 @@ jobs:
   acceptance-cli:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -118,6 +119,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -137,14 +139,15 @@ jobs:
         run: make acceptance-cluster-delete
 
       # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
-      # - name: Clean all
-      #   if: ${{ github.event_name == 'schedule' }}
-      #   uses: colpal/actions-clean@v1
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
 
   acceptance-cli-apps:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -191,6 +194,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
           PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -217,7 +221,8 @@ jobs:
   acceptance-cli-services:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -263,6 +268,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -290,7 +296,8 @@ jobs:
     needs:
       - linter
       - acceptance-api-services
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -336,6 +343,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -363,7 +371,8 @@ jobs:
     needs:
       - linter
       - acceptance-cli-services
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -409,6 +418,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -435,7 +445,8 @@ jobs:
   acceptance-api-cep-different-k8s:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -481,6 +492,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=latest
@@ -504,6 +516,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=oldest
@@ -530,7 +543,8 @@ jobs:
   acceptance-api-services:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -576,6 +590,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -603,7 +618,8 @@ jobs:
     needs:
       - linter
       - acceptance-cli
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     env:
       GOCOVERDIR: /tmp
@@ -649,6 +665,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 5
+          # EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -698,7 +715,8 @@ jobs:
       - acceptance-apps
       - acceptance-cli-apps
 
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
+    container: ghcr.io/k3d-io/k3d:5-dind
 
     steps:
       - name: Checkout

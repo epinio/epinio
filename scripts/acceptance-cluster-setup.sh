@@ -17,7 +17,8 @@ NETWORK_NAME=epinio-acceptance
 MIRROR_NAME=epinio-acceptance-registry-mirror
 CLUSTER_NAME=epinio-acceptance
 export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
-K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.25.4-k3s1}
+K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.30.6-k3s1}
+echo "Operating as user: ${UID}"
 
 check_deps() {
   if ! command -v k3d &> /dev/null
@@ -71,14 +72,19 @@ EOF
 echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+  echo "Creating without exposing ports on the host"
+  K3D_FIX_DNS=0 k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --image "$K3S_IMAGE" --api-port 172.19.0.1:6550 $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server:0' -p '443:443@server:0' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+  echo "Creating with exposing ports on the host"
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@loadbalancer' -p '443:443@loadbalancer' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 fi
+k3d cluster list
 k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
-
+cat $KUBECONFIG
 echo "Waiting for node to be ready"
+# try to get errors
+kubectl get nodes -v=10
 kubectl wait --for=condition=Ready nodes --all --timeout=600s
 nodeName=$(kubectl get nodes -o name)
 kubectl wait --for=condition=Ready "$nodeName"
@@ -90,5 +96,12 @@ kubectl wait --for=condition=Available --namespace kube-system deployment/metric
 kubectl wait --for=condition=Available --namespace kube-system deployment/coredns			--timeout=1200s
 kubectl wait --for=condition=Available --namespace kube-system deployment/local-path-provisioner	--timeout=1200s
 date
+
+# kubectl create secret docker-registry myregistrykey --docker-server=docker.io --docker-username=${REGISTRY_USERNAME} --docker-password=${REGISTRY_PASSWORD}
+# kubectl get secrets myregistrykey
+# kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "myregistrykey"}]}'
+# echo "nameserver 8.8.8.8" > /etc/resolv.conf
+# echo "nameserver 8.8.8.8" | tee /etc/resolv.conf
+
 
 echo "Done! The cluster is ready."
