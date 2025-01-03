@@ -100,7 +100,8 @@ date
 # kubectl create secret docker-registry myregistrykey --docker-server=docker.io --docker-username=${REGISTRY_USERNAME} --docker-password=${REGISTRY_PASSWORD}
 # kubectl get secrets myregistrykey
 # kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "myregistrykey"}]}'
-echo "nameserver 8.8.8.8" > /etc/resolv.conf
-echo "nameserver 8.8.8.8" | tee /etc/resolv.conf
+# echo "nameserver 8.8.8.8" > /etc/resolv.conf
+# echo "nameserver 8.8.8.8" | tee /etc/resolv.conf
+
 
 echo "Done! The cluster is ready."
