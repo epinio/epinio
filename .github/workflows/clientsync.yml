@@ -35,7 +35,9 @@ env:
 jobs:
   client-sync-test:
     runs-on: epinio-runner-set
-    # container: ghcr.io/k3d-io/k3d:5-dind
+    container:
+        image: ghcr.io/k3d-io/k3d:5-dind
+        options: --privileged
     steps:
       - name: Checkout
         uses: actions/checkout@v3
