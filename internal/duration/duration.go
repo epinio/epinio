@@ -15,6 +15,8 @@ package duration
 
 import (
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	flag "github.com/spf13/pflag"
@@ -91,6 +93,12 @@ func UserAbort() time.Duration {
 }
 
 // LogHistory returns the duration to reach into the past for tailing logs.
+// LogHistory returns the duration to reach into the past for tailing logs.
 func LogHistory() time.Duration {
+	if hours := os.Getenv("LOG_HISTORY_HOURS"); hours != "" {
+		if h, err := strconv.ParseInt(hours, 10, 64); err == nil {
+			return time.Duration(h) * time.Hour
+		}
+	}
 	return logHistory
 }
