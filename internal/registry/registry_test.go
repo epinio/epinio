@@ -149,7 +149,7 @@ var _ = Describe("ConnectionDetails", func() {
 		When("there is a localhost registry url", func() {
 			var publicRegistryURL string
 			BeforeEach(func() {
-				publicRegistryURL = fmt.Sprintf("%s.%s", "epinio-registry", "1.2.3.4.omg.howdoi.website")
+				publicRegistryURL = fmt.Sprintf("%s.%s", "epinio-registry", "1.2.3.4.sslip.io")
 			})
 			When("the image url matches the public registry URL", func() {
 				BeforeEach(func() {
