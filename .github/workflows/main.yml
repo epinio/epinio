@@ -64,7 +64,7 @@ jobs:
       - name: Unit Tests
         run: make test
       
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: unittests
           path: ./coverprofile.out
@@ -127,7 +127,7 @@ jobs:
           make test-acceptance-cli-other
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acceptance-cli
           path: ./coverprofile.out
@@ -200,7 +200,7 @@ jobs:
           make test-acceptance-cli-apps
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acceptance-cli-apps
           path: ./coverprofile.out
@@ -272,7 +272,7 @@ jobs:
           make test-acceptance-cli-services
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acceptance-cli-services
           path: ./coverprofile.out
@@ -345,7 +345,7 @@ jobs:
           make test-acceptance-api-other
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acceptance-api
           path: ./coverprofile.out
@@ -418,7 +418,7 @@ jobs:
           make test-acceptance-api-apps
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acceptance-api-apps
           path: ./coverprofile.out
@@ -490,7 +490,7 @@ jobs:
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
           scripts/collect-coverage.sh
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acceptance-api-apps
           path: ./coverprofile.out
@@ -513,7 +513,7 @@ jobs:
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
           scripts/collect-coverage.sh
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acceptance-api-apps
           path: ./coverprofile.out
@@ -585,7 +585,7 @@ jobs:
           make test-acceptance-api-services
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acceptance-api-services
           path: ./coverprofile.out
@@ -658,7 +658,7 @@ jobs:
           make test-acceptance-apps
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: acceptance-apps
           path: ./coverprofile.out
@@ -673,7 +673,7 @@ jobs:
           docker exec k3d-epinio-acceptance-server-0 sh -c 'cd /var/log/containers; grep -r "." .' > tmp/containers.log
 
       - name: Upload Logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: acceptance-logs-${{ github.sha }}-${{ github.run_id }}
