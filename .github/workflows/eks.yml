@@ -31,8 +31,8 @@ on:
         - Keep
 
 env:
-  SETUP_GO_VERSION: '1.20.4'
-  GOLANGCI_LINT_VERSION: v1.52
+  SETUP_GO_VERSION: '1.22.1'
+  GOLANGCI_LINT_VERSION: v1.56
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
@@ -46,7 +46,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -71,7 +71,7 @@ jobs:
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
       - name: Lint Epinio
-        uses: golangci/golangci-lint-action@v3.7.0
+        uses: golangci/golangci-lint-action@v4
         timeout-minutes: 10
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
@@ -85,7 +85,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
@@ -97,7 +97,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
 
       - name: Install Dependencies
         run: |

@@ -30,7 +30,7 @@ on:
 
 env:
   EPINIO_RELEASED: true
-  SETUP_GO_VERSION: '1.20.4'
+  SETUP_GO_VERSION: '1.22.1'
   GINKGO_NODES: 2
   INGRESS_CONTROLLER: traefik
 
@@ -39,7 +39,7 @@ jobs:
     runs-on: epinio-runner-set
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
@@ -52,7 +52,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
 
       - name: Cache Tools
         uses: actions/cache@v3.0.8

@@ -11,10 +11,10 @@ set -e
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION="5.7.5"
+VERSION="5.6.0"
 
 URL="https://github.com/k3d-io/k3d/releases/download/v${VERSION}/k3d-linux-amd64"
-SHA256="5d3f22817d9e163ab6ed43572189dd49fe724d7a6948075b570067747eca8d3f"
+SHA256="c2ca4b90c0c064cd56ae674d586e2003712fe5841748223552e2f8536f741366"
 
 pushd "$TMP_DIR" > /dev/null
 wget -q "$URL" -O k3d
