@@ -5,20 +5,20 @@ In the `docs` folder there is a `login.sh` script that can be used to perform a 
 To use it just execute it with `username`, `password`, and `dex_url`:
 
 ```sh
-./docs/login.sh 'admin@epinio.io' password https://auth.172.21.0.4.omg.howdoi.website
+./docs/login.sh 'admin@epinio.io' password https://auth.172.21.0.4.sslip.io
 ```
 
 Running it with the `-v` flag will print some information and will show the decoded claims:
 
 ```sh
-$ ./docs/login.sh 'admin@epinio.io' password https://auth.172.21.0.4.omg.howdoi.website
+$ ./docs/login.sh 'admin@epinio.io' password https://auth.172.21.0.4.sslip.io
 
-[INFO] Getting auth URL for user 'admin@epinio.io' to 'https://auth.172.21.0.4.omg.howdoi.website'
+[INFO] Getting auth URL for user 'admin@epinio.io' to 'https://auth.172.21.0.4.sslip.io'
 [INFO]  - state: '8f296829f25a13fb2cd52a04e0d70937'
 [INFO]  - code_verifier: '23ff15b78acf3fb889ef54ef03dac341'
 [INFO]  - code_challenge: 'XULPaEsw7BTNwN0rURgBj4hRli8i9UYBumi844q0FgA'
-[INFO] Auth URL: https://auth.172.21.0.4.omg.howdoi.website/auth/local/login?back=&state=xodeyy75w4ce6bne6wdtt37ax
-[INFO] Approve URL: https://auth.172.21.0.4.omg.howdoi.website/approval?req=xodeyy75w4ce6bne6wdtt37ax
+[INFO] Auth URL: https://auth.172.21.0.4.sslip.io/auth/local/login?back=&state=xodeyy75w4ce6bne6wdtt37ax
+[INFO] Approve URL: https://auth.172.21.0.4.sslip.io/approval?req=xodeyy75w4ce6bne6wdtt37ax
 [INFO] Got Authorization Code: 'uhhiv472bgvehsllptcgi64cf'
 
 [INFO] Got Token
@@ -32,7 +32,7 @@ $ ./docs/login.sh 'admin@epinio.io' password https://auth.172.21.0.4.omg.howdoi.
 
 [INFO] Decoded claims
 {
-  "iss": "https://auth.172.21.0.4.omg.howdoi.website",
+  "iss": "https://auth.172.21.0.4.sslip.io",
   "sub": "CiQwOGE4Njg0Yi1kYjg4LTRiNzMtOTBhOS0zY2QxNjYxZjU0NjYSBWxvY2Fs",
   "aud": "epinio-cli",
   "exp": 1664360188,

@@ -1048,7 +1048,7 @@ var _ = Describe("Apps", LApplication, func() {
 			})
 
 			// WARNING -- Find may return a bad value for higher trace levels
-			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
+			routeRegexp := regexp.MustCompile(`https:\/\/.*sslip.io`)
 			route := string(routeRegexp.Find([]byte(out)))
 
 			Eventually(func() int {
@@ -1074,7 +1074,7 @@ var _ = Describe("Apps", LApplication, func() {
 			out := env.MakeApp(appName, 1, true)
 
 			// WARNING -- Find may return a bad value for higher trace levels
-			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
+			routeRegexp := regexp.MustCompile(`https:\/\/.*sslip.io`)
 			route := string(routeRegexp.Find([]byte(out)))
 
 			Eventually(func() int {
@@ -1968,7 +1968,7 @@ userConfig:
 			By("deploying an app")
 
 			out := env.MakeApp(appName, 1, true)
-			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
+			routeRegexp := regexp.MustCompile(`https:\/\/.*sslip.io`)
 			route = string(routeRegexp.Find([]byte(out)))
 
 			By("getting the current logs in full")

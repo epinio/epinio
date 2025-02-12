@@ -27,7 +27,7 @@ on:
     - '.goreleaser.yml'
 
 env:
-  SETUP_GO_VERSION: '1.20.4'
+  SETUP_GO_VERSION: '1.20.14'
   GOLANGCI_LINT_VERSION: v1.52
   GINKGO_NODES: 8
   INGRESS_CONTROLLER: traefik
@@ -118,6 +118,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -137,9 +138,9 @@ jobs:
         run: make acceptance-cluster-delete
 
       # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
-      # - name: Clean all
-      #   if: ${{ github.event_name == 'schedule' }}
-      #   uses: colpal/actions-clean@v1
+      - name: Clean all
+        if: ${{ github.event_name == 'schedule' }}
+        uses: colpal/actions-clean@v1
 
   acceptance-cli-apps:
     needs:
@@ -191,6 +192,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
           PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
+          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -263,6 +265,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -336,6 +339,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -409,6 +413,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -481,6 +486,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=latest
@@ -504,6 +510,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=oldest
@@ -576,6 +583,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
@@ -649,6 +657,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 5
+          EXPOSE_ACCEPTANCE_CLUSTER_PORTS: true
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
