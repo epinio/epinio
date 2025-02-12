@@ -22,7 +22,7 @@ function prepare_system_domain {
       exit 1
     fi
 
-    export EPINIO_SYSTEM_DOMAIN="${EPINIO_CLUSTER_IP}.omg.howdoi.website"
+    export EPINIO_SYSTEM_DOMAIN="${EPINIO_CLUSTER_IP}.sslip.io"
   fi
   echo -e "Using \e[32m${EPINIO_SYSTEM_DOMAIN}\e[0m for Epinio domain"
 }
