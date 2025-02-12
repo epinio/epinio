@@ -20,7 +20,19 @@ They are described in order below.
 NOTE: Most scripts assume they run on a Linux OS. They may have to be adapted in
       order to work on another OS.
 
-### Get a cluster
+These are the basic steps for installing from source.
+
+1. Clone the epinio/epinio repository.
+2. Get the chart submodule. `git submodule init` and `git submodule update`.
+3. If you already have a cluster, you can skip the k3d steps.
+4. Install pre-requisites (cert-manager)
+5. Install Epinio
+
+## Detailed instructions
+
+### 1. Creating a cluster
+
+If you're developing against an existing cluster (for example, using [Rancher Desktop](https://rancherdesktop.io/)), you can skip this step.
 
 There are many options on how to get a local cluster for development. Here are a few:
 
@@ -31,7 +43,7 @@ There are many options on how to get a local cluster for development. Here are a
 
 Assuming you have `k3d` installed, you can create a cluster with this `make` target :
 
-```
+```bash
 make acceptance-cluster-setup
 ```
 
@@ -41,7 +53,7 @@ This command writes the kubeconfig file to talk to the cluster in `tmp/acceptanc
 For the following steps to work, `KUBECONFIG` needs to be exported as so:
 
 
-```
+```bash
 export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
 ```
 
@@ -50,17 +62,17 @@ configuration and make it the default context (don't set the `KUBECONFIG`
 variable with the above command if you want to update the default configuration).
 This way, the `KUBECONFIG` variable won't have to be exported in every virtual terminal.
 
-```
+```bash
 k3d kubeconfig merge -d epinio-acceptance
 ```
 
-### Install cert-manager
+### 2. Install cert-manager
 
 [Cert Manager](https://cert-manager.io/) is an external dependency of Epinio and
 is not installed by the official helm-chart. There is a `make` target that will
 install cert-manager on the cluster to be used by the Epinio installation later:
 
-```
+```bash
 make install-cert-manager
 ```
 
@@ -69,8 +81,16 @@ make install-cert-manager
 The following make target will use the helm-chart from the git submodule directory,
 to install Epinio on the cluster:
 
-```
+If developing with k3d, you can use the following command without extras:
+
+```bash
 make prepare_environment_k3d
+```
+
+If developing against a known environment (such as k3s with Rancher Desktop), you may want to specify the ingress. In that case:
+
+```bash
+EPINIO_SYSTEM_DOMAIN=localhost make prepare_environment_k3d
 ```
 
 ### Run the current development build
@@ -79,7 +99,7 @@ Every time a change is made in the Epinio source code, the binary running inside
 the epinio-server Pod has to be replaced with a freshly compiled one. This can
 be achieved by running the following command:
 
-```
+```bash
 make && make patch-epinio-deployment
 ```
 
@@ -122,3 +142,19 @@ Lastly, do not forget to set up a proper domain so that the client can talk to
 the server after installation is done. While during installation only a suitable
 `KUBECONFIG` is required after the client will go and use the information from
 the ingress, and that then has to properly resolve in the DNS.
+
+## Cleanup
+
+There are several cleanup steps available in the makefile.
+
+To "uninstall" the Epinio dev instance:
+
+```bash
+make unprepare_environment_k3d
+```
+
+To delete the k3d cluster:
+
+```bash
+make acceptance-cluster-delete
+```
