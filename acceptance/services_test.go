@@ -602,7 +602,7 @@ var _ = Describe("Services", LService, func() {
 			var app, containerImageURL string
 
 			BeforeEach(func() {
-				containerImageURL = "splatform/sample-app"
+				containerImageURL = "epinio/sample-app"
 
 				service = catalog.NewServiceName()
 				chart = names.ServiceReleaseName(service)
@@ -730,7 +730,7 @@ var _ = Describe("Services", LService, func() {
 		var service, app, containerImageURL, chart string
 
 		BeforeEach(func() {
-			containerImageURL = "splatform/sample-app"
+			containerImageURL = "epinio/sample-app"
 
 			service = catalog.NewServiceName()
 			chart = names.ServiceReleaseName(service)
@@ -863,7 +863,7 @@ var _ = Describe("Services", LService, func() {
 		var service, app, containerImageURL, chart string
 
 		BeforeEach(func() {
-			containerImageURL = "splatform/sample-app"
+			containerImageURL = "epinio/sample-app"
 
 			service = catalog.NewServiceName()
 			chart = names.ServiceReleaseName(service)
@@ -1164,7 +1164,7 @@ var _ = Describe("Services", LService, func() {
 
 			appName = catalog.NewAppName()
 			service = catalog.NewServiceName()
-			containerImageURL := "splatform/sample-app"
+			containerImageURL := "epinio/sample-app"
 			serviceHostname := strings.Replace(settings.API, `https://epinio`, service, 1)
 
 			env.MakeContainerImageApp(appName, 1, containerImageURL)

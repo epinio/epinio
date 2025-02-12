@@ -33,7 +33,7 @@ var _ = Describe("AppExec Endpoint", LApplication, func() {
 		namespace string
 	)
 
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 
 	Describe("GET /namespaces/:namespace/applications/:app/exec", func() {
 		var wsConn *websocket.Conn

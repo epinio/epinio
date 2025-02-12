@@ -21,7 +21,7 @@ import (
 
 var _ = Describe("Bounds between Apps & Configurations", LApplication, func() {
 	var namespace string
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()

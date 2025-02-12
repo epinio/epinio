@@ -26,6 +26,7 @@ EPINIO_BINARY="./dist/epinio-$UNAME-amd64"
 IMAGE_TAG="test-$(git describe --tags)"
 
 function check_dependency {
+  echo "Check dependencies"
 	for dep in "$@"
 	do
 		if ! [ -x "$(command -v $dep)" ]; then
@@ -37,6 +38,7 @@ function check_dependency {
 }
 
 function create_docker_pull_secret {
+  echo "Create docker pull secret"
 	if [[ "$REGISTRY_USERNAME" != "" && "$REGISTRY_PASSWORD" != "" && ! $(kubectl get secret regcred > /dev/null 2>&1) ]];
 	then
 		kubectl create secret docker-registry regcred \

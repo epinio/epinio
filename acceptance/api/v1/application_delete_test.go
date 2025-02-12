@@ -29,7 +29,7 @@ var _ = Describe("AppDelete Endpoint", LApplication, func() {
 	var (
 		namespace string
 	)
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()

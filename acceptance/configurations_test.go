@@ -29,7 +29,7 @@ var _ = Describe("Configurations", LConfiguration, func() {
 	var namespace string
 	var configurationName1 string
 	var configurationName2 string
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()

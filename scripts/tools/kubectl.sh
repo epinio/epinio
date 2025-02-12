@@ -1,3 +1,5 @@
+#!/bin/bash
+set -e
 # Copyright © 2021 - 2023 SUSE LLC
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -9,23 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: sample-app-container-image
+VERSION="1.25.4"
 
-on:
-  push:
-    branches: [ main ]
-    paths:
-    - 'assets/sample-app'
-    
-jobs:
-  build_sample_app_container_image:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - id: setup-pack
-        uses: buildpacks/github-actions/setup-pack@v5.4.0
-      - name: Pack Remote Build
-        run: pack build epinio/sample-app:latest --builder paketobuildpacks/builder:full --path ./assets/sample-app
-      - name: Docker push image
-        run: docker push epinio/sample-app:latest
+URL="https://dl.k8s.io/release/v${VERSION}/bin/linux/amd64/kubectl"
+SHA256="e4e569249798a09f37e31b8b33571970fcfbdecdd99b1b81108adc93ca74b522"
+
+pushd "$TMP_DIR" > /dev/null
+wget -q "$URL" -O kubectl
+echo "${SHA256} kubectl" | sha256sum -c
+
+chmod +x kubectl
+mv kubectl "${OUTPUT_DIR}/kubectl"
+popd > /dev/null

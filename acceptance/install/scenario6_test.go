@@ -65,7 +65,7 @@ var _ = Describe("<Scenario6> Azure, epinio-ca, External Registry", func() {
 			"--set", "global.registryURL=registry.hub.docker.com",
 			"--set", "global.registryUsername=" + registryUsername,
 			"--set", "global.registryPassword=" + registryPassword,
-			"--set", "global.registryNamespace=splatform",
+			"--set", "global.registryNamespace=epinio",
 		}
 
 		extraEnvName, name_exists = os.LookupEnv("EXTRAENV_NAME")

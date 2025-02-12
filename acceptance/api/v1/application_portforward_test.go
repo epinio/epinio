@@ -40,7 +40,7 @@ var _ = Describe("AppPortForward Endpoint", LApplication, func() {
 		namespace string
 	)
 
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()

@@ -16,7 +16,9 @@ package application
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -602,7 +604,7 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 		Since:                 duration.LogHistory(),
 		AllNamespaces:         true,
 		LabelSelector:         selector,
-		TailLines:             nil,
+		TailLines:             getTailLines(),
 		Namespace:             "",
 		PodQuery:              regexp.MustCompile(".*"),
 	}
@@ -950,5 +952,15 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	}
 
 	app.Status = models.ApplicationRunning
+	return nil
+}
+
+// getTailLines returns the number of log lines to tail based on LOG_TAIL_LINES env var
+func getTailLines() *int64 {
+	if val := os.Getenv("LOG_TAIL_LINES"); val != "" {
+		if lines, err := strconv.ParseInt(val, 10, 64); err == nil {
+			return &lines
+		}
+	}
 	return nil
 }

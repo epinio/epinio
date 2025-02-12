@@ -30,7 +30,7 @@ var _ = Describe("AppPart Endpoint", LApplication, func() {
 		app       string
 		domain    string
 	)
-	containerImageURL := "splatform/sample-app"
+	containerImageURL := "epinio/sample-app"
 
 	// The testsuite checks using only part `values` and part `manifest`, as the smallest
 	// possible parts, and also (YAML-formatted) text.  The data returned for parts `chart` and
@@ -67,7 +67,7 @@ var _ = Describe("AppPart Endpoint", LApplication, func() {
   configpaths: []
   configurations: []
   env: []
-  imageURL: splatform/sample-app
+  imageURL: epinio/sample-app
   ingress: null
   replicaCount: 1
   routes:
@@ -99,7 +99,7 @@ configuration:
         - %s
     appchart: standard
 origin:
-    container: splatform/sample-app
+    container: epinio/sample-app
 namespace: %s
 `, app, domain, namespace)
 

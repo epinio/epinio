@@ -91,7 +91,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.11.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.13.1
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -153,6 +153,7 @@ jobs:
           sudo sh /usr/local/bin/rke2-uninstall.sh
 
       # Only on RKE, as it uses a self-hosted runner
-      - name: Clean all
-        if: ${{ github.event_name == 'schedule' }}
-        uses: colpal/actions-clean@v1
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
