@@ -49,12 +49,12 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # - name: Setup Go
-      #   uses: actions/setup-go@v4
-      #   timeout-minutes: 5
-      #   with:
-      #     cache: false
-      #     go-version: ${{ env.SETUP_GO_VERSION }}
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        timeout-minutes: 5
+        with:
+          cache: false
+          go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
