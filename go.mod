@@ -11,7 +11,7 @@
 
 module github.com/epinio/epinio
 
-go 1.22
+go 1.22.0
 
 require (
 	github.com/adrg/xdg v0.4.0
