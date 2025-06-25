@@ -51,7 +51,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -94,7 +94,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
 
       - name: Cache Tools
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools

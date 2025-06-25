@@ -59,7 +59,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
