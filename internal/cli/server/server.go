@@ -39,6 +39,8 @@ import (
 
 // NewHandler creates and setup the gin router
 func NewHandler(logger logr.Logger) (*gin.Engine, error) {
+	rolesInitialized := false
+
 	// Support colors on Windows also
 	gin.DefaultWriter = colorable.NewColorableStdout()
 
@@ -83,7 +85,13 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	// Register routes - No authentication, no logging, no session.
 	// This is the healthcheck.
 	router.GET("/ready", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{})
+		if rolesInitialized {
+			c.JSON(http.StatusOK, gin.H{})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": "Roles are not yet initialized",
+			})
+		}
 	})
 	// And the API self-description
 	router.GET("/api/swagger.json", swaggerHandler)
@@ -158,6 +166,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	if err := apiv1.InitAuthAndRoles(authservice); err != nil {
 		return nil, errors.Wrap(err, "initializing authentication")
 	}
+	rolesInitialized = true
+
 
 	// print all registered routes
 	if logger.V(3).Enabled() {
