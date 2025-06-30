@@ -100,10 +100,12 @@ func NewRole(id, name, defaultVal string, actionIDs []string) (Role, error) {
 	for _, actionID := range actionIDs {
 		action, found := ActionsMap[actionID]
 		if !found {
-			return role, fmt.Errorf("action '%s' in role '%s' does not exists", actionID, id)
+			actionErr := fmt.Errorf("action '%s' in role '%s' does not exists", actionID, id)
+		    fmt.Println("ERROR:", actionErr)
+		} else {
+			actions = append(actions, action)
 		}
 
-		actions = append(actions, action)
 	}
 
 	var defaultBool bool
