@@ -97,6 +97,8 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
 		--create-namespace \
 		--set controller.ingressClassResource.default=true
 
+# kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+
 echo "Installing Epinio"
 # Deploy epinio latest release to test upgrade
 if [[ $EPINIO_RELEASED ]]; then
@@ -148,7 +150,7 @@ rm -f $HOME/.config/epinio/settings.yaml
 
 echo "-------------------------------------"
 echo -n "Trying to login"
-retry 5 10 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN:8443"
+retry 5 10 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN"
 echo "-------------------------------------"
 echo -n "Trying to getting info"
 retry 5 10 "${EPINIO_BINARY} info"

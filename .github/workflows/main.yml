@@ -121,7 +121,7 @@ jobs:
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-other
@@ -194,7 +194,7 @@ jobs:
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-apps
@@ -266,7 +266,7 @@ jobs:
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-services
@@ -339,7 +339,7 @@ jobs:
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-other
@@ -412,7 +412,7 @@ jobs:
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-apps
@@ -485,7 +485,7 @@ jobs:
           rm -f /tmp/cov*
           export K3S_KIND=latest
           make acceptance-cluster-setup-several-k8s-versions
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
@@ -508,7 +508,7 @@ jobs:
           rm -f /tmp/cov*
           export K3S_KIND=oldest
           make acceptance-cluster-setup-several-k8s-versions
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
@@ -579,7 +579,7 @@ jobs:
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-services
@@ -652,7 +652,7 @@ jobs:
         run: |
           rm -f /tmp/cov*
           make acceptance-cluster-setup
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-apps
