@@ -140,7 +140,9 @@ else
       { "backend": { "service": { "name": "epinio-server", "port": { "number": 80 } } }, "path": "/exit", "pathType": "ImplementationSpecific" } }]'
   fi
 fi
-
+echo "-------------------------------------"
+echo "Check for binary"
+${EPINIO_BINARY} version
 echo "-------------------------------------"
 echo "Cleanup old settings"
 rm -f $HOME/.config/epinio/settings.yaml

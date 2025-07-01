@@ -80,7 +80,7 @@ jobs:
           export VSUFFIX=-dev
           # Don't patch, just install the latest released version
           export EPINIO_RELEASED=true
-          make prepare_environment_k3d
+          EPINIO_CLUSTER_IP=127.0.0.1.sslip.io make prepare_environment_k3d
 
       - name: Test the `epinio client-sync` command
         run: |
