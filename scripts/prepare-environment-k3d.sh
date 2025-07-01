@@ -76,7 +76,9 @@ function deploy_epinio_latest_released {
     --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
     --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
-    --set server.disableTracking="true"
+    --set server.disableTracking="true" \
+    --set ingress.nginxSSLRedirect="false" \
+    --set global.tlsIssuer="selfsigned-issuer"
 }
 
 # Ensure we have a value for --system-domain
@@ -85,6 +87,15 @@ prepare_system_domain
 check_dependency kubectl helm
 # Create docker registry image pull secret
 create_docker_pull_secret
+
+echo "Installing nginx"
+
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+		--namespace ingress-nginx \
+		--create-namespace \
+		--set controller.ingressClassResource.default=true
 
 echo "Installing Epinio"
 # Deploy epinio latest release to test upgrade
@@ -105,6 +116,7 @@ else
     --set server.disableTracking="true" \
     --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
+    --set ingress.nginxSSLRedirect="false" \
     epinio helm-charts/chart/epinio --wait "$@"
 
   # compile coverage binary and add required env var
@@ -136,10 +148,10 @@ rm -f $HOME/.config/epinio/settings.yaml
 
 echo "-------------------------------------"
 echo -n "Trying to login"
-retry 5 1 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN"
+retry 5 10 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN:8443"
 echo "-------------------------------------"
 echo -n "Trying to getting info"
-retry 5 1 "${EPINIO_BINARY} info"
+retry 5 10 "${EPINIO_BINARY} info"
 echo "-------------------------------------"
 
 # Check no tls-dex cert conflict issue

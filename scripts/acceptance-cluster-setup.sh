@@ -24,6 +24,8 @@ check_deps() {
   then
       echo "k3d could not be found"
       exit
+  # else
+  #     go install github.com/k3d-io/k3d/v5@latest
   fi
 }
 
@@ -71,12 +73,26 @@ EOF
 echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+  
+    k3d cluster create $CLUSTER_NAME --registry-config $TMP_CONFIG \
+    -p '8080:80@loadbalancer' -p '8443:443@loadbalancer' \
+		--kubeconfig-update-default=false \
+		--kubeconfig-switch-context=false \
+		--k3s-arg=--disable=traefik@server:* \
+    --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+  # k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@loadbalancer' -p '443:443@loadbalancer' --image "$K3S_IMAGE" --k3s-arg "--disable=traefik@server:*" $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server:0' -p '443:443@server:0' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+    k3d cluster create $CLUSTER_NAME --registry-config $TMP_CONFIG \
+    -p '8080:80@loadbalancer' -p '8443:443@loadbalancer' \
+		--kubeconfig-update-default=false \
+		--kubeconfig-switch-context=false \
+		--k3s-arg=--disable=traefik@server:* \
+    --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 fi
-k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
+# k3d kubeconfig write $CLUSTER_NAME > $KUBECONFIG
+export KUBECONFIG=$(k3d kubeconfig write $CLUSTER_NAME)
+# echo $KUBECONFIG
 
 echo "Waiting for node to be ready"
 kubectl wait --for=condition=Ready nodes --all --timeout=600s
@@ -86,9 +102,9 @@ kubectl wait --for=condition=Ready "$nodeName"
 date
 echo "Waiting for the deployments of the foundational configurations to be ready"
 # 1200s = 20 min, to handle even a horrendously slow setup. Regular is 10 to 30 seconds.
-kubectl wait --for=condition=Available --namespace kube-system deployment/metrics-server		--timeout=1200s
-kubectl wait --for=condition=Available --namespace kube-system deployment/coredns			--timeout=1200s
-kubectl wait --for=condition=Available --namespace kube-system deployment/local-path-provisioner	--timeout=1200s
+# kubectl wait --for=condition=Available --namespace kube-system deployment/metrics-server		--timeout=1200s
+# kubectl wait --for=condition=Available --namespace kube-system deployment/coredns			--timeout=1200s
+# kubectl wait --for=condition=Available --namespace kube-system deployment/local-path-provisioner	--timeout=1200s
 date
 
 echo "Done! The cluster is ready."

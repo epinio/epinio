@@ -74,7 +74,6 @@ jobs:
       - name: Deploy k3d cluster with latest release of Epinio
         run: |
           make acceptance-cluster-setup
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           # Ensure the client version won't match the server one
           export VSUFFIX=-dev
