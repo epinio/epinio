@@ -97,7 +97,7 @@ else
     --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 fi
 # k3d kubeconfig write $CLUSTER_NAME > $KUBECONFIG
-KUBECONFIG=$(k3d kubeconfig write $CLUSTER_NAME)
+export KUBECONFIG=$(k3d kubeconfig write $CLUSTER_NAME)
 # echo $KUBECONFIG
 
 echo "Waiting for node to be ready"
