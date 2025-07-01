@@ -78,7 +78,7 @@ echo "Creating a new one named $CLUSTER_NAME"
 #   try enabling this on the host machine: https://rootlesscontaine.rs/getting-started/common/cgroup2/#enabling-cpu-cpuset-and-io-delegation
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-    k3d cluster create $CLUSTER_NAME --registry-config $TMP_CONFIG \
+    k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \
     -p '8080:80@loadbalancer' -p '8443:443@loadbalancer' \
     --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
 		--kubeconfig-update-default=false \
@@ -88,7 +88,7 @@ if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@loadbalancer' -p '443:443@loadbalancer' --image "$K3S_IMAGE" --k3s-arg "--disable=traefik@server:*" $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
-    k3d cluster create $CLUSTER_NAME --registry-config $TMP_CONFIG \
+    k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \
     -p '8080:80@loadbalancer' -p '8443:443@loadbalancer' \
     --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
 		--kubeconfig-update-default=false \
