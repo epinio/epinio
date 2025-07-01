@@ -116,9 +116,9 @@ kubectl wait --for=condition=Ready "$nodeName"
 date
 echo "Waiting for the deployments of the foundational configurations to be ready"
 # 1200s = 20 min, to handle even a horrendously slow setup. Regular is 10 to 30 seconds.
-# kubectl wait --for=condition=Available --namespace kube-system deployment/metrics-server		--timeout=1200s
-# kubectl wait --for=condition=Available --namespace kube-system deployment/coredns			--timeout=1200s
-# kubectl wait --for=condition=Available --namespace kube-system deployment/local-path-provisioner	--timeout=1200s
+kubectl wait --for=condition=Available --namespace kube-system deployment/metrics-server		--timeout=1200s
+kubectl wait --for=condition=Available --namespace kube-system deployment/coredns			--timeout=1200s
+kubectl wait --for=condition=Available --namespace kube-system deployment/local-path-provisioner	--timeout=1200s
 date
 
 echo "Done! The cluster is ready."
