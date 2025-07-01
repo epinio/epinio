@@ -76,6 +76,7 @@ if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   
     k3d cluster create $CLUSTER_NAME --registry-config $TMP_CONFIG \
     -p '8080:80@loadbalancer' -p '8443:443@loadbalancer' \
+    --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
 		--kubeconfig-update-default=false \
 		--kubeconfig-switch-context=false \
 		--k3s-arg=--disable=traefik@server:* \
@@ -85,6 +86,7 @@ else
   # Exposing ports on the host:
     k3d cluster create $CLUSTER_NAME --registry-config $TMP_CONFIG \
     -p '8080:80@loadbalancer' -p '8443:443@loadbalancer' \
+    --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
 		--kubeconfig-update-default=false \
 		--kubeconfig-switch-context=false \
 		--k3s-arg=--disable=traefik@server:* \
