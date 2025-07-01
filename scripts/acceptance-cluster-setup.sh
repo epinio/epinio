@@ -12,12 +12,19 @@
 
 set -e
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+source "${SCRIPT_DIR}/helpers.sh"
+
 NETWORK_NAME=epinio-acceptance
 MIRROR_NAME=epinio-acceptance-registry-mirror
 CLUSTER_NAME=epinio-acceptance
 export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
 K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.29.2-k3s1}
+
+# Ensure we have a value for --system-domain
+prepare_system_domain
 
 check_deps() {
   if ! command -v k3d &> /dev/null
@@ -37,6 +44,7 @@ if [[ "$(existingCluster)" != "" ]]; then
   echo "Cluster already exists, skipping creation."
   echo "Updating kubeconfig."
   KUBECONFIG=$(k3d kubeconfig write $CLUSTER_NAME)
+  echo -e "Will attempt to use https://epinio.$EPINIO_PORT for login"
   exit 0
 fi
 
@@ -79,7 +87,7 @@ echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
     k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \
-    -p '80:80@loadbalancer' -p '443:443@loadbalancer' \
+    -p '8080:80@loadbalancer' -p "$EPINIO_PORT:443@loadbalancer" \
     --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
 		--kubeconfig-update-default=false \
 		--kubeconfig-switch-context=false \
@@ -89,7 +97,7 @@ if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
 else
   # Exposing ports on the host:
     k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \
-    -p '8080:80@loadbalancer' -p '8443:443@loadbalancer' \
+    -p '8080:80@loadbalancer' -p "$EPINIO_PORT:443@loadbalancer" \
     --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
 		--kubeconfig-update-default=false \
 		--kubeconfig-switch-context=false \

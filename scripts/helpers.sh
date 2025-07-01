@@ -23,8 +23,13 @@ function prepare_system_domain {
     fi
 
     export EPINIO_SYSTEM_DOMAIN="${EPINIO_CLUSTER_IP}.sslip.io"
+    
+  fi
+  if [[ -z "${EPINIO_PORT}" ]]; then
+      export EPINIO_PORT="8443"
   fi
   # export EPINIO_SYSTEM_DOMAIN="127.0.0.1.sslip.io"
   echo -e "Using \e[32m${EPINIO_SYSTEM_DOMAIN}\e[0m for Epinio domain"
+  echo -e "Will attempt to use https://epinio.$EPINIO_SYSTEM_DOMAIN:$EPINIO_PORT for login"
 }
 
