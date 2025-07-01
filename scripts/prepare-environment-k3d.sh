@@ -97,7 +97,7 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
 		--create-namespace \
 		--set controller.ingressClassResource.default=true
 
-# kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
 
 echo "Installing Epinio"
 # Deploy epinio latest release to test upgrade
