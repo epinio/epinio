@@ -98,7 +98,7 @@ if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
 else
   # Exposing ports on the host:
     k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \
-    -p '8080:80@loadbalancer' -p "$EPINIO_PORT:443@loadbalancer" \
+    -p '8080:80@loadbalancer' -p "${EPINIO_PORT}:443@loadbalancer" \
     --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
 		--kubeconfig-update-default=false \
 		--kubeconfig-switch-context=false \

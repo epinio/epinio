@@ -32,6 +32,7 @@ function prepare_system_domain {
   fi
   # export EPINIO_SYSTEM_DOMAIN="127.0.0.1.sslip.io"
   echo -e "Using \e[32m${EPINIO_SYSTEM_DOMAIN}\e[0m for Epinio domain"
+  echo -e "Using \e[32m${EPINIO_PORT}\e[0m for Epinio port"
   echo -e "Will attempt to use https://epinio.$EPINIO_DOMAIN_AND_PORT for login"
 }
 
