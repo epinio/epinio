@@ -12,18 +12,27 @@
 
 set -e
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+source "${SCRIPT_DIR}/helpers.sh"
+
 NETWORK_NAME=epinio-acceptance
 MIRROR_NAME=epinio-acceptance-registry-mirror
 CLUSTER_NAME=epinio-acceptance
 export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
 K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.29.2-k3s1}
 
+# Ensure we have a value for --system-domain
+prepare_system_domain
+
 check_deps() {
   if ! command -v k3d &> /dev/null
   then
       echo "k3d could not be found"
       exit
+  # else
+  #     go install github.com/k3d-io/k3d/v5@latest
   fi
 }
 
@@ -33,6 +42,9 @@ existingCluster() {
 
 if [[ "$(existingCluster)" != "" ]]; then
   echo "Cluster already exists, skipping creation."
+  echo "Updating kubeconfig."
+  KUBECONFIG=$(k3d kubeconfig write $CLUSTER_NAME)
+  echo -e "Will attempt to use https://epinio.$EPINIO_PORT for login"
   exit 0
 fi
 
@@ -69,14 +81,32 @@ mirrors:
 EOF
 
 echo "Creating a new one named $CLUSTER_NAME"
+
+# Troubleshooting: If there is an issue starting up related to cgroupv2, 
+#   try enabling this on the host machine: https://rootlesscontaine.rs/getting-started/common/cgroup2/#enabling-cpu-cpuset-and-io-delegation
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+    k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \
+    -p '8080:80@loadbalancer' -p "$EPINIO_PORT:443@loadbalancer" \
+    --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
+		--kubeconfig-update-default=false \
+		--kubeconfig-switch-context=false \
+		--k3s-arg=--disable=traefik@server:* \
+    --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+  # k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@loadbalancer' -p '443:443@loadbalancer' --image "$K3S_IMAGE" --k3s-arg "--disable=traefik@server:*" $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server:0' -p '443:443@server:0' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+    k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \
+    -p '8080:80@loadbalancer' -p "$EPINIO_PORT:443@loadbalancer" \
+    --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
+		--kubeconfig-update-default=false \
+		--kubeconfig-switch-context=false \
+		--k3s-arg=--disable=traefik@server:* \
+    --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 fi
-k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
+# k3d kubeconfig write $CLUSTER_NAME > $KUBECONFIG
+export KUBECONFIG=$(k3d kubeconfig write $CLUSTER_NAME)
+# echo $KUBECONFIG
 
 echo "Waiting for node to be ready"
 kubectl wait --for=condition=Ready nodes --all --timeout=600s

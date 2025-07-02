@@ -11,10 +11,10 @@ set -e
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION="1.25.4"
+VERSION="1.29.15"
 
 URL="https://dl.k8s.io/release/v${VERSION}/bin/linux/amd64/kubectl"
-SHA256="e4e569249798a09f37e31b8b33571970fcfbdecdd99b1b81108adc93ca74b522"
+SHA256="3473e14c7b024a6e5403c6401b273b3faff8e5b1fed022d633815eb3168e4516"
 
 pushd "$TMP_DIR" > /dev/null
 wget -q "$URL" -O kubectl

@@ -218,10 +218,15 @@ install-cert-manager:
 	helm repo update
 	echo "Installing Cert Manager"
 	helm upgrade --install cert-manager --create-namespace -n cert-manager \
-		--set installCRDs=true \
+		--set crds.enabled=true \
+		--set crds.keep=false \
 		--set extraArgs[0]=--enable-certificate-owner-ref=true \
-		cert-manager/cert-manager --version 1.8.2 \
+		cert-manager/cert-manager --version 1.18.1 \
 		--wait
+
+apply-traefik-config:
+	@echo "Applying Traefik configuration"
+	kubectl apply -f ./scripts/traefik-helmchartconfig.yaml
 
 install-epinio-ui:
 	@./scripts/install-epinio-ui.sh

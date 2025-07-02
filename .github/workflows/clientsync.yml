@@ -74,13 +74,13 @@ jobs:
       - name: Deploy k3d cluster with latest release of Epinio
         run: |
           make acceptance-cluster-setup
-          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
           # Ensure the client version won't match the server one
           export VSUFFIX=-dev
           # Don't patch, just install the latest released version
           export EPINIO_RELEASED=true
-          make prepare_environment_k3d
+          EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io make prepare_environment_k3d
 
       - name: Test the `epinio client-sync` command
         run: |

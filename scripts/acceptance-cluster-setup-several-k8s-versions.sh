@@ -45,6 +45,9 @@ existingCluster() {
 
 if [[ "$(existingCluster)" != "" ]]; then
   echo "Cluster already exists, skipping creation."
+  echo "Updating kubeconfig."
+  KUBECONFIG=$(k3d kubeconfig write $CLUSTER_NAME)
+  echo -e "Will attempt to use https://epinio.$EPINIO_PORT for login"
   exit 0
 fi
 
@@ -83,14 +86,29 @@ EOF
 echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+    k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \
+    -p '8080:80@loadbalancer' -p "$EPINIO_PORT:443@loadbalancer" \
+    --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
+		--kubeconfig-update-default=false \
+		--kubeconfig-switch-context=false \
+		--k3s-arg=--disable=traefik@server:* \
+    --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server:0' -p '443:443@server:0' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
+    k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \
+    -p '8080:80@loadbalancer' -p "$EPINIO_PORT:443@loadbalancer" \
+    --k3s-arg='--kubelet-arg=feature-gates=KubeletInUserNamespace=true@server:*' \
+		--kubeconfig-update-default=false \
+		--kubeconfig-switch-context=false \
+		--k3s-arg=--disable=traefik@server:* \
+    --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 fi
+
 k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
+export KUBECONFIG=$(k3d kubeconfig write $CLUSTER_NAME)
 
 echo "Waiting for node to be ready"
+kubectl wait --for=condition=Ready nodes --all --timeout=600s
 nodeName=$(kubectl get nodes -o name)
 kubectl wait --for=condition=Ready "$nodeName"
 
