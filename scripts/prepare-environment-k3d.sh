@@ -161,7 +161,7 @@ rm -f $HOME/.config/epinio/settings.yaml
 echo "-------------------------------------"
 echo -n "Trying to login using:"
 echo -n "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_DOMAIN_AND_PORT"
-retry 5 10 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_DOMAIN_AND_PORT --verbose"
+retry 5 10 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_DOMAIN_AND_PORT"
 echo "-------------------------------------"
 echo -n "Trying to getting info"
 retry 5 10 "${EPINIO_BINARY} info"
