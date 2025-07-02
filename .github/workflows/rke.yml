@@ -74,7 +74,7 @@ jobs:
   acceptance-scenario3:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: epinio-runner-set
 
     steps:
       - name: Checkout
