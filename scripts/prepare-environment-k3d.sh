@@ -110,9 +110,9 @@ else
   # todo: check if k3d is being used and images actually need to be imported
   if [[ -z "${EPINIO_EXISTING_CLUSTER}" ]]; then
     echo "Importing locally built epinio server image"
-    k3d image import -c epinio-acceptance "ghcr.io/epinio/epinio-server:${IMAGE_TAG}"
+    k3d image import --verbose -c epinio-acceptance "ghcr.io/epinio/epinio-server:${IMAGE_TAG}"
     echo "Importing locally built epinio unpacker image"
-    k3d image import -c epinio-acceptance "ghcr.io/epinio/epinio-unpacker:${IMAGE_TAG}"
+    k3d image import --verbose -c epinio-acceptance "ghcr.io/epinio/epinio-unpacker:${IMAGE_TAG}"
     echo "Importing locally built images: Completed"
   fi
 
