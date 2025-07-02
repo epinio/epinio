@@ -84,6 +84,7 @@ echo "Creating a new one named $CLUSTER_NAME"
 
 # Troubleshooting: If there is an issue starting up related to cgroupv2, 
 #   try enabling this on the host machine: https://rootlesscontaine.rs/getting-started/common/cgroup2/#enabling-cpu-cpuset-and-io-delegation
+#   also, this: https://stackoverflow.com/questions/73021599/how-to-enable-cgroup-v2-in-wsl2
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
     k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG \

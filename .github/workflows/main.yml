@@ -123,6 +123,8 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
           make prepare_environment_k3d
           make test-acceptance-cli-other
           scripts/collect-coverage.sh
@@ -196,6 +198,8 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
           make prepare_environment_k3d
           make test-acceptance-cli-apps
           scripts/collect-coverage.sh
@@ -268,6 +272,8 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
           make prepare_environment_k3d
           make test-acceptance-cli-services
           scripts/collect-coverage.sh
@@ -341,6 +347,8 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
           make prepare_environment_k3d
           make test-acceptance-api-other
           scripts/collect-coverage.sh
@@ -414,6 +422,8 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
           make prepare_environment_k3d
           make test-acceptance-api-apps
           scripts/collect-coverage.sh
@@ -487,6 +497,8 @@ jobs:
           make acceptance-cluster-setup-several-k8s-versions
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
           scripts/collect-coverage.sh
@@ -510,6 +522,8 @@ jobs:
           make acceptance-cluster-setup-several-k8s-versions
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
           scripts/collect-coverage.sh
@@ -581,6 +595,8 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
           make prepare_environment_k3d
           make test-acceptance-api-services
           scripts/collect-coverage.sh
@@ -654,6 +670,8 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
           make install-cert-manager
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
           make prepare_environment_k3d
           make test-acceptance-apps
           scripts/collect-coverage.sh

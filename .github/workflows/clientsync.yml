@@ -80,7 +80,9 @@ jobs:
           export VSUFFIX=-dev
           # Don't patch, just install the latest released version
           export EPINIO_RELEASED=true
-          EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io make prepare_environment_k3d
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          make prepare_environment_k3d
 
       - name: Test the `epinio client-sync` command
         run: |
