@@ -191,7 +191,7 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 				Expect(statusCode).To(Equal(http.StatusOK))
 
 				deployResponse := fromJSON[models.DeployResponse](bodyBytes)
-				Expect(deployResponse.Routes[0]).To(MatchRegexp(appName + `\..*\.omg\.howdoi\.website`))
+				Expect(deployResponse.Routes[0]).To(MatchRegexp(appName + `\..*\.sslip\.io`))
 
 				Eventually(func() string {
 					return appShow(namespace, appName).Workload.Status
