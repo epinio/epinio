@@ -12,10 +12,7 @@
 name: sample-app-container-image
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-    - 'assets/sample-app'
+  workflow_dispatch:
     
 jobs:
   build_sample_app_container_image:
