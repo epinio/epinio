@@ -127,7 +127,7 @@ else
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
     --set ingress.nginxSSLRedirect="false" \
     --set dex.ui.redirectURI="https://epinio.${EPINIO_DOMAIN_AND_PORT}/auth/verify" \
-    epinio helm-charts/chart/epinio --wait "$@" > blah.yaml
+    epinio helm-charts/chart/epinio --wait "$@"
 
   # compile coverage binary and add required env var
   if [ -n "$GOCOVERDIR" ]; then
