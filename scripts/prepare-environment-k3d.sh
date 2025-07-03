@@ -38,14 +38,16 @@ function check_dependency {
 }
 
 function create_docker_pull_secret {
-  echo "Create docker pull secret"
-	if [[ "$REGISTRY_USERNAME" != "" && "$REGISTRY_PASSWORD" != "" && ! $(kubectl get secret regcred > /dev/null 2>&1) ]];
-	then
-		kubectl create secret docker-registry regcred \
-			--docker-server https://index.docker.io/v1/ \
-			--docker-username $REGISTRY_USERNAME \
-			--docker-password $REGISTRY_PASSWORD
-	fi
+  echo "Check for docker pull secret"
+  if [[ -n "$REGISTRY_USERNAME" && -n "$REGISTRY_PASSWORD" ]]; then
+    if ! kubectl get secret regcred > /dev/null 2>&1; then
+      echo "Creating docker pull secret"
+      kubectl create secret docker-registry regcred \
+        --docker-server https://index.docker.io/v1/ \
+        --docker-username $REGISTRY_USERNAME \
+        --docker-password $REGISTRY_PASSWORD
+    fi
+  fi
 }
 
 function retry {
@@ -97,9 +99,8 @@ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
 		--namespace ingress-nginx \
 		--create-namespace \
-		--set controller.ingressClassResource.default=true
-
-kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+		--set controller.ingressClassResource.default=true \
+    --set controller.admissionWebhooks.enabled=false
 
 echo "Installing Epinio"
 # Deploy epinio latest release to test upgrade
