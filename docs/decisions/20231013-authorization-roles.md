@@ -139,7 +139,7 @@ data:
 
 #### Actions
 
-The actions are **hardcoded** as an embedded yaml file. This simplifies their management, and also enhances flexibility. An action can have some "dependencies", i.e.: the `namespace` action is a union of the `namespace_read` and `namespace_write`.
+The actions are **hardcoded** as an embedded yaml file. This simplifies their management, and also enhances flexibility. An action can have some "dependencies", i.e.: the `app` action is a union of the `app_read`, `app_write`, `app_logs`, `app_exec`, and `app_portforward`.
 
 Every action lists the set of endpoints it allows. Note that some Epinio operations are formed from multiple endpoints, i.e. the `app push` consists of a Create, Update and others.
 
@@ -151,9 +151,7 @@ These actions enable operations on Namespace commands and resources.
 
 | Action ID         | Description 
 |-------------------|-------------
-| `namespace_read`    | Read permissions (list, show)
-| `namespace_write`   | Write permissions (create, delete)<br/>Depends on: `namespace_read`
-| `namespace`         | All the above<br/>Depends on: `namespace_read`, `namespace_write`
+| `namespace_write`   | Write permissions (create, delete)
 
 ##### App
 
