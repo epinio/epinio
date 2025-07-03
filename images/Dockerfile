@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine as certs
+FROM alpine AS certs
 RUN apk --update --no-cache add ca-certificates
 
 FROM scratch
