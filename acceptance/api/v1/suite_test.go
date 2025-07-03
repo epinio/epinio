@@ -105,8 +105,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	serverURL = "https://" + out
-	websocketURL = "wss://" + out
+	serverURL = "https://" + out + ":8443"
+	websocketURL = "wss://" + out + ":8443"
 })
 
 var _ = AfterSuite(func() {
