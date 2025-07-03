@@ -79,4 +79,4 @@ connectors:
       tenant: <tenant-id>
 ```
 
-Restart or redeploy the **Dex** deployment in your cluster.  The new connector 
+Restart or redeploy the **Dex** deployment in your cluster.  The Entra ID connector set up should now be complete and you should be able to log in through Microsoft Entra ID.
