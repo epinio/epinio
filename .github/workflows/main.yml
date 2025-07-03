@@ -621,7 +621,7 @@ jobs:
         run: |
           rm -f /tmp/cov*
           # Don't patch, just install the latest released version
-          export EPINIO_RELEASED=true
+          # export EPINIO_RELEASED=true
           # Set the network details
           export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
           export EPINIO_PORT=8443
@@ -702,7 +702,7 @@ jobs:
         run: |
           rm -f /tmp/cov*
           # Don't patch, just install the latest released version
-          export EPINIO_RELEASED=true
+          # export EPINIO_RELEASED=true
           # Set the network details
           export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
           export EPINIO_PORT=8443
