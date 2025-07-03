@@ -30,7 +30,7 @@ on:
 env:
   SETUP_GO_VERSION: '1.22.1'
   GINKGO_NODES: 2
-  INGRESS_CONTROLLER: traefik
+  INGRESS_CONTROLLER: nginx
 
 jobs:
   client-sync-test:
