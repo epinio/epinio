@@ -40,7 +40,7 @@ var _ = Describe("Info endpoint", LMisc, func() {
 		err = json.Unmarshal(bodyBytes, &info)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(info.DefaultBuilderImage).To(Equal("paketobuildpacks/builder-jammy-full:0.3.290"))
+		Expect(info.DefaultBuilderImage).To(Equal("paketobuildpacks/builder-jammy-full:0.3.494"))
 	})
 
 	It("includes the epinio server version in a header", func() {

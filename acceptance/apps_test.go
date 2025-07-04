@@ -56,9 +56,9 @@ var _ = Describe("Apps", LApplication, func() {
 	wpBuilder := "paketobuildpacks/builder:0.2.443-full"
 
 	// defaultBuilder := "paketobuildpacks/builder:full"
-	defaultBuilder := "paketobuildpacks/builder-jammy-full:0.3.290"
+	defaultBuilder := "paketobuildpacks/builder-jammy-full:0.3.494"
 	// tinyBuilder := "paketobuildpacks/builder:tiny"
-	tinyBuilder := "paketobuildpacks/builder-jammy-tiny:0.0.197"
+	tinyBuilder := "paketobuildpacks/builder-jammy-tiny:0.0.364"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
