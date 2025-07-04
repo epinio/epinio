@@ -168,7 +168,6 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	}
 	rolesInitialized = true
 
-
 	// print all registered routes
 	if logger.V(3).Enabled() {
 		for _, h := range router.Routes() {
