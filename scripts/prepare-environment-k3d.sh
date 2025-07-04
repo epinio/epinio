@@ -38,14 +38,16 @@ function check_dependency {
 }
 
 function create_docker_pull_secret {
-  echo "Create docker pull secret"
-	if [[ "$REGISTRY_USERNAME" != "" && "$REGISTRY_PASSWORD" != "" && ! $(kubectl get secret regcred > /dev/null 2>&1) ]];
-	then
-		kubectl create secret docker-registry regcred \
-			--docker-server https://index.docker.io/v1/ \
-			--docker-username $REGISTRY_USERNAME \
-			--docker-password $REGISTRY_PASSWORD
-	fi
+  echo "Check for docker pull secret"
+  if [[ -n "$REGISTRY_USERNAME" && -n "$REGISTRY_PASSWORD" ]]; then
+    if ! kubectl get secret regcred > /dev/null 2>&1; then
+      echo "Creating docker pull secret"
+      kubectl create secret docker-registry regcred \
+        --docker-server https://index.docker.io/v1/ \
+        --docker-username $REGISTRY_USERNAME \
+        --docker-password $REGISTRY_PASSWORD
+    fi
+  fi
 }
 
 function retry {
@@ -72,13 +74,15 @@ function retry {
 function deploy_epinio_latest_released {
   helm repo add epinio https://epinio.github.io/helm-charts
   helm repo update
+  echo "using epinio system domain and port: ${EPINIO_DOMAIN_AND_PORT}"
   helm upgrade --wait --install -n epinio --create-namespace epinio epinio/epinio \
-    --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
+    --set global.domain="${EPINIO_SYSTEM_DOMAIN}" \
+    --set dex.issuer.port="${EPINIO_PORT}" \
     --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
     --set server.disableTracking="true" \
     --set ingress.nginxSSLRedirect="false" \
-    --set global.tlsIssuer="selfsigned-issuer"
+    --set dex.ui.redirectURI="https://epinio.${EPINIO_DOMAIN_AND_PORT}/auth/verify"
 }
 
 # Ensure we have a value for --system-domain
@@ -95,9 +99,8 @@ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
 		--namespace ingress-nginx \
 		--create-namespace \
-		--set controller.ingressClassResource.default=true
-
-kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+		--set controller.ingressClassResource.default=true \
+    --set controller.admissionWebhooks.enabled=false
 
 echo "Installing Epinio"
 # Deploy epinio latest release to test upgrade
@@ -105,20 +108,26 @@ if [[ $EPINIO_RELEASED ]]; then
   echo "Deploying latest released epinio server image"
   deploy_epinio_latest_released
 else
-  echo "Importing locally built epinio server image"
-  k3d image import -c epinio-acceptance "ghcr.io/epinio/epinio-server:${IMAGE_TAG}"
-  echo "Importing locally built epinio unpacker image"
-  k3d image import -c epinio-acceptance "ghcr.io/epinio/epinio-unpacker:${IMAGE_TAG}"
-  echo "Importing locally built images: Completed"
+  # todo: check if k3d is being used and images actually need to be imported
+  if [[ -z "${EPINIO_EXISTING_CLUSTER}" ]]; then
+    echo "Importing locally built epinio server image"
+    k3d image import --verbose -c epinio-acceptance "ghcr.io/epinio/epinio-server:${IMAGE_TAG}"
+    echo "Importing locally built epinio unpacker image"
+    k3d image import --verbose -c epinio-acceptance "ghcr.io/epinio/epinio-unpacker:${IMAGE_TAG}"
+    echo "Importing locally built images: Completed"
+  fi
 
+  echo "using epinio system domain and port: ${EPINIO_DOMAIN_AND_PORT}"
   helm upgrade --install --create-namespace -n epinio \
-    --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
+    --set global.domain="${EPINIO_SYSTEM_DOMAIN}" \
+    --set dex.issuer.port="${EPINIO_PORT}" \
     --set image.epinio.tag="${IMAGE_TAG}" \
     --set image.bash.tag="${IMAGE_TAG}" \
     --set server.disableTracking="true" \
     --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
     --set ingress.nginxSSLRedirect="false" \
+    --set dex.ui.redirectURI="https://epinio.${EPINIO_DOMAIN_AND_PORT}/auth/verify" \
     epinio helm-charts/chart/epinio --wait "$@"
 
   # compile coverage binary and add required env var
@@ -151,8 +160,9 @@ rm -f $HOME/.config/epinio/settings.yaml
 # Retry 5 times and sleep 1s because sometimes it takes a while before epinio server is ready
 
 echo "-------------------------------------"
-echo -n "Trying to login"
-retry 5 10 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN:$EPINIO_PORT"
+echo -n "Trying to login using:"
+echo -n "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_DOMAIN_AND_PORT"
+retry 5 10 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_DOMAIN_AND_PORT"
 echo "-------------------------------------"
 echo -n "Trying to getting info"
 retry 5 10 "${EPINIO_BINARY} info"

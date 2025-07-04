@@ -30,7 +30,7 @@ env:
   SETUP_GO_VERSION: '1.22.1'
   GOLANGCI_LINT_VERSION: v1.56
   GINKGO_NODES: 8
-  INGRESS_CONTROLLER: traefik
+  INGRESS_CONTROLLER: nginx
 
 jobs:
   linter:
@@ -72,7 +72,7 @@ jobs:
   acceptance-cli:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -120,8 +120,14 @@ jobs:
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           rm -f /tmp/cov*
+          # Set the network details
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          # create the cluster
           make acceptance-cluster-setup
+          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-other
@@ -144,7 +150,7 @@ jobs:
   acceptance-cli-apps:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -193,8 +199,14 @@ jobs:
           PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
         run: |
           rm -f /tmp/cov*
+          # Set the network details
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          # create the cluster
           make acceptance-cluster-setup
+          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-apps
@@ -217,7 +229,7 @@ jobs:
   acceptance-cli-services:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -265,8 +277,14 @@ jobs:
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           rm -f /tmp/cov*
+          # Set the network details
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          # create the cluster
           make acceptance-cluster-setup
+          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli-services
@@ -290,7 +308,7 @@ jobs:
     needs:
       - linter
       - acceptance-api-services
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -338,8 +356,14 @@ jobs:
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           rm -f /tmp/cov*
+          # Set the network details
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          # create the cluster
           make acceptance-cluster-setup
+          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-other
@@ -363,7 +387,7 @@ jobs:
     needs:
       - linter
       - acceptance-cli-services
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -411,8 +435,14 @@ jobs:
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           rm -f /tmp/cov*
+          # Set the network details
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          # create the cluster
           make acceptance-cluster-setup
+          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-apps
@@ -435,7 +465,7 @@ jobs:
   acceptance-api-cep-different-k8s:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -484,8 +514,14 @@ jobs:
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=latest
+          # Set the network details
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          # create the cluster
           make acceptance-cluster-setup-several-k8s-versions
+          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
@@ -507,8 +543,14 @@ jobs:
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=oldest
+          # Set the network details
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          # create the cluster
           make acceptance-cluster-setup-several-k8s-versions
+          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
@@ -530,7 +572,7 @@ jobs:
   acceptance-api-services:
     needs:
       - linter
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -578,8 +620,16 @@ jobs:
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           rm -f /tmp/cov*
+          # Don't patch, just install the latest released version
+          # export EPINIO_RELEASED=true
+          # Set the network details
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          # create the cluster
           make acceptance-cluster-setup
+          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api-services
@@ -603,7 +653,7 @@ jobs:
     needs:
       - linter
       - acceptance-cli
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
@@ -651,8 +701,16 @@ jobs:
           EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
           rm -f /tmp/cov*
+          # Don't patch, just install the latest released version
+          # export EPINIO_RELEASED=true
+          # Set the network details
+          export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
+          export EPINIO_PORT=8443
+          # create the cluster
           make acceptance-cluster-setup
+          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
+          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-apps
@@ -698,7 +756,7 @@ jobs:
       - acceptance-apps
       - acceptance-cli-apps
 
-    runs-on: [self-hosted, epinio]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
