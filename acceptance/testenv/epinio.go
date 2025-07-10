@@ -142,6 +142,6 @@ func EnsureDefaultWorkspace(epinioBinary string) {
 }
 
 func AppRouteFromOutput(out string) string {
-	routeRegexp := regexp.MustCompile(`Routes: .*\n.*(https:\/\/.*\.omg\.howdoi\.website)`)
+	routeRegexp := regexp.MustCompile(`Routes: .*\n.*(https:\/\/.*\.sslip\.io)`)
 	return routeRegexp.FindStringSubmatch(out)[1]
 }
