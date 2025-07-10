@@ -31,6 +31,12 @@ VERSION ?= $(shell git describe --tags)$(VSUFFIX)
 CGO_ENABLED ?= 0
 export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
 
+.DEFAULT_GOAL := build
+
+.PHONY: help
+help: ## Display this help.
+	@awk 'BEGIN { section = ""; print "\nUsage:\n  make \033[36m<target>\033[0m" } /^#{5,}/ { next } /^# [A-Za-z]/ { section = substr($$0, 3); next } /^[a-zA-Z0-9_.-]+:.*$$/ { if ($$1 == ".PHONY") next; if (section != "") { print "\n\033[1m" section "\033[0m"; section = "" } split($$1, parts, ":"); printf "  \033[36m%-20s\033[0m\n", parts[1] }' $(MAKEFILE_LIST)
+
 build: build-amd64
 
 # amd64 variant
