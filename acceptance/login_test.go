@@ -14,6 +14,7 @@ package acceptance_test
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -164,8 +165,19 @@ var _ = Describe("Login", LMisc, func() {
 	})
 
 	It("respects the port when one is present [fixed bug]", func() {
-		randomPort := fmt.Sprintf(`:%d`, r.Intn(65536))
-		serverURLWithPort := serverURL + randomPort
+		parsed, err := url.Parse(serverURL)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Get the current port (if any) and strip it
+		host := parsed.Hostname()
+		oldPort := parsed.Port()
+		p := r.Intn(65535-1024) + 1024 // avoid well-known ports
+		if oldPort != fmt.Sprintf("%d", p) {
+			p += 1
+		}
+		randomPort := fmt.Sprintf(`:%d`, p)
+		parsed.Host = fmt.Sprintf("%s:%s", host, randomPort)
+		serverURLWithPort := parsed.String()
 
 		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,
 			"--trust-ca", "--settings-file", tmpSettingsPath, serverURLWithPort)
