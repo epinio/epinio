@@ -69,7 +69,7 @@ jobs:
           name: unittests
           path: ./coverprofile.out
 
-  acceptance-cli:
+  test-acceptance-cli-other:
     needs:
       - linter
     runs-on: ubuntu-latest
@@ -147,7 +147,7 @@ jobs:
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
-  acceptance-cli-apps:
+  test-acceptance-cli-apps:
     needs:
       - linter
     runs-on: ubuntu-latest
@@ -226,7 +226,7 @@ jobs:
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
-  acceptance-cli-services:
+  test-acceptance-cli-services:
     needs:
       - linter
     runs-on: ubuntu-latest
@@ -304,10 +304,10 @@ jobs:
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
-  acceptance-api:
+  test-acceptance-api-other:
     needs:
       - linter
-      - acceptance-api-services
+      - test-acceptance-api-services
     runs-on: ubuntu-latest
 
     env:
@@ -383,10 +383,10 @@ jobs:
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
-  acceptance-api-apps:
+  test-acceptance-api-apps:
     needs:
       - linter
-      - acceptance-cli-services
+      - test-acceptance-cli-services
     runs-on: ubuntu-latest
 
     env:
@@ -569,7 +569,7 @@ jobs:
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
-  acceptance-api-services:
+  test-acceptance-api-services:
     needs:
       - linter
     runs-on: ubuntu-latest
@@ -649,10 +649,10 @@ jobs:
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
-  acceptance-apps:
+  test-acceptance-apps:
     needs:
       - linter
-      - acceptance-cli
+      - test-acceptance-cli-other
     runs-on: ubuntu-latest
 
     env:
@@ -751,10 +751,10 @@ jobs:
 
   upload-coverage:
     needs:
-      - acceptance-api
-      - acceptance-api-apps
-      - acceptance-apps
-      - acceptance-cli-apps
+      - test-acceptance-api-other
+      - test-acceptance-api-apps
+      - test-acceptance-apps
+      - test-acceptance-cli-apps
 
     runs-on: ubuntu-latest
 
