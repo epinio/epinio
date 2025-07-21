@@ -21,7 +21,7 @@ source "${SCRIPT_DIR}/helpers.sh"
 prepare_system_domain
 
 # graceful exit for server
-curl -vk https://epinio."$EPINIO_SYSTEM_DOMAIN"/exit
+curl -vk https://epinio."$EPINIO_DOMAIN_AND_PORT"/exit
 
 # wait for restart and get name
 kubectl rollout status deployment -n epinio epinio-server
