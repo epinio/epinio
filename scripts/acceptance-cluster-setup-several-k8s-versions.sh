@@ -18,7 +18,7 @@ MIRROR_NAME=epinio-acceptance-registry-mirror
 CLUSTER_NAME=epinio-acceptance
 export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
 # Get all available k3s releases, sort them, get rid of RCs and use tag format
-K3S_RELEASES=$(curl -sH "Accept: application/vnd.github.v3+json" 'https://api.github.com/repos/k3s-io/k3s/releases' | jq -r '.[] | select (.assets[].name == "k3s") | .name' | grep -v '\-rc' | sort -r | tr + -)
+K3S_RELEASES=$(curl -sH "Accept: application/vnd.github.v3+json" 'https://api.github.com/repos/k3s-io/k3s/releases' | jq -r '.[] | select(.assets and (.assets[]? | select(.name == "k3s"))) | .name' | grep -v '\-rc' | sort -r | tr + -)
 
 # k3s version selection (latest is default)
 if [[ "$K3S_KIND" == "latest" || "$K3S_KIND" == "" ]]; then
