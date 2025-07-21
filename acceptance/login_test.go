@@ -176,7 +176,7 @@ var _ = Describe("Login", LMisc, func() {
 			p += 1
 		}
 		randomPort := fmt.Sprintf(`:%d`, p)
-		parsed.Host = fmt.Sprintf("%s:%s", host, randomPort)
+		parsed.Host = fmt.Sprintf("%s:%d", host, p)
 		serverURLWithPort := parsed.String()
 
 		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,
