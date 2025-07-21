@@ -173,7 +173,7 @@ var _ = Describe("Login", LMisc, func() {
 		oldPort := parsed.Port()
 		randomPort := r.Intn(65535-1024) + 1024 // avoid well-known ports
 		if oldPort != fmt.Sprintf("%d", randomPort) {
-			randomPort += 1
+			randomPort -= 1 // subtract one to prevent exceeding port maximums
 		}
 		parsed.Host = fmt.Sprintf("%s:%d", host, randomPort)
 		serverURLWithPort := parsed.String()
@@ -191,9 +191,9 @@ var _ = Describe("Login", LMisc, func() {
 		}
 
 		Expect(outLines[0]).To(ContainSubstring("Login to your Epinio cluster"))
-		Expect(outLines[0]).To(ContainSubstring(randomPort))
+		Expect(outLines[0]).To(ContainSubstring(fmt.Sprintf("%d", randomPort)))
 
 		Expect(outLines[1]).To(ContainSubstring("error while checking CA"))
-		Expect(outLines[1]).To(ContainSubstring("%s: connect: connection refused", randomPort))
+		Expect(outLines[1]).To(ContainSubstring(fmt.Sprintf("%d: connect: connection refused", randomPort)))
 	})
 })
