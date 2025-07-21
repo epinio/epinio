@@ -18,6 +18,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -998,7 +999,9 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			serviceName = catalog.NewServiceName()
-			serviceHostname := strings.Replace(settings.API, `https://epinio`, serviceName, 1)
+			parsed, err := url.Parse(settings.API)
+			Expect(err).ToNot(HaveOccurred())
+			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
 
 			out, err := env.Epinio("", "service", "create",
 				catalogService.Meta.Name, serviceName,
