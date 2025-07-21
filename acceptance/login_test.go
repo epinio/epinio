@@ -171,12 +171,11 @@ var _ = Describe("Login", LMisc, func() {
 		// Get the current port (if any) and strip it
 		host := parsed.Hostname()
 		oldPort := parsed.Port()
-		p := r.Intn(65535-1024) + 1024 // avoid well-known ports
-		if oldPort != fmt.Sprintf("%d", p) {
-			p += 1
+		randomPort := r.Intn(65535-1024) + 1024 // avoid well-known ports
+		if oldPort != fmt.Sprintf("%d", randomPort) {
+			randomPort += 1
 		}
-		randomPort := fmt.Sprintf(`:%d`, p)
-		parsed.Host = fmt.Sprintf("%s:%d", host, p)
+		parsed.Host = fmt.Sprintf("%s:%d", host, randomPort)
 		serverURLWithPort := parsed.String()
 
 		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,
