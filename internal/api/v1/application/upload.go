@@ -54,10 +54,11 @@ func Upload(c *gin.Context) apierror.APIErrors {
 	log.V(2).Info("parsing multipart form")
 
 	file, fileheader, err := c.Request.FormFile("file")
-	defer file.Close()
-	if err != nil {
+	
+  if err != nil {
 		return apierror.NewBadRequestError(err.Error()).WithDetails("can't read multipart file input")
 	}
+	defer file.Close()
 
 	// TODO: Does this break streaming of the file? We need to get the whole file
 	// before we can check its type
