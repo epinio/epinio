@@ -54,7 +54,9 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 			catalogService = catalog.NginxCatalogService(catalogServiceName)
 			catalog.CreateCatalogService(catalogService)
 
-			catalogServiceURL = "http://" + catalogServiceHostname
+			// temporarily include :8080 to test port resolution
+			// catalogServiceURL = "http://" + catalogServiceHostname
+			catalogServiceURL = fmt.Sprintf("%s://%s:%s", parsed.Scheme, catalogServiceHostname, parsed.Port())
 
 			DeferCleanup(func() {
 				catalog.DeleteCatalogService(catalogService.Meta.Name)
