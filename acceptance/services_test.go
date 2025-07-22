@@ -214,8 +214,12 @@ var _ = Describe("Services", LService, func() {
 				settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
 				Expect(err).ToNot(HaveOccurred())
 
+				// parse the API URL to properly pull the hostname without duplicating a port entry.
+				parsed, err := url.Parse(settings.API)
+				Expect(err).ToNot(HaveOccurred())
+
 				serviceName := catalog.NewServiceName()
-				serviceHostname := strings.Replace(settings.API, `https://epinio`, serviceName, 1)
+				serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
 
 				out, err := env.Epinio("", "service", "create",
 					catalogService.Meta.Name, serviceName,
@@ -998,9 +1002,11 @@ var _ = Describe("Services", LService, func() {
 			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
 			Expect(err).ToNot(HaveOccurred())
 
-			serviceName = catalog.NewServiceName()
+			// parse the API URL to properly pull the hostname without duplicating a port entry.
 			parsed, err := url.Parse(settings.API)
 			Expect(err).ToNot(HaveOccurred())
+
+			serviceName = catalog.NewServiceName()
 			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
 
 			out, err := env.Epinio("", "service", "create",
@@ -1165,10 +1171,14 @@ var _ = Describe("Services", LService, func() {
 			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
 			Expect(err).ToNot(HaveOccurred())
 
+			// parse the API URL to properly pull the hostname without duplicating a port entry.
+			parsed, err := url.Parse(settings.API)
+			Expect(err).ToNot(HaveOccurred())
+
 			appName = catalog.NewAppName()
 			service = catalog.NewServiceName()
 			containerImageURL := "epinio/sample-app"
-			serviceHostname := strings.Replace(settings.API, `https://epinio`, service, 1)
+			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, service, 1)
 
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 

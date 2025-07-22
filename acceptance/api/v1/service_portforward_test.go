@@ -44,8 +44,12 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
 			Expect(err).ToNot(HaveOccurred())
 
+			// parse the API URL to properly pull the hostname without duplicating a port entry.
+			parsed, err := url.Parse(settings.API)
+			Expect(err).ToNot(HaveOccurred())
+
 			catalogServiceName := catalog.NewCatalogServiceName()
-			catalogServiceHostname = strings.Replace(settings.API, `https://epinio`, catalogServiceName, 1)
+			catalogServiceHostname = strings.Replace(parsed.Hostname(), `epinio`, catalogServiceName, 1)
 
 			catalogService = catalog.NginxCatalogService(catalogServiceName)
 			catalog.CreateCatalogService(catalogService)
