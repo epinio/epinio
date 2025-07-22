@@ -13,6 +13,7 @@ package application
 
 import (
 	"io"
+	"os"
 	"mime/multipart"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -53,10 +54,10 @@ func Upload(c *gin.Context) apierror.APIErrors {
 	log.V(2).Info("parsing multipart form")
 
 	file, fileheader, err := c.Request.FormFile("file")
+	defer file.Close()
 	if err != nil {
 		return apierror.NewBadRequestError(err.Error()).WithDetails("can't read multipart file input")
 	}
-	defer file.Close()
 
 	// TODO: Does this break streaming of the file? We need to get the whole file
 	// before we can check its type
@@ -91,6 +92,18 @@ func Upload(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
+
+  /*Delete the temporary file created by the multipart form if upload is 
+  successful. If it fails the net/http package doesn't store the multipart file
+  in tmp directory and dumps it from memory/any partial file is not stored.*/
+  if tempFile, err := fileheader.Open(); err == nil {
+    if osFile, ok := tempFile.(*os.File); ok {
+      tempPath := osFile.Name()
+      log.Info("Deleting multipart temp file", "path", tempPath)
+      os.Remove(tempPath)
+    } 
+    tempFile.Close()
+  }
 
 	response.OKReturn(c, models.UploadResponse{
 		BlobUID: blobUID,
