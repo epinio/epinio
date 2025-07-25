@@ -14,6 +14,7 @@ package acceptance_test
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -164,8 +165,18 @@ var _ = Describe("Login", LMisc, func() {
 	})
 
 	It("respects the port when one is present [fixed bug]", func() {
-		randomPort := fmt.Sprintf(`:%d`, r.Intn(65536))
-		serverURLWithPort := serverURL + randomPort
+		parsed, err := url.Parse(serverURL)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Get the current port (if any) and strip it
+		host := parsed.Hostname()
+		oldPort := parsed.Port()
+		randomPort := r.Intn(65535-1024) + 1024 // avoid well-known ports
+		if oldPort != fmt.Sprintf("%d", randomPort) {
+			randomPort -= 1 // subtract one to prevent exceeding port maximums
+		}
+		parsed.Host = fmt.Sprintf("%s:%d", host, randomPort)
+		serverURLWithPort := parsed.String()
 
 		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,
 			"--trust-ca", "--settings-file", tmpSettingsPath, serverURLWithPort)
@@ -180,9 +191,9 @@ var _ = Describe("Login", LMisc, func() {
 		}
 
 		Expect(outLines[0]).To(ContainSubstring("Login to your Epinio cluster"))
-		Expect(outLines[0]).To(ContainSubstring(randomPort))
+		Expect(outLines[0]).To(ContainSubstring(fmt.Sprintf("%d", randomPort)))
 
 		Expect(outLines[1]).To(ContainSubstring("error while checking CA"))
-		Expect(outLines[1]).To(ContainSubstring("%s: connect: connection refused", randomPort))
+		Expect(outLines[1]).To(ContainSubstring(fmt.Sprintf("%d: connect: connection refused", randomPort)))
 	})
 })
