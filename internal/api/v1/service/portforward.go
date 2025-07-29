@@ -50,7 +50,12 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 		logger.Error(err, "failed to upgrade")
 		return apierror.InternalError(err)
 	}
-	defer wconn.Close()
+
+  defer func() {
+    if err := wconn.Close(); err != nil {
+      logger.Error(err, "failed to close connection: ")
+    }
+  }()
 
 	conn := wconn.UnderlyingConn()
 

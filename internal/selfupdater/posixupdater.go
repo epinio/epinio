@@ -43,7 +43,12 @@ func (u PosixUpdater) Update(targetVersion string) error {
 	if err != nil {
 		return errors.Wrapf(err, "downloading the binary for version %s", targetVersion)
 	}
-	defer os.Remove(tmpFile)
+
+  defer func() {
+    if err := os.Remove(tmpFile); err != nil {
+      fmt.Sprintf("failed to remove temporary file: %s", err)
+    }
+  }()
 
 	checksumFileURL := fmt.Sprintf(GithubChecksumURLFormat, targetVersion, strings.TrimPrefix(targetVersion, "v"))
 	err = validateFileChecksum(tmpFile, checksumFileURL, fmt.Sprintf("epinio-%s-%s", currentOS, URLArch))

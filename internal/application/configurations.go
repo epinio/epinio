@@ -88,7 +88,7 @@ func BoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster, namespa
 	for _, binding := range appBindings.Items {
 		for boundConfigurationName := range binding.Data {
 			if boundConfigurationName == configurationName {
-				appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
+				appName := binding.Labels["app.kubernetes.io/name"]
 				result = append(result, appName)
 				break
 			}
@@ -121,8 +121,8 @@ func BoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, namespace 
 	}
 
 	for _, binding := range appBindings.Items {
-		appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
-		namespace := binding.ObjectMeta.Labels["app.kubernetes.io/part-of"]
+		appName := binding.Labels["app.kubernetes.io/name"]
+		namespace := binding.Labels["app.kubernetes.io/part-of"]
 
 		for configurationName := range binding.Data {
 			key := EncodeConfigurationKey(configurationName, namespace)

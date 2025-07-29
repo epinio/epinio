@@ -252,7 +252,11 @@ func NewHTTPResponseHandler[T *http.Response]() ResponseHandler[T] {
 // NewJSONResponseHandler will try to unmarshal the response body into the provided struct
 func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandler[T] {
 	return func(httpResponse *http.Response) (T, error) {
-		defer httpResponse.Body.Close()
+    defer func() {
+      if err := httpResponse.Body.Close(); err != nil {
+        fmt.Sprintf("failed to close the response body %s: ", err)
+      }
+    }()
 
 		bodyBytes, err := io.ReadAll(httpResponse.Body)
 		respLog := responseLogger(logger, httpResponse, string(bodyBytes))
@@ -274,7 +278,11 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 }
 
 func handleError(logger logr.Logger, response *http.Response) error {
-	defer response.Body.Close()
+  defer func() {
+    if err := response.Body.Close(); err != nil {
+      fmt.Sprintf("failed to close the response body: %s", err)
+    }
+  }()
 
 	bodyBytes, err := io.ReadAll(response.Body)
 

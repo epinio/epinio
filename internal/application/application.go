@@ -91,7 +91,7 @@ func ValidateCV(cv models.ChartValueSettings, decl map[string]models.ChartSettin
 			}
 
 			if !nestedmap {
-				issues = append(issues, fmt.Errorf(`Setting "%s": Not known`, keybase))
+				issues = append(issues, fmt.Errorf(`setting "%s": Not known`, keybase))
 			}
 			continue
 		}
@@ -537,13 +537,13 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 			continue
 		}
 
-		err := cluster.DeleteJob(ctx, job.ObjectMeta.Namespace, job.ObjectMeta.Name)
+		err := cluster.DeleteJob(ctx, job.Namespace, job.Name)
 		if err != nil {
 			return err
 		}
 
 		// And the associated secret holding the job environment
-		err = cluster.DeleteSecret(ctx, job.ObjectMeta.Namespace, job.ObjectMeta.Name)
+		err = cluster.DeleteSecret(ctx, job.Namespace, job.Name)
 		if err != nil {
 			return err
 		}
@@ -556,7 +556,7 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 			continue
 		}
 
-		if err = s3m.DeleteObject(ctx, job.ObjectMeta.Labels[models.EpinioStageBlobUIDLabel]); err != nil {
+		if err = s3m.DeleteObject(ctx, job.Labels[models.EpinioStageBlobUIDLabel]); err != nil {
 			return err
 		}
 	}
@@ -644,7 +644,7 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[ConfigurationKey]AppData {
 			continue
 		}
 
-		key := EncodeConfigurationKey(app, s.ObjectMeta.Namespace)
+		key := EncodeConfigurationKey(app, s.Namespace)
 
 		if _, found := result[key]; !found {
 			result[key] = AppData{}

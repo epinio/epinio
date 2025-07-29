@@ -175,7 +175,12 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-	imageFile.Close() // Note: We do not need the open reader here.
+
+	imageFileError := imageFile.Close() // Note: We do not need the open reader here.
+	if imageFileError != nil {
+		return apierror.InternalError(imageFileError)
+	}
+
 	defer func(path string) {
 		cleanupLocalPath(logger, "image", path)
 	}(imageExportVolume + imageLocalFile)
@@ -356,7 +361,7 @@ func checkDestination(ctx context.Context, cluster *kubernetes.Cluster,
 	}
 
 	// destination validation III - is the secret good ?
-	marker, ok := destinationSecret.ObjectMeta.Labels[kubernetes.EpinioAPIExportRegistryLabelKey]
+	marker, ok := destinationSecret.Labels[kubernetes.EpinioAPIExportRegistryLabelKey]
 	if !ok {
 		return empty, "", errors.New("bad export destination: marker label is missing")
 	}
@@ -425,7 +430,12 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-	defer file.Close()
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			logger.Error(err, "error closing chart archive file: ")
+		}
+	}()
 
 	logger.Info("input is file")
 
@@ -433,7 +443,12 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-	defer dstFile.Close()
+
+	defer func() {
+		if err := dstFile.Close(); err != nil {
+			logger.Error(err, "error closing dst file: ")
+		}
+	}()
 
 	// copy file ...
 	logger.Info("input, copy to", "destination", dstFile.Name())
@@ -578,36 +593,36 @@ func runJob(label string, ctx context.Context, cluster *kubernetes.Cluster, logg
 
 	err := cluster.CreateJob(ctx, helmchart.Namespace(), job)
 	if err != nil {
-		logger.Error(err, "job create", job.ObjectMeta.Name)
-		return errors.Wrapf(err, "unable to create %s job %s", label, job.ObjectMeta.Name)
+		logger.Error(err, "job create", job.Name)
+		return errors.Wrapf(err, "unable to create %s job %s", label, job.Name)
 	}
 
 	logger.Info(fmt.Sprintf("wait for completion of %s job", label))
 
-	err = cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.ObjectMeta.Name, time.Minute*12)
+	err = cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.Name, time.Minute*12)
 	if err != nil {
-		logger.Error(err, "job wait", job.ObjectMeta.Name)
-		return errors.Wrapf(err, "error waiting for completion of %s job %s", label, job.ObjectMeta.Name)
+		logger.Error(err, "job wait", job.Name)
+		return errors.Wrapf(err, "error waiting for completion of %s job %s", label, job.Name)
 	}
 
-	failed, err := cluster.IsJobFailed(ctx, job.ObjectMeta.Name, helmchart.Namespace())
+	failed, err := cluster.IsJobFailed(ctx, job.Name, helmchart.Namespace())
 	if err != nil {
-		logger.Error(err, "job", job.ObjectMeta.Name)
-		return errors.Wrapf(err, "error checking status of %s job %s", label, job.ObjectMeta.Name)
+		logger.Error(err, "job", job.Name)
+		return errors.Wrapf(err, "error checking status of %s job %s", label, job.Name)
 	}
 
 	if failed {
-		logger.Info("job failed", "job", job.ObjectMeta.Name)
-		return errors.New(label + " job " + job.ObjectMeta.Name + " failed")
+		logger.Info("job failed", "job", job.Name)
+		return errors.New(label + " job " + job.Name + " failed")
 	} else {
 		// Attention: Job is deleted if and only if it succeeded in time. A failed or timed
 		// out job is kept for inspection by the user and/or operator.
 
-		logger.Info(fmt.Sprintf("delete completed %s job %s", label, job.ObjectMeta.Name))
-		err = cluster.DeleteJob(ctx, helmchart.Namespace(), job.ObjectMeta.Name)
+		logger.Info(fmt.Sprintf("delete completed %s job %s", label, job.Name))
+		err = cluster.DeleteJob(ctx, helmchart.Namespace(), job.Name)
 		if err != nil {
-			logger.Error(err, "job", job.ObjectMeta.Name)
-			return errors.Wrapf(err, "error deleting %s job %s", label, job.ObjectMeta.Name)
+			logger.Error(err, "job", job.Name)
+			return errors.Wrapf(err, "error deleting %s job %s", label, job.Name)
 		}
 	}
 

@@ -120,7 +120,7 @@ func (u *UI) JSONEnabled() bool {
 }
 
 func (u *UI) Raw(message string) {
-	fmt.Fprintf(u.output, "%s", message)
+	_, _ = fmt.Fprintf(u.output, "%s", message)
 }
 
 func (u *UI) SetOutput(output io.Writer) {
@@ -257,7 +257,7 @@ func (u *Message) Msg(message string) {
 		message = color.RedString(message)
 	}
 
-	fmt.Fprintf(u.ui.output, "%s", message)
+	_, _ = fmt.Fprintf(u.ui.output, "%s", message)
 
 	for _, interaction := range u.interactions {
 		switch interaction.variant {
@@ -277,11 +277,26 @@ func (u *Message) Msg(message string) {
 		case show:
 			switch interaction.valueType {
 			case tBool:
-				fmt.Fprintf(u.ui.output, "%s: %s\n", emoji.Sprint(interaction.name), color.MagentaString("%t", interaction.value))
+				_, _ = fmt.Fprintf(
+          u.ui.output, 
+          "%s: %s\n", 
+          emoji.Sprint(interaction.name), 
+          color.MagentaString("%t", interaction.value),
+        )
 			case tInt:
-				fmt.Fprintf(u.ui.output, "%s: %s\n", emoji.Sprint(interaction.name), color.CyanString("%d", interaction.value))
+				_, _ = fmt.Fprintf(
+          u.ui.output, 
+          "%s: %s\n", 
+          emoji.Sprint(interaction.name), 
+          color.CyanString("%d", interaction.value),
+        )
 			case tString:
-				fmt.Fprintf(u.ui.output, "%s: %s\n", emoji.Sprint(interaction.name), color.GreenString("%s", interaction.value))
+				_, _ = fmt.Fprintf(
+          u.ui.output, 
+          "%s: %s\n", 
+          emoji.Sprint(interaction.name), 
+          color.GreenString("%s", interaction.value),
+        )
 			}
 		}
 	}
@@ -432,14 +447,23 @@ func (u *Message) WithAskInt(name string, result *int) *Message {
 
 func readBool() bool {
 	var value bool
-	fmt.Scanf("%b", &value)
+
+  _, scanError := fmt.Scanf("%b", &value)
+  if scanError != nil {
+    fmt.Sprintf("Scan f error: %s", scanError)
+  }
 
 	return value
 }
 
 func readString() string {
 	var value string
-	fmt.Scanf("%s", &value)
+	
+  _, scanError := fmt.Scanf("%s", &value)
+  if scanError != nil {
+    fmt.Sprintf("Scan f error: %s", scanError)
+  }
+
 	value = strings.TrimSpace(value)
 
 	return value
@@ -447,7 +471,11 @@ func readString() string {
 
 func readInt() int {
 	var value int
-	fmt.Scanf("%d", &value)
+  
+  _, scanError := fmt.Scanf("%s", &value)
+  if scanError != nil {
+    fmt.Sprintf("Scan f error: %s", scanError)
+  }
 
 	return value
 }

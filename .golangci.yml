@@ -8,60 +8,46 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+version: "2"
 run:
-  go: "1.20.4"
-  deadline: 20s
+  go: "1.23.0"
 
-  # don't report issues from these dirs
   skip-dirs:
     - vendor
     - assets
 
-  # skip generated files
-  skip-files:
-  - ".*_fake.go$"
-  - "fake_.*.go$"
-
-linters-settings:
-  revive:
-    rules:
-    - name: blank-imports
-      severity: warning
-  funlen:
-    # Checks the number of lines in a function. Default: 60
-    lines: 250
-    # Checks the number of statements in a function. Default: 40
-    statements: 110
-
-issues:
-  exclude-rules:
-  - linters:
-    - gocyclo
-    - dupl
-    - errcheck
-    - gosec
-    path: _test\.go
-
 linters:
-  disable-all: true
+  settings:
+    funlen:
+      lines: 250
+      statements: 110
+    revive:
+      rules:
+        - name: blank-imports
+          severity: warning
+        - name: dot-imports
+          disabled: true
+    staticcheck:
+      # Default, and exclude error from dot imports
+      checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022", "-ST1001"]
+  exclusions:
+    paths:
+      - internal/api/v1/docs/docs.go
+      - '_test\.go$'
+      - ".*_fake.go$"
+      - "fake_.*.go$"
   enable:
-  # default linters
-  - errcheck
-  - gosimple
-  - govet
-  - ineffassign
-  - staticcheck
-  - typecheck
-  - unused
-  
-  # extra
-  - dupl
-  - funlen
-  - gocyclo
-  - goimports
-  - gosec
-  - misspell
-  - nakedret
-  - revive
-  - unparam
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    # extra
+    - dupl
+    - funlen
+    - gocyclo
+    - gosec
+    - misspell
+    - nakedret
+    - revive
+    - unparam

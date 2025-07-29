@@ -58,7 +58,7 @@ func (details *ConnectionDetails) Validate() error {
 	optionalSet := details.Location != ""
 
 	// If mandatory fields are partly set
-	partlyMandatory := !(allMandatorySet || allMandatoryEmpty)
+	partlyMandatory := !allMandatorySet && !allMandatoryEmpty
 	if partlyMandatory {
 		return errors.New("when specifying an external s3 server, you must set all mandatory S3 options")
 	}

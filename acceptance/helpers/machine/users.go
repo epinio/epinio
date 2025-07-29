@@ -60,17 +60,18 @@ func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, st
 		roles = append(roles, "admin:"+namespace)
 	}
 
-	secret.ObjectMeta.Annotations = map[string]string{
+	secret.Annotations = map[string]string{
 		"epinio.io/roles": strings.Join(roles, ","),
 	}
 
 	secretTmpFile := catalog.NewTmpName("tmpUserFile") + `.json`
+  //nolint:gosec // Used in acceptance tests, no need to check for file inclusion
 	file, err := os.Create(secretTmpFile)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = json.NewEncoder(file).Encode(secret)
 	Expect(err).ToNot(HaveOccurred())
-	defer os.Remove(secretTmpFile)
+	defer Expect(os.Remove(secretTmpFile)).ToNot(HaveOccurred())
 
 	out, err := proc.Kubectl("apply", "-f", secretTmpFile)
 	Expect(err).ToNot(HaveOccurred(), out)

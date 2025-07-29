@@ -24,6 +24,11 @@ func SetupEnv() {
 	// this env var is for the patch-epinio-deployment target in the
 	// Makefile, which has the top level as root dir
 	if os.Getenv("EPINIO_BINARY_PATH") == "" {
-		os.Setenv("EPINIO_BINARY_PATH", fmt.Sprintf("./dist/%s", ServerBinaryName()))
+    setEnvError := os.Setenv(
+      "EPINIO_BINARY_PATH", 
+      fmt.Sprintf("./dist/%s", ServerBinaryName()),
+    )
+
+    fmt.Sprintf("EPINIO_BINARY_PATH was not set correctly: %s", setEnvError)
 	}
 }

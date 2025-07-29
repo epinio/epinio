@@ -167,11 +167,21 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 			logger.Error(err, "failed to write to websockets")
 
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-				conn.Close()
+        connectionCloseError := conn.Close()
+
+        if connectionCloseError != nil {
+          return connectionCloseError
+        }
+
 				return nil
 			}
 			if websocket.IsUnexpectedCloseError(err) {
-				conn.Close()
+				connectionCloseError := conn.Close()
+        
+        if connectionCloseError != nil {
+          return connectionCloseError
+        }
+
 				logger.Error(err, "websockets connection unexpectedly closed")
 				return nil
 			}

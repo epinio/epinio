@@ -62,8 +62,8 @@ func (pf *ServicePortForwarder) ForwardPorts() error {
 	for i := range pf.Ports {
 		port := &pf.Ports[i]
 		err = pf.listenOnPort(port)
-		switch {
-		case err == nil:
+		switch err {
+		case nil:
 			listenSuccess = true
 		default:
 			pf.Client.log.V(1).Info("Unable to listen on port %d: %v\n", port.Local)
@@ -128,7 +128,7 @@ func (pf *ServicePortForwarder) getListener(protocol string, hostname string, po
 
 	if err != nil {
 		errStr := fmt.Sprintf("error parsing local port: %s from %s (%s)", err, listenerAddress, host)
-		return nil, fmt.Errorf(errStr)
+		return nil, fmt.Errorf("%s", errStr)
 	}
 	port.Local = uint16(localPortUInt)
 	pf.Client.log.V(1).Info("Forwarding from %s -> %d\n", net.JoinHostPort(hostname, strconv.Itoa(int(localPortUInt))), port.Remote)
@@ -143,7 +143,11 @@ func (pf *ServicePortForwarder) waitForConnection(listener net.Listener, port Fo
 			pf.Client.log.V(1).Info("error accepting connection on port %d: %v", port.Local, err)
 			return err
 		} else {
-			defer listener.Close()
+      defer func() {
+        if err := listener.Close(); err != nil {
+          fmt.Sprintf("failed to close listener: %s", err)
+        }
+      }()
 		}
 
 		go func() {
@@ -155,7 +159,11 @@ func (pf *ServicePortForwarder) waitForConnection(listener net.Listener, port Fo
 }
 
 func (pf *ServicePortForwarder) handleConnection(localConn net.Conn) error {
-	defer localConn.Close()
+  defer func() {
+    if err := localConn.Close(); err != nil {
+      fmt.Sprintf("failed to close local connection: %s", err)
+    }
+  }()
 
 	portForwardURL, err := url.Parse(pf.Endpoint)
 	if err != nil {
@@ -176,11 +184,20 @@ func (pf *ServicePortForwarder) handleConnection(localConn net.Conn) error {
 		return err
 	}
 	if c != nil {
-		defer c.Close()
+    defer func() {
+      if err := c.Close(); err != nil {
+        fmt.Sprintf("failed to close websocket dialer: %s", err)
+      }
+    }()
 	}
 
 	upgradedConnection := c.UnderlyingConn()
-	defer upgradedConnection.Close()
+  
+  defer func() {
+    if err := upgradedConnection.Close(); err != nil {
+      fmt.Sprintf("failed to close upgraded connection: %s", err)
+    }
+  }()
 
 	localError := make(chan error)
 	remoteDone := make(chan struct{})

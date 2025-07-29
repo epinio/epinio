@@ -81,7 +81,8 @@ func CreateCatalogServiceInNamespace(namespace string, catalogService models.Cat
 	By("creating catalog entry in " + namespace + ": " + catalogService.Meta.Name)
 
 	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService)
-	defer os.Remove(sampleServiceFilePath)
+  
+  defer Expect(os.Remove(sampleServiceFilePath)).ToNot(HaveOccurred())
 
 	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
 	Expect(err).ToNot(HaveOccurred(), out)
@@ -143,7 +144,7 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	}
 
 	if len(catalogService.SecretTypes) > 0 {
-		srv.ObjectMeta.Annotations = map[string]string{
+		srv.Annotations = map[string]string{
 			services.CatalogServiceSecretTypesAnnotation: strings.Join(catalogService.SecretTypes, ","),
 		}
 	}
@@ -236,12 +237,13 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 	}
 
 	secretTmpFile := NewTmpName("tmpUserFile") + `.json`
+  //nolint:gosec // Used in acceptance tests, no need to check for file inclusion
 	file, err := os.Create(secretTmpFile)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = json.NewEncoder(file).Encode(secret)
 	Expect(err).ToNot(HaveOccurred())
-	defer os.Remove(secretTmpFile)
+	defer Expect(os.Remove(secretTmpFile)).ToNot(HaveOccurred())
 
 	out, err := proc.Kubectl("apply", "-f", secretTmpFile)
 	Expect(err).ToNot(HaveOccurred(), out)
@@ -268,7 +270,7 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 		filePath, err := helpers.CreateTmpFile(catalogService.Values)
 		Expect(err).ToNot(HaveOccurred())
 		cmd = append(cmd, "-f", filePath)
-		defer os.Remove(filePath)
+		defer Expect(os.Remove(filePath)).ToNot(HaveOccurred())
 	}
 
 	out, err = proc.RunW("helm", cmd...)

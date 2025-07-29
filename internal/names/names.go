@@ -34,7 +34,7 @@ var allowedDNSLabelChars = regexp.MustCompile("[^-a-z0-9]*")
 // https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
 func DNSLabelSafe(name string) string {
 	name = strings.TrimLeft(name, "0123456789") // leading digits
-	name = strings.Replace(name, "_", "-", -1)
+	name = strings.ReplaceAll(name, "_", "-")
 	name = strings.ToLower(name)
 	name = allowedDNSLabelChars.ReplaceAllLiteralString(name, "")
 	name = strings.TrimLeft(name, "-")

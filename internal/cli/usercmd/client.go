@@ -25,7 +25,6 @@ import (
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/selfupdater"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
-	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
@@ -63,7 +62,7 @@ type APIClient interface {
 	StagingComplete(namespace string, id string) (models.Response, error)
 	AppRunning(app models.AppRef) (models.Response, error)
 	AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error
-	AppPortForward(namespace string, appName, instance string, opts *epinioapi.PortForwardOpts) error
+	AppPortForward(namespace string, appName, instance string, opts *client.PortForwardOpts) error
 	AppRestart(namespace string, appName string) (models.Response, error)
 	AppGetPart(namespace, appName, part string) (models.AppPartResponse, error)
 	AppMatch(namespace, prefix string) (models.AppMatchResponse, error)
@@ -113,7 +112,7 @@ type APIClient interface {
 	ServiceDelete(req models.ServiceDeleteRequest, namespace string, names []string) (models.ServiceDeleteResponse, error)
 	ServiceList(namespace string) (models.ServiceList, error)
 	ServiceMatch(namespace, prefix string) (models.ServiceMatchResponse, error)
-	ServicePortForward(namespace string, serviceName string, opts *epinioapi.PortForwardOpts) error
+	ServicePortForward(namespace string, serviceName string, opts *client.PortForwardOpts) error
 	ServiceUpdate(req models.ServiceUpdateRequest, namespace, name string) (models.Response, error)
 	// note: The replace endpoint is not used by the cli.
 
@@ -166,7 +165,7 @@ func (c *EpinioClient) Init(ctx context.Context) error {
 	log.Info("Ingress API", "url", cfg.API)
 	log.Info("Settings API", "url", cfg.API)
 
-	c.API = epinioapi.New(ctx, cfg)
+	c.API = client.New(ctx, cfg)
 	c.ui = termui.NewUI()
 	return nil
 }

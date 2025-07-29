@@ -53,8 +53,8 @@ func Match(c *gin.Context) apierror.APIErrors {
 	log.Info("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, app := range apps {
-		if strings.HasPrefix(app.Meta.Name, prefix) {
-			matches = append(matches, app.Meta.Name)
+		if strings.HasPrefix(app.Name, prefix) {
+			matches = append(matches, app.Name)
 		}
 	}
 

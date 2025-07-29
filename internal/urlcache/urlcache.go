@@ -122,7 +122,12 @@ func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
 		logger.Info("fail http", "status", response.StatusCode)
 		return fmt.Errorf("failed with status %d", response.StatusCode)
 	}
-	defer response.Body.Close()
+  
+  defer func() {
+    if err := response.Body.Close(); err != nil {
+      logger.Error(err, "failed to close response body")
+    }
+  }()
 
 	dstFile, err := os.Create(destinationPath)
 	if err != nil {
@@ -131,11 +136,22 @@ func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
 
 	_, err = io.Copy(dstFile, response.Body)
 	if err != nil {
-		dstFile.Close()
-		os.Remove(dstFile.Name())
+    dstFileError := dstFile.Close()
+		if dstFileError != nil {
+      return dstFileError 
+    }
+
+    fileRemoveError := os.Remove(dstFile.Name())
+    if fileRemoveError != nil {
+      return fileRemoveError
+    }
 		return err
-	}
-	dstFile.Close()
+  }
+	
+  dstFileError := dstFile.Close()
+  if dstFileError != nil {
+    return dstFileError
+  }
 
 	// Verify fetch (path has to exist now)
 	stat, err := os.Stat(destinationPath)

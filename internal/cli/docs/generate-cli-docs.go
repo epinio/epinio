@@ -99,14 +99,19 @@ func createMarkdownFile(cmd *cobra.Command, dir string) error {
 		return nil
 	}
 
-	basename := strings.Replace(cmd.CommandPath(), " ", "_", -1) + ".md"
+	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
 	filename := filepath.Join(dir, basename)
 
 	f, err := os.Create(filename)
 	if err != nil {
 		return errors.Wrap(err, "error creating file")
 	}
-	defer f.Close()
+
+  defer func() {
+    if err := f.Close(); err != nil {
+      _ = fmt.Errorf("failed to close file: %s", err.Error())
+    }
+  }()
 
 	err = writeFileHeader(f, cmd.CommandPath())
 	if err != nil {
@@ -123,7 +128,12 @@ func createCategoryJSONFile(label, dir string) error {
 	if err != nil {
 		return errors.Wrap(err, "error creating file")
 	}
-	defer f.Close()
+
+  defer func() {
+    if err := f.Close(); err != nil {
+      _ = fmt.Errorf("failed to close file: %s", err.Error())
+    }
+  }()
 
 	cat := struct {
 		Label     string `json:"label"`
@@ -145,7 +155,7 @@ func createCategoryJSONFile(label, dir string) error {
 // linkHandler will return a function that will handle the markdown link generation
 func linkHandler(cmd *cobra.Command, _ string) func(link string) string {
 	return func(link string) string {
-		cmdPathLink := strings.Replace(strings.TrimSuffix(link, ".md"), "_", " ", -1)
+		cmdPathLink := strings.ReplaceAll(strings.TrimSuffix(link, ".md"), "_", " ")
 
 		// check if the link was referring to the parent command
 		// we also need to check if the current command has subcommands, because if it does not then the link needs to point to the same directory

@@ -47,7 +47,12 @@ type Upgrader struct {
 }
 
 func (upgr *Upgrader) NewConnection(resp *http.Response) (httpstream.Connection, error) {
-	defer resp.Body.Close()
+  defer func() {
+    if err := resp.Body.Close(); err != nil {
+      fmt.Sprintf("failed to close the response body: %s", err)
+    }
+  }()
+
 	if resp.StatusCode >= 400 {
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {

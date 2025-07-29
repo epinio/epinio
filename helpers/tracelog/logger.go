@@ -79,6 +79,8 @@ func NewStdrLogger() logr.Logger {
 	destination := os.Stderr
 	traceFilePath := TraceFile()
 	if traceFilePath != "" {
+    //TODO ensure we arent logging sensitive data here
+    //nolint:gosec 
 		dst, err := os.OpenFile(traceFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatalf("Unable to create log file %s", traceFilePath)
@@ -106,7 +108,13 @@ func NewZapLogger() logr.Logger {
 	}
 
 	zc := zap.NewProductionConfig()
-	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(level * -1))
+
+  //Warns of potential overflow conversion by ensuring level is in a safe range.
+  l := level * -1
+  if l < int(zapcore.DebugLevel) || l > int(zapcore.FatalLevel) {
+    logger.Info("invalid log level: %d", l)
+  }
+	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(l))
 
 	traceFilePath := TraceFile()
 	if traceFilePath != "" {

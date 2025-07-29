@@ -35,7 +35,11 @@ func Recovery(c *gin.Context) {
 		}
 
 		logger.Error(err, "recovered from panic", "stack", stackWriter.String())
-		fmt.Fprint(gin.DefaultWriter, stackWriter.String())
+    _, fprintError := fmt.Fprint(gin.DefaultWriter, stackWriter.String())
+
+    if fprintError != nil {
+      response.Error(c, apierrors.NewInternalError(fprintError.Error()))
+    }
 
 		// we don't want to expose internal details to the client
 		errMsg := fmt.Sprintf("something bad happened [request ID: %s]", reqID)

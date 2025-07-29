@@ -17,6 +17,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,7 +27,6 @@ import (
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
-	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
 	"golang.org/x/term"
 )
@@ -254,7 +254,12 @@ func checkCA(address string) (*x509.Certificate, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "error while dialing the server")
 	}
-	defer conn.Close()
+
+  defer func() {
+    if err := conn.Close(); err != nil {
+      fmt.Sprintf("Could not close connection: ", err)
+    }
+  }()
 
 	certs := conn.ConnectionState().PeerCertificates
 	if len(certs) == 0 {
@@ -330,7 +335,7 @@ func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, c
 	// the end of the operation the relevant file will be created. Only having an API matters,
 	// and we do.
 	epinioSettings.Location = "fake"
-	apiClient := epinioapi.New(ctx, epinioSettings)
+	apiClient := client.New(ctx, epinioSettings)
 
 	for k, values := range customHeaders {
 		for _, v := range values {

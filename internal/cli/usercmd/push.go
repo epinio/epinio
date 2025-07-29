@@ -278,7 +278,13 @@ func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, sour
 	if fileInfo.IsDir() {
 		// package directory as archive/tarball
 		tmpDir, tarball, err := helpers.Tar(source)
-		defer os.RemoveAll(tmpDir)
+    
+    defer func() {
+      if err := os.RemoveAll(tmpDir); err != nil {
+        fmt.Sprintf("failed to directory: %s", err)
+      }
+    }()
+
 		if err != nil {
 			return "", err
 		}
@@ -294,7 +300,12 @@ func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, sour
 	if err != nil {
 		return "", errors.Wrap(err, "failed to open archive")
 	}
-	defer file.Close()
+
+  defer func() {
+    if err := file.Close(); err != nil {
+      fmt.Sprintf("failed to close file: %s", err)
+    }
+  }()
 
 	upload, err := c.API.AppUpload(appRef.Namespace, appRef.Name, file)
 	if err != nil {

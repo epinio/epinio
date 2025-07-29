@@ -58,7 +58,12 @@ func Upload(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.NewBadRequestError(err.Error()).WithDetails("can't read multipart file input")
 	}
-	defer file.Close()
+
+  defer func() {
+    if err := file.Close(); err != nil {
+      log.Error(err, "file failed to close: ")
+    }
+  }()
 
 	// TODO: Does this break streaming of the file? We need to get the whole file
 	// before we can check its type
@@ -101,9 +106,17 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		if osFile, ok := tempFile.(*os.File); ok {
 			tempPath := osFile.Name()
 			log.Info("Deleting multipart temp file", "path", tempPath)
-			os.Remove(tempPath)
+      fileRemoveError := os.Remove(tempPath)
+
+      if fileRemoveError != nil {
+        log.Error(fileRemoveError, "Multipart failed to remove: ")
+      }
 		}
-		tempFile.Close()
+
+    tempFileCloseError := tempFile.Close()
+    if tempFileCloseError != nil {
+      log.Error(tempFileCloseError, "Temp file failed to close: ")
+    }
 	}
 
 	response.OKReturn(c, models.UploadResponse{

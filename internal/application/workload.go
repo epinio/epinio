@@ -246,15 +246,15 @@ func (a *Workload) AssembleFromParts(
 		// Pods found. replace defaults with actual information.
 
 		// Initialize various pieces from the first pod ...
-		createdAt = podList[0].ObjectMeta.CreationTimestamp.Time
-		stageID = podList[0].ObjectMeta.Labels["epinio.io/stage-id"]
-		controllerName = podList[0].ObjectMeta.Labels["epinio.io/app-container"]
-		username = podList[0].ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
+		createdAt = podList[0].CreationTimestamp.Time
+		stageID = podList[0].Labels["epinio.io/stage-id"]
+		controllerName = podList[0].Labels["epinio.io/app-container"]
+		username = podList[0].Annotations[models.EpinioCreatedByAnnotation]
 
 		for _, pod := range podList {
 			// Choose oldest time of all pods.
-			if createdAt.After(pod.ObjectMeta.CreationTimestamp.Time) {
-				createdAt = pod.ObjectMeta.CreationTimestamp.Time
+			if createdAt.After(pod.CreationTimestamp.Time) {
+				createdAt = pod.CreationTimestamp.Time
 			}
 
 			// Count ready pods - A temp is used to avoid `Implicit memory aliasing in for loop`.
@@ -318,7 +318,7 @@ func GetPodMetrics(ctx context.Context, cluster *kubernetes.Cluster, namespace s
 	}
 
 	for _, metric := range podMetrics.Items {
-		result[metric.ObjectMeta.Name] = metric
+		result[metric.Name] = metric
 	}
 
 	return result, nil
@@ -360,7 +360,7 @@ func (a *Workload) generatePodInfo(pods []corev1.Pod) map[string]*models.PodInfo
 			Name:      pod.Name,
 			Restarts:  restarts,
 			Ready:     podutils.IsPodReady(&pods[i]),
-			CreatedAt: pod.ObjectMeta.CreationTimestamp.Time.Format(time.RFC3339), // ISO 8601
+			CreatedAt: pod.CreationTimestamp.Format(time.RFC3339), // ISO 8601
 		}
 	}
 

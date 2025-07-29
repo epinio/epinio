@@ -84,7 +84,12 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 	if err != nil {
 		return err
 	}
-	defer stream.Close()
+
+  defer func() {
+    if err := stream.Close(); err != nil {
+      t.logger.Error(err, "failed to close stream: ")
+    }
+  }()
 
 	reader := bufio.NewReader(stream)
 

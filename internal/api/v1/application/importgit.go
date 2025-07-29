@@ -131,7 +131,12 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err, "can't create temp directory")
 	}
-	defer os.RemoveAll(gitRepo)
+
+  defer func() {
+    if err := os.RemoveAll(gitRepo); err != nil {
+      log.Error(err, "failed to remove git repo: ")
+    }
+  }()
 
 	gitConfig, err := gitManager.FindConfiguration(giturl)
 	if err != nil {

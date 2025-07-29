@@ -50,7 +50,7 @@ func (m *Machine) MakeGitconfigWithoutCleanup(gitConfigName string) {
 
 	DeferCleanup(func() {
 		By("token cleanup")
-		os.RemoveAll(tmpTokenDir)
+    Expect(os.RemoveAll(tmpTokenDir)).NotTo(HaveOccurred())
 	})
 
 	// create the secret with the github configuration

@@ -63,7 +63,12 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "creating a temporary file")
 	}
-	defer tmpFile.Close()
+
+  defer func() {
+    if err := tmpFile.Close(); err != nil {
+      fmt.Printf("failed to close temp file: %s", err)
+    }
+  }()
 
 	req, err := http.NewRequest("GET", remoteURL, nil)
 	if err != nil {
@@ -73,7 +78,12 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "making the request")
 	}
-	defer resp.Body.Close()
+  
+  defer func() {
+    if err := resp.Body.Close(); err != nil {
+      fmt.Printf("failed to close response body: %s", err)
+    }
+  }()
 
 	if resp.StatusCode != 200 {
 		return "", errors.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -124,7 +134,12 @@ func validateFileChecksum(filePath, checksumFileURL, fileNamePattern string) err
 	if err != nil {
 		return errors.Wrap(err, "creating temporary directory")
 	}
-	defer os.RemoveAll(tmpDir)
+  
+  defer func() {
+    if err := os.RemoveAll(tmpDir); err != nil {
+      fmt.Printf("failed to close temp directory: %s", err)
+    }
+  }()
 
 	tmpChecksumFile, err := downloadFile(checksumFileURL, tmpDir)
 	if err != nil {
@@ -154,7 +169,12 @@ func calculateChecksum(filePath string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "opening file %s", filePath)
 	}
-	defer f.Close()
+  
+  defer func() {
+    if err := f.Close(); err != nil {
+      fmt.Printf("failed to close file: %s", err)
+    }
+  }()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {

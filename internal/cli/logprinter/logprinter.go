@@ -61,7 +61,7 @@ func (printer LogPrinter) Print(log Log, uiMsg *termui.Message) {
 	var result bytes.Buffer
 	err := printer.Tmpl.Execute(&result, log)
 	if err != nil {
-		os.Stderr.WriteString(fmt.Sprintf("expanding template failed: %s", err))
+		_, _ = fmt.Fprintf(os.Stderr, "expanding template failed: %s", err)
 		return
 	}
 
@@ -70,7 +70,13 @@ func (printer LogPrinter) Print(log Log, uiMsg *termui.Message) {
 
 func determineColor(podName string) (podColor, containerColor *color.Color) {
 	hash := fnv.New32()
-	hash.Write([]byte(podName))
+  _, hashError := hash.Write([]byte(podName))
+  if hashError != nil {
+    fmt.Sprintf("error hashing the color: %s", hashError)
+  }
+
+  //Don't need to worry about as the pod name is known and the colorList is static
+  //nolint:gosec 
 	idx := hash.Sum32() % uint32(len(colorList))
 
 	colors := colorList[idx]

@@ -46,7 +46,7 @@ func (k *Kind) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
 }
 
 func (k *Kind) ExternalIPs() []string {
-	return k.Generic.InternalIPs
+	return k.InternalIPs
 }
 
 func NewPlatform() *Kind {
