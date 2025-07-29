@@ -12,10 +12,6 @@ version: "2"
 run:
   go: "1.23.0"
 
-  skip-dirs:
-    - vendor
-    - assets
-
 linters:
   settings:
     funlen:
