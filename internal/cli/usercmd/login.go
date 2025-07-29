@@ -257,7 +257,7 @@ func checkCA(address string) (*x509.Certificate, error) {
 
   defer func() {
     if err := conn.Close(); err != nil {
-      fmt.Sprintf("Could not close connection: ", err)
+      fmt.Sprintf("could not close connection: %s", err)
     }
   }()
 

@@ -94,7 +94,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		if err != nil {
 			// Error can happen on a read-only filesystem (like the one of the epinio
 			// server Pod). User should set a location explicitly.
-			return nil, fmt.Errorf("A settings file wasn't set explicitly and the default location couldn't be used: %s", err.Error())
+			return nil, fmt.Errorf("a settings file wasn't set explicitly and the default location couldn't be used: %s", err.Error())
 		}
 	}
 

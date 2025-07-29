@@ -80,8 +80,7 @@ func NewStdrLogger() logr.Logger {
 	traceFilePath := TraceFile()
 	if traceFilePath != "" {
     //TODO ensure we arent logging sensitive data here
-    //nolint:gosec 
-		dst, err := os.OpenFile(traceFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		dst, err := os.OpenFile(traceFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //nolint:gosec
 		if err != nil {
 			log.Fatalf("Unable to create log file %s", traceFilePath)
 		}

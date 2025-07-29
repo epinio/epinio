@@ -75,9 +75,8 @@ func determineColor(podName string) (podColor, containerColor *color.Color) {
     fmt.Sprintf("error hashing the color: %s", hashError)
   }
 
-  //Don't need to worry about as the pod name is known and the colorList is static
-  //nolint:gosec 
-	idx := hash.Sum32() % uint32(len(colorList))
+  //Don't need to worry about as the pod name is known and the colorList is static 
+	idx := hash.Sum32() % uint32(len(colorList)) //nolint:gosec
 
 	colors := colorList[idx]
 	return colors[0], colors[1]

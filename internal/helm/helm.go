@@ -789,7 +789,7 @@ func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters
 		for field, value := range parameters.Settings {
 			spec, found := appChart.Settings[field]
 			if !found {
-				return "", fmt.Errorf("Unable to deploy. Setting '%s' unknown", field)
+				return "", fmt.Errorf("unable to deploy. Setting '%s' unknown", field)
 			}
 
 			// Note: Here the interface{} result of the properly typed value is
@@ -798,7 +798,7 @@ func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters
 
 			v, err := ValidateField(field, value, spec)
 			if err != nil {
-				return "", fmt.Errorf(`Unable to deploy. %s`, err.Error())
+				return "", fmt.Errorf(`unable to deploy. %s`, err.Error())
 			}
 			params.User[field] = v
 

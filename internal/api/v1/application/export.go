@@ -637,7 +637,7 @@ func loadCerts(ctx context.Context, cluster *kubernetes.Cluster, secretName stri
 
 	pemData, ok := cert.Data["tls.crt"]
 	if !ok {
-		return "", fmt.Errorf("Cert secret %s not suitable, no key 'tls.crt'", secretName)
+		return "", fmt.Errorf("cert secret %s not suitable, no key 'tls.crt'", secretName)
 	}
 
 	certFile := fmt.Sprintf("%soci-cert-%d.pem", imageExportVolume, time.Now().UnixNano())
@@ -693,7 +693,7 @@ func decodeDestination(name, destination string) (*url.URL, error) {
 
 	if destinationURL.Host == "" {
 		// No host present. That is an error.
-		return nil, fmt.Errorf("Registry '%s': Missing host in '%s'", name, rawDest)
+		return nil, fmt.Errorf("registry '%s': Missing host in '%s'", name, rawDest)
 	}
 
 	return destinationURL, nil

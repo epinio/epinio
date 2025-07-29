@@ -59,7 +59,7 @@ func (u WindowsUpdater) Update(targetVersion string) error {
 		return errors.Wrap(err, "validating file checksum")
 	}
 
-	tmpDir, err := os.MkdirTemp("", "epinio")
+	tmpDir, err := os.MkdirTemp("", "epinio") //nolint:gosec
 	if err != nil {
 		return errors.Wrap(err, "creating temporary directory")
 	}

@@ -237,7 +237,8 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 	}
 
 	secretTmpFile := NewTmpName("tmpUserFile") + `.json`
-  //nolint:gosec // Used in acceptance tests, no need to check for file inclusion
+  // Used in acceptance tests, no need to check for file inclusion
+  //nolint:gosec 
 	file, err := os.Create(secretTmpFile)
 	Expect(err).ToNot(HaveOccurred())
 

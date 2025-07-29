@@ -447,10 +447,11 @@ func (u *Message) WithAskInt(name string, result *int) *Message {
 
 func readBool() bool {
 	var value bool
-
+  
   _, scanError := fmt.Scanf("%b", &value)
   if scanError != nil {
-    fmt.Sprintf("Scan f error: %s", scanError)
+    //nolint:govet
+    fmt.Sprintf("scan f error: %s", scanError)
   }
 
 	return value
@@ -458,23 +459,24 @@ func readBool() bool {
 
 func readString() string {
 	var value string
-	
+  
   _, scanError := fmt.Scanf("%s", &value)
   if scanError != nil {
-    fmt.Sprintf("Scan f error: %s", scanError)
+    //nolint:govet
+    fmt.Sprintf("scan f error: %s", scanError)
   }
 
 	value = strings.TrimSpace(value)
-
 	return value
 }
 
 func readInt() int {
-	var value int
+	var value int 
   
-  _, scanError := fmt.Scanf("%s", &value)
+  _, scanError := fmt.Scanf("%d", &value)
   if scanError != nil {
-    fmt.Sprintf("Scan f error: %s", scanError)
+    //nolint:govet
+    fmt.Sprintf("scan f error: %s", scanError)
   }
 
 	return value

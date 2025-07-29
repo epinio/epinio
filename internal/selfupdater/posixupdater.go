@@ -62,7 +62,7 @@ func (u PosixUpdater) Update(targetVersion string) error {
 		if ok {
 			fmt.Fprintf(os.Stderr, "Cross-device error trying to rename a file: %s -- will do a full copy\n", linkErr)
 			var tempInput []byte
-			tempInput, err = os.ReadFile(tmpFile)
+			tempInput, err = os.ReadFile(tmpFile) //nolint:gosec
 			if err != nil {
 				return errors.Wrapf(err, "Error reading temporary file %s", tmpFile)
 			}

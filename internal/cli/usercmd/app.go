@@ -58,7 +58,7 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 
 	errorMsgs := validation.IsDNS1123Subdomain(appName)
 	if len(errorMsgs) > 0 {
-		return fmt.Errorf("application's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
+		return fmt.Errorf("application's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc')")
 	}
 
 	request := models.ApplicationCreateRequest{

@@ -376,7 +376,7 @@ func (c *EpinioClient) CreateConfiguration(name string, dict []string) error {
 
 	errorMsgs := validation.IsDNS1123Subdomain(name)
 	if len(errorMsgs) > 0 {
-		return fmt.Errorf("configuration's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
+		return fmt.Errorf("configuration's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc')")
 	}
 
 	request := models.ConfigurationCreateRequest{
