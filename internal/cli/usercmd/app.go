@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+//		 http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -62,7 +62,7 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 	}
 
 	request := models.ApplicationCreateRequest{
-		Name:          appName,
+		Name:					 appName,
 		Configuration: appConfig,
 	}
 
@@ -149,8 +149,8 @@ func (c *EpinioClient) Apps(all bool) error {
 		configurations := strings.Join(app.Configuration.Configurations, ", ")
 
 		var (
-			status        string
-			routes        string
+			status				string
+			routes				string
 			statusDetails string
 		)
 
@@ -320,12 +320,12 @@ func (c *EpinioClient) getPartAndWriteFile(appName, part, destinationPath string
 	if err != nil {
 		return err
 	}
-  
-  defer func() {
-    if err := partResponse.Data.Close(); err != nil {
-      fmt.Sprintf("Failed to close part response: %s", err)
-    }
-  }()
+	
+	defer func() {
+		if err := partResponse.Data.Close(); err != nil {
+			fmt.Sprintf("Failed to close part response: %s", err)
+		}
+	}()
 
 	// Create the file
 	out, err := os.Create(destinationPath)
@@ -333,11 +333,11 @@ func (c *EpinioClient) getPartAndWriteFile(appName, part, destinationPath string
 		return err
 	}
 
-  defer func() {
-    if err := out.Close(); err != nil {
-      fmt.Sprintf("Failed to close file: %s", err)
-    }
-  }()
+	defer func() {
+		if err := out.Close(); err != nil {
+			fmt.Sprintf("Failed to close file: %s", err)
+		}
+	}()
 
 	bar := progressbar.DefaultBytes(
 		partResponse.ContentLength,
@@ -478,9 +478,9 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool) error {
 	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
 	callback := func(logLine tailer.ContainerLogLine) {
 		printer.Print(logprinter.Log{
-			Message:       logLine.Message,
-			Namespace:     logLine.Namespace,
-			PodName:       logLine.PodName,
+			Message:			 logLine.Message,
+			Namespace:		 logLine.Namespace,
+			PodName:			 logLine.PodName,
 			ContainerName: logLine.ContainerName,
 		}, c.ui.ProgressNote().Compact())
 	}
@@ -513,9 +513,9 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) er
 	}
 
 	tty := kubectlterm.TTY{
-		In:     os.Stdin,
-		Out:    os.Stdout,
-		Raw:    true,
+		In:			os.Stdin,
+		Out:		os.Stdout,
+		Raw:		true,
 		TryDev: true,
 	}
 
@@ -687,7 +687,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 
 	if len(app.Configuration.Environment) > 0 {
 		for _, ev := range app.Configuration.Environment.List() {
-			msg = msg.WithTableRow("  - "+ev.Name, ev.Value)
+			msg = msg.WithTableRow("	- "+ev.Name, ev.Value)
 		}
 	}
 
@@ -695,7 +695,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 
 	if len(app.Configuration.Settings) > 0 {
 		for _, cv := range app.Configuration.Settings.List() {
-			msg = msg.WithTableRow("  - "+cv.Name, cv.Value)
+			msg = msg.WithTableRow("	- "+cv.Name, cv.Value)
 		}
 	}
 

@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+//		 http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -107,11 +107,11 @@ func createMarkdownFile(cmd *cobra.Command, dir string) error {
 		return errors.Wrap(err, "error creating file")
 	}
 
-  defer func() {
-    if err := f.Close(); err != nil {
-      _ = fmt.Errorf("failed to close file: %s", err.Error())
-    }
-  }()
+	defer func() {
+		if err := f.Close(); err != nil {
+			_ = fmt.Errorf("failed to close file: %s", err.Error())
+		}
+	}()
 
 	err = writeFileHeader(f, cmd.CommandPath())
 	if err != nil {
@@ -129,17 +129,17 @@ func createCategoryJSONFile(label, dir string) error {
 		return errors.Wrap(err, "error creating file")
 	}
 
-  defer func() {
-    if err := f.Close(); err != nil {
-      _ = fmt.Errorf("failed to close file: %s", err.Error())
-    }
-  }()
+	defer func() {
+		if err := f.Close(); err != nil {
+			_ = fmt.Errorf("failed to close file: %s", err.Error())
+		}
+	}()
 
 	cat := struct {
-		Label     string `json:"label"`
-		Collapsed bool   `json:"collapsed"`
+		Label			string `json:"label"`
+		Collapsed bool	 `json:"collapsed"`
 	}{
-		Label:     label,
+		Label:		 label,
 		Collapsed: true,
 	}
 

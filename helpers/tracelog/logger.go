@@ -107,13 +107,7 @@ func NewZapLogger() logr.Logger {
 	}
 
 	zc := zap.NewProductionConfig()
-
-  //Warns of potential overflow conversion by ensuring level is in a safe range.
-  l := level * -1
-  if l < int(zapcore.DebugLevel) || l > int(zapcore.FatalLevel) {
-    logger.Info("invalid log level: %d", l)
-  }
-	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(l))
+	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(level * -1)) //nolint:gosec
 
 	traceFilePath := TraceFile()
 	if traceFilePath != "" {

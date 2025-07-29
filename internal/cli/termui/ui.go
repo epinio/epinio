@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+//		 http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -54,30 +54,30 @@ const (
 // UI contains functionality for dealing with the user
 // on the CLI
 type UI struct {
-	output      io.Writer
-	verbosity   int // Verbosity level for user messages.
+	output			io.Writer
+	verbosity		int // Verbosity level for user messages.
 	jsonEnabled bool
 }
 
 // Message represents a piece of information we want displayed to the user
 type Message struct {
-	ui           *UI // For access to requested verbosity.
-	level        int
-	msgType      msgType
-	end          int
-	compact      bool
-	keepline     bool
-	wait         time.Duration
+	ui					 *UI // For access to requested verbosity.
+	level				 int
+	msgType			 msgType
+	end					 int
+	compact			 bool
+	keepline		 bool
+	wait				 time.Duration
 	interactions []interaction
 	tableHeaders [][]string
-	tableData    [][][]string
+	tableData		 [][][]string
 }
 
 type interaction struct {
-	variant   valueVariant
+	variant		valueVariant
 	valueType valueType
-	name      string
-	value     interface{}
+	name			string
+	value			interface{}
 }
 
 // Progress abstracts the operations for a progress meter and/or
@@ -93,7 +93,7 @@ type Progress interface {
 // NewUI creates a new UI
 func NewUI() *UI {
 	return &UI{
-		output:    color.Output,
+		output:		 color.Output,
 		verbosity: verbosity(),
 	}
 }
@@ -146,70 +146,70 @@ func (u *UI) Progress(message string) Progress {
 // Normal returns a UIMessage that prints a normal message
 func (u *UI) Normal() *Message {
 	return &Message{
-		ui:           u,
-		msgType:      normal,
+		ui:						u,
+		msgType:			normal,
 		interactions: []interaction{},
-		end:          -1,
+		end:					-1,
 	}
 }
 
 // Exclamation returns a UIMessage that prints an exclamation message
 func (u *UI) Exclamation() *Message {
 	return &Message{
-		ui:           u,
-		msgType:      exclamation,
+		ui:						u,
+		msgType:			exclamation,
 		interactions: []interaction{},
-		end:          -1,
+		end:					-1,
 	}
 }
 
 // Question returns a UIMessage that prints a question. Best used with `WithAsk...` modifiers.
 func (u *UI) Question() *Message {
 	return &Message{
-		ui:           u,
-		msgType:      question,
+		ui:						u,
+		msgType:			question,
 		interactions: []interaction{},
-		end:          -1,
+		end:					-1,
 	}
 }
 
 // Note returns a UIMessage that prints a note message
 func (u *UI) Note() *Message {
 	return &Message{
-		ui:           u,
-		msgType:      note,
+		ui:						u,
+		msgType:			note,
 		interactions: []interaction{},
-		end:          -1,
+		end:					-1,
 	}
 }
 
 // Success returns a UIMessage that prints a success message
 func (u *UI) Success() *Message {
 	return &Message{
-		ui:           u,
-		msgType:      success,
+		ui:						u,
+		msgType:			success,
 		interactions: []interaction{},
-		end:          -1,
+		end:					-1,
 	}
 }
 
 // ProgressNote returns a UIMessage that prints a progress-related message
 func (u *UI) ProgressNote() *Message {
 	return &Message{
-		ui:           u,
-		msgType:      progress,
+		ui:						u,
+		msgType:			progress,
 		interactions: []interaction{},
-		end:          -1,
+		end:					-1,
 	}
 }
 
 // Problem returns a Message that prints a message that describes a problem
 func (u *UI) Problem() *Message {
 	return &Message{
-		ui:           u,
-		msgType:      problem,
+		ui:						u,
+		msgType:			problem,
 		interactions: []interaction{},
-		end:          -1,
+		end:					-1,
 	}
 }
 
@@ -278,25 +278,25 @@ func (u *Message) Msg(message string) {
 			switch interaction.valueType {
 			case tBool:
 				_, _ = fmt.Fprintf(
-          u.ui.output, 
-          "%s: %s\n", 
-          emoji.Sprint(interaction.name), 
-          color.MagentaString("%t", interaction.value),
-        )
+					u.ui.output, 
+					"%s: %s\n", 
+					emoji.Sprint(interaction.name), 
+					color.MagentaString("%t", interaction.value),
+				)
 			case tInt:
 				_, _ = fmt.Fprintf(
-          u.ui.output, 
-          "%s: %s\n", 
-          emoji.Sprint(interaction.name), 
-          color.CyanString("%d", interaction.value),
-        )
+					u.ui.output, 
+					"%s: %s\n", 
+					emoji.Sprint(interaction.name), 
+					color.CyanString("%d", interaction.value),
+				)
 			case tString:
 				_, _ = fmt.Fprintf(
-          u.ui.output, 
-          "%s: %s\n", 
-          emoji.Sprint(interaction.name), 
-          color.GreenString("%s", interaction.value),
-        )
+					u.ui.output, 
+					"%s: %s\n", 
+					emoji.Sprint(interaction.name), 
+					color.GreenString("%s", interaction.value),
+				)
 			}
 		}
 	}
@@ -371,7 +371,7 @@ func (u *Message) Compact() *Message {
 	return u
 }
 
-// WithEnd ends the entire process after printing the message.  This
+// WithEnd ends the entire process after printing the message.	This
 // also disables any previous `Timeout`.
 func (u *Message) WithEnd(code int) *Message {
 	u.end = code
@@ -382,10 +382,10 @@ func (u *Message) WithEnd(code int) *Message {
 // WithBoolValue adds a bool value to be printed in the message
 func (u *Message) WithBoolValue(name string, value bool) *Message {
 	u.interactions = append(u.interactions, interaction{
-		name:      name,
-		variant:   show,
+		name:			 name,
+		variant:	 show,
 		valueType: tBool,
-		value:     value,
+		value:		 value,
 	})
 	return u
 }
@@ -393,10 +393,10 @@ func (u *Message) WithBoolValue(name string, value bool) *Message {
 // WithStringValue adds a string value to be printed in the message
 func (u *Message) WithStringValue(name string, value string) *Message {
 	u.interactions = append(u.interactions, interaction{
-		name:      name,
-		variant:   show,
+		name:			 name,
+		variant:	 show,
 		valueType: tString,
-		value:     value,
+		value:		 value,
 	})
 	return u
 }
@@ -404,10 +404,10 @@ func (u *Message) WithStringValue(name string, value string) *Message {
 // WithIntValue adds an int value to be printed in the message
 func (u *Message) WithIntValue(name string, value int) *Message {
 	u.interactions = append(u.interactions, interaction{
-		name:      name,
-		variant:   ask,
+		name:			 name,
+		variant:	 ask,
 		valueType: tInt,
-		value:     value,
+		value:		 value,
 	})
 	return u
 }
@@ -415,10 +415,10 @@ func (u *Message) WithIntValue(name string, value int) *Message {
 // WithAskBool waits for the user's input for a boolean value
 func (u *Message) WithAskBool(name string, result *bool) *Message {
 	u.interactions = append(u.interactions, interaction{
-		name:      name,
-		variant:   ask,
+		name:			 name,
+		variant:	 ask,
 		valueType: tBool,
-		value:     result,
+		value:		 result,
 	})
 	return u
 }
@@ -426,10 +426,10 @@ func (u *Message) WithAskBool(name string, result *bool) *Message {
 // WithAskString waits for the user's input for a string value
 func (u *Message) WithAskString(name string, result *string) *Message {
 	u.interactions = append(u.interactions, interaction{
-		name:      name,
-		variant:   ask,
+		name:			 name,
+		variant:	 ask,
 		valueType: tString,
-		value:     result,
+		value:		 result,
 	})
 	return u
 }
@@ -437,34 +437,34 @@ func (u *Message) WithAskString(name string, result *string) *Message {
 // WithAskInt waits for the user's input for an int value
 func (u *Message) WithAskInt(name string, result *int) *Message {
 	u.interactions = append(u.interactions, interaction{
-		name:      name,
-		variant:   show,
+		name:			 name,
+		variant:	 show,
 		valueType: tInt,
-		value:     result,
+		value:		 result,
 	})
 	return u
 }
 
 func readBool() bool {
 	var value bool
-  
-  _, scanError := fmt.Scanf("%b", &value)
-  if scanError != nil {
-    //nolint:govet
-    fmt.Sprintf("scan f error: %s", scanError)
-  }
+	
+	_, scanError := fmt.Scanf("%b", &value)
+	if scanError != nil {
+		//nolint:govet
+		fmt.Sprintf("scan f error: %s", scanError)
+	}
 
 	return value
 }
 
 func readString() string {
 	var value string
-  
-  _, scanError := fmt.Scanf("%s", &value)
-  if scanError != nil {
-    //nolint:govet
-    fmt.Sprintf("scan f error: %s", scanError)
-  }
+	
+	_, scanError := fmt.Scanf("%s", &value)
+	if scanError != nil {
+		//nolint:govet
+		fmt.Sprintf("scan f error: %s", scanError)
+	}
 
 	value = strings.TrimSpace(value)
 	return value
@@ -472,12 +472,12 @@ func readString() string {
 
 func readInt() int {
 	var value int 
-  
-  _, scanError := fmt.Scanf("%d", &value)
-  if scanError != nil {
-    //nolint:govet
-    fmt.Sprintf("scan f error: %s", scanError)
-  }
+	
+	_, scanError := fmt.Scanf("%d", &value)
+	if scanError != nil {
+		//nolint:govet
+		fmt.Sprintf("scan f error: %s", scanError)
+	}
 
 	return value
 }

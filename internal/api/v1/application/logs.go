@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+//		 http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -33,7 +33,7 @@ import (
 )
 
 // Logs handles the API endpoints GET /namespaces/:namespace/applications/:app/logs
-// and                            GET /namespaces/:namespace/staging/:stage_id/logs
+// and														GET /namespaces/:namespace/staging/:stage_id/logs
 // It arranges for the logs of the specified application to be
 // streamed over a websocket. Dependent on the endpoint this may be
 // either regular logs, or the app's staging logs.
@@ -167,20 +167,20 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 			logger.Error(err, "failed to write to websockets")
 
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-        connectionCloseError := conn.Close()
+				connectionCloseError := conn.Close()
 
-        if connectionCloseError != nil {
-          return connectionCloseError
-        }
+				if connectionCloseError != nil {
+					return connectionCloseError
+				}
 
 				return nil
 			}
 			if websocket.IsUnexpectedCloseError(err) {
 				connectionCloseError := conn.Close()
-        
-        if connectionCloseError != nil {
-          return connectionCloseError
-        }
+				
+				if connectionCloseError != nil {
+					return connectionCloseError
+				}
 
 				logger.Error(err, "websockets connection unexpectedly closed")
 				return nil

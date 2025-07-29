@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+//		 http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,11 +24,11 @@ import (
 )
 
 type ServicePortForwarder struct {
-	Client             *Client
-	Endpoint           string
+	Client						 *Client
+	Endpoint					 string
 	ListeningAddresses []ListenAddress
-	Ports              []ForwardedPort
-	StopChan           <-chan struct{}
+	Ports							 []ForwardedPort
+	StopChan					 <-chan struct{}
 }
 
 func NewServicePortForwarder(client *Client, endpoint string, addresses []string, ports []string, stopChan <-chan struct{}) (*ServicePortForwarder, error) {
@@ -47,11 +47,11 @@ func NewServicePortForwarder(client *Client, endpoint string, addresses []string
 		return nil, err
 	}
 	return &ServicePortForwarder{
-		Client:             client,
-		Endpoint:           endpoint,
+		Client:							client,
+		Endpoint:						endpoint,
 		ListeningAddresses: parsedAddresses,
-		Ports:              parsedPorts,
-		StopChan:           stopChan,
+		Ports:							parsedPorts,
+		StopChan:						stopChan,
 	}, nil
 }
 
@@ -143,11 +143,11 @@ func (pf *ServicePortForwarder) waitForConnection(listener net.Listener, port Fo
 			pf.Client.log.V(1).Info("error accepting connection on port %d: %v", port.Local, err)
 			return err
 		} else {
-      defer func() {
-        if err := listener.Close(); err != nil {
-          fmt.Sprintf("failed to close listener: %s", err)
-        }
-      }()
+			defer func() {
+				if err := listener.Close(); err != nil {
+					fmt.Sprintf("failed to close listener: %s", err)
+				}
+			}()
 		}
 
 		go func() {
@@ -159,11 +159,11 @@ func (pf *ServicePortForwarder) waitForConnection(listener net.Listener, port Fo
 }
 
 func (pf *ServicePortForwarder) handleConnection(localConn net.Conn) error {
-  defer func() {
-    if err := localConn.Close(); err != nil {
-      fmt.Sprintf("failed to close local connection: %s", err)
-    }
-  }()
+	defer func() {
+		if err := localConn.Close(); err != nil {
+			fmt.Sprintf("failed to close local connection: %s", err)
+		}
+	}()
 
 	portForwardURL, err := url.Parse(pf.Endpoint)
 	if err != nil {
@@ -184,20 +184,20 @@ func (pf *ServicePortForwarder) handleConnection(localConn net.Conn) error {
 		return err
 	}
 	if c != nil {
-    defer func() {
-      if err := c.Close(); err != nil {
-        fmt.Sprintf("failed to close websocket dialer: %s", err)
-      }
-    }()
+		defer func() {
+			if err := c.Close(); err != nil {
+				fmt.Sprintf("failed to close websocket dialer: %s", err)
+			}
+		}()
 	}
 
 	upgradedConnection := c.UnderlyingConn()
-  
-  defer func() {
-    if err := upgradedConnection.Close(); err != nil {
-      fmt.Sprintf("failed to close upgraded connection: %s", err)
-    }
-  }()
+	
+	defer func() {
+		if err := upgradedConnection.Close(); err != nil {
+			fmt.Sprintf("failed to close upgraded connection: %s", err)
+		}
+	}()
 
 	localError := make(chan error)
 	remoteDone := make(chan struct{})

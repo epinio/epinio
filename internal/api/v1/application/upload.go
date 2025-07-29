@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+//		 http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -59,11 +59,11 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError(err.Error()).WithDetails("can't read multipart file input")
 	}
 
-  defer func() {
-    if err := file.Close(); err != nil {
-      log.Error(err, "file failed to close: ")
-    }
-  }()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Error(err, "file failed to close: ")
+		}
+	}()
 
 	// TODO: Does this break streaming of the file? We need to get the whole file
 	// before we can check its type
@@ -100,23 +100,23 @@ func Upload(c *gin.Context) apierror.APIErrors {
 	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
 	/*Delete the temporary file created by the multipart form if upload is
-	  successful. If it fails the net/http package doesn't store the multipart file
-	  in tmp directory and dumps it from memory/any partial file is not stored.*/
+		successful. If it fails the net/http package doesn't store the multipart file
+		in tmp directory and dumps it from memory/any partial file is not stored.*/
 	if tempFile, err := fileheader.Open(); err == nil {
 		if osFile, ok := tempFile.(*os.File); ok {
 			tempPath := osFile.Name()
 			log.Info("Deleting multipart temp file", "path", tempPath)
-      fileRemoveError := os.Remove(tempPath)
+			fileRemoveError := os.Remove(tempPath)
 
-      if fileRemoveError != nil {
-        log.Error(fileRemoveError, "Multipart failed to remove: ")
-      }
+			if fileRemoveError != nil {
+				log.Error(fileRemoveError, "Multipart failed to remove: ")
+			}
 		}
 
-    tempFileCloseError := tempFile.Close()
-    if tempFileCloseError != nil {
-      log.Error(tempFileCloseError, "Temp file failed to close: ")
-    }
+		tempFileCloseError := tempFile.Close()
+		if tempFileCloseError != nil {
+			log.Error(tempFileCloseError, "Temp file failed to close: ")
+		}
 	}
 
 	response.OKReturn(c, models.UploadResponse{

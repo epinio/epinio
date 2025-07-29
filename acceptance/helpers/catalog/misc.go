@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+//		 http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -40,7 +40,7 @@ func NginxCatalogService(name string) models.CatalogService {
 		HelmChart: "nginx",
 		HelmRepo: models.HelmRepo{
 			Name: "",
-			URL:  "https://charts.bitnami.com/bitnami",
+			URL:	"https://charts.bitnami.com/bitnami",
 		},
 		Values: values,
 		Settings: map[string]models.ChartSetting{
@@ -81,8 +81,8 @@ func CreateCatalogServiceInNamespace(namespace string, catalogService models.Cat
 	By("creating catalog entry in " + namespace + ": " + catalogService.Meta.Name)
 
 	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService)
-  
-  defer Expect(os.Remove(sampleServiceFilePath)).ToNot(HaveOccurred())
+	
+	defer Expect(os.Remove(sampleServiceFilePath)).ToNot(HaveOccurred())
 
 	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
 	Expect(err).ToNot(HaveOccurred(), out)
@@ -106,30 +106,30 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	settings := map[string]epinioappv1.ServiceSetting{}
 	for key, value := range catalogService.Settings {
 		settings[key] = epinioappv1.ServiceSetting{
-			Type:    value.Type,
+			Type:		 value.Type,
 			Minimum: value.Minimum,
 			Maximum: value.Maximum,
-			Enum:    value.Enum,
+			Enum:		 value.Enum,
 		}
 	}
 
 	srv := epinioappv1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: epinioappv1.GroupVersion.String(),
-			Kind:       "Service",
+			Kind:				"Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      catalogService.Meta.Name,
+			Name:			 catalogService.Meta.Name,
 			Namespace: namespace,
 		},
 		Spec: epinioappv1.ServiceSpec{
-			Name:        catalogService.Meta.Name,
+			Name:				 catalogService.Meta.Name,
 			Description: "A simple description of this service.",
 			HelmRepo: epinioappv1.HelmRepo{
 				URL: catalogService.HelmRepo.URL,
 			},
 			HelmChart: catalogService.HelmChart,
-			Values:    catalogService.Values,
+			Values:		 catalogService.Values,
 			Settings:  settings,
 		},
 	}
@@ -171,7 +171,7 @@ func DeleteService(name, namespace string) {
 	Expect(err).ToNot(HaveOccurred(), out)
 }
 
-// Create a service (instance) from a catalog entry, without going through epinio.  Although the
+// Create a service (instance) from a catalog entry, without going through epinio.	Although the
 // code is quite similar.
 func CreateService(name, namespace string, catalogService models.CatalogService) {
 	CreateServiceX(name, namespace, catalogService, true, false)
@@ -185,12 +185,12 @@ func CreateServiceWithoutCatalog(name, namespace string, catalogService models.C
 	CreateServiceX(name, namespace, catalogService, true, true)
 }
 
-// Create a service (instance) from a catalog entry, without going through epinio.  Although the
+// Create a service (instance) from a catalog entry, without going through epinio.	Although the
 // code is quite similar.
 func CreateServiceX(name, namespace string, catalogService models.CatalogService, label, broken bool) {
 	// Phases:
-	//   1. secret to represent the service instance
-	//   2. helm release representing the active element
+	//	 1. secret to represent the service instance
+	//	 2. helm release representing the active element
 	//
 	// Effectively a replication of internal/services/instances.go:Create using kubectl and helm cli.
 
@@ -200,14 +200,14 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 
 	By("CS secret")
 
-	var labels map[string]string      // default: nil
+	var labels map[string]string			// default: nil
 	var annotations map[string]string // default: nil
 
 	if label {
 		labels = map[string]string{
-			"application.epinio.io/catalog-service-name":    catalogService.Meta.Name,
+			"application.epinio.io/catalog-service-name":		 catalogService.Meta.Name,
 			"application.epinio.io/catalog-service-version": catalogService.AppVersion,
-			"application.epinio.io/service-name":            name,
+			"application.epinio.io/service-name":						 name,
 		}
 		if broken {
 			labels["application.epinio.io/catalog-service-name"] = "missing-catalog-service"
@@ -224,21 +224,21 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 	sname := names.GenerateResourceName("s", name)
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
+			Kind:				"Secret",
 			APIVersion: "v1",
 		},
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        sname,
-			Namespace:   namespace,
-			Labels:      labels,
+			Name:				 sname,
+			Namespace:	 namespace,
+			Labels:			 labels,
 			Annotations: annotations,
 		},
 	}
 
 	secretTmpFile := NewTmpName("tmpUserFile") + `.json`
-  // Used in acceptance tests, no need to check for file inclusion
-  //nolint:gosec 
+	// Used in acceptance tests, no need to check for file inclusion
+	//nolint:gosec 
 	file, err := os.Create(secretTmpFile)
 	Expect(err).ToNot(HaveOccurred())
 

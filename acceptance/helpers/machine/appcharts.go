@@ -114,6 +114,6 @@ func (m *Machine) DeleteAppchart(tempFile string) {
   tempFileRemoveError := os.Remove(tempFile)
 
   if tempFileRemoveError != nil {
-    fmt.Sprintf("The App Chart file was not deleted: %s", tempFileRemoveError)
+		fmt.Sprintf("The App Chart file was not deleted: %s", tempFileRemoveError)
   }
 }
