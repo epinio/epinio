@@ -71,11 +71,11 @@ func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, st
 
 	err = json.NewEncoder(file).Encode(secret)
 	Expect(err).ToNot(HaveOccurred())
-	defer Expect(os.Remove(secretTmpFile)).ToNot(HaveOccurred())
 
 	out, err := proc.Kubectl("apply", "-f", secretTmpFile)
 	Expect(err).ToNot(HaveOccurred(), out)
 
+	Expect(os.Remove(secretTmpFile)).ToNot(HaveOccurred())
 	return user, password
 }
 
