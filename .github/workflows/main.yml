@@ -27,8 +27,8 @@ on:
     - '.goreleaser.yml'
 
 env:
-  SETUP_GO_VERSION: '1.22.1'
-  GOLANGCI_LINT_VERSION: v1.56
+  SETUP_GO_VERSION: '1.23.0'
+  GOLANGCI_LINT_VERSION: v2.3.0
   GINKGO_NODES: 8
   INGRESS_CONTROLLER: nginx
 
