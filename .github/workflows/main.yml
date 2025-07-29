@@ -54,11 +54,11 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
 
       - name: Lint Epinio
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v8
         timeout-minutes: 10
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
-          args: --timeout=10m --skip-files docs.go
+          args: --timeout=10m
           skip-cache: true
 
       - name: Unit Tests
