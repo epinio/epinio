@@ -82,10 +82,9 @@ func CreateCatalogServiceInNamespace(namespace string, catalogService models.Cat
 
 	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService)
 	
-	defer Expect(os.Remove(sampleServiceFilePath)).ToNot(HaveOccurred())
-
 	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
 	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(os.Remove(sampleServiceFilePath)).ToNot(HaveOccurred())
 }
 
 func DeleteCatalogService(name string) {
