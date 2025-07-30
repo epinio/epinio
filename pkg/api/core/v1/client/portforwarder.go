@@ -24,11 +24,11 @@ import (
 )
 
 type ServicePortForwarder struct {
-	Client						 *Client
-	Endpoint					 string
+	Client *Client
+	Endpoint string
 	ListeningAddresses []ListenAddress
-	Ports							 []ForwardedPort
-	StopChan					 <-chan struct{}
+	Ports []ForwardedPort
+	StopChan <-chan struct{}
 }
 
 func NewServicePortForwarder(client *Client, endpoint string, addresses []string, ports []string, stopChan <-chan struct{}) (*ServicePortForwarder, error) {
@@ -47,11 +47,11 @@ func NewServicePortForwarder(client *Client, endpoint string, addresses []string
 		return nil, err
 	}
 	return &ServicePortForwarder{
-		Client:							client,
-		Endpoint:						endpoint,
+		Client: client,
+		Endpoint: endpoint,
 		ListeningAddresses: parsedAddresses,
-		Ports:							parsedPorts,
-		StopChan:						stopChan,
+		Ports: parsedPorts,
+		StopChan: stopChan,
 	}, nil
 }
 
