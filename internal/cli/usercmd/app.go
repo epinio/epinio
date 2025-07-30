@@ -687,7 +687,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 
 	if len(app.Configuration.Environment) > 0 {
 		for _, ev := range app.Configuration.Environment.List() {
-			msg = msg.WithTableRow("	- "+ev.Name, ev.Value)
+			msg = msg.WithTableRow(" - "+ev.Name, ev.Value)
 		}
 	}
 
@@ -695,7 +695,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 
 	if len(app.Configuration.Settings) > 0 {
 		for _, cv := range app.Configuration.Settings.List() {
-			msg = msg.WithTableRow("	- "+cv.Name, cv.Value)
+			msg = msg.WithTableRow(" - "+cv.Name, cv.Value)
 		}
 	}
 
