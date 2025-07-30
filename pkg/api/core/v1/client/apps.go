@@ -292,7 +292,7 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 		c.Settings.API, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
 	upgradeRoundTripper, err := NewUpgrader(spdy.RoundTripperConfig{
-		TLS:				http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		TLS: http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
 		PingPeriod: time.Second * 5,
 	})
 	if err != nil {
