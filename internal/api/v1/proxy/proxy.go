@@ -188,11 +188,11 @@ func (p *TCPProxy) Start() error {
 }
 
 func (p *TCPProxy) handleConnections() error {
-  defer func() {
-    if err := p.OutgoingConn.Close(); err != nil {
-      p.Logger.Error(err, "error closing the outgoing connection: ")
-    }
-  }()
+	defer func() {
+		if err := p.OutgoingConn.Close(); err != nil {
+			p.Logger.Error(err, "error closing the outgoing connection: ")
+		}
+	}()
 
 	localError := make(chan error)
 	remoteDone := make(chan struct{})
