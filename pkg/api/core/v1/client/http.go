@@ -42,7 +42,7 @@ type ResponseHandler[T any] func(httpResponse *http.Response) (T, error)
 
 type APIError struct {
 	StatusCode int
-	Err				 *apierrors.ErrorResponse
+	Err *apierrors.ErrorResponse
 }
 
 func (e *APIError) Error() string {
