@@ -297,7 +297,7 @@ func handleError(logger logr.Logger, response *http.Response) error {
 
 	epinioError := &APIError{
 		StatusCode: response.StatusCode,
-		Err:				&apierrors.ErrorResponse{},
+		Err: &apierrors.ErrorResponse{},
 	}
 
 	if len(bodyBytes) > 0 {
