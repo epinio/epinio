@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//		 http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,7 +51,7 @@ func NewTail(namespace, podName, containerName string, logger logr.Logger, clien
 		PodName: podName,
 		ContainerName: containerName,
 		Options: options,
-		logger:	logger,
+		logger: logger,
 		clientSet: clientSet,
 	}
 }
@@ -73,7 +73,7 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 	t.logger.Info("starting the tail for pod " + t.PodName)
 
 	req := t.clientSet.CoreV1().Pods(t.Namespace).GetLogs(t.PodName, &corev1.PodLogOptions{
-		Follow:	follow,
+		Follow: follow,
 		Timestamps: t.Options.Timestamps,
 		Container: t.ContainerName,
 		SinceSeconds: &t.Options.SinceSeconds,

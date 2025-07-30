@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//		 http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,7 +51,7 @@ package application
 // More complex, hopefully more performant would be
 //
 //	1: if not revision:
-//	2:	Clone (Depth=1)	// (A)
+//	2: Clone (Depth=1)	// (A)
 //	3: else
 //	4: Clone (Depth=1,SingleBranch=revision)  // (B,C?)
 //	5: if ok: done // (B!)
@@ -198,7 +198,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{
 		BlobUID: blobUID,
-		Branch:	branch,
+		Branch: branch,
 		Revision: revision,
 	})
 	return nil
@@ -351,7 +351,7 @@ func findReferenceForRevision(repo *git.Repository, revision plumbing.Hash) (*pl
 	err = refIter.ForEach(func(r *plumbing.Reference) error {
 		err = w.Checkout(&git.CheckoutOptions{
 			Branch: r.Name(),
-			Force:	true,
+			Force: true,
 		})
 		if err != nil {
 			return err
