@@ -30,13 +30,13 @@ import (
 )
 
 const (
-	GithubBinaryURLFormat		= "https://github.com/epinio/epinio/releases/download/%s/epinio-%s-%s"
+	GithubBinaryURLFormat = "https://github.com/epinio/epinio/releases/download/%s/epinio-%s-%s"
 	GithubChecksumURLFormat = "https://github.com/epinio/epinio/releases/download/%s/epinio_%s_checksums.txt"
 )
 
 type BinaryInfo struct {
-	Path				string
-	Dir					string
+	Path string
+	Dir string
 	Permissions fs.FileMode
 }
 
