@@ -105,30 +105,30 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	settings := map[string]epinioappv1.ServiceSetting{}
 	for key, value := range catalogService.Settings {
 		settings[key] = epinioappv1.ServiceSetting{
-			Type:		 value.Type,
+			Type: value.Type,
 			Minimum: value.Minimum,
 			Maximum: value.Maximum,
-			Enum:		 value.Enum,
+			Enum: value.Enum,
 		}
 	}
 
 	srv := epinioappv1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: epinioappv1.GroupVersion.String(),
-			Kind:				"Service",
+			Kind: "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:			 catalogService.Meta.Name,
+			Name: catalogService.Meta.Name,
 			Namespace: namespace,
 		},
 		Spec: epinioappv1.ServiceSpec{
-			Name:				 catalogService.Meta.Name,
+			Name:catalogService.Meta.Name,
 			Description: "A simple description of this service.",
 			HelmRepo: epinioappv1.HelmRepo{
 				URL: catalogService.HelmRepo.URL,
 			},
 			HelmChart: catalogService.HelmChart,
-			Values:		 catalogService.Values,
+			Values:	 catalogService.Values,
 			Settings:  settings,
 		},
 	}
@@ -204,9 +204,9 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 
 	if label {
 		labels = map[string]string{
-			"application.epinio.io/catalog-service-name":		 catalogService.Meta.Name,
+			"application.epinio.io/catalog-service-name": catalogService.Meta.Name,
 			"application.epinio.io/catalog-service-version": catalogService.AppVersion,
-			"application.epinio.io/service-name":						 name,
+			"application.epinio.io/service-name": name,
 		}
 		if broken {
 			labels["application.epinio.io/catalog-service-name"] = "missing-catalog-service"
@@ -223,14 +223,14 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 	sname := names.GenerateResourceName("s", name)
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
-			Kind:				"Secret",
+			Kind: "Secret",
 			APIVersion: "v1",
 		},
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
-			Name:				 sname,
-			Namespace:	 namespace,
-			Labels:			 labels,
+			Name: sname,
+			Namespace: namespace,
+			Labels: labels,
 			Annotations: annotations,
 		},
 	}
