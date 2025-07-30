@@ -26,9 +26,9 @@ import (
 
 type Tail struct {
 	Namespace string
-	PodName	 string
+	PodName string
 	ContainerName string
-	Options	*TailOptions
+	Options *TailOptions
 	logger logr.Logger
 	clientSet *kubernetes.Clientset
 }
