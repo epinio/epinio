@@ -61,7 +61,7 @@ func ValidateCV(cv models.ChartValueSettings, decl map[string]models.ChartSettin
 	// Pattern to strip array index syntax from the actual key to determine the underlying base
 	// setting to check against. Note that this handles inner array syntax too.
 	//
-	// Examples:	                               KEY                           KEYBASE
+	// Examples:                                   KEY                           KEYBASE
 	//   --set 'keycloak.ingress.hosts[0]=auth1' ~ 'keycloak.ingress.hosts[0]' ~ 'keycloak.ingress.hosts'
 	//   --set 'servers[0].port=80'              ~ 'servers[0].port'           ~ 'servers.port'
 

@@ -47,7 +47,7 @@ type BinaryInfo struct {
 var ArchToURL = map[string]string{
 	"arm64": "arm64",
 	"s390x": "s390x",
-	"arm":	 "armv7",
+	"arm": "armv7",
 	"amd64": "x86_64",
 }
 

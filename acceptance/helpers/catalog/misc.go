@@ -40,7 +40,7 @@ func NginxCatalogService(name string) models.CatalogService {
 		HelmChart: "nginx",
 		HelmRepo: models.HelmRepo{
 			Name: "",
-			URL:	"https://charts.bitnami.com/bitnami",
+			URL: "https://charts.bitnami.com/bitnami",
 		},
 		Values: values,
 		Settings: map[string]models.ChartSetting{
@@ -128,7 +128,7 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 				URL: catalogService.HelmRepo.URL,
 			},
 			HelmChart: catalogService.HelmChart,
-			Values:	 catalogService.Values,
+			Values: catalogService.Values,
 			Settings:  settings,
 		},
 	}
