@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -30,13 +30,13 @@ import (
 )
 
 const (
-	GithubBinaryURLFormat   = "https://github.com/epinio/epinio/releases/download/%s/epinio-%s-%s"
+	GithubBinaryURLFormat = "https://github.com/epinio/epinio/releases/download/%s/epinio-%s-%s"
 	GithubChecksumURLFormat = "https://github.com/epinio/epinio/releases/download/%s/epinio_%s_checksums.txt"
 )
 
 type BinaryInfo struct {
-	Path        string
-	Dir         string
+	Path string
+	Dir string
 	Permissions fs.FileMode
 }
 
@@ -47,7 +47,7 @@ type BinaryInfo struct {
 var ArchToURL = map[string]string{
 	"arm64": "arm64",
 	"s390x": "s390x",
-	"arm":   "armv7",
+	"arm": "armv7",
 	"amd64": "x86_64",
 }
 
@@ -63,7 +63,12 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "creating a temporary file")
 	}
-	defer tmpFile.Close()
+
+	defer func() {
+		if err := tmpFile.Close(); err != nil {
+			fmt.Printf("failed to close temp file: %s", err)
+		}
+	}()
 
 	req, err := http.NewRequest("GET", remoteURL, nil)
 	if err != nil {
@@ -73,7 +78,12 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "making the request")
 	}
-	defer resp.Body.Close()
+	
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("failed to close response body: %s", err)
+		}
+	}()
 
 	if resp.StatusCode != 200 {
 		return "", errors.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -124,7 +134,12 @@ func validateFileChecksum(filePath, checksumFileURL, fileNamePattern string) err
 	if err != nil {
 		return errors.Wrap(err, "creating temporary directory")
 	}
-	defer os.RemoveAll(tmpDir)
+	
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			fmt.Printf("failed to close temp directory: %s", err)
+		}
+	}()
 
 	tmpChecksumFile, err := downloadFile(checksumFileURL, tmpDir)
 	if err != nil {
@@ -154,7 +169,12 @@ func calculateChecksum(filePath string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "opening file %s", filePath)
 	}
-	defer f.Close()
+	
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Printf("failed to close file: %s", err)
+		}
+	}()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {

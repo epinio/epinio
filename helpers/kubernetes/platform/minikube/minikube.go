@@ -50,7 +50,7 @@ func (m *Minikube) Detect(ctx context.Context, kube *kubernetes.Clientset) bool 
 
 // ExternalIPs fetches the minikube IP.
 func (m *Minikube) ExternalIPs() []string {
-	return m.Generic.InternalIPs
+	return m.InternalIPs
 }
 
 // NewPlatform returns an instance of minikube struct.

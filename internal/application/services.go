@@ -86,7 +86,7 @@ func ServicesBoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster,
 	for _, binding := range appBindings.Items {
 		for boundServiceName := range binding.Data {
 			if boundServiceName == serviceName {
-				appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
+				appName := binding.Labels["app.kubernetes.io/name"]
 				result = append(result, appName)
 				break
 			}
@@ -119,8 +119,8 @@ func ServicesBoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, na
 	}
 
 	for _, binding := range appBindings.Items {
-		appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
-		namespace := binding.ObjectMeta.Labels["app.kubernetes.io/part-of"]
+		appName := binding.Labels["app.kubernetes.io/name"]
+		namespace := binding.Labels["app.kubernetes.io/part-of"]
 
 		for serviceName := range binding.Data {
 			key := ServiceKey(serviceName, namespace)

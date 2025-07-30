@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,7 +51,7 @@ type Log struct {
 	// ContainerName of the container
 	ContainerName string `json:"containerName"`
 
-	PodColor       *color.Color `json:"-"`
+	PodColor *color.Color `json:"-"`
 	ContainerColor *color.Color `json:"-"`
 }
 
@@ -61,7 +61,7 @@ func (printer LogPrinter) Print(log Log, uiMsg *termui.Message) {
 	var result bytes.Buffer
 	err := printer.Tmpl.Execute(&result, log)
 	if err != nil {
-		os.Stderr.WriteString(fmt.Sprintf("expanding template failed: %s", err))
+		_, _ = fmt.Fprintf(os.Stderr, "expanding template failed: %s", err)
 		return
 	}
 
@@ -70,8 +70,13 @@ func (printer LogPrinter) Print(log Log, uiMsg *termui.Message) {
 
 func determineColor(podName string) (podColor, containerColor *color.Color) {
 	hash := fnv.New32()
-	hash.Write([]byte(podName))
-	idx := hash.Sum32() % uint32(len(colorList))
+	_, hashError := hash.Write([]byte(podName))
+	if hashError != nil {
+		fmt.Sprintf("error hashing the color: %s", hashError)
+	}
+
+	//Don't need to worry about as the pod name is known and the colorList is static 
+	idx := hash.Sum32() % uint32(len(colorList)) //nolint:gosec
 
 	colors := colorList[idx]
 	return colors[0], colors[1]

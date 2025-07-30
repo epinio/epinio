@@ -109,7 +109,7 @@ func ExportRegistries(log logr.Logger, secretLoader git.SecretLister) ([]ExportR
 }
 
 func GetRegistryUrlFromSecret(secret v1.Secret) (string, error) {
-	namespace, ok := secret.ObjectMeta.Annotations[RegistrySecretNamespaceAnnotationKey]
+	namespace, ok := secret.Annotations[RegistrySecretNamespaceAnnotationKey]
 	if !ok {
 		return "", fmt.Errorf("missing annotation '%s'", RegistrySecretNamespaceAnnotationKey)
 	}
@@ -157,7 +157,7 @@ func GetRegistryUrlFromSecret(secret v1.Secret) (string, error) {
 func GetRegistryCredentialsFromSecret(secret v1.Secret) (RegistryCredentials, error) {
 	empty := RegistryCredentials{}
 
-	namespace, ok := secret.ObjectMeta.Annotations[RegistrySecretNamespaceAnnotationKey]
+	namespace, ok := secret.Annotations[RegistrySecretNamespaceAnnotationKey]
 	if !ok {
 		return empty, fmt.Errorf("missing annotation '%s'", RegistrySecretNamespaceAnnotationKey)
 	}
@@ -270,7 +270,7 @@ func (d *ConnectionDetails) ReplaceWithInternalRegistry(imageURL string) (string
 	}
 
 	if imageRegistryURL == publicURL {
-		return strings.Replace(imageURL, imageRegistryURL, privateURL, -1), nil
+		return strings.ReplaceAll(imageURL, imageRegistryURL, privateURL), nil
 	}
 
 	return imageURL, nil
@@ -316,7 +316,7 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 		return nil, err
 	}
 
-	details.Namespace = secret.ObjectMeta.Annotations[RegistrySecretNamespaceAnnotationKey]
+	details.Namespace = secret.Annotations[RegistrySecretNamespaceAnnotationKey]
 
 	for url, auth := range dockerconfigjson.Auths {
 		details.RegistryCredentials = append(details.RegistryCredentials, RegistryCredentials{

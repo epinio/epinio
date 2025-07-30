@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -42,7 +42,7 @@ type ResponseHandler[T any] func(httpResponse *http.Response) (T, error)
 
 type APIError struct {
 	StatusCode int
-	Err        *apierrors.ErrorResponse
+	Err *apierrors.ErrorResponse
 }
 
 func (e *APIError) Error() string {
@@ -252,7 +252,11 @@ func NewHTTPResponseHandler[T *http.Response]() ResponseHandler[T] {
 // NewJSONResponseHandler will try to unmarshal the response body into the provided struct
 func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandler[T] {
 	return func(httpResponse *http.Response) (T, error) {
-		defer httpResponse.Body.Close()
+		defer func() {
+			if err := httpResponse.Body.Close(); err != nil {
+				fmt.Sprintf("failed to close the response body %s: ", err)
+			}
+		}()
 
 		bodyBytes, err := io.ReadAll(httpResponse.Body)
 		respLog := responseLogger(logger, httpResponse, string(bodyBytes))
@@ -274,7 +278,11 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 }
 
 func handleError(logger logr.Logger, response *http.Response) error {
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			fmt.Sprintf("failed to close the response body: %s", err)
+		}
+	}()
 
 	bodyBytes, err := io.ReadAll(response.Body)
 
@@ -289,7 +297,7 @@ func handleError(logger logr.Logger, response *http.Response) error {
 
 	epinioError := &APIError{
 		StatusCode: response.StatusCode,
-		Err:        &apierrors.ErrorResponse{},
+		Err: &apierrors.ErrorResponse{},
 	}
 
 	if len(bodyBytes) > 0 {

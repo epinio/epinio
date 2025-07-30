@@ -247,14 +247,14 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, namespace string) error {
 
 		err = helm.RemoveService(requestctx.Logger(ctx),
 			s.kubeClient,
-			models.NewAppRef(service, srv.ObjectMeta.Namespace))
+			models.NewAppRef(service, srv.Namespace))
 		if err != nil {
 			// See [NF] for details
 			if !strings.Contains(err.Error(), "not found") {
 				return errors.Wrap(err, "error deleting service helm release")
 			}
 		}
-		err := s.kubeClient.DeleteSecret(ctx, srv.ObjectMeta.Namespace, srv.ObjectMeta.Name)
+		err := s.kubeClient.DeleteSecret(ctx, srv.Namespace, srv.Name)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
@@ -319,7 +319,7 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 		service := models.Service{
 			Meta: models.Meta{
 				Name:      serviceName,
-				Namespace: srv.ObjectMeta.Namespace,
+				Namespace: srv.Namespace,
 				CreatedAt: srv.GetCreationTimestamp(),
 			},
 			CatalogService:        catalogServiceName,
@@ -330,7 +330,7 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 
 		theServiceSecret := srv
 		err = setServiceStatusAndCustomValues(&service, &theServiceSecret, ctx, logger, s.kubeClient,
-			srv.ObjectMeta.Namespace, names.ServiceReleaseName(serviceName),
+			srv.Namespace, names.ServiceReleaseName(serviceName),
 			nil, // no settings information - TODO
 		)
 		if err != nil {

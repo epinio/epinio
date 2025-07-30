@@ -47,10 +47,10 @@ func createSecret(ctx context.Context, cluster *kubernetes.Cluster, appRef model
 	}
 
 	secret := makeSecret(appRef, areaLabel)
-	secret.ObjectMeta.Name = secretName
+	secret.Name = secretName
 
 	ownerReference := makeOwnerReference(app)
-	secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{ownerReference}
+	secret.OwnerReferences = []metav1.OwnerReference{ownerReference}
 
 	err = cluster.CreateSecret(ctx, appRef.Namespace, secret)
 	if err != nil {

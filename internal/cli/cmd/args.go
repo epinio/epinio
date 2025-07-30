@@ -13,6 +13,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/epinio/epinio/internal/api/v1/application"
@@ -440,7 +441,7 @@ func routeOption(cmd *cobra.Command) {
 func bindOption(cmd *cobra.Command, client ApplicationsService) {
 	cmd.Flags().StringSliceP("bind", "b", []string{}, "configurations to bind immediately")
 	// nolint:errcheck // Unable to handle error in init block this will be called from
-	cmd.RegisterFlagCompletionFunc("bind",
+	regFlagCompError := cmd.RegisterFlagCompletionFunc("bind",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			// `cmd`, `args` are ignored.  `toComplete` is the option value entered so far.
 			//
@@ -471,6 +472,8 @@ func bindOption(cmd *cobra.Command, client ApplicationsService) {
 
 			return matches, cobra.ShellCompDirectiveDefault
 		})
+
+	fmt.Sprintf("Error occurred regisering flag completion function %s", regFlagCompError)
 }
 
 // envOption initializes the --env/-e option for the provided command

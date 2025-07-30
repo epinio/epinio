@@ -80,6 +80,6 @@ PS> epinio completion powershell > epinio.ps1
 		case "powershell":
 			return cmd.Root().GenPowerShellCompletion(os.Stdout)
 		}
-		return errors.New("Internal error: Invalid shell")
+		return errors.New("internal error: Invalid shell")
 	},
 }

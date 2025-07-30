@@ -49,7 +49,7 @@ func (k *IBM) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
 
 // ExternalIPs fetches the ibm IP.
 func (k *IBM) ExternalIPs() []string {
-	return k.Generic.ExternalIP
+	return k.ExternalIP
 }
 
 // NewPlatform returns an instance of ibm struct.

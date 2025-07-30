@@ -154,7 +154,7 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 	user := User{
 		Username:   string(secret.Data["username"]),
 		Password:   string(secret.Data["password"]),
-		CreatedAt:  secret.ObjectMeta.CreationTimestamp.Time,
+		CreatedAt:  secret.CreationTimestamp.Time,
 		Roles:      Roles{},
 		Namespaces: []string{},
 		Gitconfigs: []string{},
@@ -255,7 +255,7 @@ func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 	uniqueRoles := uniqueAndSort(user.Roles.IDs())
 	roleIDs := strings.Join(uniqueRoles, RolesDelimiter)
 
-	annotations := userSecret.ObjectMeta.Annotations
+	annotations := userSecret.Annotations
 	annotations[kubernetes.EpinioAPISecretRolesAnnotationKey] = roleIDs
 
 	userSecret.StringData = map[string]string{

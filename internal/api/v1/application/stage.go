@@ -27,7 +27,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -990,7 +989,7 @@ func StagingScriptConfigResolve(ctx context.Context, logger logr.Logger, cluster
 	return nil
 }
 
-func NewStagingScriptConfig(config v1.ConfigMap) (*StagingScriptConfig, error) {
+func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, error) {
 	stagingScript := &StagingScriptConfig{
 		Name:          config.Name,
 		Builder:       config.Data["builder"],

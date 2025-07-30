@@ -49,8 +49,8 @@ func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Namespace, err
 	result := []Namespace{}
 	for _, namespace := range namespaceList.Items {
 		result = append(result, Namespace{
-			Name:      namespace.ObjectMeta.Name,
-			CreatedAt: namespace.ObjectMeta.CreationTimestamp,
+			Name:      namespace.Name,
+			CreatedAt: namespace.CreationTimestamp,
 		})
 	}
 

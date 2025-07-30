@@ -70,10 +70,10 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 		return nil, err
 	}
 
-	c.Username = s.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
-	c.Type = s.ObjectMeta.Labels["epinio.io/configuration-type"]
-	c.Origin = s.ObjectMeta.Labels["epinio.io/configuration-origin"]
-	c.CreatedAt = s.ObjectMeta.CreationTimestamp
+	c.Username = s.Annotations[models.EpinioCreatedByAnnotation]
+	c.Type = s.Labels["epinio.io/configuration-type"]
+	c.Origin = s.Labels["epinio.io/configuration-origin"]
+	c.CreatedAt = s.CreationTimestamp
 
 	return c, nil
 }
@@ -104,12 +104,12 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 	result := ConfigurationList{}
 
 	for _, c := range secrets.Items {
-		username := c.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
-		ctype := c.ObjectMeta.Labels["epinio.io/configuration-type"]
-		origin := c.ObjectMeta.Labels["epinio.io/configuration-origin"]
+		username := c.Annotations[models.EpinioCreatedByAnnotation]
+		ctype := c.Labels["epinio.io/configuration-type"]
+		origin := c.Labels["epinio.io/configuration-origin"]
 
 		result = append(result, &Configuration{
-			CreatedAt:  c.ObjectMeta.CreationTimestamp,
+			CreatedAt:  c.CreationTimestamp,
 			Name:       c.Name,
 			namespace:  c.Namespace,
 			Username:   username,

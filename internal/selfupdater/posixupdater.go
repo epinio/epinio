@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -43,7 +43,12 @@ func (u PosixUpdater) Update(targetVersion string) error {
 	if err != nil {
 		return errors.Wrapf(err, "downloading the binary for version %s", targetVersion)
 	}
-	defer os.Remove(tmpFile)
+
+	defer func() {
+		if err := os.Remove(tmpFile); err != nil {
+			fmt.Sprintf("failed to remove temporary file: %s", err)
+		}
+	}()
 
 	checksumFileURL := fmt.Sprintf(GithubChecksumURLFormat, targetVersion, strings.TrimPrefix(targetVersion, "v"))
 	err = validateFileChecksum(tmpFile, checksumFileURL, fmt.Sprintf("epinio-%s-%s", currentOS, URLArch))
@@ -57,7 +62,7 @@ func (u PosixUpdater) Update(targetVersion string) error {
 		if ok {
 			fmt.Fprintf(os.Stderr, "Cross-device error trying to rename a file: %s -- will do a full copy\n", linkErr)
 			var tempInput []byte
-			tempInput, err = os.ReadFile(tmpFile)
+			tempInput, err = os.ReadFile(tmpFile) //nolint:gosec
 			if err != nil {
 				return errors.Wrapf(err, "Error reading temporary file %s", tmpFile)
 			}

@@ -45,7 +45,7 @@ func (c *EpinioClient) CreateGitconfig(id,
 
 	errorMsgs := validation.IsDNS1123Subdomain(id)
 	if len(errorMsgs) > 0 {
-		return fmt.Errorf("The git configuration's id must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
+		return fmt.Errorf("the git configuration's id must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc')")
 	}
 
 	provider, err := models.GitProviderFromString(providerString)

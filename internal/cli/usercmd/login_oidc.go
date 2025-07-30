@@ -169,7 +169,7 @@ func startServerAndWaitForCode(ctx context.Context, listener net.Listener) strin
 	wg := &sync.WaitGroup{}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		authCode = r.URL.Query().Get("code")
-		fmt.Fprintf(w, "Login successful! You can close this window.")
+		_, _ = fmt.Fprintf(w, "Login successful! You can close this window.")
 		wg.Done()
 	})
 

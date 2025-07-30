@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,22 +15,22 @@ package application
 //
 // ## Possible inputs:
 //
-//   - (A) repository, no revision (empty string)
-//   - (B) repository, branch name
-//   - (C) repository, commit id (short/long), tags or any supported ref
+//	 - (A) repository, no revision (empty string)
+//	 - (B) repository, branch name
+//	 - (C) repository, commit id (short/long), tags or any supported ref
 //
 // ## Considerations:
 //
-//   - Correctness
-//   - Cloning performance
+//	 - Correctness
+//	 - Cloning performance
 //
 // The go-git cloning function has two attributes influencing performance
 //
-//   - `Depth` specifies the depth towards which to clone.
-//   - `SingleBranch` specifies the sole branch to check out.
+//	 - `Depth` specifies the depth towards which to clone.
+//	 - `SingleBranch` specifies the sole branch to check out.
 //
 // The second flag comes with a problem. Using it __demands__ a branch.  And whatever is
-// found in the `ReferenceName` of the CloneOptions is used.  Even if it is an empty
+// found in the `ReferenceName` of the CloneOptions is used.	Even if it is an empty
 // string. And leaving it completely unspecified makes the package use a hardwired default
 // (`master`).
 //
@@ -41,26 +41,26 @@ package application
 //
 // The simplest code handling everything would be
 //
-//      Clone (Depth=1)
-//      if revision:
-//          hash = ResolveRevision (revision)
-//          Checkout (hash)
+// Clone (Depth=1)
+// if revision:
+// 	hash = ResolveRevision (revision)
+//	Checkout (hash)
 //
 // with no `SingleBranch` in sight, just `Depth`.
 //
 // More complex, hopefully more performant would be
 //
-//  1:  if not revision:
-//  2:      Clone (Depth=1)                        // (A)
-//  3:  else
-//  4:      Clone (Depth=1,SingleBranch=revision)  // (B,C?)
-//  5:      if ok: done                            // (B!)
-//  7:      Clone ()                               // (C)
-//  8:      hash = ResolveRevision (revision)
-//  9:      Checkout (hash)
+//	1: if not revision:
+//	2: Clone (Depth=1)	// (A)
+//	3: else
+//	4: Clone (Depth=1,SingleBranch=revision)  // (B,C?)
+//	5: if ok: done // (B!)
+//	7: Clone () // (C)
+//	8: hash = ResolveRevision (revision)
+//	9: Checkout (hash)
 //
 // I.e. try to use a revision as branch name first, to get the `SingleBranch`
-// optimization.  When that fails fall back to regular cloning and checkout.  This fall
+// optimization.	When that fails fall back to regular cloning and checkout.	This fall
 // back should happen only for (C).
 //
 // Finding the matching reference for the specified revision it's a "complex" operation, and it's done only with the last option.
@@ -69,7 +69,7 @@ package application
 // ## Decision
 //
 // Going with the second solution. While there is more complexity it is not that much
-// more.  Note also that using a commit id (C) is considered unusual. Using a branch (B)
+// more.	Note also that using a commit id (C) is considered unusual. Using a branch (B)
 // is much more expected.
 
 import (
@@ -131,7 +131,12 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err, "can't create temp directory")
 	}
-	defer os.RemoveAll(gitRepo)
+
+	defer func() {
+		if err := os.RemoveAll(gitRepo); err != nil {
+			log.Error(err, "failed to remove git repo: ")
+		}
+	}()
 
 	gitConfig, err := gitManager.FindConfiguration(giturl)
 	if err != nil {
@@ -192,8 +197,8 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{
-		BlobUID:  blobUID,
-		Branch:   branch,
+		BlobUID: blobUID,
+		Branch: branch,
 		Revision: revision,
 	})
 	return nil
@@ -346,7 +351,7 @@ func findReferenceForRevision(repo *git.Repository, revision plumbing.Hash) (*pl
 	err = refIter.ForEach(func(r *plumbing.Reference) error {
 		err = w.Checkout(&git.CheckoutOptions{
 			Branch: r.Name(),
-			Force:  true,
+			Force: true,
 		})
 		if err != nil {
 			return err

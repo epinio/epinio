@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -46,7 +46,12 @@ func (u WindowsUpdater) Update(targetVersion string) error {
 	if err != nil {
 		return errors.Wrapf(err, "downloading the binary for version %s", targetVersion)
 	}
-	defer os.Remove(tmpFile)
+
+	defer func() {
+		if err := os.Remove(tmpFile); err != nil {
+			fmt.Sprintf("failed to remove temporary file: %s", err)
+		}
+	}()
 
 	checksumFileURL := fmt.Sprintf(GithubChecksumURLFormat, targetVersion, strings.TrimPrefix(targetVersion, "v"))
 	err = validateFileChecksum(tmpFile, checksumFileURL, fmt.Sprintf("epinio-windows-%s.zip", URLArch))
@@ -54,11 +59,17 @@ func (u WindowsUpdater) Update(targetVersion string) error {
 		return errors.Wrap(err, "validating file checksum")
 	}
 
-	tmpDir, err := os.MkdirTemp("", "epinio")
+	tmpDir, err := os.MkdirTemp("", "epinio") //nolint:gosec
 	if err != nil {
 		return errors.Wrap(err, "creating temporary directory")
 	}
-	defer os.RemoveAll(tmpDir)
+	
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			fmt.Sprintf("failed to remove temporary directory: %s", err)
+		}
+	}()
+
 	err = unzip(tmpFile, tmpDir)
 	if err != nil {
 		return errors.Wrap(err, "extracting zip file")

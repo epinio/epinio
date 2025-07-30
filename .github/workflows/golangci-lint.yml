@@ -12,8 +12,8 @@
 name: golangci-lint
 
 env:
-  SETUP_GO_VERSION: '1.22.1'
-  GOLANGCI_LINT_VERSION: v1.56
+  SETUP_GO_VERSION: '1.23.0'
+  GOLANGCI_LINT_VERSION: v2.3.0
 
 on:
   workflow_dispatch:
@@ -41,10 +41,15 @@ jobs:
       - name: Run go mod tidy
         run: go mod tidy
 
+      - name: Run goimports to format code
+        run: |
+          go install golang.org/x/tools/cmd/goimports@latest
+          goimports -w .
+      
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v8
         timeout-minutes: 10
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
-          args: --timeout=10m --skip-files docs.go
+          args: --timeout=10m
           skip-cache: true

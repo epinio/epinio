@@ -50,7 +50,7 @@ func NewConfigurationCmd(client ConfigurationService, rootCfg *RootConfig) *cobr
 			if err := cmd.Usage(); err != nil {
 				return err
 			}
-			return fmt.Errorf(`Unknown method "%s"`, args[0])
+			return fmt.Errorf(`unknown method "%s"`, args[0])
 		},
 	}
 

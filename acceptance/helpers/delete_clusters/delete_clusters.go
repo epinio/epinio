@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -176,7 +176,14 @@ func DeleteClusterGKE(runID string) error {
 		}
 
 		fmt.Println("Deleting GKE cluster ...")
-		os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
+		setenvError := os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
+		if setenvError != nil {
+			return errors.Wrap(
+				setenvError, 
+				"Failed to set USE_GKE_GCLOUD_AUTH_PLUGIN environment variable",
+			)
+		}
+
 		out, err := proc.RunW("gcloud", "container", "clusters", "delete", "epinioci"+runID, "--zone", gke_zone, "--quiet")
 		if err != nil {
 			return errors.Wrap(err, "Failed to delete cluster: "+out)
@@ -320,7 +327,15 @@ func ListClusterEKS(runID string) (exists bool, err error) {
 // Check if GKE cluster exists
 func ListClusterGKE(runID string) (exists bool, err error) {
 	gke_zone := os.Getenv("GKE_ZONE")
-	os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
+
+	setenvError := os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
+	if setenvError != nil {
+		return false, errors.Wrap(
+			setenvError, 
+			"Failed to set USE_GKE_GCLOUD_AUTH_PLUGIN environment variable",
+		)
+	}
+
 	out, err := proc.RunW("gcloud", "container", "clusters", "list", "--filter", "epinioci"+runID, "--zone", gke_zone, "--quiet")
 	if err != nil {
 		return false, errors.Wrap(err, "gcloud cli command failed: "+out)
@@ -376,7 +391,15 @@ func GetKubeconfigEKS(runID string) error {
 func GetKubeconfigGKE(runID string) error {
 	gke_zone := os.Getenv("GKE_ZONE")
 	epci_gke_project := os.Getenv("EPCI_GKE_PROJECT")
-	os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
+	
+	setenvError := os.Setenv("USE_GKE_GCLOUD_AUTH_PLUGIN", "true")
+	if setenvError != nil {
+		return errors.Wrap(
+			setenvError, 
+			"Failed to set USE_GKE_GCLOUD_AUTH_PLUGIN environment variable",
+		)
+	}
+
 	out, err := proc.RunW("gcloud", "container", "clusters", "get-credentials", "epinioci"+runID, "--zone", gke_zone, "--project", epci_gke_project)
 	if err != nil {
 		return errors.Wrap(err, "gcloud cli command failed: "+out)
