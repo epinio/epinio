@@ -111,9 +111,9 @@ func (m *Machine) DeleteAppchart(tempFile string) {
 
 	out, err := proc.Kubectl("delete", "-f", tempFile)
 	Expect(err).ToNot(HaveOccurred(), out)
-  tempFileRemoveError := os.Remove(tempFile)
-
-  if tempFileRemoveError != nil {
+	tempFileRemoveError := os.Remove(tempFile)
+	
+	if tempFileRemoveError != nil {
 		fmt.Sprintf("The App Chart file was not deleted: %s", tempFileRemoveError)
-  }
+	}
 }
