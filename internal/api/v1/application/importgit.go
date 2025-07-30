@@ -41,23 +41,23 @@ package application
 //
 // The simplest code handling everything would be
 //
-//			Clone (Depth=1)
-//			if revision:
-//					hash = ResolveRevision (revision)
-//					Checkout (hash)
+// Clone (Depth=1)
+// if revision:
+// 	hash = ResolveRevision (revision)
+//	Checkout (hash)
 //
 // with no `SingleBranch` in sight, just `Depth`.
 //
 // More complex, hopefully more performant would be
 //
-//	1:	if not revision:
-//	2:			Clone (Depth=1)												 // (A)
-//	3:	else
-//	4:			Clone (Depth=1,SingleBranch=revision)  // (B,C?)
-//	5:			if ok: done														 // (B!)
-//	7:			Clone ()															 // (C)
-//	8:			hash = ResolveRevision (revision)
-//	9:			Checkout (hash)
+//	1: if not revision:
+//	2:	Clone (Depth=1)	// (A)
+//	3: else
+//	4: Clone (Depth=1,SingleBranch=revision)  // (B,C?)
+//	5: if ok: done // (B!)
+//	7: Clone () // (C)
+//	8: hash = ResolveRevision (revision)
+//	9: Checkout (hash)
 //
 // I.e. try to use a revision as branch name first, to get the `SingleBranch`
 // optimization.	When that fails fall back to regular cloning and checkout.	This fall
