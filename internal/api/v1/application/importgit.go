@@ -197,8 +197,8 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{
-		BlobUID:	blobUID,
-		Branch:		branch,
+		BlobUID: blobUID,
+		Branch:	branch,
 		Revision: revision,
 	})
 	return nil
