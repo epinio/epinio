@@ -280,7 +280,7 @@ brews:
     homepage: "https://epinio.io/"
     license: "Apache-2.0"
 
-    tap:
+    repository:
       owner: epinio
       name: homebrew-tap
       token: "{{ .Env.COMMITTER_TOKEN }}"
