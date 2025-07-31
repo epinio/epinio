@@ -177,7 +177,10 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		err = kubeServiceClient.Delete(ctx, namespace, serviceName)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				return apierror.NewNotFoundError("service", serviceName).WithDetailsf(err.Error())
+				return apierror.NewNotFoundError(
+					"service", 
+					serviceName,
+				).WithDetailsf("Not found error: %s", err.Error())
 			}
 
 			return apierror.InternalError(err)
