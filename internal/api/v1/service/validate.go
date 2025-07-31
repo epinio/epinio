@@ -90,7 +90,10 @@ func ValidateService(
 		srv, err = client.GetRelease(releaseNameHC)
 		if err != nil {
 			if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-				return apierror.NewNotFoundError("release", releaseName).WithDetailsf(err.Error())
+				return apierror.NewNotFoundError(
+					"release",
+					releaseName,
+				).WithDetailsf("Not found error: %s", err.Error())
 			}
 			return apierror.InternalError(err)
 		}
