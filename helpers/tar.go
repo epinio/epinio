@@ -68,7 +68,11 @@ func Tar(dir string) (string, string, error) {
 	}
 
 	// create a tmpDir - tarball dir and POST
-	tmpDir, err := os.MkdirTemp("", "epinio-app")
+	tmpDir, tmpDirError := os.MkdirTemp("", "epinio-app")
+	if tmpDirError != nil {
+		return "", "", errors.Wrap(tmpDirError, "can't create output directory")
+	}
+
 	tarballName := path.Join(tmpDir, blobName)
 
 	// Open file reference to the tarball file
