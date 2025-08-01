@@ -34,7 +34,7 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 	)
 
 	// defaultBuilder := "paketobuildpacks/builder:full"
-	defaultBuilder := "paketobuildpacks/builder-jammy-full:0.3.290"
+	defaultBuilder := "paketobuildpacks/builder-jammy-full:0.3.494"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
