@@ -1018,7 +1018,12 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() int {
-				resp, _ := http.Get("http://" + serviceHostname)
+				resp, err := http.Get("http://" + serviceHostname)
+				if err != nil || resp == nil {
+					fmt.Println(err)
+						return 0 // Not ready yet
+				}
+				defer resp.Body.Close()
 				return resp.StatusCode
 			}, "1m", "2s").Should(Equal(http.StatusOK))
 
