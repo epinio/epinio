@@ -1009,6 +1009,8 @@ var _ = Describe("Services", LService, func() {
 			serviceName = catalog.NewServiceName()
 			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
 
+			fmt.Println(serviceHostname)
+
 			out, err := env.Epinio("", "service", "create",
 				catalogService.Meta.Name, serviceName,
 				"--chart-value", "ingress.enabled=true",
