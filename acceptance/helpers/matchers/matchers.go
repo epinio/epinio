@@ -60,7 +60,7 @@ func tableRow(args ...string) string {
 
 	var b strings.Builder
 	for _, arg := range args {
-		fmt.Fprintf(&b, `[|][\s]+%s[\s]+`, arg)
+		fmt.Fprintf(&b, `(?s)[|][\s]+%s[\s]+`, arg)
 	}
 	b.WriteString(`[|]`)
 
