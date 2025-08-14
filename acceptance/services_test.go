@@ -1009,8 +1009,6 @@ var _ = Describe("Services", LService, func() {
 			serviceName = catalog.NewServiceName()
 			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
 
-			fmt.Println(serviceHostname)
-
 			out, err := env.Epinio("", "service", "create",
 				catalogService.Meta.Name, serviceName,
 				"--chart-value", "ingress.enabled=true",
@@ -1022,6 +1020,7 @@ var _ = Describe("Services", LService, func() {
 			Eventually(func() int {
 				resp, err := http.Get("http://" + serviceHostname)
 				if err != nil || resp == nil {
+					fmt.Println(err)
 						return 0 // Not ready yet
 				}
 				defer resp.Body.Close()
