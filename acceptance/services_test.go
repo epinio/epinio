@@ -1018,7 +1018,7 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() int {
-				resp, err := http.Get("http://" + serviceHostname)
+				resp, err := http.Get("http://" + serviceHostname + ":8443")
 				if err != nil || resp == nil {
 					fmt.Println(err)
 						return 0 // Not ready yet
