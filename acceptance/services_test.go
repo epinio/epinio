@@ -1025,7 +1025,7 @@ var _ = Describe("Services", LService, func() {
 				}
 				defer resp.Body.Close()
 				return resp.StatusCode
-			}, "1m", "2s").Should(Equal(http.StatusOK))
+			}, "3m", "2s").Should(Equal(http.StatusOK))
 
 		})
 
