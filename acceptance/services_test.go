@@ -1008,7 +1008,6 @@ var _ = Describe("Services", LService, func() {
 
 			serviceName = catalog.NewServiceName()
 			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
-			serviceHostname = serviceHostname + ":8443"
 			
 			out, err := env.Epinio("", "service", "create",
 				catalogService.Meta.Name, serviceName,
