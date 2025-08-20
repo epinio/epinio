@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	ServiceDeployTimeout         = "4m"
+	ServiceDeployTimeout         = "5m"
 	ServiceDeployPollingInterval = "5s"
 )
 
