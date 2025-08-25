@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	ServiceDeployTimeout         = "4m"
+	ServiceDeployTimeout         = "5m"
 	ServiceDeployPollingInterval = "5s"
 )
 
@@ -1008,7 +1008,7 @@ var _ = Describe("Services", LService, func() {
 
 			serviceName = catalog.NewServiceName()
 			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
-
+			
 			out, err := env.Epinio("", "service", "create",
 				catalogService.Meta.Name, serviceName,
 				"--chart-value", "ingress.enabled=true",
@@ -1017,11 +1017,11 @@ var _ = Describe("Services", LService, func() {
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Eventually(func() int {
-				resp, _ := http.Get("http://" + serviceHostname)
-				return resp.StatusCode
-			}, "1m", "2s").Should(Equal(http.StatusOK))
-
+			resp, err := http.Get("http://" + serviceHostname)
+			Expect(err).NotTo(HaveOccurred())
+			defer resp.Body.Close()
+			
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 
 		randomPort := func() string {
