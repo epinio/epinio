@@ -78,6 +78,7 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				// wait for the service to be ready
+				//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
 				Eventually(func() int {
 					tr := &http.Transport{
 						TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
