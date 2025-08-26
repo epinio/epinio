@@ -233,6 +233,8 @@ var _ = Describe("Services", LService, func() {
 					"--wait",
 				)
 				Expect(err).ToNot(HaveOccurred(), out)
+
+				//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
 				Eventually(func() int {
 					tr := &http.Transport{
 						TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
@@ -1029,6 +1031,7 @@ var _ = Describe("Services", LService, func() {
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
 
+			//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
 			Eventually(func() int {
 				tr := &http.Transport{
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
