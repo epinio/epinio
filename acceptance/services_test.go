@@ -12,6 +12,7 @@
 package acceptance_test
 
 import (
+	"crypto/tls"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -204,7 +205,7 @@ var _ = Describe("Services", LService, func() {
 					WithRow("Catalog Service", catalogService.Meta.Name),
 					WithRow("Version", catalogService.AppVersion),
 					WithRow("Status", "deployed"),
-					WithRow("Internal Routes", fmt.Sprintf(`.*\.%s\.svc\.cluster\.local`, namespace)),
+					WithRow("Internal Routes", fmt.Sprintf(`(?s).*\.%s\.svc\.cluster\.local(:443)?`, namespace)),
 				),
 			)
 		})
@@ -232,8 +233,21 @@ var _ = Describe("Services", LService, func() {
 					"--wait",
 				)
 				Expect(err).ToNot(HaveOccurred(), out)
+
+				//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
 				Eventually(func() int {
-					resp, _ := http.Get("http://" + serviceHostname)
+					tr := &http.Transport{
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
+					}
+					noTlsClient := &http.Client{Transport: tr}
+					
+					resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
+					
+					if err != nil {
+						fmt.Println(resp)
+						fmt.Println(err)
+					}
+					
 					return resp.StatusCode
 				}, "1m", "2s").Should(Equal(http.StatusOK))
 
@@ -513,7 +527,7 @@ var _ = Describe("Services", LService, func() {
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
-					WithRow("Internal Routes", fmt.Sprintf(`.*\.%s\.svc\.cluster\.local`, namespace)),
+					WithRow("Internal Routes", fmt.Sprintf(`(?s).*\.%s\.svc\.cluster\.local(:443)?`, namespace)),
 				),
 			)
 
@@ -1017,8 +1031,20 @@ var _ = Describe("Services", LService, func() {
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
 
+			//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
 			Eventually(func() int {
-				resp, _ := http.Get("http://" + serviceHostname)
+				tr := &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
+				}
+				noTlsClient := &http.Client{Transport: tr}
+				
+				resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
+				
+				if err != nil {
+					fmt.Println(resp)
+					fmt.Println(err)
+				}
+				
 				return resp.StatusCode
 			}, "1m", "2s").Should(Equal(http.StatusOK))
 
