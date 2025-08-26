@@ -1017,11 +1017,10 @@ var _ = Describe("Services", LService, func() {
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			resp, err := http.Get("http://" + serviceHostname)
-			Expect(err).NotTo(HaveOccurred())
-			defer resp.Body.Close()
-			
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			Eventually(func() int {
+				resp, _ := http.Get("https://" + serviceHostname + ":8443")
+				return resp.StatusCode
+			}, "1m", "2s").Should(Equal(http.StatusOK))
 		})
 
 		randomPort := func() string {
