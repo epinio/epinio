@@ -12,6 +12,7 @@
 package v1_test
 
 import (
+	"crypto/tls"
 	"bufio"
 	"fmt"
 	"net/http"
@@ -56,7 +57,7 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 
 			// temporarily include :8080 to test port resolution
 			// catalogServiceURL = "http://" + catalogServiceHostname
-			catalogServiceURL = fmt.Sprintf("%s://%s:%s", parsed.Scheme, catalogServiceHostname, parsed.Port())
+			catalogServiceURL = fmt.Sprintf("%s://%s:%s", "https", catalogServiceHostname, parsed.Port())
 
 			DeferCleanup(func() {
 				catalog.DeleteCatalogService(catalogService.Meta.Name)
@@ -78,7 +79,18 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 
 				// wait for the service to be ready
 				Eventually(func() int {
-					resp, err := http.Get(catalogServiceURL)
+					tr := &http.Transport{
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
+					}
+					noTlsClient := &http.Client{Transport: tr}
+					
+					resp, err := noTlsClient.Get(catalogServiceURL)
+					
+					if err != nil {
+						fmt.Println(resp)
+						fmt.Println(err)
+					}
+					
 					Expect(err).ToNot(HaveOccurred())
 					return resp.StatusCode
 				}, "1m", "1s").Should(Equal(http.StatusOK))
