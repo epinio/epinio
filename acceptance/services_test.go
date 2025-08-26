@@ -12,6 +12,7 @@
 package acceptance_test
 
 import (
+	"crypto/tls"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -1018,7 +1019,12 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() int {
-				resp, err := http.Get("https://" + serviceHostname + ":8443")
+
+				tr := &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
+				}
+				noTlsClient := &http.Client{Transport: tr}
+				resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
 				if err != nil {
 					fmt.Println(resp)
 					fmt.Println(err)
