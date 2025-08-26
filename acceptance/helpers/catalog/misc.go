@@ -269,7 +269,7 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 		filePath, err := helpers.CreateTmpFile(catalogService.Values)
 		Expect(err).ToNot(HaveOccurred())
 		cmd = append(cmd, "-f", filePath)
-		defer Expect(os.Remove(filePath)).ToNot(HaveOccurred())
+		//defer Expect(os.Remove(filePath)).ToNot(HaveOccurred())
 	}
 
 	out, err = proc.RunW("helm", cmd...)
