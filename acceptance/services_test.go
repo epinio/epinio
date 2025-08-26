@@ -233,8 +233,20 @@ var _ = Describe("Services", LService, func() {
 					"--wait",
 				)
 				Expect(err).ToNot(HaveOccurred(), out)
+
 				Eventually(func() int {
-					resp, _ := http.Get("http://" + serviceHostname)
+					tr := &http.Transport{
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
+					}
+					noTlsClient := &http.Client{Transport: tr}
+					
+					resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
+					
+					if err != nil {
+						fmt.Println(resp)
+						fmt.Println(err)
+					}
+					
 					return resp.StatusCode
 				}, "1m", "2s").Should(Equal(http.StatusOK))
 
@@ -1019,16 +1031,18 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() int {
-
 				tr := &http.Transport{
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
 				}
 				noTlsClient := &http.Client{Transport: tr}
+				
 				resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
+				
 				if err != nil {
 					fmt.Println(resp)
 					fmt.Println(err)
 				}
+				
 				return resp.StatusCode
 			}, "1m", "2s").Should(Equal(http.StatusOK))
 		})
