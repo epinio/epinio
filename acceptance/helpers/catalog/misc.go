@@ -269,7 +269,10 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 		filePath, err := helpers.CreateTmpFile(catalogService.Values)
 		Expect(err).ToNot(HaveOccurred())
 		cmd = append(cmd, "-f", filePath)
-		defer Expect(os.Remove(filePath)).ToNot(HaveOccurred())
+
+		//Defer was firing to early, causing tests to fail, we shouldn't have to remove 
+		//files anyways since the epinio is spun up per each test suite, keeping this to ensure there are no unintended issues.
+		//defer Expect(os.Remove(filePath)).ToNot(HaveOccurred())
 	}
 
 	out, err = proc.RunW("helm", cmd...)
