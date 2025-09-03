@@ -70,6 +70,27 @@ type stageParam struct {
 	UserID              int64
 	GroupID             int64
 	Scripts             string
+	HelmValues          HelmValuesMap  // Helm Values configuring the staging workload
+}
+
+// // Toleration represents the toleration introduced for taints.
+// type StagingToleration struct {
+// 	Key                 string `yaml:"key,omitempty"`
+// 	Operator            string `yaml:"operator,omitempty"`
+// 	Value               string `yaml:"value,omitempty"`
+// 	Effect              string `yaml:"effect,omitempty"`
+// 	TolerationSeconds   int64  `yaml:"tolerationSeconds,omitempty"`
+// }
+
+type HelmValuesMap struct {
+	ServiceAccountName  string              `yaml:"serviceAccountName"`
+	NodeSelector 		map[string]string   `yaml:"nodeSelector,omitempty"`
+	Tolerations 		[]corev1.Toleration `yaml:"tolerations,omitempty"`
+	Affinity            *corev1.Affinity     `yaml:"affinity,omitempty"`
+	Resources           corev1.ResourceRequirements    `yaml:"resources,omitempty"`
+    Storage             struct {
+    	Disk            string              `yaml:"disk,omitempty"`
+    } `yaml:"storage,omitempty"`
 }
 
 // ImageURL returns the URL of the container image to be, using the
@@ -196,6 +217,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	log.Info("staging app", "userid", config.UserID)
 	log.Info("staging app", "groupid", config.GroupID)
 	log.Info("staging app", "build env", config.Env)
+	log.Info("staging app", "Staging Values", config.HelmValues)
 	log.Info("staging app", "namespace", namespace, "app", req)
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
@@ -287,6 +309,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		UserID:              config.UserID,
 		GroupID:             config.GroupID,
 		Scripts:             config.Name,
+		HelmValues:          config.HelmValues,
 	}
 
 	err = ensurePVC(ctx, cluster, req.App, diskRequest)
@@ -592,7 +615,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: app.ServiceAccountName,
+					ServiceAccountName: app.HelmValues.ServiceAccountName,
 					InitContainers: []corev1.Container{
 						{
 							Name:         "download-s3-blob",
@@ -636,12 +659,16 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					},
 					RestartPolicy: corev1.RestartPolicyNever,
 					Volumes:       volumes,
+					Tolerations:   app.HelmValues.Tolerations,
+					NodeSelector:  app.HelmValues.NodeSelector,
+					Affinity:      app.HelmValues.Affinity,
+					Resources:     &app.HelmValues.Resources,
 				},
 			},
 		},
 	}
 
-	addResourceRequests(job, app)
+	// addResourceRequests(job, app)
 	return job, jobenv
 }
 
@@ -665,31 +692,36 @@ func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
 	return stageEnv
 }
 
-func addResourceRequests(job *batchv1.Job, app stageParam) {
-	cpu := app.CPURequest
-	memory := app.MemoryRequest
+// func addResourceRequests(job *batchv1.Job, app stageParam) {
+// 	cpu := app.CPURequest
+// 	memory := app.MemoryRequest
 
-	if cpu == "" && memory == "" {
-		return
-	}
+// 	if cpu == "" && memory == "" {
+// 		return
+// 	}
 
-	rr := corev1.ResourceRequirements{
-		Requests: corev1.ResourceList{},
-	}
+// 	rr := corev1.ResourceRequirements{
+// 		Requests: corev1.ResourceList{},
+// 	}
 
-	// NOTE: Using `MustParse` is ok here, despite panicking on bad values.  The server startup
-	// code (See internal/cli/server.go, CmdServer.RunE) already verified that any non-empty
-	// values are valid. Invalid values cause the server to not start.
+// 	// NOTE: Using `MustParse` is ok here, despite panicking on bad values.  The server startup
+// 	// code (See internal/cli/server.go, CmdServer.RunE) already verified that any non-empty
+// 	// values are valid. Invalid values cause the server to not start.
 
-	if cpu != "" {
-		rr.Requests[corev1.ResourceCPU] = resource.MustParse(cpu)
-	}
-	if memory != "" {
-		rr.Requests[corev1.ResourceMemory] = resource.MustParse(memory)
-	}
+// 	if cpu != "" {
+// 		rr.Requests[corev1.ResourceCPU] = resource.MustParse(cpu)
+// 	}
+// 	if memory != "" {
+// 		rr.Requests[corev1.ResourceMemory] = resource.MustParse(memory)
+// 	}
 
-	job.Spec.Template.Spec.Containers[0].Resources = rr
-}
+// 	job.Spec.Template.Spec.Containers[0].Resources = rr
+// }
+
+// func addNodeSelector(job *batchv1.Job, app stageParam) {}
+// func addAffinity(job *batchv1.Job, app stageParam) {}
+// func addTolerations(job *batchv1.Job, app stageParam) {}
+
 
 func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, error) {
 	cd, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
@@ -873,6 +905,7 @@ type StagingScriptConfig struct {
 	DownloadImage string                // image to run the download phase with
 	UnpackImage   string                // image to run the unpack phase with
 	Env           models.EnvVariableMap // environment settings
+	HelmValues    HelmValuesMap  // Helm Values configuring the staging workload
 }
 
 func DetermineStagingScripts(ctx context.Context,
@@ -899,7 +932,9 @@ func DetermineStagingScripts(ctx context.Context,
 
 	var candidates []*StagingScriptConfig
 	for _, configmap := range configmapList.Items {
+		logger.Info("configmap here", fmt.Sprintf("%+v", configmap))
 		config, err := NewStagingScriptConfig(configmap)
+		logger.Info("resulting config here", fmt.Sprintf("%+v", config))
 		if err != nil {
 			return nil, err
 		}
@@ -996,17 +1031,19 @@ func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, erro
 		Base:          config.Data["base"],
 		DownloadImage: config.Data["downloadImage"],
 		UnpackImage:   config.Data["unpackImage"],
-		// env, user, group id, see below.
+		// env, user, group id, Helm Values, see below.
 	}
 
 	userID, err := strconv.ParseInt(config.Data["userID"], 10, 64)
 	if err != nil {
 		return nil, apierror.InternalError(err)
 	}
+	fmt.Printf("[NewStagingScriptConfig] userID %#v", userID)
 	groupID, err := strconv.ParseInt(config.Data["groupID"], 10, 64)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("[NewStagingScriptConfig] groupID %#v", groupID)
 
 	envString := config.Data["env"]
 
@@ -1015,6 +1052,15 @@ func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, erro
 		return nil, err
 	}
 
+	var cfg HelmValuesMap
+	stagingValues := config.Data["staging-values.yaml"]
+	fmt.Printf("[NewStagingScriptConfig] staging-values.yaml %#v", stagingValues)
+	err = yaml.Unmarshal([]byte(stagingValues), &cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	stagingScript.HelmValues = cfg
 	stagingScript.GroupID = groupID
 	stagingScript.UserID = userID
 
