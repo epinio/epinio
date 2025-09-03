@@ -31,7 +31,6 @@ import (
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
 
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/rest"
 
 	"github.com/pkg/errors"
@@ -102,30 +101,6 @@ func init() {
 	err = viper.BindEnv("disable-tracking", "DISABLE_TRACKING")
 	checkErr(err)
 
-	flags.String("staging-service-account-name", "", "(STAGING_SERVICE_ACCOUNT_NAME)")
-	err = viper.BindPFlag("staging-service-account-name", flags.Lookup("staging-service-account-name"))
-	checkErr(err)
-	err = viper.BindEnv("staging-service-account-name", "STAGING_SERVICE_ACCOUNT_NAME")
-	checkErr(err)
-
-	flags.String("staging-resource-cpu", "", "(STAGING_RESOURCE_CPU)")
-	err = viper.BindPFlag("staging-resource-cpu", flags.Lookup("staging-resource-cpu"))
-	checkErr(err)
-	err = viper.BindEnv("staging-resource-cpu", "STAGING_RESOURCE_CPU")
-	checkErr(err)
-
-	flags.String("staging-resource-memory", "", "(STAGING_RESOURCE_MEMORY)")
-	err = viper.BindPFlag("staging-resource-memory", flags.Lookup("staging-resource-memory"))
-	checkErr(err)
-	err = viper.BindEnv("staging-resource-memory", "STAGING_RESOURCE_MEMORY")
-	checkErr(err)
-
-	flags.String("staging-resource-disk", "", "(STAGING_RESOURCE_DISK)")
-	err = viper.BindPFlag("staging-resource-disk", flags.Lookup("staging-resource-disk"))
-	checkErr(err)
-	err = viper.BindEnv("staging-resource-disk", "STAGING_RESOURCE_DISK")
-	checkErr(err)
-
 	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Disable tracking of the running Epinio and Kubernetes versions")
 	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
 	checkErr(err)
@@ -158,30 +133,6 @@ var CmdServer = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		logger := tracelog.NewLogger().WithName("EpinioServer")
-
-		// Validate resource requests for staging job here, on server startup, to reject bad values immediately.
-
-		cpuRequest := viper.GetString("staging-resource-cpu")
-		if cpuRequest != "" {
-			_, err := resource.ParseQuantity(cpuRequest)
-			if err != nil {
-				return errors.Wrap(err, "bad cpu request for staging job")
-			}
-		}
-		memoryRequest := viper.GetString("staging-resource-memory")
-		if memoryRequest != "" {
-			_, err := resource.ParseQuantity(memoryRequest)
-			if err != nil {
-				return errors.Wrap(err, "bad memory request for staging job")
-			}
-		}
-		diskRequest := viper.GetString("staging-resource-disk")
-		if diskRequest != "" {
-			_, err := resource.ParseQuantity(diskRequest)
-			if err != nil {
-				return errors.Wrap(err, "bad disk size request for staging job")
-			}
-		}
 
 		handler, err := server.NewHandler(logger)
 		if err != nil {
