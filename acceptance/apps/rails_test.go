@@ -79,6 +79,7 @@ var _ = Describe("RubyOnRails", func() {
 	var catalogName string
 	var configurationName string
 	var newHost string
+	var port string = ":8443"
 
 	BeforeEach(func() {
 		// Hardcode the contents of `config/credentials.yml.enc to avoid having to
@@ -87,7 +88,7 @@ var _ = Describe("RubyOnRails", func() {
 		rails = RailsApp{
 			Name:           catalog.NewAppName(),
 			Namespace:      catalog.NewNamespaceName(),
-			SourceURL:      "https://github.com/epinio/example-rails/tarball/main",
+			SourceURL:      "https://github.com/epinio/example-rails/tarball/fix/outdated-build",
 			CredentialsEnc: `uVPZWDUhuOVhjFhPhom5qL9dGAJqVOctoK8PZQpGp4i5rBnrcT7GiHFFAmPb3ZPSdAnW8sj00VlEECRem01LzI1pzfhg9TUGti6b2jyxiTxALVsDlmCg4V458jprpFfNJaAlK7RGRKp9oSNEI1DBliGX8aKTf6ye9wJV2AF+w4mdezj2xtsgN5lKhMN6YMFn8V/XNUC3cvmyEH6ot0Aj3N+BaiKXfTDJdaLqcr+awhMSNh0Es+vBLdYRvOgaMCGicKor/Oe0h8VkuVSIT0Ye08evYqoHkijKMH034T2M2rE5EhkKUzbK1YRhYPiPfHwoKYXviuarIuCZuR/q5WhVghc5YTRVUjFILWe5aLzrm9pCu0WweIDIDf4K7OGsQN07nY2a3974OR73qKEi1RCJGk+2dpn1c696f9ar--0GJc3grQhOubjNmy--+9a7S7qwSUi/ennPYg8XFg==`,
 			MasterKey:      "75a74503267d5869281389d73cf8b90b",
 		}
@@ -101,7 +102,7 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Force node version used by buildpack to 16.x
-		out, err = env.Epinio("", "apps", "env", "set", rails.Name, "BP_NODE_VERSION", "16.*")
+		out, err = env.Epinio("", "apps", "env", "set", rails.Name, "BP_NODE_VERSION", "20")
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Provide the expected RAILS_MASTER_KEY to buildpack and application
@@ -169,19 +170,19 @@ var _ = Describe("RubyOnRails", func() {
 	It("can deploy Rails", func() {
 		out, err := env.EpinioPush(rails.Dir, rails.Name,
 			"--name", rails.Name,
-			"--builder-image", "paketobuildpacks/builder:0.2.443-full")
+			"--builder-image", "paketobuildpacks/builder:0.3.495-full")
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		route := testenv.AppRouteFromOutput(out)
 		Expect(route).ToNot(BeEmpty())
 
 		Eventually(func() int {
-			resp, err := env.Curl("GET", route, strings.NewReader(""))
+			resp, err := env.Curl("GET", route+port, strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			return resp.StatusCode
 		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
-		resp, err := env.Curl("GET", route, strings.NewReader(""))
+		resp, err := env.Curl("GET", route+port, strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
