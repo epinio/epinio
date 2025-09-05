@@ -115,7 +115,7 @@ var _ = Describe("AppLogs Endpoint", LApplication, func() {
 
 		By("adding more logs")
 		Eventually(func() int {
-			resp, err := env.Curl("GET", route, strings.NewReader(""))
+			resp, err := env.Curl("GET", route + ":8443", strings.NewReader("")) //TODO - Move hardcoded port to central function/if the port issue gets resolved, remove this
 			Expect(err).ToNot(HaveOccurred())
 
 			defer resp.Body.Close()
