@@ -526,7 +526,7 @@ jobs:
           make prepare_environment_k3d
           make test-acceptance-api-apps-critical-endpoints
           scripts/collect-coverage.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: acceptance-api-apps
           path: ./coverprofile.out
