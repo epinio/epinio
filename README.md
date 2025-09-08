@@ -142,7 +142,7 @@ STAGING_RESOURCE_MEMORY
 STAGING_RESOURCE_DISK
 ```
 
-These ENV variables were configured directly by the Helm Chart in the deployment's `env` section.  This is no longer the case as we push in the direction of improving configurability of these staging workloads.  These configurations are now more expansive, including resource requests vs. limits, node tolerations, affinity criteria, etc.  And as such, the ENV approach to this would become unruly as capabilities grew.  Instead, we are conforming more closely to how Kubernetes would structure these configs directly in the Job YAML.  These configurations are now read in from chart values into the stage script ConfigMaps.  The contents of this ConfigMap would instead look like (with examples):
+These ENV variables were configured directly by the Helm Chart in the deployment's `env` section.  This is no longer the case as we push in the direction of improving configurability of these staging workloads.  These configurations are now more expansive, including resource requests vs. limits, node tolerations, affinity criteria, etc.  And as such, the ENV approach to this would become unruly as capabilities grew.  Instead, we are conforming more closely to how Kubernetes would structure these configs directly in the Job YAML.  These configurations are now read in from chart values into the stage script ConfigMaps.  The contents of this ConfigMap, as far as the Epinio Server is concerned, would resemble the following (with examples):
 
 ```yaml
 serviceAccountName: "epinio-server"
