@@ -172,7 +172,7 @@ var _ = Describe("RubyOnRails", func() {
 			rails.Dir,
 			rails.Name,
 			"--name", rails.Name,
-			"--builder-image", "paketobuildpacks/builder-jammy-full:latest"
+			"--builder-image", "paketobuildpacks/builder-jammy-full:latest",
 		)
 		Expect(err).ToNot(HaveOccurred(), out)
 
