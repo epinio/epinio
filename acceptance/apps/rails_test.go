@@ -115,7 +115,10 @@ var _ = Describe("RubyOnRails", func() {
 
 		out, err = proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/myname/%s/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
-
+ 		
+		out, err = proc.RunW("mdkir", "-p", "tmp/pids")
+		Expect(err).ToNot(HaveOccurred(), out)
+		
 		out, err = proc.Kubectl("apply", "-f", testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
 
