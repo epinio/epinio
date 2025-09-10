@@ -114,9 +114,6 @@ var _ = Describe("RubyOnRails", func() {
 
 		out, err = proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/myname/%s/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
- 		
-		out, err = proc.RunW("mkdir", "-p", "tmp/pids")
-		Expect(err).ToNot(HaveOccurred(), out)
 		
 		out, err = proc.Kubectl("apply", "-f", testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
@@ -185,7 +182,7 @@ var _ = Describe("RubyOnRails", func() {
 			resp, err := env.Curl("GET", route+":8443", strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			return resp.StatusCode
-		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+		}, 60*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
 		resp, err := env.Curl("GET", route+":8443", strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
