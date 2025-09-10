@@ -79,7 +79,6 @@ var _ = Describe("RubyOnRails", func() {
 	var catalogName string
 	var configurationName string
 	var newHost string
-	var port string = ":8443"
 
 	BeforeEach(func() {
 		// Hardcode the contents of `config/credentials.yml.enc to avoid having to
@@ -183,12 +182,12 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(route).ToNot(BeEmpty())
 
 		Eventually(func() int {
-			resp, err := env.Curl("GET", route+port, strings.NewReader(""))
+			resp, err := env.Curl("GET", route+":8443", strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			return resp.StatusCode
 		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
-		resp, err := env.Curl("GET", route+port, strings.NewReader(""))
+		resp, err := env.Curl("GET", route+":8443", strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
