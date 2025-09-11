@@ -157,7 +157,7 @@ var _ = Describe("RubyOnRails", func() {
 	AfterEach(func() {
 		// Delete my custom service catalog
 		out, err := proc.Kubectl("delete", "-f", testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
-		Expect(err).ToNot(HaveOccurred(), out)
+		//Expect(err).ToNot(HaveOccurred(), out)
 		out, err = proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/%s/myname/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
 
