@@ -21,7 +21,7 @@ NETWORK_NAME=epinio-acceptance
 MIRROR_NAME=epinio-acceptance-registry-mirror
 CLUSTER_NAME=epinio-acceptance
 export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
-K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.29.2-k3s1}
+K3S_IMAGE=${K3S_IMAGE:-rancher/1.32.9-rc1-k3s1}
 
 # Ensure we have a value for --system-domain
 prepare_system_domain
