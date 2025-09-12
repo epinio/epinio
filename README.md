@@ -146,6 +146,7 @@ These ENV variables were configured directly by the Helm Chart in the deployment
 
 ```yaml
 serviceAccountName: "epinio-server"
+ttlSecondsAfterFinished: 300
 resources:
   requests:
     cpu: "200m"
@@ -154,7 +155,20 @@ resources:
   #   cpu: ""
   #   memory: ""
 storage:
-  disk: "1Gi"
+  cache:
+    emptyDir: false
+    size: 1Gi
+    storageClassName: ""
+    volumeMode: Filesystem
+    accessModes:
+    - ReadWriteOnce
+  sourceBlobs:
+    emptyDir: true
+    # size: 1Gi
+    # storageClassName: ""
+    # volumeMode: Filesystem
+    # accessModes:
+    # - ReadWriteOnce
 nodeSelector: {}
   # kubernetes.io/os: linux
 affinity: {}
