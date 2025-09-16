@@ -104,9 +104,9 @@ func (app *stageParam) ImageURL(registryURL string) string {
 // on the "upload" endpoint). It is also mounted in the staging pod, as the
 // "source" workspace.
 // The same PVC stores the application's build cache (on a separate directory).
-func ensureCachePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef, config StagingStorageValues) error {
+func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef, config StagingStorageValues, pvcName string) error {
     _, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.Namespace()).
-        Get(ctx, ar.MakeCachePVCName(), metav1.GetOptions{})
+        Get(ctx, pvcName, metav1.GetOptions{})
     if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
         return err
     }
@@ -130,59 +130,7 @@ func ensureCachePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.
 
     pvcObject := &corev1.PersistentVolumeClaim{
         ObjectMeta: metav1.ObjectMeta{
-            Name:      ar.MakeCachePVCName(),
-            Namespace: helmchart.Namespace(),
-        },
-        Spec: corev1.PersistentVolumeClaimSpec{
-            AccessModes: config.AccessModes,
-            VolumeMode: &config.VolumeMode,
-            Resources: corev1.VolumeResourceRequirements{
-                Requests: map[corev1.ResourceName]resource.Quantity{
-                    corev1.ResourceStorage: resource.MustParse(config.Size),
-                },
-            },
-        },
-    }
-
-    if config.StorageClassName != "" {
-        pvcObject.Spec.StorageClassName = &config.StorageClassName
-    }
-
-
-    // From here on, only if the PVC is missing
-    _, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.Namespace()).
-        Create(ctx, pvcObject, metav1.CreateOptions{})
-
-    return err
-}
-
-
-func ensureSourceBlobsPVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef, config StagingStorageValues) error {
-    _, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.Namespace()).
-        Get(ctx, ar.MakeSourceBlobsPVCName(), metav1.GetOptions{})
-    if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
-        return err
-    }
-    if err == nil { // pvc already exists
-        return nil
-    }
-
-    // Insert a default of last resort. See also note below.
-    if config.Size == "" {
-        config.Size = "1Gi"
-    }
-
-    if len(config.AccessModes) == 0 {
-        config.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
-    }
-
-    if config.VolumeMode == "" {
-        config.VolumeMode = corev1.PersistentVolumeFilesystem
-    }
-
-    pvcObject := &corev1.PersistentVolumeClaim{
-        ObjectMeta: metav1.ObjectMeta{
-            Name:      ar.MakeSourceBlobsPVCName(),
+            Name:      pvcName,
             Namespace: helmchart.Namespace(),
         },
         Spec: corev1.PersistentVolumeClaimSpec{
@@ -365,14 +313,14 @@ func Stage(c *gin.Context) apierror.APIErrors {
     }
 
     if !params.HelmValues.Storage.Cache.EmptyDir {
-        err = ensureCachePVC(ctx, cluster, req.App, params.HelmValues.Storage.Cache)
+        err = ensurePVC(ctx, cluster, req.App, params.HelmValues.Storage.Cache, req.App.MakeCachePVCName())
         if err != nil {
             return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application cache")
         }
     }
 
     if !params.HelmValues.Storage.SourceBlobs.EmptyDir {
-        err = ensureSourceBlobsPVC(ctx, cluster, req.App, params.HelmValues.Storage.SourceBlobs)
+        err = ensurePVC(ctx, cluster, req.App, params.HelmValues.Storage.SourceBlobs, req.App.MakeSourceBlobsPVCName())
         if err != nil {
             return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application source blobs")
         }
