@@ -104,7 +104,7 @@ func (app *stageParam) ImageURL(registryURL string) string {
 // on the "upload" endpoint). It is also mounted in the staging pod, as the
 // "source" workspace.
 // The same PVC stores the application's build cache (on a separate directory).
-func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef, config StagingStorageValues, pvcName string) error {
+func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, config StagingStorageValues, pvcName string) error {
     _, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.Namespace()).
         Get(ctx, pvcName, metav1.GetOptions{})
     if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
@@ -313,14 +313,14 @@ func Stage(c *gin.Context) apierror.APIErrors {
     }
 
     if !params.HelmValues.Storage.Cache.EmptyDir {
-        err = ensurePVC(ctx, cluster, req.App, params.HelmValues.Storage.Cache, req.App.MakeCachePVCName())
+        err = ensurePVC(ctx, cluster, params.HelmValues.Storage.Cache, req.App.MakeCachePVCName())
         if err != nil {
             return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application cache")
         }
     }
 
     if !params.HelmValues.Storage.SourceBlobs.EmptyDir {
-        err = ensurePVC(ctx, cluster, req.App, params.HelmValues.Storage.SourceBlobs, req.App.MakeSourceBlobsPVCName())
+        err = ensurePVC(ctx, cluster, params.HelmValues.Storage.SourceBlobs, req.App.MakeSourceBlobsPVCName())
         if err != nil {
             return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application source blobs")
         }
