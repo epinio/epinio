@@ -126,3 +126,64 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+## Breaking Changes & Migrations
+
+### 1.12 to 1.13
+
+Epinio 1.13 rehomes configurations for the staging workloads to a more standardized format that supports a larger variety of configs.  These are no longer configured directly on the Epinio container via ENV variables or through Viper CLI flags but rather read from an in-cluster ConfigMap at staging time.
+
+To summarize, version 1.12 referenced the following ENV variables:
+
+```bash
+STAGING_SERVICE_ACCOUNT_NAME
+STAGING_RESOURCE_CPU
+STAGING_RESOURCE_MEMORY
+STAGING_RESOURCE_DISK
+```
+
+These ENV variables were configured directly by the Helm Chart in the deployment's `env` section.  This is no longer the case as we push in the direction of improving configurability of these staging workloads.  These configurations are now more expansive, including resource requests vs. limits, node tolerations, affinity criteria, etc.  And as such, the ENV approach to this would become unruly as capabilities grew.  Instead, we are conforming more closely to how Kubernetes would structure these configs directly in the Job YAML.  These configurations are now read in from chart values into the stage script ConfigMaps.  The contents of this ConfigMap, as far as the Epinio Server is concerned, would resemble the following (with examples):
+
+```yaml
+serviceAccountName: "epinio-server"
+ttlSecondsAfterFinished: 300
+resources:
+  requests:
+    cpu: "200m"
+    memory: "1Gi"
+  # limits:
+  #   cpu: ""
+  #   memory: ""
+storage:
+  cache:
+    emptyDir: false
+    size: 1Gi
+    storageClassName: ""
+    volumeMode: Filesystem
+    accessModes:
+    - ReadWriteOnce
+  sourceBlobs:
+    emptyDir: true
+    # size: 1Gi
+    # storageClassName: ""
+    # volumeMode: Filesystem
+    # accessModes:
+    # - ReadWriteOnce
+nodeSelector: {}
+  # kubernetes.io/os: linux
+affinity: {}
+  # nodeAffinity:
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: kubernetes.io/os
+  #         operator: In
+  #         values:
+  #         - linux
+tolerations: []
+  # - key: "kubernetes.io/os"
+  #   operator: "Equal"
+  #   value: "linux"
+  #   effect: "NoSchedule"
+```
+
