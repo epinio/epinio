@@ -234,8 +234,12 @@ func (ar *AppRef) MakeScaleSecretName() string {
 }
 
 // MakePVCName returns the name of the kube pvc to use with/for the referenced application.
-func (ar *AppRef) MakePVCName() string {
-	return names.GenerateResourceName(ar.Namespace, ar.Name)
+func (ar *AppRef) MakeCachePVCName() string {
+	return names.GenerateResourceName(ar.Namespace, "cache", ar.Name)
+}
+
+func (ar *AppRef) MakeSourceBlobsPVCName() string {
+	return names.GenerateResourceName(ar.Namespace, "sourceblobs", ar.Name)
 }
 
 // StageRef references a staging run by ID, currently randomly generated

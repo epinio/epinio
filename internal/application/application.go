@@ -422,7 +422,12 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 	}
 
 	// delete staging PVC (the one that holds the "source" and "cache" workspaces)
-	err = deleteStagePVC(ctx, cluster, appRef)
+	err = deleteCacheStagePVC(ctx, cluster, appRef)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	err = deleteSourceBlobsStagePVC(ctx, cluster, appRef)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -438,11 +443,16 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 	return nil
 }
 
-// deleteStagePVC removes the kube PVC resource which was used to hold the application
+// deleteCacheStagePVC removes the kube PVC resource which was used to hold the application
 // sources for staging.
-func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
+func deleteCacheStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
 	return cluster.Kubectl.CoreV1().
-		PersistentVolumeClaims(helmchart.Namespace()).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
+		PersistentVolumeClaims(helmchart.Namespace()).Delete(ctx, appRef.MakeCachePVCName(), metav1.DeleteOptions{})
+}
+
+func deleteSourceBlobsStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
+	return cluster.Kubectl.CoreV1().
+		PersistentVolumeClaims(helmchart.Namespace()).Delete(ctx, appRef.MakeSourceBlobsPVCName(), metav1.DeleteOptions{})
 }
 
 // AppChart returns the app chart (to be) used for application deployment, if one
