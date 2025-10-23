@@ -13,6 +13,7 @@ package selfupdater
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime"
 	"strings"
@@ -46,7 +47,7 @@ func (u PosixUpdater) Update(targetVersion string) error {
 
 	defer func() {
 		if err := os.Remove(tmpFile); err != nil {
-			fmt.Sprintf("failed to remove temporary file: %s", err)
+			slog.Error("failed to remove temporary file", "error", err)
 		}
 	}()
 
