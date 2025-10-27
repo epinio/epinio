@@ -528,7 +528,7 @@ jobs:
           scripts/collect-coverage.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: acceptance-api-apps
+          name: acceptance-api-cep-different-k8s
           path: ./coverprofile.out
 
       - name: Cleanup k3d cluster
