@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -577,8 +578,15 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 // Logs method writes log lines to the specified logChan. The caller can stop the logging
 // with the ctx cancelFunc. It's also the callers responsibility to close the logChan when
 // done.  When stageID is an empty string, no staging logs are returned. If it is set,
+// LogParameters represents the log filtering parameters
+type LogParameters struct {
+	Tail      *int64
+	Since     *time.Duration
+	SinceTime *time.Time
+}
+
 // then only logs from that staging process are returned.
-func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, follow bool, app, stageID, namespace string) error {
+func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, follow bool, app, stageID, namespace string, logParams *LogParameters) error {
 	logger := requestctx.Logger(ctx).WithName("logs-backend").V(2)
 	selector := labels.NewSelector()
 
@@ -622,6 +630,33 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	if stageID != "" {
 		config.Ordered = true
 	}
+
+	// Apply log parameters if provided
+	if logParams != nil {
+		logger.Info("applying log parameters", "params", logParams)
+
+		// Handle line limiting
+		if logParams.Tail != nil {
+			config.TailLines = logParams.Tail
+			logger.Info("applied tail parameter", "tail", *logParams.Tail)
+		}
+
+		// Handle time-based filtering
+		if logParams.SinceTime != nil {
+			// SinceTime takes precedence over Since
+			config.Since = time.Since(*logParams.SinceTime)
+			logger.Info("applied since_time parameter", "since_time", *logParams.SinceTime, "since_duration", config.Since)
+		} else if logParams.Since != nil {
+			config.Since = *logParams.Since
+			logger.Info("applied since parameter", "since", *logParams.Since)
+		}
+	}
+
+	// Log final config values for debugging
+	logger.Info("final tailer config",
+		"tail_lines", config.TailLines,
+		"since", config.Since,
+		"since_seconds", int64(config.Since.Seconds()))
 
 	if follow {
 		logger.Info("stream")
