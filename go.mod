@@ -21,7 +21,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.9.0
 	github.com/dchest/uniuri v1.2.0
 	github.com/epinio/application v0.0.0-20230831095130-87dcf00a2fc1
-	github.com/fatih/color v1.16.0
+	github.com/fatih/color v1.18.0
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-git/go-git/v5 v5.13.0
 	github.com/go-logr/logr v1.4.2
