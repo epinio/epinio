@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"github.com/epinio/epinio/internal/manifest"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -29,7 +30,7 @@ type ApplicationsService interface {
 	AppDelete(ctx context.Context, appNames []string, all bool) error
 	AppExec(ctx context.Context, name, instance string) error
 	AppExport(name string, toRegistry bool, exportRequest models.AppExportRequest) error
-	AppLogs(name, stageID string, follow bool) error
+	AppLogs(name, stageID string, follow bool, options *client.LogOptions) error
 	AppManifest(name, path string) error
 	AppPortForward(ctx context.Context, name, instance string, address, ports []string) error
 	AppPush(ctxt context.Context, manifest models.ApplicationManifest) error
@@ -312,7 +313,7 @@ func NewAppLogsCmd(client ApplicationsService) *cobra.Command {
 				stageID = stageIDHere
 			}
 
-			err := client.AppLogs(args[0], stageID, cfg.follow)
+			err := client.AppLogs(args[0], stageID, cfg.follow, nil)
 			// Note: errors.Wrap (nil, "...") == nil
 			return errors.Wrap(err, "error streaming application logs")
 		},
