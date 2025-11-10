@@ -4,24 +4,16 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 
 [![godoc](https://pkg.go.dev/badge/epinio/epinio)](https://pkg.go.dev/github.com/epinio/epinio/internal/api/v1)
 [![Go Report Card](https://goreportcard.com/badge/github.com/epinio/epinio)](https://goreportcard.com/report/github.com/epinio/epinio)
-[![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=branch%3Amain)
-[![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml?query=branch%3Amain)
-[![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/aks.yml?query=branch%3Amain)
-[![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/eks.yml?query=branch%3Amain)
-[![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/gke.yml??query=branch%3Amain)
-[![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/rke.yml?query=branch%3Amain)  
-[![RKE2-EC2-CI](https://github.com/epinio/epinio/actions/workflows/rke2-lh-ec2.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/rke2-lh-ec2.yml?query=branch%3Amain) 
-[![AKS-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml?query=branch%3Amain)
-[![GKE-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml?query=branch%3Amain)
-[![GKE-UPGRADE-CI](https://github.com/epinio/epinio/actions/workflows/gke-upgrade.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/gke-upgrade.yml??query=branch%3Amain)
-[![RKE-UPGRADE-CI](https://github.com/epinio/epinio/actions/workflows/rke-upgrade.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/rke-upgrade.yml?query=branch%3Amain)
-
-[E2E tests](https://github.com/epinio/epinio-end-to-end-tests):
-
-[![Rancher-UI-1-Chrome](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_1_chrome_rancher_ui.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_1_chrome_rancher_ui.yml?query=branch%3Amain)
-[![Rancher-UI-1-Firefox](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_2_firefox_rancher_ui.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_2_firefox_rancher_ui.yml?query=branch%3Amain)
-[![Standalone UI Chrome](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_chrome.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_chrome.yml?query=branch%3Amain)
-[![Standalone UI Firefox](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_firefox.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/std_ui_latest_firefox.yml?query=branch%3Amain)
+[![CI](https://github.com/epinio/epinio/actions/workflows/main.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/main.yml)
+[![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml)
+[![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/aks.yml)
+[![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/eks.yml)
+[![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/gke.yml)
+[![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/rke.yml)
+[![RKE2-EC2-CI](https://github.com/epinio/epinio/actions/workflows/rke2-lh-ec2.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/rke2-lh-ec2.yml)
+[![AKS-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml)
+[![GKE-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml)
+[![RKE-CI-UPGRADE](https://github.com/epinio/epinio/actions/workflows/rke-upgrade.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/rke-upgrade.yml)
 
 <img src="./docs/epinio.png" align="left" width="100" height="50%">
 
