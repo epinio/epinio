@@ -583,10 +583,11 @@ type LogParameters struct {
 	Tail      *int64
 	Since     *time.Duration
 	SinceTime *time.Time
+	Follow    bool
 }
 
 // then only logs from that staging process are returned.
-func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, follow bool, app, stageID, namespace string, logParams *LogParameters) error {
+func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, app, stageID, namespace string, logParams *LogParameters) error {
 	logger := requestctx.Logger(ctx).WithName("logs-backend").V(2)
 	selector := labels.NewSelector()
 
@@ -657,6 +658,12 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 		"tail_lines", config.TailLines,
 		"since", config.Since,
 		"since_seconds", int64(config.Since.Seconds()))
+
+	// Use follow from logParams if provided, otherwise default to false
+	follow := false
+	if logParams != nil {
+		follow = logParams.Follow
+	}
 
 	if follow {
 		logger.Info("stream")
