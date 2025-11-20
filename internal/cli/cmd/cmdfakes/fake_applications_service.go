@@ -18,6 +18,7 @@ import (
 
 	"github.com/epinio/epinio/internal/cli/cmd"
 	"github.com/epinio/epinio/internal/cli/usercmd"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
@@ -73,12 +74,13 @@ type FakeApplicationsService struct {
 	appExportReturnsOnCall map[int]struct {
 		result1 error
 	}
-	AppLogsStub        func(string, string, bool) error
+	AppLogsStub        func(string, string, bool, *client.LogOptions) error
 	appLogsMutex       sync.RWMutex
 	appLogsArgsForCall []struct {
 		arg1 string
 		arg2 string
 		arg3 bool
+		arg4 *client.LogOptions
 	}
 	appLogsReturns struct {
 		result1 error
@@ -620,20 +622,21 @@ func (fake *FakeApplicationsService) AppExportReturnsOnCall(i int, result1 error
 	}{result1}
 }
 
-func (fake *FakeApplicationsService) AppLogs(arg1 string, arg2 string, arg3 bool) error {
+func (fake *FakeApplicationsService) AppLogs(arg1 string, arg2 string, arg3 bool, arg4 *client.LogOptions) error {
 	fake.appLogsMutex.Lock()
 	ret, specificReturn := fake.appLogsReturnsOnCall[len(fake.appLogsArgsForCall)]
 	fake.appLogsArgsForCall = append(fake.appLogsArgsForCall, struct {
 		arg1 string
 		arg2 string
 		arg3 bool
-	}{arg1, arg2, arg3})
+		arg4 *client.LogOptions
+	}{arg1, arg2, arg3, arg4})
 	stub := fake.AppLogsStub
 	fakeReturns := fake.appLogsReturns
-	fake.recordInvocation("AppLogs", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("AppLogs", []interface{}{arg1, arg2, arg3, arg4})
 	fake.appLogsMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
@@ -647,17 +650,17 @@ func (fake *FakeApplicationsService) AppLogsCallCount() int {
 	return len(fake.appLogsArgsForCall)
 }
 
-func (fake *FakeApplicationsService) AppLogsCalls(stub func(string, string, bool) error) {
+func (fake *FakeApplicationsService) AppLogsCalls(stub func(string, string, bool, *client.LogOptions) error) {
 	fake.appLogsMutex.Lock()
 	defer fake.appLogsMutex.Unlock()
 	fake.AppLogsStub = stub
 }
 
-func (fake *FakeApplicationsService) AppLogsArgsForCall(i int) (string, string, bool) {
+func (fake *FakeApplicationsService) AppLogsArgsForCall(i int) (string, string, bool, *client.LogOptions) {
 	fake.appLogsMutex.RLock()
 	defer fake.appLogsMutex.RUnlock()
 	argsForCall := fake.appLogsArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeApplicationsService) AppLogsReturns(result1 error) {

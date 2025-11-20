@@ -14,7 +14,9 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +33,59 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 )
+
+const (
+	// MaxTailLines is the maximum number of log lines that can be requested via the tail parameter
+	// This prevents excessive memory usage and ensures reasonable response times
+	MaxTailLines = 10000
+)
+
+// parseLogParameters parses and validates log query parameters
+func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
+	params := &application.LogParameters{}
+
+	if tailStr != "" {
+		if tail, err := strconv.ParseInt(tailStr, 10, 64); err == nil {
+			if tail < 0 {
+				return nil, fmt.Errorf("tail parameter must be non-negative, got: %d", tail)
+			}
+			if tail > MaxTailLines {
+				return nil, fmt.Errorf("tail parameter exceeds maximum of %d lines, got: %d", MaxTailLines, tail)
+			}
+			params.Tail = &tail
+		} else {
+			return nil, fmt.Errorf("invalid tail parameter: %s", tailStr)
+		}
+	}
+
+	if sinceStr != "" {
+		if since, err := time.ParseDuration(sinceStr); err == nil {
+			if since < 0 {
+				return nil, fmt.Errorf("since parameter must be non-negative, got: %s", since)
+			}
+			params.Since = &since
+		} else {
+			return nil, fmt.Errorf("invalid since parameter: %s", sinceStr)
+		}
+	}
+
+	if sinceTimeStr != "" {
+		if sinceTime, err := time.Parse(time.RFC3339, sinceTimeStr); err == nil {
+			// Note: We allow future times here as they will be handled by returning no logs
+			// This is better UX than rejecting the request
+			params.SinceTime = &sinceTime
+		} else {
+			return nil, fmt.Errorf("invalid since_time parameter: %s (must be RFC3339 format)", sinceTimeStr)
+		}
+	}
+
+	return params, nil
+}
+
+// ParseLogParametersForTest is a test helper that exposes parseLogParameters for testing
+func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
+	return parseLogParameters(tailStr, sinceStr, sinceTimeStr)
+}
 
 // Logs handles the API endpoints GET /namespaces/:namespace/applications/:app/logs
 // and	GET /namespaces/:namespace/staging/:stage_id/logs
@@ -81,6 +136,31 @@ func Logs(c *gin.Context) {
 	log.Info("process query")
 
 	followStr := c.Query("follow")
+	tailStr := c.Query("tail")
+	sinceStr := c.Query("since")
+	sinceTimeStr := c.Query("since_time")
+
+	// Parse and validate log parameters
+	logParams, err := parseLogParameters(tailStr, sinceStr, sinceTimeStr)
+	if err != nil {
+		response.Error(c, apierror.NewBadRequestError(err.Error()))
+		return
+	}
+
+	// Set follow parameter
+	follow := followStr == "true"
+	if logParams == nil {
+		logParams = &application.LogParameters{}
+	}
+	logParams.Follow = follow
+
+	// Log the parsed parameters for debugging
+	log.Info("parsed log parameters",
+		"tail", logParams.Tail,
+		"since", logParams.Since,
+		"since_time", logParams.SinceTime,
+		"follow", logParams.Follow,
+		"follow_raw", followStr)
 
 	log.Info("upgrade to web socket")
 
@@ -91,12 +171,10 @@ func Logs(c *gin.Context) {
 		return
 	}
 
-	follow := followStr == "true"
-
-	log.Info("streaming mode", "follow", follow)
+	log.Info("streaming mode", "follow", logParams.Follow)
 	log.Info("streaming begin")
 
-	err = streamPodLogs(ctx, conn, namespace, appName, stageID, cluster, follow)
+	err = streamPodLogs(ctx, conn, namespace, appName, stageID, cluster, logParams)
 	if err != nil {
 		log.V(1).Error(err, "error occurred after upgrading the websockets connection")
 		return
@@ -120,7 +198,7 @@ func Logs(c *gin.Context) {
 // connection is closed. In any case it will call the cancel func that will stop
 // all the children go routines described above and then will wait for their parent
 // go routine to stop too (using another WaitGroup).
-func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
+func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, appName, stageID string, cluster *kubernetes.Cluster, logParams *application.LogParameters) error {
 	logger := requestctx.Logger(ctx).WithName("streamer-to-websockets").V(1)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
@@ -128,18 +206,18 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 
 	wg.Add(1)
 	go func(outerWg *sync.WaitGroup) {
-		logger.Info("create backend", "follow", follow, "app", appName, "stage", stageID, "namespace", namespaceName)
+		logger.Info("create backend", "follow", logParams.Follow, "app", appName, "stage", stageID, "namespace", namespaceName)
 		defer func() {
 			logger.Info("backend ends")
 		}()
 
 		var tailWg sync.WaitGroup
-		err := application.Logs(logCtx, logChan, &tailWg, cluster, follow, appName, stageID, namespaceName)
+		err := application.Logs(logCtx, logChan, &tailWg, cluster, appName, stageID, namespaceName, logParams)
 		if err != nil {
 			logger.Error(err, "setting up log routines failed")
 		}
 
-		logger.Info("wait for backend completion", "follow", follow, "app", appName, "stage", stageID, "namespace", namespaceName)
+		logger.Info("wait for backend completion", "follow", logParams.Follow, "app", appName, "stage", stageID, "namespace", namespaceName)
 		tailWg.Wait()  // Wait until all child routines are stopped
 		close(logChan) // Close the channel so the loop below can stop
 		outerWg.Done() // Let the outer method know we are done
@@ -177,7 +255,7 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 			}
 			if websocket.IsUnexpectedCloseError(err) {
 				connectionCloseError := conn.Close()
-				
+
 				if connectionCloseError != nil {
 					return connectionCloseError
 				}

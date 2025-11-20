@@ -162,14 +162,15 @@ type FakeAPIClient struct {
 		result1 models.ImportGitResponse
 		result2 error
 	}
-	AppLogsStub        func(string, string, string, bool, func(tailer.ContainerLogLine)) error
+	AppLogsStub        func(string, string, string, bool, *client.LogOptions, func(tailer.ContainerLogLine)) error
 	appLogsMutex       sync.RWMutex
 	appLogsArgsForCall []struct {
 		arg1 string
 		arg2 string
 		arg3 string
 		arg4 bool
-		arg5 func(tailer.ContainerLogLine)
+		arg5 *client.LogOptions
+		arg6 func(tailer.ContainerLogLine)
 	}
 	appLogsReturns struct {
 		result1 error
@@ -1589,7 +1590,7 @@ func (fake *FakeAPIClient) AppImportGitReturnsOnCall(i int, result1 models.Impor
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppLogs(arg1 string, arg2 string, arg3 string, arg4 bool, arg5 func(tailer.ContainerLogLine)) error {
+func (fake *FakeAPIClient) AppLogs(arg1 string, arg2 string, arg3 string, arg4 bool, arg5 *client.LogOptions, arg6 func(tailer.ContainerLogLine)) error {
 	fake.appLogsMutex.Lock()
 	ret, specificReturn := fake.appLogsReturnsOnCall[len(fake.appLogsArgsForCall)]
 	fake.appLogsArgsForCall = append(fake.appLogsArgsForCall, struct {
@@ -1597,14 +1598,15 @@ func (fake *FakeAPIClient) AppLogs(arg1 string, arg2 string, arg3 string, arg4 b
 		arg2 string
 		arg3 string
 		arg4 bool
-		arg5 func(tailer.ContainerLogLine)
-	}{arg1, arg2, arg3, arg4, arg5})
+		arg5 *client.LogOptions
+		arg6 func(tailer.ContainerLogLine)
+	}{arg1, arg2, arg3, arg4, arg5, arg6})
 	stub := fake.AppLogsStub
 	fakeReturns := fake.appLogsReturns
-	fake.recordInvocation("AppLogs", []interface{}{arg1, arg2, arg3, arg4, arg5})
+	fake.recordInvocation("AppLogs", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6})
 	fake.appLogsMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4, arg5)
+		return stub(arg1, arg2, arg3, arg4, arg5, arg6)
 	}
 	if specificReturn {
 		return ret.result1
@@ -1618,17 +1620,17 @@ func (fake *FakeAPIClient) AppLogsCallCount() int {
 	return len(fake.appLogsArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppLogsCalls(stub func(string, string, string, bool, func(tailer.ContainerLogLine)) error) {
+func (fake *FakeAPIClient) AppLogsCalls(stub func(string, string, string, bool, *client.LogOptions, func(tailer.ContainerLogLine)) error) {
 	fake.appLogsMutex.Lock()
 	defer fake.appLogsMutex.Unlock()
 	fake.AppLogsStub = stub
 }
 
-func (fake *FakeAPIClient) AppLogsArgsForCall(i int) (string, string, string, bool, func(tailer.ContainerLogLine)) {
+func (fake *FakeAPIClient) AppLogsArgsForCall(i int) (string, string, string, bool, *client.LogOptions, func(tailer.ContainerLogLine)) {
 	fake.appLogsMutex.RLock()
 	defer fake.appLogsMutex.RUnlock()
 	argsForCall := fake.appLogsArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5, argsForCall.arg6
 }
 
 func (fake *FakeAPIClient) AppLogsReturns(result1 error) {
