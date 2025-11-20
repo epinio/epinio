@@ -79,7 +79,17 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 		TailLines:  t.Options.TailLines,
 	}
 
-	// Only set SinceSeconds if it's greater than 0
+	// Handle SinceSeconds:
+	// - If SinceSeconds < 0: This means the requested time is in the future, return no logs
+	// - If SinceSeconds == 0: Could mean either no filter specified OR future time, check context
+	// - If SinceSeconds > 0: Normal case, apply the filter
+	if t.Options.SinceSeconds < 0 {
+		// Negative means the time is in the future - return no logs
+		t.logger.Info("since_seconds is negative (future time), skipping log fetch", 
+			"since_seconds", t.Options.SinceSeconds)
+		return nil
+	}
+	
 	if t.Options.SinceSeconds > 0 {
 		podLogOptions.SinceSeconds = &t.Options.SinceSeconds
 	}

@@ -34,12 +34,24 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	// MaxTailLines is the maximum number of log lines that can be requested via the tail parameter
+	// This prevents excessive memory usage and ensures reasonable response times
+	MaxTailLines = 10000
+)
+
 // parseLogParameters parses and validates log query parameters
 func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
 	params := &application.LogParameters{}
 
 	if tailStr != "" {
 		if tail, err := strconv.ParseInt(tailStr, 10, 64); err == nil {
+			if tail < 0 {
+				return nil, fmt.Errorf("tail parameter must be non-negative, got: %d", tail)
+			}
+			if tail > MaxTailLines {
+				return nil, fmt.Errorf("tail parameter exceeds maximum of %d lines, got: %d", MaxTailLines, tail)
+			}
 			params.Tail = &tail
 		} else {
 			return nil, fmt.Errorf("invalid tail parameter: %s", tailStr)
@@ -48,6 +60,9 @@ func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.Lo
 
 	if sinceStr != "" {
 		if since, err := time.ParseDuration(sinceStr); err == nil {
+			if since < 0 {
+				return nil, fmt.Errorf("since parameter must be non-negative, got: %s", since)
+			}
 			params.Since = &since
 		} else {
 			return nil, fmt.Errorf("invalid since parameter: %s", sinceStr)
@@ -56,13 +71,20 @@ func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.Lo
 
 	if sinceTimeStr != "" {
 		if sinceTime, err := time.Parse(time.RFC3339, sinceTimeStr); err == nil {
+			// Note: We allow future times here as they will be handled by returning no logs
+			// This is better UX than rejecting the request
 			params.SinceTime = &sinceTime
 		} else {
-			return nil, fmt.Errorf("invalid since_time parameter: %s", sinceTimeStr)
+			return nil, fmt.Errorf("invalid since_time parameter: %s (must be RFC3339 format)", sinceTimeStr)
 		}
 	}
 
 	return params, nil
+}
+
+// ParseLogParametersForTest is a test helper that exposes parseLogParameters for testing
+func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
+	return parseLogParameters(tailStr, sinceStr, sinceTimeStr)
 }
 
 // Logs handles the API endpoints GET /namespaces/:namespace/applications/:app/logs

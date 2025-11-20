@@ -645,8 +645,24 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 		// Handle time-based filtering
 		if logParams.SinceTime != nil {
 			// SinceTime takes precedence over Since
-			config.Since = time.Since(*logParams.SinceTime)
-			logger.Info("applied since_time parameter", "since_time", *logParams.SinceTime, "since_duration", config.Since)
+			// Calculate duration from the specified time to now
+			sinceDuration := time.Since(*logParams.SinceTime)
+			
+			// If the time is in the future, the duration will be negative
+			// Pass the negative duration to the tailer so it can properly handle it
+			// (by returning no logs)
+			config.Since = sinceDuration
+			
+			if sinceDuration < 0 {
+				logger.Info("since_time is in the future, no logs will be returned", 
+					"since_time", *logParams.SinceTime,
+					"now", time.Now(),
+					"since_duration", sinceDuration)
+			} else {
+				logger.Info("applied since_time parameter", 
+					"since_time", *logParams.SinceTime, 
+					"since_duration", config.Since)
+			}
 		} else if logParams.Since != nil {
 			config.Since = *logParams.Since
 			logger.Info("applied since parameter", "since", *logParams.Since)
