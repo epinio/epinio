@@ -683,12 +683,22 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 		WithTableRow("Builder Image", app.Staging.Builder).
 		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
 		WithTableRow("Bound Configurations", strings.Join(app.Configuration.Configurations, ", ")).
-		WithTableRow("Environment", "")
+		WithTableRow("User Environment", "")
 
 	if len(app.Configuration.Environment) > 0 {
 		for _, ev := range app.Configuration.Environment.List() {
 			msg = msg.WithTableRow(" - "+ev.Name, ev.Value)
 		}
+	} else {
+		msg = msg.WithTableRow(" - ", "<<none>>")
+	}
+
+	// Note: Service-provided variables are accessible via bound configurations
+	// They are mounted as files in /configurations/<config-name>/<key>
+	if len(app.Configuration.Configurations) > 0 {
+		msg = msg.WithTableRow("Service-provided Variables", "")
+		msg = msg.WithTableRow(" - ", "See bound configurations above")
+		msg = msg.WithTableRow(" - ", "Accessible at: /configurations/<config-name>/<key>")
 	}
 
 	msg = msg.WithTableRow("Chart Values", "")

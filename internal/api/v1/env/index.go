@@ -25,14 +25,16 @@ import (
 // Index handles the API endpoint /namespaces/:namespace/applications/:app/environment
 // It receives the namespace, application name and returns the environment
 // associated with that application
+// Supports optional query parameter "grouped=true" to return variables separated by origin
 func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
+	grouped := c.Query("grouped") == "true"
 
-	log.Info("returning environment", "namespace", namespaceName, "app", appName)
+	log.Info("returning environment", "namespace", namespaceName, "app", appName, "grouped", grouped)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -50,11 +52,21 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	environment, err := application.Environment(ctx, cluster, app)
-	if err != nil {
-		return apierror.InternalError(err)
+	if grouped {
+		// Return variables grouped by origin
+		groupedEnv, err := application.GroupedEnvironment(ctx, cluster, app)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		response.OKReturn(c, groupedEnv)
+	} else {
+		// Return only user-provided environment (backward compatibility)
+		environment, err := application.Environment(ctx, cluster, app)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		response.OKReturn(c, environment)
 	}
 
-	response.OKReturn(c, environment)
 	return nil
 }
