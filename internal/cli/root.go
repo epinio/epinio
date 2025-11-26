@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/cmd"
@@ -114,6 +115,12 @@ func NewRootCmd() (*cobra.Command, error) {
 	}
 	argToEnv["verbosity"] = "VERBOSITY"
 
+	pf.String("log-level", "info", "Only prints log messages at or above this level (debug, info, warn, error, fatal)")
+	if err = viper.BindPFlag("log-level", pf.Lookup("log-level")); err != nil {
+		return nil, err
+	}
+	argToEnv["log-level"] = "LOG_LEVEL"
+
 	pf.Bool("skip-ssl-verification", false, "Skip the verification of TLS certificates")
 	if err = viper.BindPFlag("skip-ssl-verification", pf.Lookup("skip-ssl-verification")); err != nil {
 		return nil, err
@@ -156,6 +163,13 @@ func NewRootCmd() (*cobra.Command, error) {
 
 	// Hidden command providing developer tools
 	rootCmd.AddCommand(CmdDebug)
+
+	if err := helpers.InitLogger(); err != nil {
+		panic(err)
+	}
+	defer helpers.Logger.Sync()
+
+	helpers.Logger.Info("Epinio CLI", "version", version.Version)
 
 	return rootCmd, nil
 }
