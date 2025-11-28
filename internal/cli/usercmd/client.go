@@ -108,6 +108,7 @@ type APIClient interface {
 	ServiceShow(namespace, name string) (*models.Service, error)
 	ServiceCreate(req models.ServiceCreateRequest, namespace string) (models.Response, error)
 	ServiceBind(req models.ServiceBindRequest, namespace, name string) (models.Response, error)
+	ServiceBatchBind(req models.ServiceBatchBindRequest, namespace, appName string) (models.Response, error)
 	ServiceUnbind(req models.ServiceUnbindRequest, namespace, name string) (models.Response, error)
 	ServiceDelete(req models.ServiceDeleteRequest, namespace string, names []string) (models.ServiceDeleteResponse, error)
 	ServiceList(namespace string) (models.ServiceList, error)
