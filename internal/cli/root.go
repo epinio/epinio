@@ -169,8 +169,6 @@ func NewRootCmd() (*cobra.Command, error) {
 	}
 	defer helpers.Logger.Sync()
 
-	helpers.Logger.Info("Epinio CLI", "version", version.Version)
-
 	return rootCmd, nil
 }
 
