@@ -62,7 +62,7 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 	}
 
 	request := models.ApplicationCreateRequest{
-		Name: appName,
+		Name:          appName,
 		Configuration: appConfig,
 	}
 
@@ -149,8 +149,8 @@ func (c *EpinioClient) Apps(all bool) error {
 		configurations := strings.Join(app.Configuration.Configurations, ", ")
 
 		var (
-			status string
-			routes string
+			status        string
+			routes        string
 			statusDetails string
 		)
 
@@ -323,7 +323,7 @@ func (c *EpinioClient) getPartAndWriteFile(appName, part, destinationPath string
 
 	defer func() {
 		if err := partResponse.Data.Close(); err != nil {
-			fmt.Sprintf("Failed to close part response: %s", err)
+			c.Log.Error(err, "failed to close part response")
 		}
 	}()
 
@@ -335,7 +335,7 @@ func (c *EpinioClient) getPartAndWriteFile(appName, part, destinationPath string
 
 	defer func() {
 		if err := out.Close(); err != nil {
-			fmt.Sprintf("Failed to close file: %s", err)
+			c.Log.Error(err, "failed to close file")
 		}
 	}()
 
@@ -478,9 +478,9 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, options *cl
 	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
 	callback := func(logLine tailer.ContainerLogLine) {
 		printer.Print(logprinter.Log{
-			Message: logLine.Message,
-			Namespace: logLine.Namespace,
-			PodName: logLine.PodName,
+			Message:       logLine.Message,
+			Namespace:     logLine.Namespace,
+			PodName:       logLine.PodName,
 			ContainerName: logLine.ContainerName,
 		}, c.ui.ProgressNote().Compact())
 	}
@@ -513,9 +513,9 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) er
 	}
 
 	tty := kubectlterm.TTY{
-		In: os.Stdin,
-		Out: os.Stdout,
-		Raw: true,
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		Raw:    true,
 		TryDev: true,
 	}
 

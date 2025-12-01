@@ -17,7 +17,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -257,7 +257,7 @@ func checkCA(address string) (*x509.Certificate, error) {
 
 	defer func() {
 		if err := conn.Close(); err != nil {
-			fmt.Sprintf("could not close connection: %s", err)
+			slog.Error("failed to close connection", "error", err)
 		}
 	}()
 
