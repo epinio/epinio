@@ -320,7 +320,7 @@ func (c *EpinioClient) getPartAndWriteFile(appName, part, destinationPath string
 	if err != nil {
 		return err
 	}
-	
+
 	defer func() {
 		if err := partResponse.Data.Close(); err != nil {
 			fmt.Sprintf("Failed to close part response: %s", err)
@@ -458,7 +458,7 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 // If stageID is an empty string, runtime application logs are streamed. If stageID
 // is set, then the matching staging logs are streamed.
 // The printLogs func will print the logs from the channel until the channel will be closed.
-func (c *EpinioClient) AppLogs(appName, stageID string, follow bool) error {
+func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, options *client.LogOptions) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
@@ -485,7 +485,7 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool) error {
 		}, c.ui.ProgressNote().Compact())
 	}
 
-	err := c.API.AppLogs(c.Settings.Namespace, appName, stageID, follow, callback)
+	err := c.API.AppLogs(c.Settings.Namespace, appName, stageID, follow, options, callback)
 	if err != nil {
 		return err
 	}
