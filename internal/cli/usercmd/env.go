@@ -18,7 +18,7 @@ import (
 )
 
 // EnvList displays a table of all environment variables and their
-// values for the named application.
+// values for the named application, separated by origin (user vs service-provided).
 func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 	log := c.Log.WithName("EnvList")
 	log.Info("start")
@@ -33,18 +33,33 @@ func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 		return err
 	}
 
-	eVariables, err := c.API.EnvList(c.Settings.Namespace, appName)
+	groupedEnv, err := c.API.EnvListGrouped(c.Settings.Namespace, appName)
 	if err != nil {
 		return err
 	}
 
-	msg := c.ui.Success().WithTable("Variable", "Value")
-
-	for _, ev := range eVariables.List() {
-		msg = msg.WithTableRow(ev.Name, ev.Value)
+	// Display user-provided environment variables
+	if len(groupedEnv.User) > 0 {
+		msg := c.ui.Success().WithTable("Variable", "Value")
+		for _, ev := range groupedEnv.User.List() {
+			msg = msg.WithTableRow(ev.Name, ev.Value)
+		}
+		msg.Msg("User-provided Environment Variables:")
+	} else {
+		c.ui.Note().Msg("No user-provided environment variables")
 	}
 
-	msg.Msg("Ok")
+	// Display service-provided environment variables
+	if len(groupedEnv.Service) > 0 {
+		msg := c.ui.Success().WithTable("Variable", "Value")
+		for _, ev := range groupedEnv.Service.List() {
+			msg = msg.WithTableRow(ev.Name, ev.Value)
+		}
+		msg.Msg("Service-provided Environment Variables:")
+	} else {
+		c.ui.Note().Msg("No service-provided environment variables")
+	}
+
 	return nil
 }
 

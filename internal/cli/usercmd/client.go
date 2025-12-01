@@ -71,6 +71,7 @@ type APIClient interface {
 
 	// env
 	EnvList(namespace string, appName string) (models.EnvVariableMap, error)
+	EnvListGrouped(namespace string, appName string) (models.EnvVariableGroupedResponse, error)
 	EnvSet(req models.EnvVariableMap, namespace string, appName string) (models.Response, error)
 	EnvShow(namespace string, appName string, envName string) (models.EnvVariable, error)
 	EnvUnset(namespace string, appName string, envName string) (models.Response, error)
