@@ -167,7 +167,12 @@ func NewRootCmd() (*cobra.Command, error) {
 	if err := helpers.InitLogger(); err != nil {
 		panic(err)
 	}
-	defer helpers.Logger.Sync()
+	defer func() {
+		loggerError := helpers.Logger.Sync()
+		if loggerError != nil {
+			log.Printf("ZAP FALLBACK: Error flushing logs: %v", loggerError)
+		}
+	}()
 
 	return rootCmd, nil
 }
