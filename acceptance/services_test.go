@@ -968,6 +968,52 @@ var _ = Describe("Services", LService, func() {
 			)
 		})
 
+		It("unbinds service with batching optimization (single restart)", func() {
+			By("getting pod names before unbind")
+			getPodNames := func(namespace, app string) ([]string, error) {
+				podName, err := proc.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+				return strings.Split(strings.Trim(podName, "'"), " "), err
+			}
+
+			oldPodNames, err := getPodNames(namespace, app)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("unbinding the service")
+			out, err := env.Epinio("", "service", "unbind", service, app)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("verifying service is unbound")
+			Eventually(func() string {
+				appShowOut, err := env.Epinio("", "app", "show", app)
+				Expect(err).ToNot(HaveOccurred())
+				return appShowOut
+			}, "30s").ShouldNot(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Bound Configurations", chart+".*"),
+				),
+			)
+
+			By("verifying pod restarted (proves single deployment occurred)")
+			Eventually(func() []string {
+				names, err := getPodNames(namespace, app)
+				Expect(err).ToNot(HaveOccurred())
+				return names
+			}, "1m", "2s").ShouldNot(ContainElements(oldPodNames))
+
+			By("verifying app is healthy after unbind")
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "show", app)
+				Expect(err).ToNot(HaveOccurred())
+				return out
+			}, "1m").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "1/1"),
+				),
+			)
+		})
+
 		Context("command completion", func() {
 			// Needed because the outer BeforeEach does binding, and the tests do not unbind
 			AfterEach(func() {
@@ -1278,6 +1324,88 @@ var _ = Describe("Services", LService, func() {
 					WithRow(appName, WithDate(), "1/1", appName+".*", ".*", ""),
 				),
 			)
+		})
+
+		Context("with --no-restart flag", func() {
+			getPodNames := func(namespace, app string) ([]string, error) {
+				podName, err := proc.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+				return strings.Split(strings.Trim(podName, "'"), " "), err
+			}
+
+			It("updates service without restarting bound apps", func() {
+				By("getting pod names before update")
+				oldPodNames, err := getPodNames(namespace, appName)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("updating service with --no-restart")
+				out, err := env.Epinio("", "service", "update", service,
+					"--wait",
+					"--no-restart",
+					"--set", "nesting.here.hello=no-restart-value",
+				)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Service Changes Saved"))
+
+				By("verifying changes were applied")
+				out, err = env.Epinio("", "service", "show", service)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("nesting.here.hello", "no-restart-value"),
+					),
+				)
+
+				By("verifying pods DID NOT restart")
+				Consistently(func() []string {
+					names, err := getPodNames(namespace, appName)
+					Expect(err).ToNot(HaveOccurred())
+					return names
+				}, "15s", "2s").Should(ContainElements(oldPodNames))
+
+				By("verifying app is still healthy")
+				out, err = env.Epinio("", "app", "show", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "1/1"),
+					),
+				)
+			})
+
+			It("updates service and restarts bound apps by default (without --no-restart)", func() {
+				By("getting pod names before update")
+				oldPodNames, err := getPodNames(namespace, appName)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("updating service WITHOUT --no-restart (default behavior)")
+				out, err := env.Epinio("", "service", "update", service,
+					"--wait",
+					"--set", "nesting.here.hello=restart-value",
+				)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Service Changes Saved"))
+
+				By("verifying pods DID restart (default behavior)")
+				Eventually(func() []string {
+					names, err := getPodNames(namespace, appName)
+					Expect(err).ToNot(HaveOccurred())
+					return names
+				}, "2m", "2s").ShouldNot(ContainElements(oldPodNames))
+
+				By("verifying app is healthy after restart")
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "list")
+					Expect(err).ToNot(HaveOccurred(), out)
+					return out
+				}, "2m").Should(
+					HaveATable(
+						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+						WithRow(appName, WithDate(), "1/1", appName+".*", ".*", ""),
+					),
+				)
+			})
 		})
 	})
 })

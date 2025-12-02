@@ -29,7 +29,7 @@ type ConfigurationService interface {
 	CreateConfiguration(configuration string, kvAssigments []string) error
 	DeleteConfiguration(configurations []string, unbind bool, all bool) error
 	ConfigurationMatching(tocomplete string) []string
-	UpdateConfiguration(configuration string, removedKeys []string, assignments map[string]string) error
+	UpdateConfiguration(configuration string, removedKeys []string, assignments map[string]string, noRestart bool) error
 	BindConfiguration(configuration, application string) error
 	UnbindConfiguration(configuration, application string) error
 
@@ -217,6 +217,7 @@ func NewConfigurationDeleteCmd(client ConfigurationService) *cobra.Command {
 // NewConfigurationUpdateCmd returns a new 'epinio configuration update' command
 func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 	cfg := ChangeConfig{}
+	var noRestart bool
 
 	cmd := &cobra.Command{
 		Use:   "update NAME [flags]",
@@ -236,7 +237,7 @@ func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 				assignments[pieces[0]] = pieces[1]
 			}
 
-			err := client.UpdateConfiguration(args[0], cfg.removed, assignments)
+			err := client.UpdateConfiguration(args[0], cfg.removed, assignments, noRestart)
 			if err != nil {
 				return errors.Wrap(err, "error creating configuration")
 			}
@@ -247,6 +248,7 @@ func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 	}
 
 	changeOptions(cmd, &cfg)
+	cmd.Flags().BoolVar(&noRestart, "no-restart", false, "Prevent restarting bound applications after update")
 
 	return cmd
 }

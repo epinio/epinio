@@ -318,7 +318,7 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) err
 
 // UpdateConfiguration updates a configuration specified by name and information about removed keys and changed assignments.
 // TODO: Allow underscores in configuration names (right now they fail because of kubernetes naming rules for secrets)
-func (c *EpinioClient) UpdateConfiguration(name string, removedKeys []string, assignments map[string]string) error {
+func (c *EpinioClient) UpdateConfiguration(name string, removedKeys []string, assignments map[string]string, noRestart bool) error {
 	log := c.Log.WithName("Update Configuration").
 		WithValues("Name", name, "Namespace", c.Settings.Namespace)
 	log.Info("start")
@@ -330,9 +330,11 @@ func (c *EpinioClient) UpdateConfiguration(name string, removedKeys []string, as
 		return err
 	}
 
+	restart := !noRestart
 	request := models.ConfigurationUpdateRequest{
-		Remove: removedKeys,
-		Set:    assignments,
+		Remove:  removedKeys,
+		Set:     assignments,
+		Restart: &restart,
 	}
 
 	_, err := c.API.ConfigurationUpdate(request, c.Settings.Namespace, name)

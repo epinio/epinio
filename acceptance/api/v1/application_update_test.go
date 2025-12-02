@@ -423,4 +423,146 @@ var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 			Expect(configurationBindings).To(Equal([]string{configuration}))
 		})
 	})
+
+	When("restart parameter is provided", func() {
+		getPodNames := func(namespace, app string) ([]string, error) {
+			podName, err := proc.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+			return strings.Split(strings.Trim(podName, "'"), " "), err
+		}
+
+		It("does not restart when restart is false", func() {
+			app := catalog.NewAppName()
+			env.MakeContainerImageApp(app, 1, containerImageURL)
+			defer env.DeleteApp(app)
+
+			appObj := appShow(namespace, app)
+			Expect(appObj.Workload.Status).To(Equal("1/1"))
+
+			// Get pod names before update
+			oldPodNames, err := getPodNames(namespace, app)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Update with restart: false
+			request := map[string]interface{}{
+				"instances": 2,
+				"restart":   false,
+			}
+			bodyBytes, statusCode := appUpdate(namespace, app, toJSON(request))
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			// Verify instances changed
+			Eventually(func() int32 {
+				appObj := appShow(namespace, app)
+				return *appObj.Configuration.Instances
+			}, "30s").Should(Equal(int32(2)))
+
+			// Verify pods DID NOT restart (names should be the same or contain old names)
+			Consistently(func() []string {
+				names, err := getPodNames(namespace, app)
+				Expect(err).ToNot(HaveOccurred())
+				return names
+			}, "10s", "2s").Should(ContainElements(oldPodNames))
+		})
+
+		It("restarts by default when restart is true", func() {
+			app := catalog.NewAppName()
+			env.MakeContainerImageApp(app, 1, containerImageURL)
+			defer env.DeleteApp(app)
+
+			appObj := appShow(namespace, app)
+			Expect(appObj.Workload.Status).To(Equal("1/1"))
+
+			// Get pod names before update
+			oldPodNames, err := getPodNames(namespace, app)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Update with restart: true
+			request := map[string]interface{}{
+				"instances": 2,
+				"restart":   true,
+			}
+			bodyBytes, statusCode := appUpdate(namespace, app, toJSON(request))
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			// Verify restart occurred (pod names changed)
+			Eventually(func() []string {
+				names, err := getPodNames(namespace, app)
+				Expect(err).ToNot(HaveOccurred())
+				return names
+			}, "1m", "2s").ShouldNot(ContainElements(oldPodNames))
+
+			// Verify instances eventually match
+			Eventually(func() string {
+				return appShow(namespace, app).Workload.Status
+			}, "1m").Should(Equal("2/2"))
+		})
+
+		It("restarts by default when restart parameter is omitted (backward compatibility)", func() {
+			app := catalog.NewAppName()
+			env.MakeContainerImageApp(app, 1, containerImageURL)
+			defer env.DeleteApp(app)
+
+			appObj := appShow(namespace, app)
+			Expect(appObj.Workload.Status).To(Equal("1/1"))
+
+			// Get pod names before update
+			oldPodNames, err := getPodNames(namespace, app)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Update WITHOUT restart field (should default to true)
+			request := map[string]interface{}{
+				"instances": 2,
+			}
+			bodyBytes, statusCode := appUpdate(namespace, app, toJSON(request))
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			// Verify restart occurred (default behavior)
+			Eventually(func() []string {
+				names, err := getPodNames(namespace, app)
+				Expect(err).ToNot(HaveOccurred())
+				return names
+			}, "1m", "2s").ShouldNot(ContainElements(oldPodNames))
+
+			// Verify instances eventually match
+			Eventually(func() string {
+				return appShow(namespace, app).Workload.Status
+			}, "1m").Should(Equal("2/2"))
+		})
+
+		It("does not restart when restart is false and updating environment", func() {
+			app := catalog.NewAppName()
+			env.MakeContainerImageApp(app, 1, containerImageURL)
+			defer env.DeleteApp(app)
+
+			appObj := appShow(namespace, app)
+			Expect(appObj.Workload.Status).To(Equal("1/1"))
+
+			// Get pod names before update
+			oldPodNames, err := getPodNames(namespace, app)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Update environment with restart: false
+			request := map[string]interface{}{
+				"environment": map[string]string{
+					"TEST_VAR": "test_value",
+				},
+				"restart": false,
+			}
+			bodyBytes, statusCode := appUpdate(namespace, app, toJSON(request))
+			Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			// Verify environment variable was added
+			Eventually(func() map[string]string {
+				appObj := appShow(namespace, app)
+				return appObj.Configuration.Environment
+			}, "30s").Should(HaveKeyWithValue("TEST_VAR", "test_value"))
+
+			// Verify pods DID NOT restart
+			Consistently(func() []string {
+				names, err := getPodNames(namespace, app)
+				Expect(err).ToNot(HaveOccurred())
+				return names
+			}, "10s", "2s").Should(ContainElements(oldPodNames))
+		})
+	})
 })

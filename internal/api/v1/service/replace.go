@@ -55,8 +55,12 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 		return apierror.InternalError(err)
 	}
 
-	_, err = kubeServiceClient.ReplaceService(ctx, cluster, service, replaceRequest,
-		func(ctx context.Context) error {
+	// backward compatibility: if no flag provided then restart the app
+	restart := replaceRequest.Restart == nil || *replaceRequest.Restart
+	
+	var restartCallback func(context.Context) error
+	if restart {
+		restartCallback = func(ctx context.Context) error {
 			// note: hook is not called if the replacement does not involve a change.
 			// no need to use the bool changed/restart result of `ReplaceService`.
 
@@ -79,7 +83,14 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 			}
 
 			return nil
-		})
+		}
+	} else {
+		restartCallback = func(ctx context.Context) error {
+			return WhenFullyDeployed(ctx, cluster, logger, namespace, serviceName)
+		}
+	}
+
+	_, err = kubeServiceClient.ReplaceService(ctx, cluster, service, replaceRequest, restartCallback)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
