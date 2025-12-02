@@ -107,7 +107,7 @@ func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wai
 }
 
 // UpdateService updates a service specified by name and information about removed keys and changed assignments.
-func (c *EpinioClient) ServiceUpdate(name string, wait bool, removedKeys []string, assignments map[string]string) error {
+func (c *EpinioClient) ServiceUpdate(name string, wait bool, removedKeys []string, assignments map[string]string, noRestart bool) error {
 	log := c.Log.WithName("Update Service").
 		WithValues("Name", name, "Namespace", c.Settings.Namespace)
 	log.Info("start")
@@ -119,10 +119,12 @@ func (c *EpinioClient) ServiceUpdate(name string, wait bool, removedKeys []strin
 		return err
 	}
 
+	restart := !noRestart
 	request := models.ServiceUpdateRequest{
-		Remove: removedKeys,
-		Set:    assignments,
-		Wait:   wait,
+		Remove:  removedKeys,
+		Set:     assignments,
+		Wait:    wait,
+		Restart: &restart,
 	}
 
 	_, err := c.API.ServiceUpdate(request, c.Settings.Namespace, name)

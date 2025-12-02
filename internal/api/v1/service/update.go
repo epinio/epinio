@@ -60,8 +60,12 @@ func Update(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = kubeServiceClient.UpdateService(ctx, cluster, service, updateRequest,
-		func(ctx context.Context) error {
+	// backward compatibility: if no flag provided then restart the app
+	restart := updateRequest.Restart == nil || *updateRequest.Restart
+	
+	var restartCallback func(context.Context) error
+	if restart {
+		restartCallback = func(ctx context.Context) error {
 			err := WhenFullyDeployed(ctx, cluster, logger, namespace, serviceName)
 			if err != nil {
 				return err
@@ -82,7 +86,14 @@ func Update(c *gin.Context) apierror.APIErrors {
 			}
 
 			return nil
-		})
+		}
+	} else {
+		restartCallback = func(ctx context.Context) error {
+			return WhenFullyDeployed(ctx, cluster, logger, namespace, serviceName)
+		}
+	}
+
+	err = kubeServiceClient.UpdateService(ctx, cluster, service, updateRequest, restartCallback)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

@@ -551,6 +551,8 @@ func NewAppShowCmd(client ApplicationsService, rootCfg *RootConfig) *cobra.Comma
 // NewAppUpdateCmd returns a new `epinio apps update` command
 func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 	// It scales the named app
+	var noRestart bool
+	
 	cmd := &cobra.Command{
 		Use:               "update NAME",
 		Short:             "Update the named application",
@@ -584,6 +586,10 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 				AppChart:       manifestConfig.AppChart,
 				Settings:       manifestConfig.Settings,
 			}
+			
+			// Set restart flag based on --no-restart option
+			restart := !noRestart
+			updateRequest.Restart = &restart
 
 			err = client.AppUpdate(args[0], updateRequest)
 			// Note: errors.Wrap (nil, "...") == nil
@@ -601,6 +607,8 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().String("app-chart", "", "App chart to use for deployment")
 	bindFlag(cmd, "app-chart")
 	bindFlagCompletionFunc(cmd, "app-chart", NewAppChartMatcherValueFunc(client))
+	
+	cmd.Flags().BoolVar(&noRestart, "no-restart", false, "Prevent restarting the application after update")
 
 	return cmd
 }

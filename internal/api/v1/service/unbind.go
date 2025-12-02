@@ -96,12 +96,22 @@ func UnbindService(
 	namespace, serviceName, appName, userName string,
 	serviceConfigurations []v1.Secret,
 ) apierror.APIErrors {
-	logger.Info("unbinding service configurations", "service", serviceName, "app", appName)
+	logger.Info("unbinding service configurations", "service", serviceName, "app", appName, "count", len(serviceConfigurations))
 
+	// Collect all configuration names to unbind them in a single operation
+	// This triggers only ONE Helm deployment instead of N deployments (one per configuration)
+	configurationNames := []string{}
 	for _, secret := range serviceConfigurations {
-		// TODO: Don't `helm upgrade` after each removal. Do it once.
+		configurationNames = append(configurationNames, secret.Name)
+	}
+
+	logger.Info("unbinding configurations in batch", "configurations", configurationNames)
+
+	// Call DeleteBinding ONCE with all configuration names
+	// This is the key optimization: 1 helm upgrade instead of N
+	if len(configurationNames) > 0 {
 		errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, appName, userName, []string{secret.Name},
+			ctx, cluster, namespace, appName, userName, configurationNames,
 		)
 		if errors != nil {
 			return apierror.NewMultiError(errors.Errors())
