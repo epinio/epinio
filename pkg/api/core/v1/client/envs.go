@@ -24,6 +24,14 @@ func (c *Client) EnvList(namespace string, appName string) (models.EnvVariableMa
 	return Get(c, endpoint, response)
 }
 
+// EnvListGrouped returns environment variables grouped by their origin (user vs service)
+func (c *Client) EnvListGrouped(namespace string, appName string) (models.EnvVariableGroupedResponse, error) {
+	response := models.EnvVariableGroupedResponse{}
+	endpoint := api.Routes.Path("EnvList", namespace, appName) + "?grouped=true"
+
+	return Get(c, endpoint, response)
+}
+
 // EnvSet set env vars for an app
 func (c *Client) EnvSet(request models.EnvVariableMap, namespace string, appName string) (models.Response, error) {
 	response := models.Response{}
