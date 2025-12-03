@@ -219,6 +219,13 @@ func (c *Client) AppDeploy(request models.DeployRequest) (*models.DeployResponse
 	return Post(c, endpoint, request, response)
 }
 
+// LogOptions represents the optional filters for retrieving application logs.
+type LogOptions struct {
+	Tail      *int64
+	Since     *time.Duration
+	SinceTime *time.Time
+}
+
 // AppLogs streams the logs of all the application instances, in the targeted namespace
 // If stageID is an empty string, runtime application logs are streamed. If stageID
 // is set, then the matching staging logs are streamed.
@@ -226,7 +233,7 @@ func (c *Client) AppDeploy(request models.DeployRequest) (*models.DeployResponse
 // There are 2 ways of stopping this method:
 // 1. The websocket connection closes.
 // 2. The context is canceled (used by the caller when printing of logs should be stopped).
-func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printCallback func(tailer.ContainerLogLine)) error {
+func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, options *LogOptions, printCallback func(tailer.ContainerLogLine)) error {
 
 	tokenResponse, err := c.AuthToken()
 	if err != nil {
@@ -237,6 +244,18 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printC
 	queryParams.Add("follow", strconv.FormatBool(follow))
 	queryParams.Add("stage_id", stageID)
 	queryParams.Add("authtoken", tokenResponse.Token)
+
+	if options != nil {
+		if options.Tail != nil {
+			queryParams.Add("tail", strconv.FormatInt(*options.Tail, 10))
+		}
+		if options.Since != nil {
+			queryParams.Add("since", options.Since.String())
+		}
+		if options.SinceTime != nil {
+			queryParams.Add("since_time", options.SinceTime.Format(time.RFC3339))
+		}
+	}
 
 	var endpoint string
 	if stageID == "" {

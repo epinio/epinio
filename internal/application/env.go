@@ -119,3 +119,53 @@ func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 	secretName := appRef.MakeEnvSecretName()
 	return loadOrCreateSecret(ctx, cluster, appRef, secretName, "environment")
 }
+
+// ConfigurationEnvironment returns the environment variables provided by bound configurations
+// for the named application. These are the variables coming from services/configurations.
+func ConfigurationEnvironment(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.EnvVariableMap, error) {
+	// Get the list of bound configuration names
+	configNames, err := BoundConfigurationNames(ctx, cluster, appRef)
+	if err != nil {
+		return nil, err
+	}
+
+	result := models.EnvVariableMap{}
+
+	// For each configuration, retrieve its details (key-value pairs)
+	for _, configName := range configNames {
+		// Get the configuration secret
+		secret, err := cluster.Kubectl.CoreV1().Secrets(appRef.Namespace).Get(ctx, configName, metav1.GetOptions{})
+		if err != nil {
+			// Skip configurations that can't be found (might have been deleted)
+			continue
+		}
+
+		// Add all key-value pairs from this configuration to the result
+		// Prefix with configuration name to avoid conflicts
+		for key, value := range secret.Data {
+			// Use a composite key to avoid collisions: configName/key
+			compositeKey := configName + "/" + key
+			result[compositeKey] = string(value)
+		}
+	}
+
+	return result, nil
+}
+
+// GroupedEnvironment returns environment variables grouped by their origin (user vs service-provided)
+func GroupedEnvironment(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.EnvVariableGroupedResponse, error) {
+	userEnv, err := Environment(ctx, cluster, appRef)
+	if err != nil {
+		return models.EnvVariableGroupedResponse{}, err
+	}
+
+	serviceEnv, err := ConfigurationEnvironment(ctx, cluster, appRef)
+	if err != nil {
+		return models.EnvVariableGroupedResponse{}, err
+	}
+
+	return models.EnvVariableGroupedResponse{
+		User:    userEnv,
+		Service: serviceEnv,
+	}, nil
+}

@@ -319,7 +319,7 @@ func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, sour
 
 func (c *EpinioClient) stageLogs(appRef models.AppRef, stageID string) {
 	go func() {
-		err := c.AppLogs(appRef.Name, stageID, true)
+		err := c.AppLogs(appRef.Name, stageID, true, nil)
 		if err != nil {
 			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 		}

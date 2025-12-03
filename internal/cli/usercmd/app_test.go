@@ -16,6 +16,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/cli/usercmd/usercmdfakes"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -39,7 +40,7 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 					return &models.StageResponse{Stage: models.NewStage("ID")}, nil
 				}
 
-				fake.AppLogsStub = func(namespace, appName, stageID string, follow bool, callback func(tailer.ContainerLogLine)) error {
+				fake.AppLogsStub = func(namespace, appName, stageID string, follow bool, options *client.LogOptions, callback func(tailer.ContainerLogLine)) error {
 					return nil
 				}
 

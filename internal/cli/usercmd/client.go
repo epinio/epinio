@@ -58,7 +58,7 @@ type APIClient interface {
 	AppImportGit(namespace string, name string, gitRef models.GitRef) (models.ImportGitResponse, error)
 	AppStage(req models.StageRequest) (*models.StageResponse, error)
 	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
-	AppLogs(namespace, appName, stageID string, follow bool, callback func(tailer.ContainerLogLine)) error
+	AppLogs(namespace, appName, stageID string, follow bool, options *client.LogOptions, callback func(tailer.ContainerLogLine)) error
 	StagingComplete(namespace string, id string) (models.Response, error)
 	AppRunning(app models.AppRef) (models.Response, error)
 	AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error
@@ -71,6 +71,7 @@ type APIClient interface {
 
 	// env
 	EnvList(namespace string, appName string) (models.EnvVariableMap, error)
+	EnvListGrouped(namespace string, appName string) (models.EnvVariableGroupedResponse, error)
 	EnvSet(req models.EnvVariableMap, namespace string, appName string) (models.Response, error)
 	EnvShow(namespace string, appName string, envName string) (models.EnvVariable, error)
 	EnvUnset(namespace string, appName string, envName string) (models.Response, error)

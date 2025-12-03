@@ -458,7 +458,7 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 // If stageID is an empty string, runtime application logs are streamed. If stageID
 // is set, then the matching staging logs are streamed.
 // The printLogs func will print the logs from the channel until the channel will be closed.
-func (c *EpinioClient) AppLogs(appName, stageID string, follow bool) error {
+func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, options *client.LogOptions) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
@@ -485,7 +485,7 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool) error {
 		}, c.ui.ProgressNote().Compact())
 	}
 
-	err := c.API.AppLogs(c.Settings.Namespace, appName, stageID, follow, callback)
+	err := c.API.AppLogs(c.Settings.Namespace, appName, stageID, follow, options, callback)
 	if err != nil {
 		return err
 	}
@@ -683,12 +683,22 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 		WithTableRow("Builder Image", app.Staging.Builder).
 		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
 		WithTableRow("Bound Configurations", strings.Join(app.Configuration.Configurations, ", ")).
-		WithTableRow("Environment", "")
+		WithTableRow("User Environment", "")
 
 	if len(app.Configuration.Environment) > 0 {
 		for _, ev := range app.Configuration.Environment.List() {
 			msg = msg.WithTableRow(" - "+ev.Name, ev.Value)
 		}
+	} else {
+		msg = msg.WithTableRow(" - ", "<<none>>")
+	}
+
+	// Note: Service-provided variables are accessible via bound configurations
+	// They are mounted as files in /configurations/<config-name>/<key>
+	if len(app.Configuration.Configurations) > 0 {
+		msg = msg.WithTableRow("Service-provided Variables", "")
+		msg = msg.WithTableRow(" - ", "See bound configurations above")
+		msg = msg.WithTableRow(" - ", "Accessible at: /configurations/<config-name>/<key>")
 	}
 
 	msg = msg.WithTableRow("Chart Values", "")
