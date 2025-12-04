@@ -101,6 +101,12 @@ type ServiceUnbindRequest struct {
 	AppName string `json:"app_name,omitempty"`
 }
 
+// ServiceBatchBindRequest represents a request to bind multiple services to an application at once
+type ServiceBatchBindRequest struct {
+	AppName      string   `json:"app_name,omitempty"`
+	ServiceNames []string `json:"service_names,omitempty"`
+}
+
 // CatalogServices is a list of catalog service elements
 type CatalogServices []CatalogService
 

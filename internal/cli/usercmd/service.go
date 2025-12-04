@@ -338,6 +338,36 @@ func (c *EpinioClient) ServiceBind(name, appName string) error {
 	return errors.Wrap(err, "service bind failed")
 }
 
+// ServiceBatchBind binds multiple services to an application at once
+func (c *EpinioClient) ServiceBatchBind(appName string, serviceNames []string) error {
+	log := c.Log.WithName("ServiceBatchBind")
+	log.Info("start", "services", serviceNames)
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Application", appName).
+		WithStringValue("Services", strings.Join(serviceNames, ", ")).
+		Msg("Binding Services...")
+
+	request := models.ServiceBatchBindRequest{
+		AppName:      appName,
+		ServiceNames: serviceNames,
+	}
+
+	_, err := c.API.ServiceBatchBind(request, c.Settings.Namespace, appName)
+	if err != nil {
+		return errors.Wrap(err, "service batch bind failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Application", appName).
+		WithStringValue("Services", strings.Join(serviceNames, ", ")).
+		WithStringValue("Namespace", c.Settings.Namespace).
+		Msg("Services Bound Successfully.")
+
+	return nil
+}
+
 // ServiceUnbind unbinds a service from an application
 func (c *EpinioClient) ServiceUnbind(name, appName string) error {
 	log := c.Log.WithName("ServiceUnbind")
