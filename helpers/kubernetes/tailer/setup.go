@@ -52,6 +52,7 @@ type ContainerLogLine struct {
 	ContainerName string
 	PodName       string
 	Namespace     string
+	Timestamp     string
 }
 
 // FetchLogs writes all the logs of the matching containers to the logChan.

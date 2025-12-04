@@ -619,7 +619,7 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 		ExcludeContainerQuery: regexp.MustCompile("linkerd-(proxy|init)"),
 		Exclude:               nil,
 		Include:               nil,
-		Timestamps:            false,
+		Timestamps:            true,
 		Since:                 duration.LogHistory(),
 		AllNamespaces:         true,
 		LabelSelector:         selector,
