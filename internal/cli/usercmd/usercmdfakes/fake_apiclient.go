@@ -774,6 +774,21 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
+	ServiceBatchBindStub        func(models.ServiceBatchBindRequest, string, string) (models.Response, error)
+	serviceBatchBindMutex       sync.RWMutex
+	serviceBatchBindArgsForCall []struct {
+		arg1 models.ServiceBatchBindRequest
+		arg2 string
+		arg3 string
+	}
+	serviceBatchBindReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	serviceBatchBindReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
 	ServiceCatalogStub        func() (models.CatalogServices, error)
 	serviceCatalogMutex       sync.RWMutex
 	serviceCatalogArgsForCall []struct {
@@ -4467,6 +4482,72 @@ func (fake *FakeAPIClient) ServiceBindReturnsOnCall(i int, result1 models.Respon
 		})
 	}
 	fake.serviceBindReturnsOnCall[i] = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceBatchBind(arg1 models.ServiceBatchBindRequest, arg2 string, arg3 string) (models.Response, error) {
+	fake.serviceBatchBindMutex.Lock()
+	ret, specificReturn := fake.serviceBatchBindReturnsOnCall[len(fake.serviceBatchBindArgsForCall)]
+	fake.serviceBatchBindArgsForCall = append(fake.serviceBatchBindArgsForCall, struct {
+		arg1 models.ServiceBatchBindRequest
+		arg2 string
+		arg3 string
+	}{arg1, arg2, arg3})
+	stub := fake.ServiceBatchBindStub
+	fakeReturns := fake.serviceBatchBindReturns
+	fake.recordInvocation("ServiceBatchBind", []interface{}{arg1, arg2, arg3})
+	fake.serviceBatchBindMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindCallCount() int {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	return len(fake.serviceBatchBindArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindCalls(stub func(models.ServiceBatchBindRequest, string, string) (models.Response, error)) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindArgsForCall(i int) (models.ServiceBatchBindRequest, string, string) {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	argsForCall := fake.serviceBatchBindArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindReturns(result1 models.Response, result2 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	fake.serviceBatchBindReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	if fake.serviceBatchBindReturnsOnCall == nil {
+		fake.serviceBatchBindReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.serviceBatchBindReturnsOnCall[i] = struct {
 		result1 models.Response
 		result2 error
 	}{result1, result2}

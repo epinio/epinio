@@ -12,6 +12,7 @@
 package v1_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,12 +24,14 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const containerImageURL = "epinio/sample-app"
+
 var _ = Describe("ServiceBatchBind Endpoint", LService, func() {
 	var (
 		namespace string
 		appName   string
-		catalog1  catalog.CatalogService
-		catalog2  catalog.CatalogService
+		catalog1  models.CatalogService
+		catalog2  models.CatalogService
 		service1  string
 		service2  string
 		service3  string
@@ -42,23 +45,23 @@ var _ = Describe("ServiceBatchBind Endpoint", LService, func() {
 			appName = catalog.NewAppName()
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 
-			catalog1 = catalog.NginxCatalogService()
-			catalog2 = catalog.RedisCatalogService()
+			catalog1 = catalog.NginxCatalogService(catalog.NewCatalogServiceName())
+			catalog2 = catalog.RedisCatalogService(catalog.NewCatalogServiceName())
 
 			service1 = catalog.NewServiceName()
 			service2 = catalog.NewServiceName()
 			service3 = catalog.NewServiceName()
 
-			catalog1.Create(service1, namespace)
-			catalog1.Create(service2, namespace)
-			catalog2.Create(service3, namespace)
+			catalog.CreateService(service1, namespace, catalog1)
+			catalog.CreateService(service2, namespace, catalog1)
+			catalog.CreateService(service3, namespace, catalog2)
 		})
 
 		AfterEach(func() {
 			env.DeleteApp(appName)
-			catalog1.Delete(service1, namespace)
-			catalog1.Delete(service2, namespace)
-			catalog2.Delete(service3, namespace)
+			catalog.DeleteService(service1, namespace)
+			catalog.DeleteService(service2, namespace)
+			catalog.DeleteService(service3, namespace)
 			env.DeleteNamespace(namespace)
 		})
 
@@ -74,7 +77,7 @@ var _ = Describe("ServiceBatchBind Endpoint", LService, func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s/servicebindings",
 					serverURL, namespace, appName),
-				string(bodyBytes))
+				bytes.NewReader(bodyBytes))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -101,7 +104,7 @@ var _ = Describe("ServiceBatchBind Endpoint", LService, func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s/servicebindings",
 					serverURL, namespace, nonExistentApp),
-				string(bodyBytes))
+				bytes.NewReader(bodyBytes))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -122,7 +125,7 @@ var _ = Describe("ServiceBatchBind Endpoint", LService, func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s/servicebindings",
 					serverURL, namespace, appName),
-				string(bodyBytes))
+				bytes.NewReader(bodyBytes))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -142,7 +145,7 @@ var _ = Describe("ServiceBatchBind Endpoint", LService, func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s/servicebindings",
 					serverURL, namespace, appName),
-				string(bodyBytes))
+				bytes.NewReader(bodyBytes))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -162,7 +165,7 @@ var _ = Describe("ServiceBatchBind Endpoint", LService, func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s/servicebindings",
 					serverURL, namespace, appName),
-				string(bodyBytes))
+				bytes.NewReader(bodyBytes))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -188,7 +191,7 @@ var _ = Describe("ServiceBatchBind Endpoint", LService, func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s/servicebindings",
 					serverURL, namespace, appName),
-				string(bodyBytes))
+				bytes.NewReader(bodyBytes))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -203,4 +206,3 @@ var _ = Describe("ServiceBatchBind Endpoint", LService, func() {
 		})
 	})
 })
-

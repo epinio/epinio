@@ -15,6 +15,7 @@ personal-setup
 /tmp
 /dist
 /resources
+/vendor
 acceptance/acceptance.test
 .vscode
 .ignore

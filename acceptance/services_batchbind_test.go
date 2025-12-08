@@ -13,10 +13,13 @@ package acceptance_test
 
 import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
+
+const containerImageURL = "epinio/sample-app"
 
 var _ = Describe("Service Batch Binding (CLI)", LService, func() {
 	var (
@@ -38,18 +41,18 @@ var _ = Describe("Service Batch Binding (CLI)", LService, func() {
 
 	Describe("Single Service Binding (Backward Compatibility)", func() {
 		var (
-			catalogService catalog.CatalogService
+			catalogService models.CatalogService
 			service1       string
 		)
 
 		BeforeEach(func() {
-			catalogService = catalog.NginxCatalogService()
+			catalogService = catalog.NginxCatalogService(catalog.NewCatalogServiceName())
 			service1 = catalog.NewServiceName()
-			catalogService.Create(service1, namespace)
+			catalog.CreateService(service1, namespace, catalogService)
 		})
 
 		AfterEach(func() {
-			catalogService.Delete(service1, namespace)
+			catalog.DeleteService(service1, namespace)
 		})
 
 		It("binds a single service using old format: SERVICE APP", func() {
@@ -58,37 +61,37 @@ var _ = Describe("Service Batch Binding (CLI)", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// Verify service is bound
-			out = env.ShowApp(appName, namespace)
-			Expect(out.Configuration.Services).To(ContainElement(service1))
+			appInfo := env.ShowApp(appName, namespace)
+			Expect(appInfo.Configuration.Services).To(ContainElement(service1))
 		})
 	})
 
 	Describe("Multiple Service Binding (Batch)", func() {
 		var (
-			catalog1 catalog.CatalogService
-			catalog2 catalog.CatalogService
+			catalog1 models.CatalogService
+			catalog2 models.CatalogService
 			service1 string
 			service2 string
 			service3 string
 		)
 
 		BeforeEach(func() {
-			catalog1 = catalog.NginxCatalogService()
-			catalog2 = catalog.RedisCatalogService()
+			catalog1 = catalog.NginxCatalogService(catalog.NewCatalogServiceName())
+			catalog2 = catalog.RedisCatalogService(catalog.NewCatalogServiceName())
 
 			service1 = catalog.NewServiceName()
 			service2 = catalog.NewServiceName()
 			service3 = catalog.NewServiceName()
 
-			catalog1.Create(service1, namespace)
-			catalog1.Create(service2, namespace)
-			catalog2.Create(service3, namespace)
+			catalog.CreateService(service1, namespace, catalog1)
+			catalog.CreateService(service2, namespace, catalog1)
+			catalog.CreateService(service3, namespace, catalog2)
 		})
 
 		AfterEach(func() {
-			catalog1.Delete(service1, namespace)
-			catalog1.Delete(service2, namespace)
-			catalog2.Delete(service3, namespace)
+			catalog.DeleteService(service1, namespace)
+			catalog.DeleteService(service2, namespace)
+			catalog.DeleteService(service3, namespace)
 		})
 
 		It("binds multiple services using new batch format: APP SERVICE1 SERVICE2 SERVICE3", func() {
@@ -138,22 +141,22 @@ var _ = Describe("Service Batch Binding (CLI)", LService, func() {
 
 	Describe("Backward Compatibility Tests", func() {
 		var (
-			catalogService catalog.CatalogService
+			catalogService models.CatalogService
 			service1       string
 			service2       string
 		)
 
 		BeforeEach(func() {
-			catalogService = catalog.NginxCatalogService()
+			catalogService = catalog.NginxCatalogService(catalog.NewCatalogServiceName())
 			service1 = catalog.NewServiceName()
 			service2 = catalog.NewServiceName()
-			catalogService.Create(service1, namespace)
-			catalogService.Create(service2, namespace)
+			catalog.CreateService(service1, namespace, catalogService)
+			catalog.CreateService(service2, namespace, catalogService)
 		})
 
 		AfterEach(func() {
-			catalogService.Delete(service1, namespace)
-			catalogService.Delete(service2, namespace)
+			catalog.DeleteService(service1, namespace)
+			catalog.DeleteService(service2, namespace)
 		})
 
 		It("old format still works with 2 args (SERVICE APP)", func() {
@@ -189,4 +192,3 @@ var _ = Describe("Service Batch Binding (CLI)", LService, func() {
 		})
 	})
 })
-
