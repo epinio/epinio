@@ -98,14 +98,10 @@ func UnbindService(
 ) apierror.APIErrors {
 	logger.Info("unbinding service configurations", "service", serviceName, "app", appName)
 
-	for _, secret := range serviceConfigurations {
-		// TODO: Don't `helm upgrade` after each removal. Do it once.
-		errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, appName, userName, []string{secret.Name},
-		)
-		if errors != nil {
-			return apierror.NewMultiError(errors.Errors())
-		}
+	errors := deleteServiceBindings(ctx, cluster, namespace, appName, userName,
+		serviceConfigurations, configurationbinding.DeleteBinding)
+	if errors != nil {
+		return apierror.NewMultiError(errors.Errors())
 	}
 
 	logger.Info("unbound service configurations")
@@ -119,4 +115,24 @@ func UnbindService(
 
 	logger.Info("unbound service")
 	return nil
+}
+
+func deleteServiceBindings(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace, appName, userName string,
+	serviceConfigurations []v1.Secret,
+	deleteBinding func(context.Context, *kubernetes.Cluster, string, string, string, []string) apierror.APIErrors,
+) apierror.APIErrors {
+	configNames := make([]string, 0, len(serviceConfigurations))
+	for _, secret := range serviceConfigurations {
+		configNames = append(configNames, secret.Name)
+	}
+
+	// TODO: Don't `helm upgrade` after each removal. Do it once.
+	if len(configNames) == 0 {
+		return nil
+	}
+
+	return deleteBinding(ctx, cluster, namespace, appName, userName, configNames)
 }
