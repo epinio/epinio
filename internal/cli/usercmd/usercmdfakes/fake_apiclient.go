@@ -513,6 +513,20 @@ type FakeAPIClient struct {
 		result1 models.EnvVariableMap
 		result2 error
 	}
+	EnvListGroupedStub        func(string, string) (models.EnvVariableGroupedResponse, error)
+	envListGroupedMutex       sync.RWMutex
+	envListGroupedArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	envListGroupedReturns struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}
+	envListGroupedReturnsOnCall map[int]struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}
 	EnvMatchStub        func(string, string, string) (models.EnvMatchResponse, error)
 	envMatchMutex       sync.RWMutex
 	envMatchArgsForCall []struct {
@@ -3221,6 +3235,71 @@ func (fake *FakeAPIClient) EnvListReturnsOnCall(i int, result1 models.EnvVariabl
 	}
 	fake.envListReturnsOnCall[i] = struct {
 		result1 models.EnvVariableMap
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) EnvListGrouped(arg1 string, arg2 string) (models.EnvVariableGroupedResponse, error) {
+	fake.envListGroupedMutex.Lock()
+	ret, specificReturn := fake.envListGroupedReturnsOnCall[len(fake.envListGroupedArgsForCall)]
+	fake.envListGroupedArgsForCall = append(fake.envListGroupedArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.EnvListGroupedStub
+	fakeReturns := fake.envListGroupedReturns
+	fake.recordInvocation("EnvListGrouped", []interface{}{arg1, arg2})
+	fake.envListGroupedMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) EnvListGroupedCallCount() int {
+	fake.envListGroupedMutex.RLock()
+	defer fake.envListGroupedMutex.RUnlock()
+	return len(fake.envListGroupedArgsForCall)
+}
+
+func (fake *FakeAPIClient) EnvListGroupedCalls(stub func(string, string) (models.EnvVariableGroupedResponse, error)) {
+	fake.envListGroupedMutex.Lock()
+	defer fake.envListGroupedMutex.Unlock()
+	fake.EnvListGroupedStub = stub
+}
+
+func (fake *FakeAPIClient) EnvListGroupedArgsForCall(i int) (string, string) {
+	fake.envListGroupedMutex.RLock()
+	defer fake.envListGroupedMutex.RUnlock()
+	argsForCall := fake.envListGroupedArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeAPIClient) EnvListGroupedReturns(result1 models.EnvVariableGroupedResponse, result2 error) {
+	fake.envListGroupedMutex.Lock()
+	defer fake.envListGroupedMutex.Unlock()
+	fake.EnvListGroupedStub = nil
+	fake.envListGroupedReturns = struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) EnvListGroupedReturnsOnCall(i int, result1 models.EnvVariableGroupedResponse, result2 error) {
+	fake.envListGroupedMutex.Lock()
+	defer fake.envListGroupedMutex.Unlock()
+	fake.EnvListGroupedStub = nil
+	if fake.envListGroupedReturnsOnCall == nil {
+		fake.envListGroupedReturnsOnCall = make(map[int]struct {
+			result1 models.EnvVariableGroupedResponse
+			result2 error
+		})
+	}
+	fake.envListGroupedReturnsOnCall[i] = struct {
+		result1 models.EnvVariableGroupedResponse
 		result2 error
 	}{result1, result2}
 }

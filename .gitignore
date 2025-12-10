@@ -11,6 +11,7 @@ personal-setup
 .envrc
 /*values.yaml
 /output
+/vendor
 /local
 /tmp
 /dist
