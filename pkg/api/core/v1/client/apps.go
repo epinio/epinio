@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -49,7 +50,7 @@ type Upgrader struct {
 func (upgr *Upgrader) NewConnection(resp *http.Response) (httpstream.Connection, error) {
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Sprintf("failed to close the response body: %s", err)
+			slog.Error("failed to close response body", "error", err)
 		}
 	}()
 
@@ -121,7 +122,7 @@ func (c *Client) AppGetPart(namespace, appName, part string) (models.AppPartResp
 	}
 
 	return models.AppPartResponse{
-		Data: httpResponse.Body,
+		Data:          httpResponse.Body,
 		ContentLength: httpResponse.ContentLength,
 	}, nil
 }
@@ -311,7 +312,7 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 		c.Settings.API, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
 	upgradeRoundTripper, err := NewUpgrader(spdy.RoundTripperConfig{
-		TLS: http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
 		PingPeriod: time.Second * 5,
 	})
 	if err != nil {
@@ -341,10 +342,10 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 
 	fn := func() error {
 		options := remotecommand.StreamOptions{
-			Stdin: tty.In,
-			Stdout: tty.Out,
-			Stderr: tty.Out, // Not used when tty. Check `exec.Stream` docs.
-			Tty: tty.Raw,
+			Stdin:             tty.In,
+			Stdout:            tty.Out,
+			Stderr:            tty.Out, // Not used when tty. Check `exec.Stream` docs.
+			Tty:               tty.Raw,
 			TerminalSizeQueue: tty.MonitorSize(tty.GetSize()),
 		}
 
@@ -355,22 +356,22 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 }
 
 type PortForwardOpts struct {
-	Address	[]string
-	Ports []string
+	Address      []string
+	Ports        []string
 	StopChannel  chan struct{}
 	ReadyChannel chan struct{}
-	Out io.Writer
-	ErrOut io.Writer
+	Out          io.Writer
+	ErrOut       io.Writer
 }
 
 func NewPortForwardOpts(address, ports []string) *PortForwardOpts {
 	opts := &PortForwardOpts{
-		Address: address,
-		Ports: ports,
-		StopChannel: make(chan struct{}),
+		Address:      address,
+		Ports:        ports,
+		StopChannel:  make(chan struct{}),
 		ReadyChannel: make(chan struct{}),
-		Out: os.Stdin,
-		ErrOut: os.Stderr,
+		Out:          os.Stdin,
+		ErrOut:       os.Stderr,
 	}
 
 	signals := make(chan os.Signal, 1)
@@ -406,7 +407,7 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 	}
 
 	upgradeRoundTripper, err := NewUpgrader(spdy.RoundTripperConfig{
-		TLS: http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
 		PingPeriod: time.Second * 5,
 	})
 	if err != nil {

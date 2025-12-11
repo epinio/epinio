@@ -172,6 +172,7 @@
     - ServiceReplace
     - ServiceBind
     - ServiceUnbind
+    - ServiceBatchBind
 
 # Service Write
 - id: service_portforward

@@ -15,6 +15,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -49,7 +50,7 @@ func (u WindowsUpdater) Update(targetVersion string) error {
 
 	defer func() {
 		if err := os.Remove(tmpFile); err != nil {
-			fmt.Sprintf("failed to remove temporary file: %s", err)
+			slog.Error("failed to remove temporary file", "error", err)
 		}
 	}()
 
@@ -63,10 +64,10 @@ func (u WindowsUpdater) Update(targetVersion string) error {
 	if err != nil {
 		return errors.Wrap(err, "creating temporary directory")
 	}
-	
+
 	defer func() {
 		if err := os.RemoveAll(tmpDir); err != nil {
-			fmt.Sprintf("failed to remove temporary directory: %s", err)
+			slog.Error("failed to remove temporary directory", "error", err)
 		}
 	}()
 

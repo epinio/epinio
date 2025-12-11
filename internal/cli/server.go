@@ -24,9 +24,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
-	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
@@ -145,19 +145,29 @@ var CmdServer = &cobra.Command{
 			return errors.Wrap(err, "error creating listener")
 		}
 
-		ui := termui.NewUI()
-		ui.Normal().Msg("Epinio version: " + version.Version)
+		helpers.Logger.Info("Epinio version: " + version.Version)
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-		ui.Normal().Msg("listening on localhost on port " + listeningPort)
+		helpers.Logger.Info("listening on localhost on port " + listeningPort)
 
 		trackingDisabled := viper.GetBool("disable-tracking")
 		upgradeResponderAddress := viper.GetString("upgrade-responder-address")
-		logger.Info("Checking upgrade-responder tracking", "disabled", trackingDisabled, "upgradeResponderAddress", upgradeResponderAddress)
+		helpers.Logger.Info(
+			"Checking upgrade-responder tracking disabled=",
+			trackingDisabled,
+			" upgradeResponderAddress=",
+			upgradeResponderAddress,
+		)
 
 		if !trackingDisabled {
-			checker, err := upgraderesponder.NewChecker(context.Background(), logger, upgradeResponderAddress)
+			checker, err := upgraderesponder.NewChecker(
+				context.Background(),
+				logger,
+				upgradeResponderAddress,
+			)
+
 			if err != nil {
-				return errors.Wrap(err, "error creating listener")
+				helpers.Logger.Error(err.Error() + " | error creating listener")
+				return err
 			}
 
 			checker.Start()
