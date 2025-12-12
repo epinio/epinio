@@ -946,6 +946,20 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
+	StagingCompleteStreamStub        func(context.Context, string, string, func(models.StageCompleteEvent) error) error
+	stagingCompleteStreamMutex       sync.RWMutex
+	stagingCompleteStreamArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 func(models.StageCompleteEvent) error
+	}
+	stagingCompleteStreamReturns struct {
+		result1 error
+	}
+	stagingCompleteStreamReturnsOnCall map[int]struct {
+		result1 error
+	}
 	VersionWarningEnabledStub        func() bool
 	versionWarningEnabledMutex       sync.RWMutex
 	versionWarningEnabledArgsForCall []struct {
@@ -5281,6 +5295,70 @@ func (fake *FakeAPIClient) StagingCompleteReturnsOnCall(i int, result1 models.Re
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) StagingCompleteStream(arg1 context.Context, arg2 string, arg3 string, arg4 func(models.StageCompleteEvent) error) error {
+	fake.stagingCompleteStreamMutex.Lock()
+	ret, specificReturn := fake.stagingCompleteStreamReturnsOnCall[len(fake.stagingCompleteStreamArgsForCall)]
+	fake.stagingCompleteStreamArgsForCall = append(fake.stagingCompleteStreamArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 func(models.StageCompleteEvent) error
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.StagingCompleteStreamStub
+	fakeReturns := fake.stagingCompleteStreamReturns
+	fake.recordInvocation("StagingCompleteStream", []interface{}{arg1, arg2, arg3, arg4})
+	fake.stagingCompleteStreamMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamCallCount() int {
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
+	return len(fake.stagingCompleteStreamArgsForCall)
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamCalls(stub func(context.Context, string, string, func(models.StageCompleteEvent) error) error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = stub
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamArgsForCall(i int) (context.Context, string, string, func(models.StageCompleteEvent) error) {
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
+	argsForCall := fake.stagingCompleteStreamArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamReturns(result1 error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = nil
+	fake.stagingCompleteStreamReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamReturnsOnCall(i int, result1 error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = nil
+	if fake.stagingCompleteStreamReturnsOnCall == nil {
+		fake.stagingCompleteStreamReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.stagingCompleteStreamReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeAPIClient) VersionWarningEnabled() bool {
 	fake.versionWarningEnabledMutex.Lock()
 	ret, specificReturn := fake.versionWarningEnabledReturnsOnCall[len(fake.versionWarningEnabledArgsForCall)]
@@ -5475,6 +5553,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.setHeaderMutex.RUnlock()
 	fake.stagingCompleteMutex.RLock()
 	defer fake.stagingCompleteMutex.RUnlock()
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
 	fake.versionWarningEnabledMutex.RLock()
 	defer fake.versionWarningEnabledMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

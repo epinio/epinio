@@ -226,6 +226,7 @@ var WsRoutes = routes.NamedRoutes{
 	"AppLogs":            get("/namespaces/:namespace/applications/:app/logs", application.Logs),
 	"ServicePortForward": get("/namespaces/:namespace/services/:service/portforward", errorHandler(service.PortForward)),
 	"StagingLogs":        get("/namespaces/:namespace/staging/:stage_id/logs", application.Logs),
+	"StagingCompleteWs":  get("/namespaces/:namespace/staging/:stage_id/complete", application.StagedWebsocket),
 }
 
 // Lemon extends the specified router with the methods and urls

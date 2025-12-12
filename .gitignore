@@ -13,6 +13,7 @@ personal-setup
 /output
 /local
 /tmp
+/vendor
 /dist
 /resources
 acceptance/acceptance.test

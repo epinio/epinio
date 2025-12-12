@@ -121,7 +121,7 @@ func (c *Client) AppGetPart(namespace, appName, part string) (models.AppPartResp
 	}
 
 	return models.AppPartResponse{
-		Data: httpResponse.Body,
+		Data:          httpResponse.Body,
 		ContentLength: httpResponse.ContentLength,
 	}, nil
 }
@@ -298,6 +298,48 @@ func (c *Client) StagingComplete(namespace string, id string) (models.Response, 
 	return Get(c, endpoint, response)
 }
 
+// StagingCompleteStream opens a websocket that emits a single completion event
+// for the given staging run and closes once the job finishes.
+func (c *Client) StagingCompleteStream(ctx context.Context, namespace, id string, callback func(models.StageCompleteEvent) error) error {
+	endpoint := api.WsRoutes.Path("StagingCompleteWs", namespace, id)
+	websocketURL := fmt.Sprintf("%s%s/%s", c.Settings.WSS, api.WsRoot, endpoint)
+
+	webSocketConn, resp, err := websocket.DefaultDialer.DialContext(ctx, websocketURL, c.Headers())
+	if err != nil {
+		if resp != nil && resp.StatusCode != http.StatusOK {
+			return handleError(c.log, resp)
+		}
+		return errors.Wrap(err, "failed to connect to staging completion websocket")
+	}
+	defer webSocketConn.Close()
+
+	for {
+		_, message, readErr := webSocketConn.ReadMessage()
+		if readErr != nil {
+			// Normal close means the server is done sending updates.
+			if websocket.IsCloseError(readErr, websocket.CloseNormalClosure) {
+				return nil
+			}
+			return errors.Wrap(readErr, "reading staging completion websocket message")
+		}
+
+		var event models.StageCompleteEvent
+		if unmarshalErr := json.Unmarshal(message, &event); unmarshalErr != nil {
+			return errors.Wrap(unmarshalErr, "decoding staging completion event")
+		}
+
+		if callback != nil {
+			if cbErr := callback(event); cbErr != nil {
+				return cbErr
+			}
+		}
+
+		if event.Completed {
+			return nil
+		}
+	}
+}
+
 // AppRunning checks if the app is running
 func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 	response := models.Response{}
@@ -311,7 +353,7 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 		c.Settings.API, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
 	upgradeRoundTripper, err := NewUpgrader(spdy.RoundTripperConfig{
-		TLS: http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
 		PingPeriod: time.Second * 5,
 	})
 	if err != nil {
@@ -341,10 +383,10 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 
 	fn := func() error {
 		options := remotecommand.StreamOptions{
-			Stdin: tty.In,
-			Stdout: tty.Out,
-			Stderr: tty.Out, // Not used when tty. Check `exec.Stream` docs.
-			Tty: tty.Raw,
+			Stdin:             tty.In,
+			Stdout:            tty.Out,
+			Stderr:            tty.Out, // Not used when tty. Check `exec.Stream` docs.
+			Tty:               tty.Raw,
 			TerminalSizeQueue: tty.MonitorSize(tty.GetSize()),
 		}
 
@@ -355,22 +397,22 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 }
 
 type PortForwardOpts struct {
-	Address	[]string
-	Ports []string
+	Address      []string
+	Ports        []string
 	StopChannel  chan struct{}
 	ReadyChannel chan struct{}
-	Out io.Writer
-	ErrOut io.Writer
+	Out          io.Writer
+	ErrOut       io.Writer
 }
 
 func NewPortForwardOpts(address, ports []string) *PortForwardOpts {
 	opts := &PortForwardOpts{
-		Address: address,
-		Ports: ports,
-		StopChannel: make(chan struct{}),
+		Address:      address,
+		Ports:        ports,
+		StopChannel:  make(chan struct{}),
 		ReadyChannel: make(chan struct{}),
-		Out: os.Stdin,
-		ErrOut: os.Stderr,
+		Out:          os.Stdin,
+		ErrOut:       os.Stderr,
 	}
 
 	signals := make(chan os.Signal, 1)
@@ -406,7 +448,7 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 	}
 
 	upgradeRoundTripper, err := NewUpgrader(spdy.RoundTripperConfig{
-		TLS: http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
 		PingPeriod: time.Second * 5,
 	})
 	if err != nil {
