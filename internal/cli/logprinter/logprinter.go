@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash/fnv"
+	"log/slog"
 	"os"
 	"text/template"
 
@@ -51,7 +52,7 @@ type Log struct {
 	// ContainerName of the container
 	ContainerName string `json:"containerName"`
 
-	PodColor *color.Color `json:"-"`
+	PodColor       *color.Color `json:"-"`
 	ContainerColor *color.Color `json:"-"`
 }
 
@@ -72,10 +73,10 @@ func determineColor(podName string) (podColor, containerColor *color.Color) {
 	hash := fnv.New32()
 	_, hashError := hash.Write([]byte(podName))
 	if hashError != nil {
-		fmt.Sprintf("error hashing the color: %s", hashError)
+		slog.Error("error hashing pod name for color determination", "error", hashError)
 	}
 
-	//Don't need to worry about as the pod name is known and the colorList is static 
+	//Don't need to worry about as the pod name is known and the colorList is static
 	idx := hash.Sum32() % uint32(len(colorList)) //nolint:gosec
 
 	colors := colorList[idx]

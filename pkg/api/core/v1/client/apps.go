@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -49,7 +50,7 @@ type Upgrader struct {
 func (upgr *Upgrader) NewConnection(resp *http.Response) (httpstream.Connection, error) {
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Sprintf("failed to close the response body: %s", err)
+			slog.Error("failed to close response body", "error", err)
 		}
 	}()
 

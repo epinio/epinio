@@ -323,7 +323,7 @@ func (c *EpinioClient) getPartAndWriteFile(appName, part, destinationPath string
 
 	defer func() {
 		if err := partResponse.Data.Close(); err != nil {
-			fmt.Sprintf("Failed to close part response: %s", err)
+			c.Log.Error(err, "failed to close part response")
 		}
 	}()
 
@@ -335,7 +335,7 @@ func (c *EpinioClient) getPartAndWriteFile(appName, part, destinationPath string
 
 	defer func() {
 		if err := out.Close(); err != nil {
-			fmt.Sprintf("Failed to close file: %s", err)
+			c.Log.Error(err, "failed to close file")
 		}
 	}()
 

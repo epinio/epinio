@@ -513,6 +513,20 @@ type FakeAPIClient struct {
 		result1 models.EnvVariableMap
 		result2 error
 	}
+	EnvListGroupedStub        func(string, string) (models.EnvVariableGroupedResponse, error)
+	envListGroupedMutex       sync.RWMutex
+	envListGroupedArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	envListGroupedReturns struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}
+	envListGroupedReturnsOnCall map[int]struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}
 	EnvMatchStub        func(string, string, string) (models.EnvMatchResponse, error)
 	envMatchMutex       sync.RWMutex
 	envMatchArgsForCall []struct {
@@ -772,6 +786,21 @@ type FakeAPIClient struct {
 		result2 error
 	}
 	serviceBindReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
+	ServiceBatchBindStub        func(models.ServiceBatchBindRequest, string, string) (models.Response, error)
+	serviceBatchBindMutex       sync.RWMutex
+	serviceBatchBindArgsForCall []struct {
+		arg1 models.ServiceBatchBindRequest
+		arg2 string
+		arg3 string
+	}
+	serviceBatchBindReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	serviceBatchBindReturnsOnCall map[int]struct {
 		result1 models.Response
 		result2 error
 	}
@@ -3239,6 +3268,71 @@ func (fake *FakeAPIClient) EnvListReturnsOnCall(i int, result1 models.EnvVariabl
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) EnvListGrouped(arg1 string, arg2 string) (models.EnvVariableGroupedResponse, error) {
+	fake.envListGroupedMutex.Lock()
+	ret, specificReturn := fake.envListGroupedReturnsOnCall[len(fake.envListGroupedArgsForCall)]
+	fake.envListGroupedArgsForCall = append(fake.envListGroupedArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.EnvListGroupedStub
+	fakeReturns := fake.envListGroupedReturns
+	fake.recordInvocation("EnvListGrouped", []interface{}{arg1, arg2})
+	fake.envListGroupedMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) EnvListGroupedCallCount() int {
+	fake.envListGroupedMutex.RLock()
+	defer fake.envListGroupedMutex.RUnlock()
+	return len(fake.envListGroupedArgsForCall)
+}
+
+func (fake *FakeAPIClient) EnvListGroupedCalls(stub func(string, string) (models.EnvVariableGroupedResponse, error)) {
+	fake.envListGroupedMutex.Lock()
+	defer fake.envListGroupedMutex.Unlock()
+	fake.EnvListGroupedStub = stub
+}
+
+func (fake *FakeAPIClient) EnvListGroupedArgsForCall(i int) (string, string) {
+	fake.envListGroupedMutex.RLock()
+	defer fake.envListGroupedMutex.RUnlock()
+	argsForCall := fake.envListGroupedArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeAPIClient) EnvListGroupedReturns(result1 models.EnvVariableGroupedResponse, result2 error) {
+	fake.envListGroupedMutex.Lock()
+	defer fake.envListGroupedMutex.Unlock()
+	fake.EnvListGroupedStub = nil
+	fake.envListGroupedReturns = struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) EnvListGroupedReturnsOnCall(i int, result1 models.EnvVariableGroupedResponse, result2 error) {
+	fake.envListGroupedMutex.Lock()
+	defer fake.envListGroupedMutex.Unlock()
+	fake.EnvListGroupedStub = nil
+	if fake.envListGroupedReturnsOnCall == nil {
+		fake.envListGroupedReturnsOnCall = make(map[int]struct {
+			result1 models.EnvVariableGroupedResponse
+			result2 error
+		})
+	}
+	fake.envListGroupedReturnsOnCall[i] = struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeAPIClient) EnvMatch(arg1 string, arg2 string, arg3 string) (models.EnvMatchResponse, error) {
 	fake.envMatchMutex.Lock()
 	ret, specificReturn := fake.envMatchReturnsOnCall[len(fake.envMatchArgsForCall)]
@@ -4483,6 +4577,72 @@ func (fake *FakeAPIClient) ServiceBindReturnsOnCall(i int, result1 models.Respon
 		})
 	}
 	fake.serviceBindReturnsOnCall[i] = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceBatchBind(arg1 models.ServiceBatchBindRequest, arg2 string, arg3 string) (models.Response, error) {
+	fake.serviceBatchBindMutex.Lock()
+	ret, specificReturn := fake.serviceBatchBindReturnsOnCall[len(fake.serviceBatchBindArgsForCall)]
+	fake.serviceBatchBindArgsForCall = append(fake.serviceBatchBindArgsForCall, struct {
+		arg1 models.ServiceBatchBindRequest
+		arg2 string
+		arg3 string
+	}{arg1, arg2, arg3})
+	stub := fake.ServiceBatchBindStub
+	fakeReturns := fake.serviceBatchBindReturns
+	fake.recordInvocation("ServiceBatchBind", []interface{}{arg1, arg2, arg3})
+	fake.serviceBatchBindMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindCallCount() int {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	return len(fake.serviceBatchBindArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindCalls(stub func(models.ServiceBatchBindRequest, string, string) (models.Response, error)) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindArgsForCall(i int) (models.ServiceBatchBindRequest, string, string) {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	argsForCall := fake.serviceBatchBindArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindReturns(result1 models.Response, result2 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	fake.serviceBatchBindReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	if fake.serviceBatchBindReturnsOnCall == nil {
+		fake.serviceBatchBindReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.serviceBatchBindReturnsOnCall[i] = struct {
 		result1 models.Response
 		result2 error
 	}{result1, result2}

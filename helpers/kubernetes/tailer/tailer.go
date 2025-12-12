@@ -131,8 +131,27 @@ OUTER:
 
 		str := strings.TrimRight(string(line), "\r\n\t ")
 
+		// Parse timestamp if present (RFC3339 format from Kubernetes)
+		// Format: 2023-04-15T10:30:45.123456789Z message
+		var timestamp string
+		var message string
+		if t.Options.Timestamps {
+			// Timestamps from Kubernetes are in RFC3339Nano format
+			// Look for the first space after the timestamp
+			spaceIdx := strings.Index(str, " ")
+			if spaceIdx > 0 {
+				timestamp = str[:spaceIdx]
+				message = str[spaceIdx+1:]
+			} else {
+				// No space found, use the whole line as message
+				message = str
+			}
+		} else {
+			message = str
+		}
+
 		for _, rex := range t.Options.Exclude {
-			if rex.MatchString(str) {
+			if rex.MatchString(message) {
 				continue OUTER
 			}
 		}
@@ -140,7 +159,7 @@ OUTER:
 		if len(t.Options.Include) != 0 {
 			matches := false
 			for _, rin := range t.Options.Include {
-				if rin.MatchString(str) {
+				if rin.MatchString(message) {
 					matches = true
 					break
 				}
@@ -150,12 +169,13 @@ OUTER:
 			}
 		}
 
-		t.logger.Info("passing", "container", ident, "", str)
+		t.logger.Info("passing", "container", ident, "", message)
 		logChan <- ContainerLogLine{
-			Message:       str,
+			Message:       message,
 			ContainerName: t.ContainerName,
 			PodName:       t.PodName,
 			Namespace:     t.Namespace,
+			Timestamp:     timestamp,
 		}
 	}
 }

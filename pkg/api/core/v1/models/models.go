@@ -140,6 +140,7 @@ type ApplicationConfiguration struct {
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	Services       []string           `json:"services,omitempty" yaml:"services,omitempty"`
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`

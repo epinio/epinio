@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -42,7 +43,7 @@ type ResponseHandler[T any] func(httpResponse *http.Response) (T, error)
 
 type APIError struct {
 	StatusCode int
-	Err *apierrors.ErrorResponse
+	Err        *apierrors.ErrorResponse
 }
 
 func (e *APIError) Error() string {
@@ -254,7 +255,7 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 	return func(httpResponse *http.Response) (T, error) {
 		defer func() {
 			if err := httpResponse.Body.Close(); err != nil {
-				fmt.Sprintf("failed to close the response body %s: ", err)
+				slog.Error("failed to close response body", "error", err)
 			}
 		}()
 
@@ -280,7 +281,7 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 func handleError(logger logr.Logger, response *http.Response) error {
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			fmt.Sprintf("failed to close the response body: %s", err)
+			logger.Error(err, "failed to close the response body")
 		}
 	}()
 
@@ -297,7 +298,7 @@ func handleError(logger logr.Logger, response *http.Response) error {
 
 	epinioError := &APIError{
 		StatusCode: response.StatusCode,
-		Err: &apierrors.ErrorResponse{},
+		Err:        &apierrors.ErrorResponse{},
 	}
 
 	if len(bodyBytes) > 0 {

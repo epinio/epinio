@@ -299,12 +299,13 @@ func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace str
 }
 
 type AppData struct {
-	scaling *v1.Secret
-	bound   *v1.Secret
-	env     *v1.Secret
-	routes  []string
-	pods    []v1.Pod
-	staging models.ApplicationStagingStatus
+	scaling  *v1.Secret
+	bound    *v1.Secret
+	env      *v1.Secret
+	services *v1.Secret
+	routes   []string
+	pods     []v1.Pod
+	staging  models.ApplicationStagingStatus
 }
 
 // List returns a list of all available apps in the specified namespace. If no namespace
@@ -619,7 +620,7 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 		ExcludeContainerQuery: regexp.MustCompile("linkerd-(proxy|init)"),
 		Exclude:               nil,
 		Include:               nil,
-		Timestamps:            false,
+		Timestamps:            true,
 		Since:                 duration.LogHistory(),
 		AllNamespaces:         true,
 		LabelSelector:         selector,
@@ -728,6 +729,8 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[ConfigurationKey]AppData {
 			data.bound = &secretToAssign
 		case "environment":
 			data.env = &secretToAssign
+		case "service":
+			data.services = &secretToAssign
 		default:
 			// ignore secret
 		}
@@ -779,6 +782,10 @@ func aggregate(ctx context.Context,
 	environment := EnvironmentFromSecret(aux.env)
 	appPods := aux.pods
 	appRoutes := aux.routes
+	var services []string
+	if aux.services != nil {
+		services = BoundServiceNamesFromSecret(aux.services)
+	}
 
 	// II. Unpack the core application resource
 
@@ -827,6 +834,7 @@ func aggregate(ctx context.Context,
 	app.Configuration.Instances = &instances
 	app.Configuration.Configurations = configurations
 	app.Configuration.Environment = environment
+	app.Configuration.Services = services
 	app.Configuration.Routes = desiredRoutes
 	app.Configuration.AppChart = chartName
 	app.Configuration.Settings = settings
@@ -935,6 +943,14 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	services, err := BoundServiceNames(ctx, cluster, app.Meta)
+	if err != nil {
+		err = errors.Wrap(err, "finding services")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
+	}
+
 	chartName, err := AppChart(applicationCR)
 	if err != nil {
 		err = errors.Wrap(err, "finding app chart")
@@ -980,6 +996,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Instances = &instances
 	app.Configuration.Configurations = configurations
 	app.Configuration.Environment = environment
+	app.Configuration.Services = services
 	app.Configuration.Routes = desiredRoutes
 	app.Configuration.AppChart = chartName
 	app.Configuration.Settings = settings
