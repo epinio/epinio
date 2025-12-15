@@ -13,6 +13,7 @@
 package response
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -54,9 +55,11 @@ func OKYaml(c *gin.Context, response interface{}) {
 
 // OKReturn reports a success with some data
 func OKReturn(c *gin.Context, response interface{}) {
+	// SECURITY: Log only response type/summary to avoid potential secret exposure in logs.
+	// The actual response is already sanitized at the endpoint level before being returned.
 	requestctx.Logger(c.Request.Context()).Info("OK",
 		"origin", c.Request.URL.String(),
-		"returning", response,
+		"response_type", fmt.Sprintf("%T", response),
 	)
 
 	c.JSON(http.StatusOK, response)
