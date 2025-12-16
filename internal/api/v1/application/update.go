@@ -160,7 +160,8 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	if len(updateRequest.Environment) > 0 {
 		log.Info("updating app", "environment", updateRequest.Environment)
 
-		err := application.EnvironmentSet(ctx, cluster, app.Meta, updateRequest.Environment, true)
+		replaceEnv := envReplaceFlag(updateRequest.ReplaceEnv)
+		err := application.EnvironmentSet(ctx, cluster, app.Meta, updateRequest.Environment, replaceEnv)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
@@ -214,6 +215,10 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	response.OK(c)
 	return nil
+}
+
+func envReplaceFlag(replace *bool) bool {
+	return replace != nil && *replace
 }
 
 func updateAppChart(

@@ -379,6 +379,8 @@ func NewAppPortForwardCmd(client ApplicationsService) *cobra.Command {
 
 // NewAppPushCmd returns a new `epinio apps push` command
 func NewAppPushCmd(client ApplicationsService) *cobra.Command {
+	var envReplace bool
+
 	cmd := &cobra.Command{
 		Use:   "push [flags] [PATH_TO_APPLICATION_MANIFEST]",
 		Short: "Push an application declared in the specified manifest",
@@ -445,6 +447,10 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 				}
 			}
 
+			if cmd.Flags().Changed("env-replace") {
+				m.Configuration.ReplaceEnv = &envReplace
+			}
+
 			err = client.AppPush(cmd.Context(), m)
 			if err != nil {
 				return errors.Wrap(err, "error pushing app to server")
@@ -469,6 +475,8 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	envOption(cmd)
 	instancesOption(cmd)
 	chartValueOptionX(cmd)
+	cmd.Flags().BoolVar(&envReplace, "env-replace", false, "Replace existing environment instead of merging")
+	bindFlag(cmd, "env-replace")
 
 	cmd.Flags().String("app-chart", "", "App chart to use for deployment")
 	bindFlag(cmd, "app-chart")
@@ -550,6 +558,8 @@ func NewAppShowCmd(client ApplicationsService, rootCfg *RootConfig) *cobra.Comma
 
 // NewAppUpdateCmd returns a new `epinio apps update` command
 func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
+	var envReplace bool
+
 	// It scales the named app
 	cmd := &cobra.Command{
 		Use:               "update NAME",
@@ -576,10 +586,15 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 			}
 
 			manifestConfig := m.Configuration
+			var replaceEnvPtr *bool
+			if cmd.Flags().Changed("env-replace") {
+				replaceEnvPtr = &envReplace
+			}
 			updateRequest := models.ApplicationUpdateRequest{
 				Instances:      manifestConfig.Instances,
 				Configurations: manifestConfig.Configurations,
 				Environment:    manifestConfig.Environment,
+				ReplaceEnv:     replaceEnvPtr,
 				Routes:         manifestConfig.Routes,
 				AppChart:       manifestConfig.AppChart,
 				Settings:       manifestConfig.Settings,
@@ -597,6 +612,8 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 	envOption(cmd)
 	instancesOption(cmd)
 	chartValueOptionX(cmd)
+	cmd.Flags().BoolVar(&envReplace, "env-replace", false, "Replace existing environment instead of merging")
+	bindFlag(cmd, "env-replace")
 
 	cmd.Flags().String("app-chart", "", "App chart to use for deployment")
 	bindFlag(cmd, "app-chart")
