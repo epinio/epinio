@@ -216,12 +216,8 @@ func CleanupStaleCachesQuery(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	// For GET requests, default checkAppExists to true for safety
-	// User can explicitly set to false if they want to delete caches for active apps
-	checkAppExists := true
-	if c.Query("checkAppExists") == "false" {
-		checkAppExists = false
-	}
+	// For GET requests, default checkAppExists to true for safety; allow explicit false
+	checkAppExists := c.Query("checkAppExists") != "false"
 
 	dryRun := c.Query("dryRun") == "true"
 
