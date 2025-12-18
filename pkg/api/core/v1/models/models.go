@@ -276,6 +276,11 @@ type DeployResponse struct {
 	Routes []string `json:"routes,omitempty"`
 }
 
+// ApplicationDeleteRequest represents and contains the data needed to delete an application
+type ApplicationDeleteRequest struct {
+	DeleteImage bool `json:"deleteImage"`
+}
+
 // ApplicationDeleteResponse represents the server's response to a successful app deletion
 type ApplicationDeleteResponse struct {
 	UnboundConfigurations []string `json:"unboundconfigurations"`

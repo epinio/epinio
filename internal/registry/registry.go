@@ -15,8 +15,12 @@ package registry
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"regexp"
 	"strings"
 
@@ -194,11 +198,27 @@ func GetRegistryCredentialsFromSecret(secret v1.Secret) (RegistryCredentials, er
 	}
 
 	for key, cred := range auths {
+		username := cred.Username
+		password := cred.Password
+
+		// If username/password are empty but auth is set, decode the base64 auth field
+		if (username == "" || password == "") && cred.Auth != "" {
+			decoded, err := base64.StdEncoding.DecodeString(cred.Auth)
+			if err == nil {
+				decodedStr := string(decoded)
+				parts := strings.SplitN(decodedStr, ":", 2)
+				if len(parts) == 2 {
+					username = parts[0]
+					password = parts[1]
+				}
+			}
+		}
+
 		// return the single credentials, as the first credentials found in the map
 		return RegistryCredentials{
 			URL:      key + "/" + namespace,
-			Username: cred.Username,
-			Password: cred.Password,
+			Username: username,
+			Password: password,
 		}, nil
 	}
 
@@ -319,12 +339,161 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 	details.Namespace = secret.Annotations[RegistrySecretNamespaceAnnotationKey]
 
 	for url, auth := range dockerconfigjson.Auths {
+		username := auth.Username
+		password := auth.Password
+
+		// If username/password are empty but auth is set, decode the base64 auth field
+		// This handles the standard dockerconfigjson format where credentials are stored
+		// in the auth field as base64(username:password)
+		if (username == "" || password == "") && auth.Auth != "" {
+			decoded, err := base64.StdEncoding.DecodeString(auth.Auth)
+			if err == nil {
+				decodedStr := string(decoded)
+				parts := strings.SplitN(decodedStr, ":", 2)
+				if len(parts) == 2 {
+					username = parts[0]
+					password = parts[1]
+				}
+			}
+		}
+
 		details.RegistryCredentials = append(details.RegistryCredentials, RegistryCredentials{
 			URL:      url,
-			Username: auth.Username,
-			Password: auth.Password,
+			Username: username,
+			Password: password,
 		})
 	}
 
 	return &details, nil
+}
+
+// DeleteImage deletes a container image from the registry using the Docker Registry HTTP API v2.
+// It requires the image URL, registry credentials, and optionally a TLS config for self-signed certificates.
+func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credentials RegistryCredentials, tlsConfig *tls.Config) error {
+	if imageURL == "" {
+		// No image to delete
+		return nil
+	}
+
+	// Parse the image URL to extract registry, repository, and tag
+	ref, err := parser.Parse(imageURL)
+	if err != nil {
+		return errors.Wrap(err, "parsing image URL")
+	}
+
+	registryURL := ref.Registry()
+	repository := ref.ShortName()
+	tag := ref.Tag()
+
+	if tag == "" {
+		tag = "latest"
+	}
+
+	// Determine scheme from credentials URL (dockerconfigjson may contain http:// or https://)
+	// or fall back to heuristics based on registry URL and TLS config
+	scheme := "https"
+	credURL := credentials.URL
+
+	// Check if credentials URL has a scheme (it may include namespace suffix like "http://registry.com/namespace")
+	if strings.HasPrefix(credURL, "http://") {
+		scheme = "http"
+	} else if strings.HasPrefix(credURL, "https://") {
+		scheme = "https"
+	} else {
+		// No scheme in credentials URL, use heuristics
+		// First check if registryURL already has a scheme
+		if strings.HasPrefix(registryURL, "http://") {
+			scheme = "http"
+			registryURL = strings.TrimPrefix(registryURL, "http://")
+		} else if strings.HasPrefix(registryURL, "https://") {
+			scheme = "https"
+			registryURL = strings.TrimPrefix(registryURL, "https://")
+		} else if strings.HasPrefix(registryURL, "127.0.0.1") || strings.HasPrefix(registryURL, "localhost") || strings.HasPrefix(registryURL, "0.0.0.0") {
+			// Localhost addresses are typically HTTP
+			scheme = "http"
+		}
+		// Otherwise default to https (already set above)
+		// Note: tlsConfig.InsecureSkipVerify is for skipping certificate verification on HTTPS,
+		// not for switching to HTTP. Self-signed HTTPS registries still use https:// with
+		// InsecureSkipVerify enabled.
+	}
+
+	// Get the manifest digest first
+	manifestURL := fmt.Sprintf("%s://%s/v2/%s/manifests/%s", scheme, registryURL, repository, tag)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL, nil)
+	if err != nil {
+		return errors.Wrap(err, "creating manifest request")
+	}
+
+	// Set authentication
+	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", credentials.Username, credentials.Password)))
+	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
+	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json")
+
+	// Create HTTP client with TLS config if provided
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if tlsConfig != nil {
+		transport.TLSClientConfig = tlsConfig
+	}
+	client := &http.Client{
+		Transport: transport,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "fetching manifest")
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode == http.StatusNotFound {
+		// Image doesn't exist, nothing to delete
+		log.Info("Image not found in registry, skipping deletion", "image", imageURL)
+		return nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return errors.Errorf("failed to get manifest: status %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Get the digest from the response header (preferred)
+	digest := resp.Header.Get("Docker-Content-Digest")
+	if digest == "" {
+		// No digest header found, will use tag-based deletion
+		// Note: Some registries support tag-based deletion, though digest-based is preferred
+		log.Info("No digest header found, using tag-based deletion", "image", imageURL)
+	}
+
+	// Delete the manifest using digest (preferred) or tag
+	deleteURL := manifestURL
+	if digest != "" {
+		deleteURL = fmt.Sprintf("%s://%s/v2/%s/manifests/%s", scheme, registryURL, repository, digest)
+	}
+
+	deleteReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, deleteURL, nil)
+	if err != nil {
+		return errors.Wrap(err, "creating delete request")
+	}
+
+	deleteReq.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
+	deleteReq.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json")
+
+	deleteResp, err := client.Do(deleteReq)
+	if err != nil {
+		return errors.Wrap(err, "deleting manifest")
+	}
+	defer func() {
+		_ = deleteResp.Body.Close()
+	}()
+
+	// Accept both 202 (Accepted) and 404 (Not Found) as success
+	if deleteResp.StatusCode == http.StatusAccepted || deleteResp.StatusCode == http.StatusNotFound {
+		log.Info("Successfully deleted image from registry", "image", imageURL)
+		return nil
+	}
+
+	body, _ := io.ReadAll(deleteResp.Body)
+	return errors.Errorf("failed to delete image: status %d, body: %s", deleteResp.StatusCode, string(body))
 }
