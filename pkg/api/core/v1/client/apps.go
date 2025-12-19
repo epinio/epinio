@@ -312,7 +312,7 @@ func (c *Client) StagingCompleteStream(ctx context.Context, namespace, id string
 		}
 		return errors.Wrap(err, "failed to connect to staging completion websocket")
 	}
-	defer webSocketConn.Close()
+	defer func() { _ = webSocketConn.Close() }()
 
 	for {
 		_, message, readErr := webSocketConn.ReadMessage()

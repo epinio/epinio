@@ -372,7 +372,7 @@ func stageJobs(ctx context.Context, cluster *kubernetes.Cluster, namespace, stag
 
 // waitForStagingCompletion waits until all provided jobs finish and reports success or failure.
 // It returns (true, nil) on success, (false, nil) on job failure, or (false, err) on unexpected errors.
-func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, jobs []batchv1.Job, stageID string) (bool, error) {
+func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, jobs []batchv1.Job) (bool, error) {
 	for _, job := range jobs {
 		if err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.Name, duration.ToAppBuilt()); err != nil {
 			return false, err
@@ -449,7 +449,7 @@ func Staged(c *gin.Context) apierror.APIErrors {
 		return apiErr
 	}
 
-	success, err := waitForStagingCompletion(ctx, cluster, jobs, id)
+	success, err := waitForStagingCompletion(ctx, cluster, jobs)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -491,7 +491,7 @@ func StagedWebsocket(c *gin.Context) {
 	}
 	defer func() {
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	sendUpdate := func(status, message string, completed bool) error {
@@ -542,7 +542,7 @@ func StagedWebsocket(c *gin.Context) {
 	resultCh := make(chan result, 1)
 
 	go func() {
-		success, waitErr := waitForStagingCompletion(waitCtx, cluster, jobs, stageID)
+		success, waitErr := waitForStagingCompletion(waitCtx, cluster, jobs)
 		resultCh <- result{success: success, err: waitErr}
 	}()
 
