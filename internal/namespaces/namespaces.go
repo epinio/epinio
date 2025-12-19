@@ -97,7 +97,6 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 			ObjectMeta: metav1.ObjectMeta{
 				Name: namespace,
 				Labels: map[string]string{
-					"config-syncer-sync":              "registry-creds", // Instruct config-syncer to copy image pull secrets over.
 					kubernetes.EpinioNamespaceLabelKey: kubernetes.EpinioNamespaceLabelValue,
 				},
 				Annotations: map[string]string{
