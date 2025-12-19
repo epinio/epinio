@@ -22,3 +22,4 @@ acceptance/acceptance.test
 .ignore
 contrib/
 Session.vim
+.idea/
