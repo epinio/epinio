@@ -20,6 +20,7 @@ package models
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/epinio/epinio/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -412,4 +413,13 @@ type AppExportRequest struct {
 	ChartName    string `json:"chart-name,omitempty"`
 	ImageTag     string `json:"image-tag,omitempty"`
 	ChartVersion string `json:"chart-version,omitempty"`
+}
+
+// StaleCacheInfo contains information about a stale cache PVC
+type StaleCacheInfo struct {
+	PVCName        string    `json:"pvcName"`
+	AppName        string    `json:"appName"`
+	AppNamespace   string    `json:"appNamespace"`
+	LastBuildTime  time.Time `json:"lastBuildTime"`
+	DaysSinceBuild int       `json:"daysSinceBuild"`
 }

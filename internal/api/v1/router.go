@@ -29,6 +29,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/exportregistry"
 	"github.com/epinio/epinio/internal/api/v1/gitconfig"
 	"github.com/epinio/epinio/internal/api/v1/gitproxy"
+	"github.com/epinio/epinio/internal/api/v1/maintenance"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
@@ -92,7 +93,10 @@ func put(path string, h gin.HandlerFunc) routes.Route {
 }
 
 // AdminRoutes is the list of restricted routes, only accessible by admins
-var AdminRoutes map[string]struct{} = map[string]struct{}{}
+var AdminRoutes map[string]struct{} = map[string]struct{}{
+	"MaintenanceCleanupStaleCaches":      {},
+	"MaintenanceCleanupStaleCachesQuery":  {},
+}
 
 var Routes = routes.NamedRoutes{
 	"AuthToken": get("/authtoken", errorHandler(AuthToken)),
@@ -223,6 +227,10 @@ var Routes = routes.NamedRoutes{
 	"ExportregistriesMatch0": get("/exportregistrymatches", errorHandler(exportregistry.Match)),
 
 	"GitProxy": post("/gitproxy", errorHandler(gitproxy.ProxyHandler)),
+
+	// Maintenance endpoints
+	"MaintenanceCleanupStaleCaches":      post("/maintenance/cleanup-stale-caches", errorHandler(maintenance.CleanupStaleCaches)),
+	"MaintenanceCleanupStaleCachesQuery": get("/maintenance/cleanup-stale-caches", errorHandler(maintenance.CleanupStaleCachesQuery)),
 }
 
 var WsRoutes = routes.NamedRoutes{
