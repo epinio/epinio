@@ -140,6 +140,7 @@ type ApplicationConfiguration struct {
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	ReplaceEnv     *bool              `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
 	Services       []string           `json:"services,omitempty" yaml:"services,omitempty"`
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
@@ -216,6 +217,7 @@ type ApplicationUpdateRequest struct {
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	ReplaceEnv     *bool              `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
@@ -227,6 +229,7 @@ func NewApplicationUpdateRequest(manifest ApplicationManifest) ApplicationUpdate
 		Instances:      manifestConfig.Instances,
 		Configurations: manifestConfig.Configurations,
 		Environment:    manifestConfig.Environment,
+		ReplaceEnv:     manifestConfig.ReplaceEnv,
 		Routes:         manifestConfig.Routes,
 		AppChart:       manifestConfig.AppChart,
 		Settings:       manifestConfig.Settings,
