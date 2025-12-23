@@ -513,26 +513,74 @@ func deleteContainerImage(ctx context.Context, log logr.Logger, cluster *kuberne
 		log.Info("No exact registry match found, using first available credentials", "imageRegistry", imageRegistryURL)
 	}
 
-	// Get TLS config from cluster's REST config to handle self-signed certificates
+	// Get TLS config to handle self-signed certificates
 	var tlsConfig *tls.Config
+	rootCAs, err := x509.SystemCertPool()
+	if err != nil {
+		rootCAs = x509.NewCertPool()
+	}
+	certsAdded := false
+
+	// Check for registry certificate secret (for self-signed registry certificates)
+	// This is the primary way to trust self-signed registry certificates
+	registryCertSecret := os.Getenv("REGISTRY_CERTIFICATE_SECRET")
+	if registryCertSecret != "" {
+		secret, err := cluster.GetSecret(ctx, helmchart.Namespace(), registryCertSecret)
+		if err == nil {
+			if certData, found := secret.Data["tls.crt"]; found {
+				if rootCAs.AppendCertsFromPEM(certData) {
+					certsAdded = true
+					log.Info("Added registry certificate from secret to TLS config", "secret", registryCertSecret)
+				}
+			}
+		} else {
+			log.Info("Registry certificate secret not found, continuing without it", "secret", registryCertSecret, "error", err)
+		}
+	}
+
+	// Also add cluster's CA data if available (for cluster-internal registries)
 	if cluster.RestConfig != nil {
 		tlsClientConfig := cluster.RestConfig.TLSClientConfig
 		if tlsClientConfig.Insecure {
+			// If cluster config says insecure, skip verification
 			tlsConfig = &tls.Config{
 				InsecureSkipVerify: true, // nolint:gosec // Controlled by cluster config
 				MinVersion:         tls.VersionTLS12,
 			}
 		} else if tlsClientConfig.CAData != nil {
-			// Use cluster's CA data if available
-			rootCAs, err := x509.SystemCertPool()
-			if err != nil {
-				rootCAs = x509.NewCertPool()
-			}
+			// Add cluster CA to the cert pool
 			if rootCAs.AppendCertsFromPEM(tlsClientConfig.CAData) {
-				tlsConfig = &tls.Config{
-					RootCAs:    rootCAs,
-					MinVersion: tls.VersionTLS12,
-				}
+				certsAdded = true
+			}
+		}
+	}
+
+	// Build TLS config based on what we have
+	if tlsConfig == nil {
+		// Check if this is an internal registry (cluster.local domain)
+		isInternalRegistry := strings.Contains(imageRegistryURL, ".svc.cluster.local") ||
+			strings.Contains(imageRegistryURL, "127.0.0.1") ||
+			strings.Contains(imageRegistryURL, "localhost")
+
+		if certsAdded {
+			// We have certificates in the pool, use them
+			tlsConfig = &tls.Config{
+				RootCAs:    rootCAs,
+				MinVersion: tls.VersionTLS12,
+			}
+		} else if isInternalRegistry {
+			// Internal registry with no certificate found - skip verification
+			// This is common for internal registries with self-signed certs
+			tlsConfig = &tls.Config{
+				InsecureSkipVerify: true, // nolint:gosec // Internal registry with self-signed cert
+				MinVersion:         tls.VersionTLS12,
+			}
+			log.Info("No registry certificate found, skipping TLS verification for internal registry", "registry", imageRegistryURL)
+		} else {
+			// External registry - use system cert pool (may fail if cert is not trusted)
+			tlsConfig = &tls.Config{
+				RootCAs:    rootCAs,
+				MinVersion: tls.VersionTLS12,
 			}
 		}
 	}
