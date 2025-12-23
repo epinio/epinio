@@ -87,6 +87,7 @@
   wsRoutes:
     - AppLogs
     - StagingLogs
+    - StagingCompleteWs
 
 # App Exec
 - id: app_exec

@@ -259,6 +259,24 @@ type StageResponse struct {
 	ImageURL string   `json:"image,omitempty"`
 }
 
+// StageCompleteEvent is sent over the staging completion websocket endpoint
+// to signal the status of a staging job.
+type StageCompleteEvent struct {
+	StageID   string `json:"stage_id"`
+	Namespace string `json:"namespace"`
+	Status    string `json:"status"`
+	Message   string `json:"message,omitempty"`
+	Completed bool   `json:"completed"`
+}
+
+// StageComplete statuses used in websocket payloads.
+const (
+	StageStatusWaiting   = "waiting"
+	StageStatusSucceeded = "succeeded"
+	StageStatusFailed    = "failed"
+	StageStatusError     = "error"
+)
+
 // DeployRequest represents and contains the data needed to deploy an application
 // Note that the overall application configuration (instances, configurations, EVs) is
 // already known server side, through AppCreate/AppUpdate requests.
