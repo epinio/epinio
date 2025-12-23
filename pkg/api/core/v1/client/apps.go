@@ -302,8 +302,15 @@ func (c *Client) StagingComplete(namespace string, id string) (models.Response, 
 // StagingCompleteStream opens a websocket that emits a single completion event
 // for the given staging run and closes once the job finishes.
 func (c *Client) StagingCompleteStream(ctx context.Context, namespace, id string, callback func(models.StageCompleteEvent) error) error {
+	tokenResponse, err := c.AuthToken()
+	if err != nil {
+		return err
+	}
+
 	endpoint := api.WsRoutes.Path("StagingCompleteWs", namespace, id)
-	websocketURL := fmt.Sprintf("%s%s/%s", c.Settings.WSS, api.WsRoot, endpoint)
+	queryParams := url.Values{}
+	queryParams.Add("authtoken", tokenResponse.Token)
+	websocketURL := fmt.Sprintf("%s%s/%s?%s", c.Settings.WSS, api.WsRoot, endpoint, queryParams.Encode())
 
 	webSocketConn, resp, err := websocket.DefaultDialer.DialContext(ctx, websocketURL, c.Headers())
 	if err != nil {
