@@ -16,11 +16,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/fatih/color"
 	"github.com/kyokomi/emoji"
 	"github.com/olekukonko/tablewriter"
@@ -451,7 +451,7 @@ func readBool() bool {
 
 	_, scanError := fmt.Scanf("%b", &value)
 	if scanError != nil {
-		slog.Error("scan error for bool input", "error", scanError)
+		helpers.Logger.Errorw("scan error for bool input", "error", scanError)
 	}
 
 	return value
@@ -462,7 +462,7 @@ func readString() string {
 
 	_, scanError := fmt.Scanf("%s", &value)
 	if scanError != nil {
-		slog.Error("scan error for string input", "error", scanError)
+		helpers.Logger.Errorw("scan error for string input", "error", scanError)
 	}
 
 	value = strings.TrimSpace(value)
@@ -474,7 +474,7 @@ func readInt() int {
 
 	_, scanError := fmt.Scanf("%d", &value)
 	if scanError != nil {
-		slog.Error("scan error for int input", "error", scanError)
+		helpers.Logger.Errorw("scan error for int input", "error", scanError)
 	}
 
 	return value
