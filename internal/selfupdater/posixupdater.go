@@ -13,11 +13,11 @@ package selfupdater
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"runtime"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/pkg/errors"
 )
 
@@ -47,7 +47,7 @@ func (u PosixUpdater) Update(targetVersion string) error {
 
 	defer func() {
 		if err := os.Remove(tmpFile); err != nil {
-			slog.Error("failed to remove temporary file", "error", err)
+			helpers.Logger.Errorw("failed to remove temporary file", "error", err)
 		}
 	}()
 

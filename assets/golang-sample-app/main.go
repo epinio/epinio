@@ -33,5 +33,8 @@ func main() {
 		fmt.Fprint(w, INDEX)
 	})
 
+	// Note: This is a standalone sample app, not part of the Epinio CLI codebase.
+	// It uses the standard log package rather than helpers.Logger since it's a
+	// simple example application that may be used independently.
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 }

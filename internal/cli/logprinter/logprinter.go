@@ -16,10 +16,10 @@ import (
 	"bytes"
 	"fmt"
 	"hash/fnv"
-	"log/slog"
 	"os"
 	"text/template"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/fatih/color"
 )
@@ -73,7 +73,7 @@ func determineColor(podName string) (podColor, containerColor *color.Color) {
 	hash := fnv.New32()
 	_, hashError := hash.Write([]byte(podName))
 	if hashError != nil {
-		slog.Error("error hashing pod name for color determination", "error", hashError)
+		helpers.Logger.Errorw("error hashing pod name for color determination", "error", hashError)
 	}
 
 	//Don't need to worry about as the pod name is known and the colorList is static

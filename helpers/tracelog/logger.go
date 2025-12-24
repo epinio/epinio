@@ -14,6 +14,7 @@
 package tracelog
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -47,21 +48,22 @@ func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 	pf.IntP("trace-level", "", 0, "Only print trace messages at or above this level (0 to 255, default 0, print nothing)")
 	err := viper.BindPFlag("trace-level", pf.Lookup("trace-level"))
 	if err != nil {
-		log.Fatal(err)
+		// Use panic for early initialization errors before helpers.Logger is available
+		panic(fmt.Sprintf("failed to bind trace-level flag: %v", err))
 	}
 	argToEnv["trace-level"] = "TRACE_LEVEL"
 
 	pf.StringP("trace-file", "", "", "Print trace messages to the specified file")
 	err = viper.BindPFlag("trace-file", pf.Lookup("trace-file"))
 	if err != nil {
-		log.Fatal(err)
+		panic(fmt.Sprintf("failed to bind trace-file flag: %v", err))
 	}
 	argToEnv["trace-file"] = "TRACE_FILE"
 
 	pf.String("trace-output", "text", "Sets trace output format [text,json]")
 	err = viper.BindPFlag("trace-output", pf.Lookup("trace-output"))
 	if err != nil {
-		log.Fatal(err)
+		panic(fmt.Sprintf("failed to bind trace-output flag: %v", err))
 	}
 	argToEnv["trace-output"] = "TRACE_OUTPUT"
 }
@@ -82,7 +84,7 @@ func NewStdrLogger() logr.Logger {
     //TODO ensure we arent logging sensitive data here
 		dst, err := os.OpenFile(traceFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //nolint:gosec
 		if err != nil {
-			log.Fatalf("Unable to create log file %s", traceFilePath)
+			panic(fmt.Sprintf("Unable to create log file %s: %v", traceFilePath, err))
 		}
 		destination = dst
 	}
