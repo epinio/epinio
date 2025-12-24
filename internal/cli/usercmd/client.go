@@ -53,7 +53,7 @@ type APIClient interface {
 	AllApps() (models.AppList, error)
 	AppShow(namespace string, appName string) (models.App, error)
 	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)
-	AppDelete(namespace string, names []string) (models.ApplicationDeleteResponse, error)
+	AppDelete(namespace string, names []string, deleteImage bool) (models.ApplicationDeleteResponse, error)
 	AppUpload(namespace string, name string, file client.FormFile) (models.UploadResponse, error)
 	AppImportGit(namespace string, name string, gitRef models.GitRef) (models.ImportGitResponse, error)
 	AppStage(req models.StageRequest) (*models.StageResponse, error)

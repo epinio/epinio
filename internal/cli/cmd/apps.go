@@ -27,7 +27,7 @@ import (
 //counterfeiter:generate -header ../../../LICENSE_HEADER . ApplicationsService
 type ApplicationsService interface {
 	AppCreate(name string, updateRequest models.ApplicationUpdateRequest) error
-	AppDelete(ctx context.Context, appNames []string, all bool) error
+	AppDelete(ctx context.Context, appNames []string, all, deleteImage bool) error
 	AppExec(ctx context.Context, name, instance string) error
 	AppExport(name string, toRegistry bool, exportRequest models.AppExportRequest) error
 	AppLogs(name, stageID string, follow bool, options *client.LogOptions) error
@@ -135,7 +135,8 @@ func NewAppCreateCmd(client ApplicationsService) *cobra.Command {
 }
 
 type AppDeleteConfig struct {
-	all bool
+	all         bool
+	deleteImage bool
 }
 
 // NewAppDeleteCmd returns a new `epinio apps delete` command
@@ -155,7 +156,7 @@ func NewAppDeleteCmd(client ApplicationsService) *cobra.Command {
 				return errors.New("No applications specified for deletion")
 			}
 
-			err := client.AppDelete(cmd.Context(), args, cfg.all)
+			err := client.AppDelete(cmd.Context(), args, cfg.all, cfg.deleteImage)
 			if err != nil {
 				return errors.Wrap(err, "error deleting app")
 			}
@@ -165,6 +166,7 @@ func NewAppDeleteCmd(client ApplicationsService) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&cfg.all, "all", false, "Delete all applications")
+	cmd.Flags().BoolVar(&cfg.deleteImage, "delete-image", false, "Delete the application's container image from the registry")
 
 	return cmd
 }
