@@ -248,9 +248,44 @@ type UploadResponse struct {
 
 // StageRequest represents and contains the data needed to stage an application
 type StageRequest struct {
-	App          AppRef `json:"app,omitempty"`
-	BlobUID      string `json:"blobuid,omitempty"`
-	BuilderImage string `json:"builderimage,omitempty"`
+	App          AppRef        `json:"app,omitempty"`
+	BlobUID      string        `json:"blobuid,omitempty"`
+	BuilderImage string        `json:"builderimage,omitempty"`
+	StagingConfig *StagingConfig `json:"stagingConfig,omitempty"`
+}
+
+// StagingConfig represents optional staging workload configuration overrides
+// that can be provided at trigger-time to override the base configuration
+// from ConfigMaps.
+type StagingConfig struct {
+	ServiceAccountName      string                 `json:"serviceAccountName,omitempty"`
+	NodeSelector            map[string]string      `json:"nodeSelector,omitempty"`
+	Tolerations             []interface{}          `json:"tolerations,omitempty"` // Will be unmarshaled as []corev1.Toleration
+	Affinity                map[string]interface{} `json:"affinity,omitempty"`      // Will be unmarshaled as corev1.Affinity
+	Resources               *ResourceRequirements  `json:"resources,omitempty"`
+	TTLSecondsAfterFinished *int32                 `json:"ttlSecondsAfterFinished,omitempty"`
+	Storage                 *StagingStorageConfig  `json:"storage,omitempty"`
+}
+
+// ResourceRequirements represents Kubernetes resource requirements
+type ResourceRequirements struct {
+	Requests map[string]string `json:"requests,omitempty"`
+	Limits   map[string]string `json:"limits,omitempty"`
+}
+
+// StagingStorageConfig represents storage configuration for staging workloads
+type StagingStorageConfig struct {
+	SourceBlobs *StagingStorageValues `json:"sourceBlobs,omitempty"`
+	Cache       *StagingStorageValues `json:"cache,omitempty"`
+}
+
+// StagingStorageValues represents storage values for a staging volume
+type StagingStorageValues struct {
+	Size             string   `json:"size,omitempty"`
+	StorageClassName string  `json:"storageClassName,omitempty"`
+	VolumeMode       string  `json:"volumeMode,omitempty"`
+	AccessModes      []string `json:"accessModes,omitempty"`
+	EmptyDir         *bool   `json:"emptyDir,omitempty"`
 }
 
 // StageResponse represents the server's response to a successful app staging
