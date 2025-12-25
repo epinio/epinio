@@ -179,3 +179,38 @@ tolerations: []
   #   effect: "NoSchedule"
 ```
 
+### Trigger-Time Staging Configuration Overrides
+
+Starting from version 1.14 (or current development), you can override staging workload configurations at build trigger-time through the `StageRequest` API. This allows per-build customization without modifying the base ConfigMap configuration.
+
+The `stagingConfig` field in `StageRequest` supports overriding:
+
+- **Resources**: CPU and memory requests/limits
+- **NodeSelector**: Node selection criteria
+- **Tolerations**: Pod tolerations
+- **Affinity**: Pod affinity/anti-affinity rules
+- **TTLSecondsAfterFinished**: Job cleanup time
+- **ServiceAccountName**: Service account to use
+- **Storage**: Cache and source blob storage configuration
+
+**Example:**
+
+```json
+{
+  "app": {"name": "myapp", "namespace": "workspace"},
+  "blobuid": "abc123",
+  "stagingConfig": {
+    "resources": {
+      "requests": {"cpu": "500m", "memory": "2Gi"},
+      "limits": {"cpu": "1000m", "memory": "4Gi"}
+    },
+    "nodeSelector": {"kubernetes.io/os": "linux"},
+    "ttlSecondsAfterFinished": 600
+  }
+}
+```
+
+Override values take precedence over base ConfigMap configuration. Invalid values are logged as warnings and base configuration is used as fallback. The feature is fully backward compatible - existing API calls without `stagingConfig` continue to work unchanged.
+
+See [Staging Configuration Override Guide](docs/howtos/staging_config_override.md) for detailed documentation.
+
