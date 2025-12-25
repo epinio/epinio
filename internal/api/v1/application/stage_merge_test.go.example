@@ -1,0 +1,187 @@
+// Copyright © 2021 - 2023 SUSE LLC
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package application
+
+import (
+	"k8s.io/utils/ptr"
+
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"github.com/go-logr/logr"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+var _ = Describe("mergeStagingConfig", func() {
+	var (
+		base    HelmValuesMap
+		log     logr.Logger
+	)
+
+	BeforeEach(func() {
+		log = logr.Discard() // Use discard logger for tests
+		base = HelmValuesMap{
+			ServiceAccountName: "base-sa",
+			Resources: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("512Mi"),
+				},
+			},
+			NodeSelector: map[string]string{
+				"kubernetes.io/os": "linux",
+			},
+			TTLSecondsAfterFinished: 300,
+		}
+	})
+
+	Describe("ServiceAccountName override", func() {
+		It("overrides base ServiceAccountName when provided", func() {
+			override := &models.StagingConfig{
+				ServiceAccountName: "override-sa",
+			}
+			result := mergeStagingConfig(base, override, log)
+			Expect(result.ServiceAccountName).To(Equal("override-sa"))
+		})
+
+		It("preserves base ServiceAccountName when override is empty", func() {
+			override := &models.StagingConfig{}
+			result := mergeStagingConfig(base, override, log)
+			Expect(result.ServiceAccountName).To(Equal("base-sa"))
+		})
+
+		It("rejects invalid ServiceAccountName format", func() {
+			override := &models.StagingConfig{
+				ServiceAccountName: "INVALID_NAME!", // Invalid: uppercase and special chars
+			}
+			result := mergeStagingConfig(base, override, log)
+			Expect(result.ServiceAccountName).To(Equal("base-sa")) // Falls back to base
+		})
+	})
+
+	Describe("Resources override", func() {
+		It("overrides base resources when valid", func() {
+			override := &models.StagingConfig{
+				Resources: &models.ResourceRequirements{
+					Requests: map[string]string{
+						"cpu":    "500m",
+						"memory": "2Gi",
+					},
+				},
+			}
+			result := mergeStagingConfig(base, override, log)
+			Expect(result.Resources.Requests[corev1.ResourceCPU].String()).To(Equal("500m"))
+			Expect(result.Resources.Requests[corev1.ResourceMemory].String()).To(Equal("2Gi"))
+		})
+
+		It("preserves base resources when all override parsing fails", func() {
+			override := &models.StagingConfig{
+				Resources: &models.ResourceRequirements{
+					Requests: map[string]string{
+						"cpu": "invalid-quantity",
+					},
+				},
+			}
+			result := mergeStagingConfig(base, override, log)
+			// Should preserve base resources
+			Expect(result.Resources.Requests[corev1.ResourceCPU].String()).To(Equal("100m"))
+		})
+
+		It("handles partial resource override (only requests)", func() {
+			base.Resources.Limits = map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceCPU: resource.MustParse("200m"),
+			}
+			override := &models.StagingConfig{
+				Resources: &models.ResourceRequirements{
+					Requests: map[string]string{
+						"cpu": "500m",
+					},
+				},
+			}
+			result := mergeStagingConfig(base, override, log)
+			Expect(result.Resources.Requests[corev1.ResourceCPU].String()).To(Equal("500m"))
+			Expect(result.Resources.Limits[corev1.ResourceCPU].String()).To(Equal("200m")) // Preserved from base
+		})
+	})
+
+	Describe("NodeSelector override", func() {
+		It("completely replaces base NodeSelector", func() {
+			override := &models.StagingConfig{
+				NodeSelector: map[string]string{
+					"node-type": "gpu",
+				},
+			}
+			result := mergeStagingConfig(base, override, log)
+			Expect(result.NodeSelector).To(HaveKeyWithValue("node-type", "gpu"))
+			Expect(result.NodeSelector).NotTo(HaveKey("kubernetes.io/os"))
+		})
+	})
+
+	Describe("TTLSecondsAfterFinished override", func() {
+		It("overrides base TTL when valid", func() {
+			base.TTLSecondsAfterFinished = 300
+			override := &models.StagingConfig{
+				TTLSecondsAfterFinished: ptr.To[int32](600),
+			}
+			result := mergeStagingConfig(base, override, log)
+			Expect(result.TTLSecondsAfterFinished).To(Equal(int32(600)))
+		})
+
+		It("rejects negative TTL values", func() {
+			base.TTLSecondsAfterFinished = 300
+			override := &models.StagingConfig{
+				TTLSecondsAfterFinished: ptr.To[int32](-1),
+			}
+			result := mergeStagingConfig(base, override, log)
+			Expect(result.TTLSecondsAfterFinished).To(Equal(int32(300))) // Preserves base
+		})
+	})
+
+	Describe("AccessModes validation", func() {
+		It("validates and uses valid AccessModes", func() {
+			override := &models.StagingConfig{
+				Storage: &models.StagingStorageConfig{
+					SourceBlobs: &models.StagingStorageValues{
+						AccessModes: []string{"ReadWriteOnce", "ReadOnlyMany"},
+					},
+				},
+			}
+			result := mergeStagingConfig(base, override, log)
+			Expect(result.Storage.SourceBlobs.AccessModes).To(HaveLen(2))
+			Expect(result.Storage.SourceBlobs.AccessModes[0]).To(Equal(corev1.ReadWriteOnce))
+		})
+
+		It("rejects invalid AccessModes", func() {
+			override := &models.StagingConfig{
+				Storage: &models.StagingStorageConfig{
+					SourceBlobs: &models.StagingStorageValues{
+						AccessModes: []string{"InvalidMode", "ReadWriteOnce"},
+					},
+				},
+			}
+			result := mergeStagingConfig(base, override, log)
+			// Should only have the valid one
+			Expect(result.Storage.SourceBlobs.AccessModes).To(HaveLen(1))
+			Expect(result.Storage.SourceBlobs.AccessModes[0]).To(Equal(corev1.ReadWriteOnce))
+		})
+	})
+
+	Describe("No override provided", func() {
+		It("returns base configuration unchanged", func() {
+			result := mergeStagingConfig(base, nil, log)
+			Expect(result).To(Equal(base))
+		})
+	})
+})
+
