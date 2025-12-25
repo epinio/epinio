@@ -176,21 +176,258 @@ func getAffinityPointer(affinity corev1.Affinity) *corev1.Affinity {
     return &affinity
 }
 
-// mergeStagingConfig merges base staging configuration with trigger-time overrides.
-// The override takes precedence over the base configuration for any provided fields.
-// Merge semantics:
-//   - Scalar fields (ServiceAccountName, TTLSecondsAfterFinished): Override replaces base if provided
-//   - Maps (NodeSelector): Override completely replaces base (not merged)
-//   - Arrays (Tolerations, AccessModes): Override replaces base if provided and non-empty
-//   - Structs (Resources, Storage, Affinity): Fields are merged, override values take precedence
-//   - Empty arrays/maps in override are treated as "not provided" and base values are preserved
-func mergeStagingConfig(base HelmValuesMap, override *models.StagingConfig, log logr.Logger) HelmValuesMap {
-    if override == nil {
-        return base
+// mergeStorageValues merges base storage configuration with override values.
+// Returns the merged storage values and a log message key.
+func mergeStorageValues(base StagingStorageValues, override *models.StagingStorageValues, log logr.Logger, storageName string) StagingStorageValues {
+    result := base
+    
+    if override.Size != "" {
+        result.Size = override.Size
+    }
+    if override.StorageClassName != "" {
+        result.StorageClassName = override.StorageClassName
+    }
+    if override.VolumeMode != "" {
+        // Validate VolumeMode - Kubernetes accepts "Filesystem" or "Block"
+        volumeMode := corev1.PersistentVolumeMode(override.VolumeMode)
+        if volumeMode != corev1.PersistentVolumeFilesystem && volumeMode != corev1.PersistentVolumeBlock {
+            log.Info("staging config override", "warning", fmt.Sprintf("invalid VolumeMode: %s (expected Filesystem or Block), using base configuration", override.VolumeMode))
+        } else {
+            result.VolumeMode = volumeMode
+        }
+    }
+    // AccessModes: Empty array is treated as "not provided", base values are preserved
+    // Valid values: ReadWriteOnce, ReadOnlyMany, ReadWriteMany
+    if len(override.AccessModes) > 0 {
+        accessModes := make([]corev1.PersistentVolumeAccessMode, 0, len(override.AccessModes))
+        var invalidModes []string
+        validModes := map[string]bool{
+            string(corev1.ReadWriteOnce): true,
+            string(corev1.ReadOnlyMany): true,
+            string(corev1.ReadWriteMany): true,
+        }
+        for _, mode := range override.AccessModes {
+            if validModes[mode] {
+                accessModes = append(accessModes, corev1.PersistentVolumeAccessMode(mode))
+            } else {
+                invalidModes = append(invalidModes, mode)
+            }
+        }
+        if len(invalidModes) > 0 {
+            log.Info("staging config override", "warning", fmt.Sprintf("invalid AccessModes for %s: %v (valid values: ReadWriteOnce, ReadOnlyMany, ReadWriteMany), skipping invalid modes", storageName, invalidModes))
+        }
+        if len(accessModes) > 0 {
+            result.AccessModes = accessModes
+        } else {
+            log.Info("staging config override", "warning", fmt.Sprintf("all AccessModes for %s were invalid, using base configuration", storageName))
+        }
+    }
+    if override.EmptyDir != nil {
+        result.EmptyDir = *override.EmptyDir
+    }
+    
+    return result
+}
+
+// mergeServiceAccount merges the ServiceAccountName override.
+func mergeServiceAccount(result *HelmValuesMap, override *models.StagingConfig, log logr.Logger) {
+    if override.ServiceAccountName != "" {
+        errorMsgs := validation.IsDNS1123Subdomain(override.ServiceAccountName)
+        if len(errorMsgs) > 0 {
+            log.Info("staging config override", "warning", fmt.Sprintf("invalid ServiceAccountName '%s': %s, using base configuration", override.ServiceAccountName, strings.Join(errorMsgs, "; ")))
+        } else {
+            result.ServiceAccountName = override.ServiceAccountName
+            log.Info("staging config override", "serviceAccountName", override.ServiceAccountName)
+        }
+    }
+}
+
+// mergeNodeSelector merges the NodeSelector override.
+func mergeNodeSelector(result *HelmValuesMap, override *models.StagingConfig, log logr.Logger) {
+    if len(override.NodeSelector) > 0 {
+        // Create a copy to avoid sharing the reference with the override
+        result.NodeSelector = make(map[string]string, len(override.NodeSelector))
+        for k, v := range override.NodeSelector {
+            result.NodeSelector[k] = v
+        }
+        log.Info("staging config override", "nodeSelector", override.NodeSelector)
+    }
+}
+
+// mergeTolerations merges the Tolerations override.
+func mergeTolerations(result *HelmValuesMap, override *models.StagingConfig, log logr.Logger) {
+    if len(override.Tolerations) > 0 {
+        tolerations := make([]corev1.Toleration, 0, len(override.Tolerations))
+        var conversionErrors []string
+        for i, tol := range override.Tolerations {
+            // Convert interface{} to Toleration via JSON marshaling/unmarshaling
+            tolBytes, err := json.Marshal(tol)
+            if err != nil {
+                conversionErrors = append(conversionErrors, fmt.Sprintf("toleration[%d]: marshal failed: %v", i, err))
+                continue
+            }
+            var toleration corev1.Toleration
+            if err := json.Unmarshal(tolBytes, &toleration); err != nil {
+                conversionErrors = append(conversionErrors, fmt.Sprintf("toleration[%d]: unmarshal failed: %v", i, err))
+                continue
+            }
+            tolerations = append(tolerations, toleration)
+        }
+        if len(conversionErrors) > 0 {
+            log.Info("staging config override", "warning", fmt.Sprintf("failed to convert %d toleration(s): %v", len(conversionErrors), conversionErrors))
+        }
+        if len(tolerations) > 0 {
+            result.Tolerations = tolerations
+            log.Info("staging config override", "tolerations", len(tolerations))
+        } else if len(conversionErrors) > 0 {
+            // All tolerations failed conversion, warn but keep base values
+            log.Info("staging config override", "warning", "all tolerations failed conversion, using base configuration")
+        }
+    }
+}
+
+// mergeAffinity merges the Affinity override.
+func mergeAffinity(result *HelmValuesMap, override *models.StagingConfig, log logr.Logger) {
+    if len(override.Affinity) > 0 {
+        affinityBytes, err := json.Marshal(override.Affinity)
+        if err != nil {
+            log.Info("staging config override", "warning", fmt.Sprintf("failed to marshal affinity: %v, using base configuration", err))
+        } else {
+            var affinity corev1.Affinity
+            if err := json.Unmarshal(affinityBytes, &affinity); err != nil {
+                log.Info("staging config override", "warning", fmt.Sprintf("failed to unmarshal affinity: %v, using base configuration", err))
+            } else {
+                result.Affinity = affinity
+                log.Info("staging config override", "affinity", "provided")
+            }
+        }
+    }
+}
+
+// mergeResources merges the Resources override.
+func mergeResources(result *HelmValuesMap, override *models.StagingConfig, log logr.Logger) {
+    if override.Resources == nil {
+        return
+    }
+    
+    resources := corev1.ResourceRequirements{}
+    var parseErrors []string
+    var allRequestsFailed, allLimitsFailed bool
+    
+    // Convert requests
+    if len(override.Resources.Requests) > 0 {
+        requests := make(map[corev1.ResourceName]resource.Quantity)
+        totalRequests := len(override.Resources.Requests)
+        for key, value := range override.Resources.Requests {
+            qty, err := resource.ParseQuantity(value)
+            if err == nil {
+                requests[corev1.ResourceName(key)] = qty
+            } else {
+                parseErrors = append(parseErrors, fmt.Sprintf("request %s=%s: %v", key, value, err))
+            }
+        }
+        allRequestsFailed = len(requests) == 0 && totalRequests > 0
+        if len(parseErrors) > 0 {
+            successfulCount := totalRequests - len(parseErrors)
+            if successfulCount > 0 {
+                log.Info("staging config override", "warning", fmt.Sprintf("failed to parse %d of %d resource request(s): %v (using %d valid request(s))", len(parseErrors), totalRequests, parseErrors, successfulCount))
+            } else {
+                log.Info("staging config override", "warning", fmt.Sprintf("failed to parse %d resource request(s): %v", len(parseErrors), parseErrors))
+                log.Info("staging config override", "warning", "all resource requests failed to parse, using base configuration for requests")
+            }
+            parseErrors = nil // Reset for limits
+        }
+        if !allRequestsFailed {
+            resources.Requests = requests
+        } else if result.Resources.Requests != nil {
+            // Use already-copied result to avoid sharing reference with base
+            resources.Requests = result.Resources.Requests
+        }
+    } else if result.Resources.Requests != nil {
+        // Use already-copied result to avoid sharing reference with base
+        resources.Requests = result.Resources.Requests
     }
 
-    // Deep copy to prevent mutating the base configuration
-    // Maps and slices need to be copied to avoid shared references
+    // Convert limits
+    if len(override.Resources.Limits) > 0 {
+        limits := make(map[corev1.ResourceName]resource.Quantity)
+        totalLimits := len(override.Resources.Limits)
+        for key, value := range override.Resources.Limits {
+            qty, err := resource.ParseQuantity(value)
+            if err == nil {
+                limits[corev1.ResourceName(key)] = qty
+            } else {
+                parseErrors = append(parseErrors, fmt.Sprintf("limit %s=%s: %v", key, value, err))
+            }
+        }
+        allLimitsFailed = len(limits) == 0 && totalLimits > 0
+        if len(parseErrors) > 0 {
+            successfulCount := totalLimits - len(parseErrors)
+            if successfulCount > 0 {
+                log.Info("staging config override", "warning", fmt.Sprintf("failed to parse %d of %d resource limit(s): %v (using %d valid limit(s))", len(parseErrors), totalLimits, parseErrors, successfulCount))
+            } else {
+                log.Info("staging config override", "warning", fmt.Sprintf("failed to parse %d resource limit(s): %v", len(parseErrors), parseErrors))
+                log.Info("staging config override", "warning", "all resource limits failed to parse, using base configuration for limits")
+            }
+        }
+        if !allLimitsFailed {
+            resources.Limits = limits
+        } else if result.Resources.Limits != nil {
+            // Use already-copied result to avoid sharing reference with base
+            resources.Limits = result.Resources.Limits
+        }
+    } else if result.Resources.Limits != nil {
+        // Use already-copied result to avoid sharing reference with base
+        resources.Limits = result.Resources.Limits
+    }
+
+    // Final assignment: use merged resources if valid, otherwise preserve base
+    if allRequestsFailed && allLimitsFailed {
+        // All override resources failed to parse, explicitly preserve base
+        log.Info("staging config override", "warning", "all override resources (requests and limits) failed to parse, using base configuration")
+        // result.Resources already contains the copied base resources, no need to reassign
+    } else if len(resources.Requests) > 0 || len(resources.Limits) > 0 {
+        // Some or all override resources are valid, use merged resources
+        result.Resources = resources
+        log.Info("staging config override", "resources", "provided")
+    }
+    // If both override and base are empty, result.Resources remains zero value (correct)
+}
+
+// mergeTTL merges the TTLSecondsAfterFinished override.
+func mergeTTL(result *HelmValuesMap, override *models.StagingConfig, log logr.Logger) {
+    if override.TTLSecondsAfterFinished != nil {
+        ttl := *override.TTLSecondsAfterFinished
+        if ttl < 0 {
+            log.Info("staging config override", "warning", fmt.Sprintf("invalid TTLSecondsAfterFinished: %d (must be >= 0), using base configuration", ttl))
+        } else {
+            result.TTLSecondsAfterFinished = ttl
+            log.Info("staging config override", "ttlSecondsAfterFinished", ttl)
+        }
+    }
+}
+
+// mergeStorage merges the Storage override.
+func mergeStorage(result *HelmValuesMap, override *models.StagingConfig, log logr.Logger) {
+    if override.Storage == nil {
+        return
+    }
+    
+    // Merge SourceBlobs storage
+    if override.Storage.SourceBlobs != nil {
+        result.Storage.SourceBlobs = mergeStorageValues(result.Storage.SourceBlobs, override.Storage.SourceBlobs, log, "sourceBlobs")
+        log.Info("staging config override", "storage.sourceBlobs", "provided")
+    }
+
+    // Merge Cache storage
+    if override.Storage.Cache != nil {
+        result.Storage.Cache = mergeStorageValues(result.Storage.Cache, override.Storage.Cache, log, "cache")
+        log.Info("staging config override", "storage.cache", "provided")
+    }
+}
+
+// deepCopyHelmValuesMap creates a deep copy of the HelmValuesMap to prevent mutating the base configuration.
+func deepCopyHelmValuesMap(base HelmValuesMap) HelmValuesMap {
     result := base
     
     // Deep copy NodeSelector map
@@ -230,295 +467,34 @@ func mergeStagingConfig(base HelmValuesMap, override *models.StagingConfig, log 
         result.Storage.Cache.AccessModes = make([]corev1.PersistentVolumeAccessMode, len(base.Storage.Cache.AccessModes))
         copy(result.Storage.Cache.AccessModes, base.Storage.Cache.AccessModes)
     }
+    
+    return result
+}
 
-    // Merge ServiceAccountName
-    // Note: ServiceAccountName must follow DNS-1123 subdomain format (lowercase alphanumeric,
-    // hyphens, dots, max 253 chars, must start and end with alphanumeric).
-    if override.ServiceAccountName != "" {
-        errorMsgs := validation.IsDNS1123Subdomain(override.ServiceAccountName)
-        if len(errorMsgs) > 0 {
-            log.Info("staging config override", "warning", fmt.Sprintf("invalid ServiceAccountName '%s': %s, using base configuration", override.ServiceAccountName, strings.Join(errorMsgs, "; ")))
-        } else {
-            result.ServiceAccountName = override.ServiceAccountName
-            log.Info("staging config override", "serviceAccountName", override.ServiceAccountName)
-        }
+// mergeStagingConfig merges base staging configuration with trigger-time overrides.
+// The override takes precedence over the base configuration for any provided fields.
+// Merge semantics:
+//   - Scalar fields (ServiceAccountName, TTLSecondsAfterFinished): Override replaces base if provided
+//   - Maps (NodeSelector): Override completely replaces base (not merged)
+//   - Arrays (Tolerations, AccessModes): Override replaces base if provided and non-empty
+//   - Structs (Resources, Storage, Affinity): Fields are merged, override values take precedence
+//   - Empty arrays/maps in override are treated as "not provided" and base values are preserved
+func mergeStagingConfig(base HelmValuesMap, override *models.StagingConfig, log logr.Logger) HelmValuesMap {
+    if override == nil {
+        return base
     }
 
-    // Merge NodeSelector
-    // Note: NodeSelector is completely replaced (not merged) when provided.
-    // Empty map is treated as "not provided" and base values are preserved.
-    if override.NodeSelector != nil && len(override.NodeSelector) > 0 {
-        // Create a copy to avoid sharing the reference with the override
-        result.NodeSelector = make(map[string]string, len(override.NodeSelector))
-        for k, v := range override.NodeSelector {
-            result.NodeSelector[k] = v
-        }
-        log.Info("staging config override", "nodeSelector", override.NodeSelector)
-    }
+    // Deep copy to prevent mutating the base configuration
+    result := deepCopyHelmValuesMap(base)
 
-    // Merge Tolerations
-    // Note: Empty array in override is treated as "not provided" and base values are preserved.
-    // To clear tolerations, explicitly set them to an empty array in the base config.
-    if override.Tolerations != nil && len(override.Tolerations) > 0 {
-        tolerations := make([]corev1.Toleration, 0, len(override.Tolerations))
-        var conversionErrors []string
-        for i, tol := range override.Tolerations {
-            // Convert interface{} to Toleration via JSON marshaling/unmarshaling
-            tolBytes, err := json.Marshal(tol)
-            if err != nil {
-                conversionErrors = append(conversionErrors, fmt.Sprintf("toleration[%d]: marshal failed: %v", i, err))
-                continue
-            }
-            var toleration corev1.Toleration
-            if err := json.Unmarshal(tolBytes, &toleration); err != nil {
-                conversionErrors = append(conversionErrors, fmt.Sprintf("toleration[%d]: unmarshal failed: %v", i, err))
-                continue
-            }
-            tolerations = append(tolerations, toleration)
-        }
-        if len(conversionErrors) > 0 {
-            log.Info("staging config override", "warning", fmt.Sprintf("failed to convert %d toleration(s): %v", len(conversionErrors), conversionErrors))
-        }
-        if len(tolerations) > 0 {
-            result.Tolerations = tolerations
-            log.Info("staging config override", "tolerations", len(tolerations))
-        } else if len(conversionErrors) > 0 {
-            // All tolerations failed conversion, warn but keep base values
-            log.Info("staging config override", "warning", "all tolerations failed conversion, using base configuration")
-        }
-    }
-
-    // Merge Affinity
-    if override.Affinity != nil && len(override.Affinity) > 0 {
-        affinityBytes, err := json.Marshal(override.Affinity)
-        if err != nil {
-            log.Info("staging config override", "warning", fmt.Sprintf("failed to marshal affinity: %v, using base configuration", err))
-        } else {
-            var affinity corev1.Affinity
-            if err := json.Unmarshal(affinityBytes, &affinity); err != nil {
-                log.Info("staging config override", "warning", fmt.Sprintf("failed to unmarshal affinity: %v, using base configuration", err))
-            } else {
-                result.Affinity = affinity
-                log.Info("staging config override", "affinity", "provided")
-            }
-        }
-    }
-
-    // Merge Resources
-    // Note: Partial overrides are supported - if only Requests or Limits are provided,
-    // the other is preserved from base configuration.
-    if override.Resources != nil {
-        resources := corev1.ResourceRequirements{}
-        var parseErrors []string
-        var allRequestsFailed, allLimitsFailed bool
-        
-        // Convert requests
-        if override.Resources.Requests != nil && len(override.Resources.Requests) > 0 {
-            requests := make(map[corev1.ResourceName]resource.Quantity)
-            totalRequests := len(override.Resources.Requests)
-            for key, value := range override.Resources.Requests {
-                qty, err := resource.ParseQuantity(value)
-                if err == nil {
-                    requests[corev1.ResourceName(key)] = qty
-                } else {
-                    parseErrors = append(parseErrors, fmt.Sprintf("request %s=%s: %v", key, value, err))
-                }
-            }
-            allRequestsFailed = len(requests) == 0 && totalRequests > 0
-            if len(parseErrors) > 0 {
-                successfulCount := totalRequests - len(parseErrors)
-                if successfulCount > 0 {
-                    log.Info("staging config override", "warning", fmt.Sprintf("failed to parse %d of %d resource request(s): %v (using %d valid request(s))", len(parseErrors), totalRequests, parseErrors, successfulCount))
-                } else {
-                    log.Info("staging config override", "warning", fmt.Sprintf("failed to parse %d resource request(s): %v", len(parseErrors), parseErrors))
-                    log.Info("staging config override", "warning", "all resource requests failed to parse, using base configuration for requests")
-                }
-                parseErrors = nil // Reset for limits
-            }
-            if !allRequestsFailed {
-                resources.Requests = requests
-            } else if result.Resources.Requests != nil {
-                // Use already-copied result to avoid sharing reference with base
-                resources.Requests = result.Resources.Requests
-            }
-        } else if result.Resources.Requests != nil {
-            // Use already-copied result to avoid sharing reference with base
-            resources.Requests = result.Resources.Requests
-        }
-
-        // Convert limits
-        if override.Resources.Limits != nil && len(override.Resources.Limits) > 0 {
-            limits := make(map[corev1.ResourceName]resource.Quantity)
-            totalLimits := len(override.Resources.Limits)
-            for key, value := range override.Resources.Limits {
-                qty, err := resource.ParseQuantity(value)
-                if err == nil {
-                    limits[corev1.ResourceName(key)] = qty
-                } else {
-                    parseErrors = append(parseErrors, fmt.Sprintf("limit %s=%s: %v", key, value, err))
-                }
-            }
-            allLimitsFailed = len(limits) == 0 && totalLimits > 0
-            if len(parseErrors) > 0 {
-                successfulCount := totalLimits - len(parseErrors)
-                if successfulCount > 0 {
-                    log.Info("staging config override", "warning", fmt.Sprintf("failed to parse %d of %d resource limit(s): %v (using %d valid limit(s))", len(parseErrors), totalLimits, parseErrors, successfulCount))
-                } else {
-                    log.Info("staging config override", "warning", fmt.Sprintf("failed to parse %d resource limit(s): %v", len(parseErrors), parseErrors))
-                    log.Info("staging config override", "warning", "all resource limits failed to parse, using base configuration for limits")
-                }
-            }
-            if !allLimitsFailed {
-                resources.Limits = limits
-            } else if result.Resources.Limits != nil {
-                // Use already-copied result to avoid sharing reference with base
-                resources.Limits = result.Resources.Limits
-            }
-        } else if result.Resources.Limits != nil {
-            // Use already-copied result to avoid sharing reference with base
-            resources.Limits = result.Resources.Limits
-        }
-
-        // Final assignment: use merged resources if valid, otherwise preserve base
-        if allRequestsFailed && allLimitsFailed {
-            // All override resources failed to parse, explicitly preserve base
-            log.Info("staging config override", "warning", "all override resources (requests and limits) failed to parse, using base configuration")
-            // result.Resources already contains the copied base resources, no need to reassign
-        } else if len(resources.Requests) > 0 || len(resources.Limits) > 0 {
-            // Some or all override resources are valid, use merged resources
-            result.Resources = resources
-            log.Info("staging config override", "resources", "provided")
-        } else {
-            // Override provided but empty/nil, preserve base resources
-            // result.Resources already contains the copied base resources, no need to reassign
-        }
-        // If both override and base are empty, result.Resources remains zero value (correct)
-    }
-
-    // Merge TTLSecondsAfterFinished
-    // Note: Values < 0 are invalid. Value 0 means no TTL (handled by getTTLPointer returning nil).
-    // Negative values are treated as invalid and logged as a warning.
-    if override.TTLSecondsAfterFinished != nil {
-        ttl := *override.TTLSecondsAfterFinished
-        if ttl < 0 {
-            log.Info("staging config override", "warning", fmt.Sprintf("invalid TTLSecondsAfterFinished: %d (must be >= 0), using base configuration", ttl))
-        } else {
-            result.TTLSecondsAfterFinished = ttl
-            log.Info("staging config override", "ttlSecondsAfterFinished", ttl)
-        }
-    }
-
-    // Merge Storage
-    // Note: Storage fields are merged individually. Empty arrays in AccessModes are treated
-    // as "not provided" and base values are preserved. To clear AccessModes, set them
-    // to an empty array in the base configuration.
-    if override.Storage != nil {
-        // Merge SourceBlobs storage
-        if override.Storage.SourceBlobs != nil {
-            // Use the already-copied result storage to avoid mutating base
-            sourceBlobs := result.Storage.SourceBlobs
-            if override.Storage.SourceBlobs.Size != "" {
-                sourceBlobs.Size = override.Storage.SourceBlobs.Size
-            }
-            if override.Storage.SourceBlobs.StorageClassName != "" {
-                sourceBlobs.StorageClassName = override.Storage.SourceBlobs.StorageClassName
-            }
-            if override.Storage.SourceBlobs.VolumeMode != "" {
-                // Validate VolumeMode - Kubernetes accepts "Filesystem" or "Block"
-                volumeMode := corev1.PersistentVolumeMode(override.Storage.SourceBlobs.VolumeMode)
-                if volumeMode != corev1.PersistentVolumeFilesystem && volumeMode != corev1.PersistentVolumeBlock {
-                    log.Info("staging config override", "warning", fmt.Sprintf("invalid VolumeMode: %s (expected Filesystem or Block), using base configuration", override.Storage.SourceBlobs.VolumeMode))
-                } else {
-                    sourceBlobs.VolumeMode = volumeMode
-                }
-            }
-            // AccessModes: Empty array is treated as "not provided", base values are preserved
-            // Valid values: ReadWriteOnce, ReadOnlyMany, ReadWriteMany
-            if override.Storage.SourceBlobs.AccessModes != nil && len(override.Storage.SourceBlobs.AccessModes) > 0 {
-                accessModes := make([]corev1.PersistentVolumeAccessMode, 0, len(override.Storage.SourceBlobs.AccessModes))
-                var invalidModes []string
-                validModes := map[string]bool{
-                    string(corev1.ReadWriteOnce): true,
-                    string(corev1.ReadOnlyMany): true,
-                    string(corev1.ReadWriteMany): true,
-                }
-                for _, mode := range override.Storage.SourceBlobs.AccessModes {
-                    modeStr := string(mode)
-                    if validModes[modeStr] {
-                        accessModes = append(accessModes, corev1.PersistentVolumeAccessMode(mode))
-                    } else {
-                        invalidModes = append(invalidModes, modeStr)
-                    }
-                }
-                if len(invalidModes) > 0 {
-                    log.Info("staging config override", "warning", fmt.Sprintf("invalid AccessModes for sourceBlobs: %v (valid values: ReadWriteOnce, ReadOnlyMany, ReadWriteMany), skipping invalid modes", invalidModes))
-                }
-                if len(accessModes) > 0 {
-                    sourceBlobs.AccessModes = accessModes
-                } else {
-                    log.Info("staging config override", "warning", "all AccessModes for sourceBlobs were invalid, using base configuration")
-                }
-            }
-            if override.Storage.SourceBlobs.EmptyDir != nil {
-                sourceBlobs.EmptyDir = *override.Storage.SourceBlobs.EmptyDir
-            }
-            result.Storage.SourceBlobs = sourceBlobs
-            log.Info("staging config override", "storage.sourceBlobs", "provided")
-        }
-
-        // Merge Cache storage
-        if override.Storage.Cache != nil {
-            // Use the already-copied result storage to avoid mutating base
-            cache := result.Storage.Cache
-            if override.Storage.Cache.Size != "" {
-                cache.Size = override.Storage.Cache.Size
-            }
-            if override.Storage.Cache.StorageClassName != "" {
-                cache.StorageClassName = override.Storage.Cache.StorageClassName
-            }
-            if override.Storage.Cache.VolumeMode != "" {
-                // Validate VolumeMode - Kubernetes accepts "Filesystem" or "Block"
-                volumeMode := corev1.PersistentVolumeMode(override.Storage.Cache.VolumeMode)
-                if volumeMode != corev1.PersistentVolumeFilesystem && volumeMode != corev1.PersistentVolumeBlock {
-                    log.Info("staging config override", "warning", fmt.Sprintf("invalid VolumeMode: %s (expected Filesystem or Block), using base configuration", override.Storage.Cache.VolumeMode))
-                } else {
-                    cache.VolumeMode = volumeMode
-                }
-            }
-            // AccessModes: Empty array is treated as "not provided", base values are preserved
-            // Valid values: ReadWriteOnce, ReadOnlyMany, ReadWriteMany
-            if override.Storage.Cache.AccessModes != nil && len(override.Storage.Cache.AccessModes) > 0 {
-                accessModes := make([]corev1.PersistentVolumeAccessMode, 0, len(override.Storage.Cache.AccessModes))
-                var invalidModes []string
-                validModes := map[string]bool{
-                    string(corev1.ReadWriteOnce): true,
-                    string(corev1.ReadOnlyMany): true,
-                    string(corev1.ReadWriteMany): true,
-                }
-                for _, mode := range override.Storage.Cache.AccessModes {
-                    modeStr := string(mode)
-                    if validModes[modeStr] {
-                        accessModes = append(accessModes, corev1.PersistentVolumeAccessMode(mode))
-                    } else {
-                        invalidModes = append(invalidModes, modeStr)
-                    }
-                }
-                if len(invalidModes) > 0 {
-                    log.Info("staging config override", "warning", fmt.Sprintf("invalid AccessModes for cache: %v (valid values: ReadWriteOnce, ReadOnlyMany, ReadWriteMany), skipping invalid modes", invalidModes))
-                }
-                if len(accessModes) > 0 {
-                    cache.AccessModes = accessModes
-                } else {
-                    log.Info("staging config override", "warning", "all AccessModes for cache were invalid, using base configuration")
-                }
-            }
-            if override.Storage.Cache.EmptyDir != nil {
-                cache.EmptyDir = *override.Storage.Cache.EmptyDir
-            }
-            result.Storage.Cache = cache
-            log.Info("staging config override", "storage.cache", "provided")
-        }
-    }
+    // Merge each configuration section
+    mergeServiceAccount(&result, override, log)
+    mergeNodeSelector(&result, override, log)
+    mergeTolerations(&result, override, log)
+    mergeAffinity(&result, override, log)
+    mergeResources(&result, override, log)
+    mergeTTL(&result, override, log)
+    mergeStorage(&result, override, log)
 
     return result
 }
