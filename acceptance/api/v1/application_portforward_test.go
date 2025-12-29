@@ -18,7 +18,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
@@ -26,9 +25,8 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/httpstream"
-	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
-	gospdy "k8s.io/client-go/transport/spdy"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -172,15 +170,28 @@ func setupConnection(namespace, appName, instance string) (httpstream.Connection
 	values.Add("authtoken", token)
 	portForwardURL.RawQuery = values.Encode()
 
-	// we need to use the spdy client to handle this connection
-	upgradeRoundTripper, err := client.NewUpgrader(spdy.RoundTripperConfig{
-		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
-		PingPeriod: time.Second * 5,
-	})
+	// Create rest.Config for WebSocket connection
+	baseURL, err := url.Parse(serverURL)
 	Expect(err).ToNot(HaveOccurred())
 
-	dialer := gospdy.NewDialer(upgradeRoundTripper, &http.Client{Transport: upgradeRoundTripper}, "GET", portForwardURL)
-	conn, _, err := dialer.Dial(portforward.PortForwardProtocolV1Name)
+	restConfig := &rest.Config{
+		Host:    baseURL.Host,
+		APIPath: baseURL.Path,
+	}
+
+	// Set TLS config from default transport
+	if httpTransport, ok := http.DefaultTransport.(*http.Transport); ok && httpTransport.TLSClientConfig != nil {
+		restConfig.TLSClientConfig = rest.TLSClientConfig{
+			Insecure: httpTransport.TLSClientConfig.InsecureSkipVerify,
+		}
+		if httpTransport.TLSClientConfig.ServerName != "" {
+			restConfig.TLSClientConfig.ServerName = httpTransport.TLSClientConfig.ServerName
+		}
+	}
+
+	// Use WebSocket dialer instead of SPDY
+	wsDialer := client.NewWebSocketDialer(restConfig, "GET", portForwardURL)
+	conn, _, err := wsDialer.Dial(portforward.PortForwardProtocolV1Name)
 
 	return conn, err
 }
