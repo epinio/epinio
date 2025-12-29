@@ -824,9 +824,8 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 
 	log.V(1).Info("wait for job", "StageID", stageID)
 
-	// blocking function that wait until the staging is done
-	err = stagingWithRetry(log.V(1), c.API, app.Meta.Namespace, stageID)
-	if err != nil {
+	// Prefer websocket streaming for completion, fallback to HTTP poll if unavailable.
+	if err := stagingWait(log.V(1), c.API, app.Meta.Namespace, stageID); err != nil {
 		return err
 	}
 
@@ -881,6 +880,38 @@ func stagingWithRetry(logger logr.Logger, apiClient APIClient, namespace, stageI
 		retry.Delay(time.Second),
 		retry.Attempts(duration.RetryMax),
 	)
+}
+
+func stagingWait(logger logr.Logger, apiClient APIClient, namespace, stageID string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	wsErr := apiClient.StagingCompleteStream(ctx, namespace, stageID, func(event models.StageCompleteEvent) error {
+		logger.Info("staging status", "stageID", stageID, "status", event.Status, "message", event.Message)
+
+		if !event.Completed {
+			return nil
+		}
+
+		switch event.Status {
+		case models.StageStatusSucceeded:
+			return nil
+		case models.StageStatusFailed, models.StageStatusError:
+			if event.Message != "" {
+				return errors.New(event.Message)
+			}
+			return errors.New("staging failed")
+		default:
+			return nil
+		}
+	})
+
+	if wsErr == nil {
+		return nil
+	}
+
+	logger.Info("staging websocket unavailable, falling back to HTTP poll", "error", wsErr.Error())
+	return stagingWithRetry(logger, apiClient, namespace, stageID)
 }
 
 func formatRoutes(routes []string) string {

@@ -60,6 +60,7 @@ type APIClient interface {
 	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
 	AppLogs(namespace, appName, stageID string, follow bool, options *client.LogOptions, callback func(tailer.ContainerLogLine)) error
 	StagingComplete(namespace string, id string) (models.Response, error)
+	StagingCompleteStream(ctx context.Context, namespace, id string, callback func(models.StageCompleteEvent) error) error
 	AppRunning(app models.AppRef) (models.Response, error)
 	AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error
 	AppPortForward(namespace string, appName, instance string, opts *client.PortForwardOpts) error
