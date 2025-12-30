@@ -482,7 +482,7 @@ func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credenti
 
 	// First, list all tags for this repository so we can delete them all
 	// This ensures complete removal of the repository from the catalog
-	allTags, err := listRepositoryTags(ctx, log, scheme, registryURL, repository, auth, client)
+	allTags, err := listRepositoryTags(ctx, scheme, registryURL, repository, auth, client)
 	if err != nil {
 		log.Info("Could not list tags for repository, will delete only the specified tag", 
 			"repository", repository, 
@@ -519,7 +519,7 @@ func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credenti
 }
 
 // listRepositoryTags lists all tags for a repository
-func listRepositoryTags(ctx context.Context, log logr.Logger, scheme, registryURL, repository, auth string, client *http.Client) ([]string, error) {
+func listRepositoryTags(ctx context.Context, scheme, registryURL, repository, auth string, client *http.Client) ([]string, error) {
 	tagsListURL := fmt.Sprintf("%s://%s/v2/%s/tags/list", scheme, registryURL, repository)
 	
 	listReq, err := http.NewRequestWithContext(ctx, http.MethodGet, tagsListURL, nil)
