@@ -56,6 +56,14 @@
     - ChartMatch
     - ChartMatch0
 
+# Allow users to restart an app without write permissions
+- id: app_restart
+  name: App Restart
+  dependsOn:
+    - app_read
+  routes:
+    - AppRestart
+
 # App Write
 - id: app_write
   name: App Write
