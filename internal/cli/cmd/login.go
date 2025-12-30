@@ -51,6 +51,13 @@ func NewLoginCmd(client LoginService) *cobra.Command {
 				return err
 			}
 
+			// Check if --skip-ssl-verification flag is set (global/persistent flag)
+			// If set, automatically trust the CA (equivalent to --trust-ca)
+			skipSSLVerification, err := cmd.Root().PersistentFlags().GetBool("skip-ssl-verification")
+			if err == nil && skipSSLVerification {
+				cfg.trustCA = true
+			}
+
 			if cfg.oidc {
 				return client.LoginOIDC(cmd.Context(), address, cfg.trustCA, cfg.prompt)
 			}
