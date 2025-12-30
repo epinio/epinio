@@ -152,7 +152,7 @@ func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, er
 }
 
 // AppDelete deletes an app
-func (c *Client) AppDelete(namespace string, names []string) (models.ApplicationDeleteResponse, error) {
+func (c *Client) AppDelete(namespace string, names []string, deleteImage bool) (models.ApplicationDeleteResponse, error) {
 	response := models.ApplicationDeleteResponse{}
 
 	queryParams := url.Values{}
@@ -166,7 +166,11 @@ func (c *Client) AppDelete(namespace string, names []string) (models.Application
 		queryParams.Encode(),
 	)
 
-	return Delete(c, endpoint, nil, response)
+	request := models.ApplicationDeleteRequest{
+		DeleteImage: deleteImage,
+	}
+
+	return Delete(c, endpoint, request, response)
 }
 
 // AppUpload uploads a tarball for the named app, which is later used in staging
