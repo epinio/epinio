@@ -62,7 +62,7 @@ func (printer LogPrinter) Print(log Log, uiMsg *termui.Message) {
 	var result bytes.Buffer
 	err := printer.Tmpl.Execute(&result, log)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "expanding template failed: %s", err)
+		helpers.Logger.Errorw("expanding template failed", "error", err)
 		return
 	}
 

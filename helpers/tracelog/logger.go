@@ -18,6 +18,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/stdr"
 	"github.com/go-logr/zapr"
@@ -68,8 +69,16 @@ func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 	argToEnv["trace-output"] = "TRACE_OUTPUT"
 }
 
-// NewLogger returns a logger based on the trace-output/trace-file configuration
+// NewLogger returns a logger based on the trace-output/trace-file configuration.
+// It prefers the centralized helpers.Logger when available, falling back to
+// the legacy tracelog configuration for backward compatibility.
 func NewLogger() logr.Logger {
+	// Use centralized Zap logger if available
+	if helpers.Logger != nil {
+		return helpers.LoggerToLogr()
+	}
+	
+	// Fallback to legacy tracelog configuration
 	if TraceOutput() == "json" {
 		return NewZapLogger()
 	}
@@ -78,6 +87,12 @@ func NewLogger() logr.Logger {
 
 // NewStdrLogger returns a stdr logger
 func NewStdrLogger() logr.Logger {
+	// Use centralized Zap logger if available
+	if helpers.Logger != nil {
+		return helpers.LoggerToLogr()
+	}
+	
+	// Fallback to stdr logger only if centralized logger is not available
 	destination := os.Stderr
 	traceFilePath := TraceFile()
 	if traceFilePath != "" {
@@ -100,6 +115,12 @@ func NewStdrLogger() logr.Logger {
 // https://github.com/go-logr/zapr#increasing-verbosity
 
 func NewZapLogger() logr.Logger {
+	// Use centralized Zap logger if available
+	if helpers.Logger != nil {
+		return helpers.LoggerToLogr()
+	}
+	
+	// Fallback to creating a new zap logger only if centralized logger is not available
 	var logger logr.Logger
 
 	level := TraceLevel()

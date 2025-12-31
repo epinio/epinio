@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/pkg/errors"
 	progressbar "github.com/schollz/progressbar/v3"
 )
@@ -66,7 +67,9 @@ func downloadFile(remoteURL, dir string) (string, error) {
 
 	defer func() {
 		if err := tmpFile.Close(); err != nil {
-			fmt.Printf("failed to close temp file: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close temp file", "error", err)
+			}
 		}
 	}()
 
@@ -81,7 +84,9 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("failed to close response body: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close response body", "error", err)
+			}
 		}
 	}()
 
@@ -89,7 +94,9 @@ func downloadFile(remoteURL, dir string) (string, error) {
 		return "", errors.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	fmt.Printf("Downloading file %s\n", remoteURL)
+	if helpers.Logger != nil {
+		helpers.Logger.Infow("Downloading file", "url", remoteURL)
+	}
 	bar := progressbar.DefaultBytes(
 		resp.ContentLength,
 		"Progress",
@@ -137,7 +144,9 @@ func validateFileChecksum(filePath, checksumFileURL, fileNamePattern string) err
 	
 	defer func() {
 		if err := os.RemoveAll(tmpDir); err != nil {
-			fmt.Printf("failed to close temp directory: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to remove temp directory", "error", err)
+			}
 		}
 	}()
 
@@ -172,7 +181,9 @@ func calculateChecksum(filePath string) (string, error) {
 	
 	defer func() {
 		if err := f.Close(); err != nil {
-			fmt.Printf("failed to close file: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close file", "error", err)
+			}
 		}
 	}()
 

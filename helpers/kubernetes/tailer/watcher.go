@@ -50,7 +50,7 @@ func Watch(ctx context.Context, i v1.PodInterface, podFilter *regexp.Regexp,
 	logger.Info("create")
 	watcher, err := i.Watch(ctx, metav1.ListOptions{Watch: true, LabelSelector: labelSelector.String()})
 	if err != nil {
-		fmt.Printf("err.Error() = %+v\n", err.Error())
+		logger.Error(err, "failed to set up watch")
 		return nil, nil, errors.Wrap(err, "failed to set up watch")
 	}
 

@@ -4,12 +4,25 @@ import (
 	"fmt"
 
 	"github.com/fatih/color"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 var Logger *zap.SugaredLogger
+
+// LoggerToLogr converts the centralized Zap logger to a logr.Logger interface.
+// This allows code that uses logr.Logger to use the centralized Zap logger.
+func LoggerToLogr() logr.Logger {
+	if Logger == nil {
+		// Return a no-op logger if Logger hasn't been initialized yet
+		return logr.Discard()
+	}
+	// Convert SugaredLogger back to Logger, then wrap with zapr
+	return zapr.NewLogger(Logger.Desugar())
+}
 
 // Colored level encoder reused from your original file
 func coloredLevelEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {

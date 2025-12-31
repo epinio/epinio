@@ -131,6 +131,11 @@ var CmdServer = &cobra.Command{
 	Long:  "This command starts the Epinio server. `epinio install` ensures the server is running inside your cluster. Normally you don't need to run this command manually.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
+		// Ensure the centralized logger is initialized
+		if err := helpers.InitLogger(); err != nil {
+			return errors.Wrap(err, "initializing logger")
+		}
+		// Use centralized Zap logger converted to logr.Logger
 		logger := tracelog.NewLogger().WithName("EpinioServer")
 
 		handler, err := server.NewHandler(logger)
