@@ -13,11 +13,11 @@ package selfupdater
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"runtime"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/pkg/errors"
 )
 
@@ -47,7 +47,7 @@ func (u PosixUpdater) Update(targetVersion string) error {
 
 	defer func() {
 		if err := os.Remove(tmpFile); err != nil {
-			slog.Error("failed to remove temporary file", "error", err)
+			helpers.Logger.Errorw("failed to remove temporary file", "error", err)
 		}
 	}()
 
@@ -61,7 +61,7 @@ func (u PosixUpdater) Update(targetVersion string) error {
 	if err := os.Rename(tmpFile, binaryInfo.Path); err != nil {
 		linkErr, ok := err.(*os.LinkError)
 		if ok {
-			fmt.Fprintf(os.Stderr, "Cross-device error trying to rename a file: %s -- will do a full copy\n", linkErr)
+			helpers.Logger.Warnw("Cross-device error trying to rename a file, will do a full copy", "error", linkErr)
 			var tempInput []byte
 			tempInput, err = os.ReadFile(tmpFile) //nolint:gosec
 			if err != nil {

@@ -16,8 +16,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -26,6 +24,7 @@ import (
 	"strings"
 
 	api "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/version"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -255,7 +254,7 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 	return func(httpResponse *http.Response) (T, error) {
 		defer func() {
 			if err := httpResponse.Body.Close(); err != nil {
-				slog.Error("failed to close response body", "error", err)
+				helpers.Logger.Errorw("failed to close response body", "error", err)
 			}
 		}()
 
@@ -363,7 +362,7 @@ func (c *Client) handleAuthorization(request *http.Request) error {
 				return errors.Wrap(err, "failed getting token")
 			}
 			if newToken.AccessToken != c.Settings.Token.AccessToken {
-				log.Println("Refreshed expired token.")
+				helpers.Logger.Info("Refreshed expired token.")
 
 				c.Settings.Token.AccessToken = newToken.AccessToken
 				c.Settings.Token.RefreshToken = newToken.RefreshToken
