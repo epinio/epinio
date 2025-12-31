@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -588,7 +589,16 @@ type LogParameters struct {
 }
 
 // then only logs from that staging process are returned.
-func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, app, stageID, namespace string, logParams *LogParameters) error {
+func Logs(
+	ctx context.Context,
+	logChan chan tailer.ContainerLogLine,
+	wg *sync.WaitGroup,
+	cluster *kubernetes.Cluster,
+	app,
+	stageID,
+	namespace string,
+	logParams *LogParameters,
+) error {
 	logger := requestctx.Logger(ctx).WithName("logs-backend").V(2)
 	selector := labels.NewSelector()
 
@@ -648,20 +658,20 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 			// SinceTime takes precedence over Since
 			// Calculate duration from the specified time to now
 			sinceDuration := time.Since(*logParams.SinceTime)
-			
+
 			// If the time is in the future, the duration will be negative
 			// Pass the negative duration to the tailer so it can properly handle it
 			// (by returning no logs)
 			config.Since = sinceDuration
-			
+
 			if sinceDuration < 0 {
-				logger.Info("since_time is in the future, no logs will be returned", 
+				logger.Info("since_time is in the future, no logs will be returned",
 					"since_time", *logParams.SinceTime,
 					"now", time.Now(),
 					"since_duration", sinceDuration)
 			} else {
-				logger.Info("applied since_time parameter", 
-					"since_time", *logParams.SinceTime, 
+				logger.Info("applied since_time parameter",
+					"since_time", *logParams.SinceTime,
 					"since_duration", config.Since)
 			}
 		} else if logParams.Since != nil {
@@ -669,6 +679,12 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 			logger.Info("applied since parameter", "since", *logParams.Since)
 		}
 	}
+
+	helpers.Logger.Info("tailer config",
+		"tail_lines", config.TailLines,
+		"since", config.Since,
+		"since_seconds", int64(config.Since.Seconds()),
+	)
 
 	// Log final config values for debugging
 	logger.Info("final tailer config",

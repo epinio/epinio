@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -41,21 +42,37 @@ const (
 )
 
 type LogParameterUpdate struct {
-	Type   string                    `json:"type"`
-	Params application.LogParameters `json:"params"`
+	Type   string `json:"type"`
+	Params struct {
+		Since     string `json:"since"`
+		SinceTime string `json:"since_time"`
+		Tail      int    `json:"tail"`
+		Follow    bool   `json:"follow"`
+	} `json:"params"`
 }
 
 // parseLogParameters parses and validates log query parameters
-func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
+func parseLogParameters(
+	tailStr,
+	sinceStr,
+	sinceTimeStr string,
+) (*application.LogParameters, error) {
 	params := &application.LogParameters{}
 
 	if tailStr != "" {
 		if tail, err := strconv.ParseInt(tailStr, 10, 64); err == nil {
 			if tail < 0 {
-				return nil, fmt.Errorf("tail parameter must be non-negative, got: %d", tail)
+				return nil, fmt.Errorf(
+					"tail parameter must be non-negative, got: %d",
+					tail,
+				)
 			}
 			if tail > MaxTailLines {
-				return nil, fmt.Errorf("tail parameter exceeds maximum of %d lines, got: %d", MaxTailLines, tail)
+				return nil, fmt.Errorf(
+					"tail parameter exceeds maximum of %d lines, got: %d",
+					MaxTailLines,
+					tail,
+				)
 			}
 			params.Tail = &tail
 		} else {
@@ -66,7 +83,10 @@ func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.Lo
 	if sinceStr != "" {
 		if since, err := time.ParseDuration(sinceStr); err == nil {
 			if since < 0 {
-				return nil, fmt.Errorf("since parameter must be non-negative, got: %s", since)
+				return nil, fmt.Errorf(
+					"since parameter must be non-negative, got: %s",
+					since,
+				)
 			}
 			params.Since = &since
 		} else {
@@ -76,11 +96,14 @@ func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.Lo
 
 	if sinceTimeStr != "" {
 		if sinceTime, err := time.Parse(time.RFC3339, sinceTimeStr); err == nil {
-			// Note: We allow future times here as they will be handled by returning no logs
-			// This is better UX than rejecting the request
+			// Note: We allow future times here as they will be handled by returning
+			// no logs. This is better UX than rejecting the request
 			params.SinceTime = &sinceTime
 		} else {
-			return nil, fmt.Errorf("invalid since_time parameter: %s (must be RFC3339 format)", sinceTimeStr)
+			return nil, fmt.Errorf(
+				"invalid since_time parameter: %s (must be RFC3339 format)",
+				sinceTimeStr,
+			)
 		}
 	}
 
@@ -88,7 +111,11 @@ func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.Lo
 }
 
 // ParseLogParametersForTest is a test helper that exposes parseLogParameters for testing
-func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
+func ParseLogParametersForTest(
+	tailStr,
+	sinceStr,
+	sinceTimeStr string,
+) (*application.LogParameters, error) {
 	return parseLogParameters(tailStr, sinceStr, sinceTimeStr)
 }
 
@@ -140,7 +167,10 @@ func Logs(c *gin.Context) {
 	}
 
 	if appName == "" && stageID == "" {
-		response.Error(c, apierror.NewBadRequestError("you need to specify either the stage id or the app"))
+		response.Error(
+			c,
+			apierror.NewBadRequestError("you need to specify either the stage id or the app"),
+		)
 		return
 	}
 
@@ -250,7 +280,7 @@ func streamPodLogs(
 			}
 
 			if update.Type == "filter_params" {
-				logger.Info("received parameter update", "params", update.Params)
+				helpers.Logger.Info("received parameter update", "params", update.Params)
 
 				// Cancel current log streaming
 				logCancelFunc()
@@ -259,6 +289,19 @@ func streamPodLogs(
 				// Start new streaming with updated parameters
 				logCtx, logCancelFunc = context.WithCancel(ctx)
 				logChan = make(chan tailer.ContainerLogLine)
+
+				parsedParams, parsedParamsError := parseLogParameters(
+					strconv.Itoa(update.Params.Tail),
+					update.Params.Since,
+					update.Params.SinceTime,
+				)
+
+				if parsedParamsError != nil {
+					helpers.Logger.Error(
+						parsedParamsError,
+						"failed to parse updated log parameters",
+					)
+				}
 
 				update.Params.Follow = false
 
@@ -271,7 +314,7 @@ func streamPodLogs(
 					appName,
 					stageID,
 					namespaceName,
-					&update.Params,
+					parsedParams,
 					logger,
 				)
 			}
