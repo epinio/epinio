@@ -12,6 +12,7 @@
 package models_test
 
 import (
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,7 +33,7 @@ var _ = Describe("ApplicationOrigin String()", func() {
 			Path: "/foo",
 		}
 		s := o.String()
-		Expect(s).To(Equal("/foo"))
+		Expect(s).To(Equal(helpers.AbsPath("/foo")))
 	})
 
 	It("correctly stringifies archive path origin", func() {
@@ -42,7 +43,7 @@ var _ = Describe("ApplicationOrigin String()", func() {
 			Path:    "/foo",
 		}
 		s := o.String()
-		Expect(s).To(Equal("/foo (archive)"))
+		Expect(s).To(Equal(helpers.AbsPath("/foo") + " (archive)"))
 	})
 
 	It("correctly stringifies a container origin", func() {
@@ -101,5 +102,27 @@ var _ = Describe("ApplicationOrigin String()", func() {
 		}
 		s := o.String()
 		Expect(s).To(Equal("somewhere @ efi258945kda (on subtotal)"))
+	})
+
+	Describe("NewApplicationUpdateRequest", func() {
+		It("copies ReplaceEnv when set", func() {
+			replace := true
+			m := models.ApplicationManifest{
+				Configuration: models.ApplicationConfiguration{
+					ReplaceEnv: &replace,
+				},
+			}
+
+			update := models.NewApplicationUpdateRequest(m)
+			Expect(update.ReplaceEnv).ToNot(BeNil())
+			Expect(*update.ReplaceEnv).To(BeTrue())
+		})
+
+		It("keeps ReplaceEnv nil when unset", func() {
+			m := models.ApplicationManifest{}
+
+			update := models.NewApplicationUpdateRequest(m)
+			Expect(update.ReplaceEnv).To(BeNil())
+		})
 	})
 })
