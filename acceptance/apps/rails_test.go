@@ -179,12 +179,12 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(route).ToNot(BeEmpty())
 
 		Eventually(func() int {
-			resp, err := env.Curl("GET", route+":8443", strings.NewReader(""))
+			resp, err := env.Curl("GET", route+getPortSuffixFromServerURL(), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			return resp.StatusCode
 		}, 60*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
-		resp, err := env.Curl("GET", route+":8443", strings.NewReader(""))
+		resp, err := env.Curl("GET", route+getPortSuffixFromServerURL(), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)

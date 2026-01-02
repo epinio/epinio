@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -151,4 +152,26 @@ func authToken() (string, error) {
 	err = json.Unmarshal(bodyBytes, &tr)
 
 	return tr.Token, err
+}
+
+// getPortSuffixFromServerURL extracts the port suffix (with colon prefix) from serverURL.
+// Returns the port with a colon prefix, e.g., ":8443" from "https://example.com:8443".
+// Falls back to ":8443" if parsing fails or no port is found.
+func getPortSuffixFromServerURL() string {
+	parsed, err := url.Parse(serverURL)
+	if err != nil {
+		// If parsing fails, return default port
+		return ":8443"
+	}
+
+	port := parsed.Port()
+	if port == "" {
+		// No port specified, return default
+		return ":8443"
+	}
+
+	// Validate that port is numeric (basic check)
+	// Port should be a number, but we'll be lenient and just return it with colon
+	// The actual HTTP request will fail if the port is invalid
+	return ":" + port
 }

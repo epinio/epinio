@@ -13,6 +13,7 @@ package apps_test
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"testing"
 
@@ -62,8 +63,8 @@ var _ = BeforeSuite(func() {
 		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	serverURL = "https://" + out
-	websocketURL = "wss://" + out
+	serverURL = "https://" + out + ":8443"
+	websocketURL = "wss://" + out + ":8443"
 })
 
 var _ = AfterSuite(func() {
@@ -91,3 +92,23 @@ func FailWithReport(message string, callerSkip ...int) {
 	// Ensures the correct line numbers are reported
 	Fail(message, callerSkip[0]+1)
 }
+
+// getPortSuffixFromServerURL extracts the port suffix (with colon prefix) from serverURL.
+// Returns the port with a colon prefix, e.g., ":8443" from "https://example.com:8443".
+// Falls back to ":8443" if parsing fails or no port is found.
+func getPortSuffixFromServerURL() string {
+	parsed, err := url.Parse(serverURL)
+	if err != nil {
+		// If parsing fails, return default port
+		return ":8443"
+	}
+
+	port := parsed.Port()
+	if port == "" {
+		// No port specified, return default
+		return ":8443"
+	}
+
+	return ":" + port
+}
+
