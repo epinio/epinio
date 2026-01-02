@@ -20,6 +20,13 @@ func TestStagingCompleteStreamSuccess(t *testing.T) {
 	upgrader := websocket.Upgrader{}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "authtoken") || strings.Contains(r.URL.Path, "AuthToken") {
+			t.Logf("Server: serving AuthToken request for path: %s", r.URL.Path)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(models.AuthTokenResponse{Token: "test-token"})
+			return
+		}
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			t.Fatalf("upgrade failed: %v", err)
@@ -43,7 +50,7 @@ func TestStagingCompleteStreamSuccess(t *testing.T) {
 	wsURL := strings.Replace(server.URL, "http", "ws", 1)
 	c := &Client{
 		log:           tracelog.NewLogger(),
-		Settings:      &settings.Settings{WSS: wsURL, API: server.URL},
+		Settings:      &settings.Settings{WSS: wsURL, API: server.URL, Location: "test-cluster"},
 		HttpClient:    server.Client(),
 		customHeaders: http.Header{},
 	}

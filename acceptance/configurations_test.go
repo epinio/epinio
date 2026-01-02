@@ -415,7 +415,8 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			configuration := models.ConfigurationResponse{}
-			err = json.Unmarshal([]byte(out), &configuration)
+			jsonOut := testenv.ExtractJSON(out)
+			err = json.Unmarshal([]byte(jsonOut), &configuration)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(configuration.Meta.Name).To(Equal(configurationName1))
 		})
