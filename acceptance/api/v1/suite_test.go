@@ -106,8 +106,19 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	serverURL = "https://" + out + ":8443"
-	websocketURL = "wss://" + out + ":8443"
+	// Use EPINIO_PORT environment variable if set, otherwise default to 8443
+	port := os.Getenv("EPINIO_PORT")
+	if port == "" {
+		port = "8443"
+	}
+	// If port is 443, don't append it (standard HTTPS port)
+	if port == "443" {
+		serverURL = "https://" + out
+		websocketURL = "wss://" + out
+	} else {
+		serverURL = "https://" + out + ":" + port
+		websocketURL = "wss://" + out + ":" + port
+	}
 })
 
 var _ = AfterSuite(func() {
@@ -156,7 +167,8 @@ func authToken() (string, error) {
 
 // getPortSuffixFromServerURL extracts the port suffix (with colon prefix) from serverURL.
 // Returns the port with a colon prefix, e.g., ":8443" from "https://example.com:8443".
-// Falls back to ":8443" if parsing fails or no port is found.
+// Returns empty string for default HTTPS port (443) or if no port is specified.
+// Falls back to ":8443" if parsing fails.
 func getPortSuffixFromServerURL() string {
 	parsed, err := url.Parse(serverURL)
 	if err != nil {
@@ -166,8 +178,14 @@ func getPortSuffixFromServerURL() string {
 
 	port := parsed.Port()
 	if port == "" {
-		// No port specified, return default
-		return ":8443"
+		// No port specified - for HTTPS, default is 443, return empty string
+		// (routes will work without explicit port for standard HTTPS)
+		return ""
+	}
+
+	// If port is 443, return empty string (standard HTTPS, no need to append)
+	if port == "443" {
+		return ""
 	}
 
 	// Validate that port is numeric (basic check)
