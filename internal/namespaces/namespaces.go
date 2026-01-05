@@ -130,13 +130,11 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 	// The secret is copied asynchronously by a controller, and applications will
 	// wait for it when they actually need it. This prevents gateway timeouts
 	// (typically 60s) while still allowing namespace creation to succeed quickly.
-	_, err := kubeClient.WaitForSecret(ctx, namespace, "registry-creds", secretWaitTimeout)
-	if err != nil {
-		// Secret not ready yet - that's okay, it will be copied asynchronously.
-		// The namespace is still usable. Ignore the error to prevent gateway timeouts.
-		// WaitForSecret returns an error when the secret doesn't exist within the timeout,
-		// which is expected if the controller hasn't copied it yet.
-	}
+	// Secret not ready yet is okay - it will be copied asynchronously.
+	// The namespace is still usable. Ignoring the error prevents gateway timeouts.
+	// WaitForSecret returns an error when the secret doesn't exist within the timeout,
+	// which is expected if the controller hasn't copied it yet.
+	_, _ = kubeClient.WaitForSecret(ctx, namespace, "registry-creds", secretWaitTimeout)
 
 	return nil
 }
