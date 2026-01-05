@@ -30,14 +30,21 @@ func (c *EpinioClient) Configurations(all bool) error {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	msg := c.ui.Note()
-	if all {
-		msg.Msg("Listing all configurations")
-	} else {
-		msg.
-			WithStringValue("Namespace", c.Settings.Namespace).
-			Msg("Listing configurations")
+	// Check JSON mode early to avoid printing messages that would corrupt JSON output
+	jsonMode := c.ui.JSONEnabled()
 
+	if !jsonMode {
+		msg := c.ui.Note()
+		if all {
+			msg.Msg("Listing all configurations")
+		} else {
+			msg.
+				WithStringValue("Namespace", c.Settings.Namespace).
+				Msg("Listing configurations")
+		}
+	}
+
+	if !all {
 		if err := c.TargetOk(); err != nil {
 			return err
 		}
@@ -61,13 +68,13 @@ func (c *EpinioClient) Configurations(all bool) error {
 
 	sort.Sort(configurations)
 
-	if c.ui.JSONEnabled() {
+	if jsonMode {
 		return c.ui.JSON(configurations)
 	}
 
 	details.Info("show configurations")
 
-	msg = c.ui.Success()
+	msg := c.ui.Success()
 	if all {
 		msg = msg.WithTable("Namespace", "Name", "Created", "Type", "Origin", "Applications")
 
@@ -406,10 +413,15 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().
-		WithStringValue("Name", name).
-		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Configuration Details")
+	// Check JSON mode early to avoid printing messages that would corrupt JSON output
+	jsonMode := c.ui.JSONEnabled()
+
+	if !jsonMode {
+		c.ui.Note().
+			WithStringValue("Name", name).
+			WithStringValue("Namespace", c.Settings.Namespace).
+			Msg("Configuration Details")
+	}
 
 	if err := c.TargetOk(); err != nil {
 		return err
@@ -420,7 +432,7 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		return err
 	}
 
-	if c.ui.JSONEnabled() {
+	if jsonMode {
 		return c.ui.JSON(resp)
 	}
 

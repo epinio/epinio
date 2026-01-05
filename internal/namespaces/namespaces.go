@@ -16,10 +16,8 @@ package namespaces
 
 import (
 	"context"
-	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -117,24 +115,13 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 		return errors.Wrap(err, "failed to create a service account for apps")
 	}
 
-	// Wait for registry-creds secret with a shorter timeout to avoid gateway timeouts.
-	// The secret is copied asynchronously by a controller, so if it's not ready yet,
-	// we can still return success. The secret will be available when needed.
-	// Use a 30-second timeout to stay well under typical gateway timeouts (60s).
 	secretWaitTimeout := 30 * time.Second
-	if duration.ToSecretCopied() < secretWaitTimeout {
-		secretWaitTimeout = duration.ToSecretCopied()
-	}
-	
-	// Try to wait for the secret, but don't fail if it's not ready yet.
-	// The secret is copied asynchronously by a controller, and applications will
-	// wait for it when they actually need it. This prevents gateway timeouts
-	// (typically 60s) while still allowing namespace creation to succeed quickly.
-	// Secret not ready yet is okay - it will be copied asynchronously.
-	// The namespace is still usable. Ignoring the error prevents gateway timeouts.
-	// WaitForSecret returns an error when the secret doesn't exist within the timeout,
-	// which is expected if the controller hasn't copied it yet.
-	_, _ = kubeClient.WaitForSecret(ctx, namespace, "registry-creds", secretWaitTimeout)
+	// Note: We do NOT wait for the registry-creds secret here to avoid gateway timeouts.
+	// The secret is copied asynchronously by a controller, and applications will wait
+	// for it when they actually need it (during staging). This allows namespace creation
+	// to complete quickly (within seconds) instead of waiting up to 5 minutes, preventing
+	// gateway timeouts (typically 60s) while still allowing the namespace to be usable.
+	// The secret will be available when applications try to stage.
 
 	return nil
 }
