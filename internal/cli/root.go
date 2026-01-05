@@ -15,7 +15,6 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -170,7 +169,9 @@ func NewRootCmd() (*cobra.Command, error) {
 	defer func() {
 		loggerError := helpers.Logger.Sync()
 		if loggerError != nil {
-			log.Printf("ZAP FALLBACK: Error flushing logs: %v", loggerError)
+			// Use standard log as fallback since Zap logger failed to sync
+			// This is a rare edge case where the logger itself has an error
+			fmt.Fprintf(os.Stderr, "ZAP FALLBACK: Error flushing logs: %v\n", loggerError)
 		}
 	}()
 
@@ -194,6 +195,6 @@ func Execute() {
 
 func checkErr(err error) {
 	if err != nil {
-		log.Fatal(err)
+		helpers.Logger.Fatal(err)
 	}
 }

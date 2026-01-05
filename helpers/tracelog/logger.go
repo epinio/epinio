@@ -14,9 +14,11 @@
 package tracelog
 
 import (
+	"fmt"
 	"log"
 	"os"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/stdr"
 	"github.com/go-logr/zapr"
@@ -47,27 +49,36 @@ func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 	pf.IntP("trace-level", "", 0, "Only print trace messages at or above this level (0 to 255, default 0, print nothing)")
 	err := viper.BindPFlag("trace-level", pf.Lookup("trace-level"))
 	if err != nil {
-		log.Fatal(err)
+		// Use panic for early initialization errors before helpers.Logger is available
+		panic(fmt.Sprintf("failed to bind trace-level flag: %v", err))
 	}
 	argToEnv["trace-level"] = "TRACE_LEVEL"
 
 	pf.StringP("trace-file", "", "", "Print trace messages to the specified file")
 	err = viper.BindPFlag("trace-file", pf.Lookup("trace-file"))
 	if err != nil {
-		log.Fatal(err)
+		panic(fmt.Sprintf("failed to bind trace-file flag: %v", err))
 	}
 	argToEnv["trace-file"] = "TRACE_FILE"
 
 	pf.String("trace-output", "text", "Sets trace output format [text,json]")
 	err = viper.BindPFlag("trace-output", pf.Lookup("trace-output"))
 	if err != nil {
-		log.Fatal(err)
+		panic(fmt.Sprintf("failed to bind trace-output flag: %v", err))
 	}
 	argToEnv["trace-output"] = "TRACE_OUTPUT"
 }
 
-// NewLogger returns a logger based on the trace-output/trace-file configuration
+// NewLogger returns a logger based on the trace-output/trace-file configuration.
+// It prefers the centralized helpers.Logger when available, falling back to
+// the legacy tracelog configuration for backward compatibility.
 func NewLogger() logr.Logger {
+	// Use centralized Zap logger if available
+	if helpers.Logger != nil {
+		return helpers.LoggerToLogr()
+	}
+	
+	// Fallback to legacy tracelog configuration
 	if TraceOutput() == "json" {
 		return NewZapLogger()
 	}
@@ -76,13 +87,19 @@ func NewLogger() logr.Logger {
 
 // NewStdrLogger returns a stdr logger
 func NewStdrLogger() logr.Logger {
+	// Use centralized Zap logger if available
+	if helpers.Logger != nil {
+		return helpers.LoggerToLogr()
+	}
+	
+	// Fallback to stdr logger only if centralized logger is not available
 	destination := os.Stderr
 	traceFilePath := TraceFile()
 	if traceFilePath != "" {
     //TODO ensure we arent logging sensitive data here
 		dst, err := os.OpenFile(traceFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //nolint:gosec
 		if err != nil {
-			log.Fatalf("Unable to create log file %s", traceFilePath)
+			panic(fmt.Sprintf("Unable to create log file %s: %v", traceFilePath, err))
 		}
 		destination = dst
 	}
@@ -98,6 +115,12 @@ func NewStdrLogger() logr.Logger {
 // https://github.com/go-logr/zapr#increasing-verbosity
 
 func NewZapLogger() logr.Logger {
+	// Use centralized Zap logger if available
+	if helpers.Logger != nil {
+		return helpers.LoggerToLogr()
+	}
+	
+	// Fallback to creating a new zap logger only if centralized logger is not available
 	var logger logr.Logger
 
 	level := TraceLevel()

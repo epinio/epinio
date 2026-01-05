@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -101,7 +102,7 @@ func NewRole(id, name, defaultVal string, actionIDs []string) (Role, error) {
 		action, found := ActionsMap[actionID]
 		if !found {
 			actionErr := fmt.Errorf("action '%s' in role '%s' does not exists", actionID, id)
-			fmt.Println("ERROR:", actionErr)
+			helpers.Logger.Errorw("action in role does not exist", "action", actionID, "role", id, "error", actionErr)
 		} else {
 			actions = append(actions, action)
 		}
