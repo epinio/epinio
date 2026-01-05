@@ -115,7 +115,6 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 		return errors.Wrap(err, "failed to create a service account for apps")
 	}
 
-	secretWaitTimeout := 30 * time.Second
 	// Note: We do NOT wait for the registry-creds secret here to avoid gateway timeouts.
 	// The secret is copied asynchronously by a controller, and applications will wait
 	// for it when they actually need it (during staging). This allows namespace creation
