@@ -144,6 +144,7 @@ type ApplicationConfiguration struct {
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Ignore         []string           `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
