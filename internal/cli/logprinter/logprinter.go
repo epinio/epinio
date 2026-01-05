@@ -14,9 +14,7 @@ package logprinter
 
 import (
 	"bytes"
-	"fmt"
 	"hash/fnv"
-	"os"
 	"text/template"
 
 	"github.com/epinio/epinio/helpers"
