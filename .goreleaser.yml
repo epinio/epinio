@@ -281,8 +281,8 @@ brews:
     license: "Apache-2.0"
 
     # Only push to Homebrew for release candidates (tags containing "rc")
-    # Skip if tag does NOT contain "rc" (split by "rc" results in only 1 part)
-    skip: "{{ if eq (len (split .Tag \"rc\")) 1 }}true{{ else }}false{{ end }}"
+    # Skip push if tag does NOT contain "rc" (split by "rc" results in only 1 part)
+    skip_push: "{{ if eq (len (split .Tag \"rc\")) 1 }}true{{ else }}false{{ end }}"
 
     repository:
       owner: epinio
