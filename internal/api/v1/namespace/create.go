@@ -12,12 +12,15 @@
 package namespace
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -32,6 +35,13 @@ func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx)
 	user := requestctx.User(ctx)
+
+	// Extend context timeout for namespace creation which can take up to 5+ minutes
+	// due to waiting for registry-creds secret to be copied. Add buffer for gateway timeout.
+	// The timeout should be longer than ToSecretCopied() to accommodate the operation.
+	namespaceCreationTimeout := duration.ToSecretCopied() + 2*time.Minute
+	ctx, cancel := context.WithTimeout(ctx, namespaceCreationTimeout)
+	defer cancel()
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {

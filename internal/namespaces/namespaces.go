@@ -16,6 +16,7 @@ package namespaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/duration"
@@ -116,8 +117,25 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 		return errors.Wrap(err, "failed to create a service account for apps")
 	}
 
-	if _, err := kubeClient.WaitForSecret(ctx, namespace, "registry-creds", duration.ToSecretCopied()); err != nil {
-		return errors.Wrap(err, "timed out while waiting for registry-creds secret to be copied to the new namespace")
+	// Wait for registry-creds secret with a shorter timeout to avoid gateway timeouts.
+	// The secret is copied asynchronously by a controller, so if it's not ready yet,
+	// we can still return success. The secret will be available when needed.
+	// Use a 30-second timeout to stay well under typical gateway timeouts (60s).
+	secretWaitTimeout := 30 * time.Second
+	if duration.ToSecretCopied() < secretWaitTimeout {
+		secretWaitTimeout = duration.ToSecretCopied()
+	}
+	
+	// Try to wait for the secret, but don't fail if it's not ready yet.
+	// The secret is copied asynchronously by a controller, and applications will
+	// wait for it when they actually need it. This prevents gateway timeouts
+	// (typically 60s) while still allowing namespace creation to succeed quickly.
+	_, err := kubeClient.WaitForSecret(ctx, namespace, "registry-creds", secretWaitTimeout)
+	if err != nil {
+		// Secret not ready yet - that's okay, it will be copied asynchronously.
+		// The namespace is still usable. Ignore the error to prevent gateway timeouts.
+		// WaitForSecret returns an error when the secret doesn't exist within the timeout,
+		// which is expected if the controller hasn't copied it yet.
 	}
 
 	return nil

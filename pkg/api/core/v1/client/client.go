@@ -16,6 +16,7 @@ import (
 	"context"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/auth"
@@ -70,10 +71,20 @@ func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 		auth.ExtendLocalTrust(settings.Certs)
 	}
 
+	// Create HTTP client with a timeout that accommodates long-running operations
+	// like namespace creation which can take up to 5+ minutes
+	httpClient := oauth2.NewClient(ctx, tokenSource)
+	if httpClient.Timeout == 0 {
+		// Set a default timeout of 10 minutes to handle long-running operations
+		// This is longer than the typical gateway timeout (60s) but the real issue
+		// is at the gateway level. This timeout ensures the client doesn't wait forever.
+		httpClient.Timeout = 10 * time.Minute
+	}
+
 	return &Client{
 		log:           log,
 		Settings:      settings,
-		HttpClient:    oauth2.NewClient(ctx, tokenSource),
+		HttpClient:    httpClient,
 		customHeaders: http.Header{},
 	}
 }
