@@ -165,7 +165,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Create a tarball
-	tmpDir, tarball, err := helpers.Tar(gitRepo)
+		tmpDir, tarball, err := helpers.Tar(gitRepo, nil)
 	defer func() {
 		if tmpDir != "" {
 			_ = os.RemoveAll(tmpDir)
