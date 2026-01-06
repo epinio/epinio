@@ -15,6 +15,7 @@ package cli
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -164,14 +165,17 @@ func NewRootCmd() (*cobra.Command, error) {
 	rootCmd.AddCommand(CmdDebug)
 
 	if err := helpers.InitLogger(); err != nil {
-		panic(err)
+		if helpers.Logger != nil {
+			helpers.Logger.Fatalw("failed to initialize logger", "error", err)
+		}
+		// Fallback if logger initialization failed - use standard log as last resort
+		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 	defer func() {
 		loggerError := helpers.Logger.Sync()
 		if loggerError != nil {
-			// Use standard log as fallback since Zap logger failed to sync
-			// This is a rare edge case where the logger itself has an error
-			fmt.Fprintf(os.Stderr, "ZAP FALLBACK: Error flushing logs: %v\n", loggerError)
+			// Use standard log as fallback since zap logger failed to sync
+			log.Printf("ZAP FALLBACK: Error flushing logs: %v", loggerError)
 		}
 	}()
 
@@ -195,6 +199,10 @@ func Execute() {
 
 func checkErr(err error) {
 	if err != nil {
-		helpers.Logger.Fatal(err)
+		if helpers.Logger != nil {
+			helpers.Logger.Fatalw("fatal error", "error", err)
+		}
+		// Fallback if logger is not available - use standard log as last resort
+		log.Fatal(err)
 	}
 }

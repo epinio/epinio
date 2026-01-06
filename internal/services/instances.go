@@ -19,13 +19,12 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/retry"
@@ -95,7 +94,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		InternalRoutes:        internalRoutes,
 	}
 
-	logger := tracelog.NewLogger().WithName("ServiceStatus")
+	logger := requestctx.Logger(ctx).With("component", "ServiceStatus")
 
 	var settings map[string]models.ChartSetting
 	if catalogEntry != nil {
@@ -326,7 +325,7 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 			CatalogServiceVersion: srv.GetLabels()[CatalogServiceVersionLabelKey],
 		}
 
-		logger := tracelog.NewLogger().WithName("ServiceStatus")
+		logger := requestctx.Logger(ctx).With("component", "ServiceStatus")
 
 		theServiceSecret := srv
 		err = setServiceStatusAndCustomValues(&service, &theServiceSecret, ctx, logger, s.kubeClient,
@@ -526,8 +525,8 @@ func (s *ServiceClient) DeployOrUpdate(
 
 	epinioValues, err := getEpinioValues(name, catalogService.Meta.Name)
 	if err != nil {
-		logger := tracelog.NewLogger().WithName("Create")
-		logger.Error(err, "getting epinio values")
+		logger := requestctx.Logger(ctx).With("component", "Create")
+		logger.Errorw("getting epinio values", "error", err)
 	}
 
 	// Ingest the service class YAML data into a proper values table
@@ -599,7 +598,7 @@ func getEpinioValues(serviceName, catalogServiceName string) (string, error) {
 
 func setServiceStatusAndCustomValues(service *models.Service,
 	serviceSecret *corev1.Secret,
-	ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
+	ctx context.Context, logger *zap.SugaredLogger, cluster *kubernetes.Cluster,
 	namespace, releaseName string,
 	settings map[string]models.ChartSetting,
 ) error {

@@ -27,7 +27,7 @@ var upgrader = websocket.Upgrader{} // use default option
 
 func PortForward(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).WithName("PortForward")
+	logger := requestctx.Logger(ctx).With("component", "PortForward")
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
 
@@ -47,20 +47,20 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 
 	wconn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		logger.Error(err, "failed to upgrade")
+		logger.Errorw("failed to upgrade", "error", err)
 		return apierror.InternalError(err)
 	}
 
 	defer func() {
 		if err := wconn.Close(); err != nil {
-			logger.Error(err, "failed to close connection: ")
+			logger.Errorw("failed to close connection", "error", err)
 		}
 	}()
 
 	conn := wconn.UnderlyingConn()
 
 	msg := fmt.Sprintf("upgraded connection [%s] - service routes [%s]", conn.RemoteAddr().String(), strings.Join(service.InternalRoutes, ", "))
-	logger.V(1).Info(msg)
+	logger.Debugw(msg)
 
 	if len(service.InternalRoutes) == 0 {
 		return apierror.NewInternalError("no internal service routes available")

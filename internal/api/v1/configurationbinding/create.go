@@ -13,7 +13,6 @@ package configurationbinding
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
@@ -88,7 +87,7 @@ func CreateConfigurationBinding(
 	app models.App,
 	configurationNames []string,
 ) ([]string, apierror.APIErrors) {
-	logger := requestctx.Logger(ctx).WithName("CreateConfigurationBinding")
+	logger := requestctx.Logger(ctx).With("component", "CreateConfigurationBinding")
 
 	// Collect errors and warnings per configuration, to report as much
 	// as possible while also applying as much as possible. IOW
@@ -97,7 +96,7 @@ func CreateConfigurationBinding(
 
 	// Take old state - See validation for use
 
-	logger.Info("BoundConfigurationNameSet")
+	logger.Infow("BoundConfigurationNameSet")
 	oldBound, err := application.BoundConfigurationNameSet(ctx, cluster, app.Meta)
 	if err != nil {
 		return nil, apierror.InternalError(err)
@@ -110,7 +109,7 @@ func CreateConfigurationBinding(
 	// Validate existence of new configurations. Report invalid configurations as errors, later.
 	// Filter out the configurations already bound, to be reported as regular response.
 
-	logger.Info(fmt.Sprintf("configurationNames loop: %#v", configurationNames))
+	logger.Infow("configurationNames loop", "configurationNames", configurationNames)
 
 	for _, configurationName := range configurationNames {
 		if _, ok := oldBound[configurationName]; ok {
@@ -132,20 +131,20 @@ func CreateConfigurationBinding(
 		okToBind = append(okToBind, configurationName)
 	}
 
-	logger.Info(fmt.Sprintf("okToBind: %#v", okToBind))
+	logger.Infow("okToBind", "okToBind", okToBind)
 
 	if len(okToBind) > 0 {
 		// Save those that were valid and not yet bound to the
 		// application. Extends the set.
 
-		logger.Info("BoundConfigurationsSet")
+		logger.Infow("BoundConfigurationsSet")
 		err := application.BoundConfigurationsSet(ctx, cluster, app.Meta, okToBind, false)
 		if err != nil {
 			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
 			return nil, apierror.NewMultiError(theIssues)
 		}
 
-		logger.Info("DeployApp")
+		logger.Infow("DeployApp")
 
 		// Update the workload, if there is any.
 		if app.Workload != nil {

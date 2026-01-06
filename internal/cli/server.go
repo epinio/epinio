@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
 	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
@@ -135,8 +134,8 @@ var CmdServer = &cobra.Command{
 		if err := helpers.InitLogger(); err != nil {
 			return errors.Wrap(err, "initializing logger")
 		}
-		// Use centralized Zap logger converted to logr.Logger
-		logger := tracelog.NewLogger().WithName("EpinioServer")
+		// Use centralized zap logger
+		logger := helpers.Logger.With("component", "EpinioServer")
 
 		handler, err := server.NewHandler(logger)
 		if err != nil {
@@ -163,9 +162,11 @@ var CmdServer = &cobra.Command{
 		)
 
 		if !trackingDisabled {
+			// Convert zap logger to logr.Logger for upgraderesponder (compatibility bridge)
+			logrLogger := helpers.LoggerToLogr().WithName("UpgradeResponder")
 			checker, err := upgraderesponder.NewChecker(
 				context.Background(),
-				logger,
+				logrLogger,
 				upgradeResponderAddress,
 			)
 
@@ -201,24 +202,24 @@ func startServerGracefully(listener net.Listener, handler http.Handler) error {
 	}
 
 	go func() {
-		if err := srv.Serve(listener); err != nil && errors.Is(err, http.ErrServerClosed) {
-			helpers.Logger.Errorf("listen: %s", err)
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			helpers.Logger.Errorw("server listen error", "error", err)
 		}
 	}()
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	helpers.Logger.Info("Shutting down server...")
+	helpers.Logger.Infow("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		helpers.Logger.Fatalf("Server forced to shutdown: %v", err)
+		helpers.Logger.Fatalw("Server forced to shutdown", "error", err)
 		return err
 	}
 
-	helpers.Logger.Info("Server exiting")
+	helpers.Logger.Infow("Server exiting")
 	return nil
 }

@@ -33,7 +33,7 @@ func Unset(c *gin.Context) apierror.APIErrors {
 	appName := c.Param("app")
 	varName := c.Param("env")
 
-	log.Info("processing environment variable removal",
+	log.Infow("processing environment variable removal",
 		"namespace", namespaceName, "app", appName, "var", varName)
 
 	cluster, err := kubernetes.GetCluster(ctx)

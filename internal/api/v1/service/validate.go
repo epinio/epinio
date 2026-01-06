@@ -13,14 +13,13 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -32,18 +31,18 @@ import (
 
 // GetService will find the service with the provided namespace and name
 func GetService(
-	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,
+	ctx context.Context, cluster *kubernetes.Cluster, logger *zap.SugaredLogger,
 	namespace, serviceName string,
 ) (*models.Service, apierror.APIErrors) {
 
-	logger.Info("get service client")
+	logger.Infow("get service client")
 
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
 		return nil, apierror.InternalError(err)
 	}
 
-	logger.Info("get service")
+	logger.Infow("get service")
 
 	theService, err := kubeServiceClient.Get(ctx, namespace, serviceName)
 	if err != nil {
@@ -58,25 +57,25 @@ func GetService(
 		return nil, apierror.NewNotFoundError("service", serviceName)
 	}
 
-	logger.Info(fmt.Sprintf("service found %+v\n", serviceName))
+	logger.Infow("service found", "service", serviceName)
 	return theService, nil
 }
 
 // ValidateService is used by various service endpoints to verify that the service exists,
 // as well as its helm release, before action is taken.
 func ValidateService(
-	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,
+	ctx context.Context, cluster *kubernetes.Cluster, logger *zap.SugaredLogger,
 	service *models.Service,
 ) apierror.APIErrors {
 
-	logger.Info("getting helm client")
+	logger.Infow("getting helm client")
 
 	client, err := helm.GetHelmClient(cluster.RestConfig, logger, service.Namespace())
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("looking for service release")
+	logger.Infow("looking for service release")
 
 	releaseName := names.ServiceReleaseName(service.Meta.Name)
 	srv, err := client.GetRelease(releaseName)

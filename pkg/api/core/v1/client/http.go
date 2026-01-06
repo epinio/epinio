@@ -254,7 +254,9 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 	return func(httpResponse *http.Response) (T, error) {
 		defer func() {
 			if err := httpResponse.Body.Close(); err != nil {
-				helpers.Logger.Errorw("failed to close response body", "error", err)
+				if helpers.Logger != nil {
+					helpers.Logger.Errorw("failed to close response body", "error", err)
+				}
 			}
 		}()
 
@@ -362,7 +364,7 @@ func (c *Client) handleAuthorization(request *http.Request) error {
 				return errors.Wrap(err, "failed getting token")
 			}
 			if newToken.AccessToken != c.Settings.Token.AccessToken {
-				helpers.Logger.Info("Refreshed expired token.")
+				c.log.V(1).Info("Refreshed expired token")
 
 				c.Settings.Token.AccessToken = newToken.AccessToken
 				c.Settings.Token.RefreshToken = newToken.RefreshToken

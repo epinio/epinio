@@ -13,6 +13,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/epinio/epinio/helpers"
 	"k8s.io/client-go/discovery"
@@ -67,9 +68,8 @@ func checkServerVersion(d discovery.ServerVersionInterface) error {
 func checkErr(err error) {
 	if err != nil {
 		if helpers.Logger != nil {
-			helpers.Logger.Fatal(err)
-		} else {
-			panic(fmt.Sprintf("check error: %v", err))
+			helpers.Logger.Fatalw("fatal error in config checker", "error", err)
 		}
+		log.Fatal(err)
 	}
 }

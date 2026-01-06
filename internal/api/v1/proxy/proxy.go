@@ -28,7 +28,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
 )
 
@@ -154,7 +154,7 @@ func RunProxy(ctx context.Context, rw http.ResponseWriter, req *http.Request, de
 }
 
 type TCPProxy struct {
-	Logger       logr.Logger
+	Logger       *zap.SugaredLogger
 	DialTimeout  time.Duration
 	Address      string
 	IncomingConn net.Conn
@@ -166,7 +166,7 @@ func NewTCPProxy(ctx context.Context, IncomingConn net.Conn, address string) (*T
 		address += ":80"
 	}
 	return &TCPProxy{
-		Logger:       requestctx.Logger(ctx).WithName("PortForward"),
+		Logger:       requestctx.Logger(ctx).With("component", "PortForward"),
 		DialTimeout:  time.Minute,
 		Address:      address,
 		IncomingConn: IncomingConn,
@@ -180,7 +180,7 @@ func (p *TCPProxy) Start() error {
 
 	var err error
 	if p.OutgoingConn, err = d.DialContext(ctxT, "tcp", p.Address); err != nil {
-		p.Logger.Error(err, "dialing service")
+		p.Logger.Errorw("dialing service", "error", err)
 		return err
 	}
 
@@ -190,7 +190,7 @@ func (p *TCPProxy) Start() error {
 func (p *TCPProxy) handleConnections() error {
 	defer func() {
 		if err := p.OutgoingConn.Close(); err != nil {
-			p.Logger.Error(err, "error closing the outgoing connection: ")
+			p.Logger.Errorw("error closing the outgoing connection", "error", err)
 		}
 	}()
 
@@ -200,7 +200,7 @@ func (p *TCPProxy) handleConnections() error {
 	go func() {
 		// Copy from the remote side to the local port.
 		if _, err := io.Copy(p.OutgoingConn, p.IncomingConn); err != nil && !errors.Is(err, net.ErrClosed) {
-			p.Logger.Error(err, "error copying from IncomingConn to OutgoingConn")
+			p.Logger.Errorw("error copying from IncomingConn to OutgoingConn", "error", err)
 			localError <- err
 		}
 		// inform the select below that the remote copy is done
@@ -210,7 +210,7 @@ func (p *TCPProxy) handleConnections() error {
 	go func() {
 		// Copy from the local port to the remote side.
 		if _, err := io.Copy(p.IncomingConn, p.OutgoingConn); err != nil && !errors.Is(err, net.ErrClosed) {
-			p.Logger.Error(err, "error copying from OutgoingConn to IncomingConn")
+			p.Logger.Errorw("error copying from OutgoingConn to IncomingConn", "error", err)
 			localError <- err
 		}
 	}()
@@ -220,11 +220,11 @@ func (p *TCPProxy) handleConnections() error {
 	case <-remoteDone:
 		break
 	case err := <-localError:
-		p.Logger.Error(err, "closed TCPProxy for connection", p.IncomingConn.RemoteAddr().String())
+		p.Logger.Errorw("closed TCPProxy for connection", "error", err, "address", p.IncomingConn.RemoteAddr().String())
 		return err
 	}
 
-	p.Logger.Info("closed TCPProxy for connection", p.IncomingConn.RemoteAddr().String())
+	p.Logger.Infow("closed TCPProxy for connection", "address", p.IncomingConn.RemoteAddr().String())
 
 	return nil
 }

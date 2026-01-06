@@ -37,7 +37,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 	appName := c.Param("app")
 	prefix := c.Param("pattern")
 
-	log.Info("returning matching environment variable names",
+	log.Infow("returning matching environment variable names",
 		"namespace", namespaceName, "app", appName, "prefix", prefix)
 
 	cluster, err := kubernetes.GetCluster(ctx)

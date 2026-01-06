@@ -50,7 +50,9 @@ type Upgrader struct {
 func (upgr *Upgrader) NewConnection(resp *http.Response) (httpstream.Connection, error) {
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			helpers.Logger.Errorw("failed to close response body", "error", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close response body", "error", err)
+			}
 		}
 	}()
 

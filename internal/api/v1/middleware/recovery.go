@@ -27,14 +27,17 @@ func Recovery(c *gin.Context) {
 	gin.CustomRecoveryWithWriter(stackWriter, func(c *gin.Context, anyerr any) {
 		ctx := c.Request.Context()
 		reqID := requestctx.ID(ctx)
-		logger := requestctx.Logger(ctx).WithName("RecoveryMiddleware")
+		logger := requestctx.Logger(ctx).With("component", "RecoveryMiddleware")
 
 		err, ok := anyerr.(error)
 		if !ok {
 			err = fmt.Errorf("unknown error type occurred [%T]", anyerr)
 		}
 
-		logger.Error(err, "recovered from panic", "stack", stackWriter.String())
+		logger.Errorw("recovered from panic",
+			"error", err,
+			"stack", stackWriter.String(),
+		)
 
 		// we don't want to expose internal details to the client
 		errMsg := fmt.Sprintf("something bad happened [request ID: %s]", reqID)

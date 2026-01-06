@@ -51,7 +51,7 @@ func Update(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError(err.Error())
 	}
 
-	logger.Info("updating service", "namespace", namespace, "service", serviceName, "request", updateRequest)
+	logger.Infow("updating service", "namespace", namespace, "service", serviceName, "request", updateRequest)
 
 	// Save changes to resource
 
@@ -60,7 +60,7 @@ func Update(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = kubeServiceClient.UpdateService(ctx, cluster, service, updateRequest,
+		err = kubeServiceClient.UpdateService(ctx, cluster, service, updateRequest,
 		func(ctx context.Context) error {
 			err := WhenFullyDeployed(ctx, cluster, logger, namespace, serviceName)
 			if err != nil {

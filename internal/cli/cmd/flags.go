@@ -12,7 +12,7 @@
 package cmd
 
 import (
-	"fmt"
+	"log"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
@@ -24,10 +24,9 @@ func bindFlag(cmd *cobra.Command, key string) {
 	err := viper.BindPFlag(key, cmd.Flags().Lookup(key))
 	if err != nil {
 		if helpers.Logger != nil {
-			helpers.Logger.Fatal(err)
-		} else {
-			panic(fmt.Sprintf("failed to bind flag %s: %v", key, err))
+			helpers.Logger.Fatalw("failed to bind flag", "flag", key, "error", err)
 		}
+		log.Fatal(err)
 	}
 }
 
@@ -35,10 +34,9 @@ func bindFlagCompletionFunc(cmd *cobra.Command, key string, fn FlagCompletionFun
 	err := cmd.RegisterFlagCompletionFunc(key, fn)
 	if err != nil {
 		if helpers.Logger != nil {
-			helpers.Logger.Fatal(err)
-		} else {
-			panic(fmt.Sprintf("failed to register flag completion for %s: %v", key, err))
+			helpers.Logger.Fatalw("failed to register flag completion", "flag", key, "error", err)
 		}
+		log.Fatal(err)
 	}
 }
 

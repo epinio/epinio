@@ -31,17 +31,16 @@ func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 	user := requestctx.User(ctx)
-	logger := requestctx.Logger(ctx)
 
-	log.Info("match gitconfigs")
-	defer log.Info("return")
+	log.Infow("match gitconfigs")
+	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	manager, err := gitbridge.NewManager(logger, cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
+	manager, err := gitbridge.NewManager(log, cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
 	if err != nil {
 		return apierror.InternalError(err, "creating git configuration manager")
 	}
@@ -50,10 +49,10 @@ func Match(c *gin.Context) apierror.APIErrors {
 
 	gitconfigList = auth.FilterGitconfigResources(user, gitconfigList)
 
-	log.Info("get gitconfig prefix")
+	log.Infow("get gitconfig prefix")
 	prefix := c.Param("pattern")
 
-	log.Info("match prefix", "pattern", prefix)
+	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, gitconfig := range gitconfigList {
 		if strings.HasPrefix(gitconfig.ID, prefix) {
@@ -61,7 +60,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	log.Info("deliver matches", "found", matches)
+	log.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.GitconfigsMatchResponse{
 		Names: matches,

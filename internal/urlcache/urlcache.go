@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	"github.com/pkg/errors"
 )
 
@@ -37,10 +37,10 @@ var initMutex sync.Mutex
 
 // Get returns the local file containing the data found at the specified url.
 // It fetches the url when the local file does not exist yet.
-func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
-	logger = logger.V(1).WithName("URLCache")
+func Get(ctx context.Context, logger *zap.SugaredLogger, url string) (string, error) {
+	logger = logger.With("component", "URLCache")
 
-	logger.Info("get", "url", url)
+	logger.Debugw("get", "url", url)
 
 	// DANGER: The url cache is a global structure shared among all API requests.
 	// DANGER: It is very possible that multiple goroutines invoke `Get` for the
@@ -57,7 +57,7 @@ func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 
 	// No caching needed for local file.
 	if _, err := os.Stat(url); err == nil {
-		logger.Info("is local file")
+		logger.Debugw("is local file")
 		return url, nil
 	}
 
@@ -70,7 +70,7 @@ func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 
 	// Check cache for url, and return if already cached
 	if _, err := os.Stat(path); err == nil {
-		logger.Info("cache HIT", "path", path)
+		logger.Debugw("cache HIT", "path", path)
 		return path, nil
 	}
 
@@ -90,7 +90,7 @@ func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 	return path, nil
 }
 
-func initCache(logger logr.Logger) error {
+func initCache(logger *zap.SugaredLogger) error {
 	// DANGER: The initialization of the cache directory requires serialization as well, so that
 	// DANGER: only access performs the initialization, while everything else sees the
 	// DANGER: initialized directory. This is url-independent and not ensures by the main map,
@@ -100,7 +100,7 @@ func initCache(logger logr.Logger) error {
 	defer initMutex.Unlock()
 
 	if _, err := os.Stat(BasePath); err != nil {
-		logger.Info("initialize cache", "directory", BasePath)
+		logger.Debugw("initialize cache", "directory", BasePath)
 		// Not yet initialized
 		err := os.MkdirAll(BasePath, 0700)
 		if err != nil {
@@ -111,21 +111,21 @@ func initCache(logger logr.Logger) error {
 	return nil
 }
 
-func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
-	logger.Info("cache MISS, fetch", "url", originURL, "path", destinationPath)
+func fetchFile(logger *zap.SugaredLogger, originURL, destinationPath string) error {
+	logger.Debugw("cache MISS, fetch", "url", originURL, "path", destinationPath)
 
 	response, err := http.Get(originURL) // nolint:gosec // app chart repo ref
 	if err != nil {
 		return err
 	}
 	if response.StatusCode >= http.StatusBadRequest {
-		logger.Info("fail http", "status", response.StatusCode)
+		logger.Debugw("fail http", "status", response.StatusCode)
 		return fmt.Errorf("failed with status %d", response.StatusCode)
 	}
 	
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			logger.Error(err, "failed to close response body")
+			logger.Errorw("failed to close response body", "error", err)
 		}
 	}()
 
@@ -159,6 +159,6 @@ func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
 		return err
 	}
 
-	logger.Info("now cached", "path", destinationPath, "size", stat.Size())
+	logger.Debugw("now cached", "path", destinationPath, "size", stat.Size())
 	return nil
 }

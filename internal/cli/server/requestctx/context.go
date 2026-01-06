@@ -15,9 +15,9 @@ package requestctx
 import (
 	"context"
 
-	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/auth"
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 )
 
 // IDKey is the unique key to lookup the request ID from the request's context
@@ -57,17 +57,22 @@ func ID(ctx context.Context) string {
 	return id
 }
 
-// WithLogger returns a copy of the context with the given logger
-func WithLogger(ctx context.Context, log logr.Logger) context.Context {
+// WithLogger returns a copy of the context with the given zap logger
+func WithLogger(ctx context.Context, log *zap.SugaredLogger) context.Context {
 	return context.WithValue(ctx, LoggerKey{}, log)
 }
 
-// Logger returns the logger from the context
-func Logger(ctx context.Context) logr.Logger {
-	log, ok := ctx.Value(LoggerKey{}).(logr.Logger)
+// Logger returns the zap logger from the context
+func Logger(ctx context.Context) *zap.SugaredLogger {
+	log, ok := ctx.Value(LoggerKey{}).(*zap.SugaredLogger)
 	if !ok {
 		// this should not happen, but let's be cautious
-		return tracelog.NewLogger().WithName("fallback")
+		if helpers.Logger != nil {
+			return helpers.Logger.With("component", "fallback")
+		}
+		// Last resort: create a no-op logger
+		zapLogger, _ := zap.NewDevelopment()
+		return zapLogger.Sugar()
 	}
 	return log
 }

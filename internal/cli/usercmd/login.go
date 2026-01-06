@@ -257,7 +257,9 @@ func checkCA(address string) (*x509.Certificate, error) {
 
 	defer func() {
 		if err := conn.Close(); err != nil {
-			helpers.Logger.Errorw("failed to close connection", "error", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close connection", "error", err)
+			}
 		}
 	}()
 

@@ -57,7 +57,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		}
 		boundConfigurations = append(boundConfigurations, configurations...)
 
-		err = application.Delete(ctx, cluster, appRef)
+		err = application.Delete(ctx, cluster, appRef, false)
 		if err != nil {
 			return apierror.InternalError(err)
 		}

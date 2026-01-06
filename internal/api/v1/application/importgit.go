@@ -86,9 +86,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/go-logr/logr"
-
 	"github.com/epinio/epinio/helpers"
+	"go.uber.org/zap"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
@@ -134,10 +133,9 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 
 	defer func() {
 		if err := os.RemoveAll(gitRepo); err != nil {
-			log.Error(err, "failed to remove git repo: ")
+			log.Errorw("failed to remove git repo", "error", err)
 		}
 	}()
-
 	gitConfig, err := gitManager.FindConfiguration(giturl)
 	if err != nil {
 		errMsg := fmt.Sprintf("finding git configuration for gitURL [%s]", giturl)
@@ -145,9 +143,9 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	}
 
 	if gitConfig != nil {
-		log.Info("loaded git config", "gitConfig", gitConfig.ID)
+		log.Infow("loaded git config", "gitConfig", gitConfig.ID)
 	} else {
-		log.Info("git config not found for giturl", "giturl", giturl)
+		log.Infow("git config not found for giturl", "giturl", giturl)
 	}
 
 	// clone/fetch/checkout
@@ -161,7 +159,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	if ref != nil {
 		branch = ref.Name().Short()
 		revision = ref.Hash().String()
-		log.Info("resolved branch and revision", "branch", branch, "revision", revision)
+		log.Infow("resolved branch and revision", "branch", branch, "revision", revision)
 	}
 
 	// Create a tarball
@@ -193,7 +191,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 
-	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
+	log.Infow("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{
@@ -227,13 +225,13 @@ var (
 
 // checkoutRepository will clone the repository and it will checkout the revision
 // It will also try to find the matching branch/reference, and if found this will be returned
-func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
+func checkoutRepository(ctx context.Context, log *zap.SugaredLogger, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
 	cloneOptions := git.CloneOptions{URL: url}
 	cloneOptions = loadCloneOptions(cloneOptions, gitconfig)
 
 	if revision == "" {
 		// Input A: repository, no revision.
-		log.Info("importgit, cloning simple", "url", url)
+		log.Infow("importgit, cloning simple", "url", url)
 		return shallowCheckout(ctx, gitRepo, cloneOptions)
 	}
 
@@ -248,18 +246,18 @@ func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revi
 	}
 
 	// we are left we the full clone option
-	log.Info("importgit, cloning plain", "url", url)
+	log.Infow("importgit, cloning plain", "url", url)
 	repo, err := git.PlainCloneContext(ctx, gitRepo, false, &cloneOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Info("importgit, resolve", "revision", revision)
+	log.Infow("importgit, resolve", "revision", revision)
 	hash, err := repo.ResolveRevision(plumbing.Revision(revision))
 	if err != nil {
 		return nil, err
 	}
-	log.Info("importgit, resolved", "revision", hash)
+	log.Infow("importgit, resolved", "revision", hash)
 
 	ref, err = findReferenceForRevision(repo, *hash)
 	if err != nil && !errors.Is(err, errReferenceNotFound) {
@@ -271,7 +269,7 @@ func checkoutRepository(ctx context.Context, log logr.Logger, gitRepo, url, revi
 		return nil, err
 	}
 
-	log.Info("importgit, checking out", "url", url, "revision", hash)
+	log.Infow("importgit, checking out", "url", url, "revision", hash)
 
 	err = checkout.Checkout(&git.CheckoutOptions{
 		Hash:  *hash,

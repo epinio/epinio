@@ -33,7 +33,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 	appName := c.Param("app")
 	varName := c.Param("env")
 
-	log.Info("processing environment variable request",
+	log.Infow("processing environment variable request",
 		"namespace", namespaceName, "app", appName, "var", varName)
 
 	cluster, err := kubernetes.GetCluster(ctx)

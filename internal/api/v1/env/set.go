@@ -33,7 +33,7 @@ func Set(c *gin.Context) apierror.APIErrors {
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
 
-	log.Info("processing environment variable assignment",
+	log.Infow("processing environment variable assignment",
 		"namespace", namespaceName, "app", appName)
 
 	cluster, err := kubernetes.GetCluster(ctx)

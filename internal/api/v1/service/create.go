@@ -22,7 +22,7 @@ import (
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -32,7 +32,7 @@ import (
 func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
-	logger := requestctx.Logger(ctx).WithName("ServiceCreate")
+	logger := requestctx.Logger(ctx).With("component", "ServiceCreate")
 
 	var createRequest models.ServiceCreateRequest
 	err := c.BindJSON(&createRequest)
@@ -86,7 +86,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Now we can (attempt to) create the desired service
-	err = kubeServiceClient.Create(ctx, namespace, createRequest.Name,
+		err = kubeServiceClient.Create(ctx, namespace, createRequest.Name,
 		createRequest.Wait,
 		createRequest.Settings,
 		catalogService,
@@ -103,8 +103,8 @@ func Create(c *gin.Context) apierror.APIErrors {
 
 // WhenFullyDeployed is invoked when the helm chart for a service is deployed and running. At that
 // point the secrets created by the service can be published as Epinio configurations.
-func WhenFullyDeployed(ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger, namespace, name string) error {
-	logger.Info("when fully deployed entry")
+func WhenFullyDeployed(ctx context.Context, cluster *kubernetes.Cluster, logger *zap.SugaredLogger, namespace, name string) error {
+	logger.Infow("when fully deployed entry")
 
 	// Called when the service is fully deployed. The context is provided as an argument
 	// as it may not be the local one (closure), but a background context instead.
@@ -113,22 +113,22 @@ func WhenFullyDeployed(ctx context.Context, cluster *kubernetes.Cluster, logger 
 	// Make the secrets of the newly deployed service immediately available/visible as
 	// Epinio configurations.
 
-	logger.Info("when fully deployed get service")
+	logger.Infow("when fully deployed get service")
 	service, apiErr := GetService(ctx, cluster, logger, namespace, name)
 	if apiErr != nil {
 		x := apiErr.(apierror.APIError)
 		return fmt.Errorf("%s: %s", x.Title, x.Details)
 	}
 
-	logger.Info("when fully deployed validate service")
+	logger.Infow("when fully deployed validate service")
 	apiErr = ValidateService(ctx, cluster, logger, service)
 	if apiErr != nil {
 		x := apiErr.(apierror.APIError)
 		return fmt.Errorf("%s: %s", x.Title, x.Details)
 	}
 
-	logger.Info("when fully deployed label secrets - publish configurations")
+	logger.Infow("when fully deployed label secrets - publish configurations")
 	_, err := configurations.LabelServiceSecrets(ctx, cluster, service)
-	logger.Info("when fully deployed done", "error?", err)
+	logger.Infow("when fully deployed done", "error", err)
 	return err
 }

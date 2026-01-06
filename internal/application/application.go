@@ -15,6 +15,8 @@ package application
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"regexp"
@@ -29,8 +31,10 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"go.uber.org/zap"
 	"github.com/pkg/errors"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
@@ -392,13 +396,29 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 // Delete removes the named application, its workload (if active), bindings (if any), the
 // stored application sources, and any staging jobs from when the application was staged
 // (if active). Waits for the application's deployment's pods to disappear (if active).
-func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
+func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, deleteImage bool) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
 	}
 
 	log := requestctx.Logger(ctx)
+
+	// Get image URL before deleting the app resource (needed for image deletion)
+	var imageURL string
+	if deleteImage {
+		appCR, err := Get(ctx, cluster, appRef)
+		if err != nil {
+			log.Errorw("Failed to get application to retrieve image URL, skipping image deletion", "error", err, "app", appRef.Name)
+		} else {
+			imageURL, err = ImageURL(appCR)
+			if err != nil {
+				log.Errorw("Failed to get image URL from application, skipping image deletion", "error", err, "app", appRef.Name)
+			} else if imageURL == "" {
+				log.Infow("No image URL found in application, skipping image deletion", "app", appRef.Name)
+			}
+		}
+	}
 
 	// Ignore `not found` errors - App exists, without workload.
 	err = helm.Remove(cluster, log, appRef)
@@ -415,6 +435,15 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 	err = client.Namespace(appRef.Namespace).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
+	}
+
+	// Delete container image from registry if requested
+	if deleteImage && imageURL != "" {
+		err = deleteContainerImage(ctx, log, cluster, imageURL)
+		if err != nil {
+			// Log the error but don't fail the deletion - the app is already deleted
+			log.Errorw("Failed to delete container image from registry", "error", err, "image", imageURL)
+		}
 	}
 
 	// delete old staging resources in namespace (helmchart.Namespace())
@@ -443,6 +472,121 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 	}
 
 	return nil
+}
+
+// deleteContainerImage deletes the container image from the registry
+func deleteContainerImage(ctx context.Context, log *zap.SugaredLogger, cluster *kubernetes.Cluster, imageURL string) error {
+	// Get registry connection details
+	connectionDetails, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
+	if err != nil {
+		return errors.Wrap(err, "getting registry connection details")
+	}
+
+	if len(connectionDetails.RegistryCredentials) == 0 {
+		return errors.New("no registry credentials found")
+	}
+
+	// Use the first set of credentials (typically there's only one)
+	credentials := connectionDetails.RegistryCredentials[0]
+
+	// Extract registry URL from image URL to match credentials
+	imageRegistryURL, _, err := registry.ExtractImageParts(imageURL)
+	if err != nil {
+		return errors.Wrap(err, "extracting registry URL from image")
+	}
+
+	// Find matching credentials for the image's registry
+	var matchingCreds registry.RegistryCredentials
+	found := false
+	for _, cred := range connectionDetails.RegistryCredentials {
+		// Check if the registry URL matches (with or without namespace suffix)
+		if cred.URL == imageRegistryURL || strings.HasPrefix(imageRegistryURL, cred.URL) {
+			matchingCreds = cred
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		// If no exact match, use the first credentials (might work for some registries)
+		matchingCreds = credentials
+		log.Infow("No exact registry match found, using first available credentials", "imageRegistry", imageRegistryURL)
+	}
+
+	// Get TLS config to handle self-signed certificates
+	var tlsConfig *tls.Config
+	rootCAs, err := x509.SystemCertPool()
+	if err != nil {
+		rootCAs = x509.NewCertPool()
+	}
+	certsAdded := false
+
+	// Check for registry certificate secret (for self-signed registry certificates)
+	// This is the primary way to trust self-signed registry certificates
+	registryCertSecret := os.Getenv("REGISTRY_CERTIFICATE_SECRET")
+	if registryCertSecret != "" {
+		secret, err := cluster.GetSecret(ctx, helmchart.Namespace(), registryCertSecret)
+		if err == nil {
+			if certData, found := secret.Data["tls.crt"]; found {
+				if rootCAs.AppendCertsFromPEM(certData) {
+					certsAdded = true
+					log.Infow("Added registry certificate from secret to TLS config", "secret", registryCertSecret)
+				}
+			}
+		} else {
+			log.Infow("Registry certificate secret not found, continuing without it", "secret", registryCertSecret, "error", err)
+		}
+	}
+
+	// Also add cluster's CA data if available (for cluster-internal registries)
+	if cluster.RestConfig != nil {
+		tlsClientConfig := cluster.RestConfig.TLSClientConfig
+		if tlsClientConfig.Insecure {
+			// If cluster config says insecure, skip verification
+			tlsConfig = &tls.Config{
+				InsecureSkipVerify: true, // nolint:gosec // Controlled by cluster config
+				MinVersion:         tls.VersionTLS12,
+			}
+		} else if tlsClientConfig.CAData != nil {
+			// Add cluster CA to the cert pool
+			if rootCAs.AppendCertsFromPEM(tlsClientConfig.CAData) {
+				certsAdded = true
+			}
+		}
+	}
+
+	// Build TLS config based on what we have
+	if tlsConfig == nil {
+		// Check if this is an internal registry (cluster.local domain)
+		isInternalRegistry := strings.Contains(imageRegistryURL, ".svc.cluster.local") ||
+			strings.Contains(imageRegistryURL, "127.0.0.1") ||
+			strings.Contains(imageRegistryURL, "localhost")
+
+		if certsAdded {
+			// We have certificates in the pool, use them
+			tlsConfig = &tls.Config{
+				RootCAs:    rootCAs,
+				MinVersion: tls.VersionTLS12,
+			}
+		} else if isInternalRegistry {
+			// Internal registry with no certificate found - skip verification
+			// This is common for internal registries with self-signed certs
+			tlsConfig = &tls.Config{
+				InsecureSkipVerify: true, // nolint:gosec // Internal registry with self-signed cert
+				MinVersion:         tls.VersionTLS12,
+			}
+			log.Infow("No registry certificate found, skipping TLS verification for internal registry", "registry", imageRegistryURL)
+		} else {
+			// External registry - use system cert pool (may fail if cert is not trusted)
+			tlsConfig = &tls.Config{
+				RootCAs:    rootCAs,
+				MinVersion: tls.VersionTLS12,
+			}
+		}
+	}
+
+	// Delete the image
+	return registry.DeleteImage(ctx, log, imageURL, matchingCreds, tlsConfig)
 }
 
 // deleteCacheStagePVC removes the kube PVC resource which was used to hold the application
@@ -589,7 +733,7 @@ type LogParameters struct {
 
 // then only logs from that staging process are returned.
 func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, app, stageID, namespace string, logParams *LogParameters) error {
-	logger := requestctx.Logger(ctx).WithName("logs-backend").V(2)
+	logger := requestctx.Logger(ctx).With("component", "logs-backend")
 	selector := labels.NewSelector()
 
 	var selectors [][]string

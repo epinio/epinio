@@ -61,7 +61,7 @@ func funcName(i interface{}) string {
 func errorHandler(action APIActionFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if errors := action(c); errors != nil {
-			requestctx.Logger(c.Request.Context()).Info(
+			requestctx.Logger(c.Request.Context()).Infow(
 				"responding with json error response",
 				"action", funcName(action),
 				"errors", errors,

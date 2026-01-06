@@ -100,7 +100,7 @@ func Logs(c *gin.Context) {
 	appName := c.Param("app")
 	stageID := c.Param("stage_id")
 
-	log.Info("get cluster client")
+	log.Infow("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		response.Error(c, apierror.InternalError(err))
@@ -108,7 +108,7 @@ func Logs(c *gin.Context) {
 	}
 
 	if appName != "" {
-		log.Info("retrieve application", "name", appName, "namespace", namespace)
+		log.Infow("retrieve application", "name", appName, "namespace", namespace)
 
 		app, err := application.Lookup(ctx, cluster, namespace, appName)
 		if err != nil {
@@ -133,7 +133,7 @@ func Logs(c *gin.Context) {
 		return
 	}
 
-	log.Info("process query")
+	log.Infow("process query")
 
 	followStr := c.Query("follow")
 	tailStr := c.Query("tail")
@@ -155,14 +155,14 @@ func Logs(c *gin.Context) {
 	logParams.Follow = follow
 
 	// Log the parsed parameters for debugging
-	log.Info("parsed log parameters",
+	log.Infow("parsed log parameters",
 		"tail", logParams.Tail,
 		"since", logParams.Since,
 		"since_time", logParams.SinceTime,
 		"follow", logParams.Follow,
 		"follow_raw", followStr)
 
-	log.Info("upgrade to web socket")
+	log.Infow("upgrade to web socket")
 
 	var upgrader = newUpgrader()
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -171,16 +171,16 @@ func Logs(c *gin.Context) {
 		return
 	}
 
-	log.Info("streaming mode", "follow", logParams.Follow)
-	log.Info("streaming begin")
+	log.Infow("streaming mode", "follow", logParams.Follow)
+	log.Infow("streaming begin")
 
 	err = streamPodLogs(ctx, conn, namespace, appName, stageID, cluster, logParams)
 	if err != nil {
-		log.V(1).Error(err, "error occurred after upgrading the websockets connection")
+		log.Debugw("error occurred after upgrading the websockets connection", "error", err)
 		return
 	}
 
-	log.Info("streaming completed")
+	log.Infow("streaming completed")
 }
 
 // streamPodLogs sends the logs of any containers matching namespaceName, appName
@@ -199,25 +199,25 @@ func Logs(c *gin.Context) {
 // all the children go routines described above and then will wait for their parent
 // go routine to stop too (using another WaitGroup).
 func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, appName, stageID string, cluster *kubernetes.Cluster, logParams *application.LogParameters) error {
-	logger := requestctx.Logger(ctx).WithName("streamer-to-websockets").V(1)
+	logger := requestctx.Logger(ctx).With("component", "streamer-to-websockets")
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func(outerWg *sync.WaitGroup) {
-		logger.Info("create backend", "follow", logParams.Follow, "app", appName, "stage", stageID, "namespace", namespaceName)
+		logger.Debugw("create backend", "follow", logParams.Follow, "app", appName, "stage", stageID, "namespace", namespaceName)
 		defer func() {
-			logger.Info("backend ends")
+			logger.Debugw("backend ends")
 		}()
 
 		var tailWg sync.WaitGroup
 		err := application.Logs(logCtx, logChan, &tailWg, cluster, appName, stageID, namespaceName, logParams)
 		if err != nil {
-			logger.Error(err, "setting up log routines failed")
+			logger.Errorw("setting up log routines failed", "error", err)
 		}
 
-		logger.Info("wait for backend completion", "follow", logParams.Follow, "app", appName, "stage", stageID, "namespace", namespaceName)
+		logger.Debugw("wait for backend completion", "follow", logParams.Follow, "app", appName, "stage", stageID, "namespace", namespaceName)
 		tailWg.Wait()  // Wait until all child routines are stopped
 		close(logChan) // Close the channel so the loop below can stop
 		outerWg.Done() // Let the outer method know we are done
@@ -228,12 +228,12 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 		wg.Wait()
 	}()
 
-	logger.Info("stream copying begin")
+	logger.Debugw("stream copying begin")
 
 	// Send logs received on logChan to the websockets connection until either
 	// logChan is closed or websocket connection is closed.
 	for logLine := range logChan {
-		logger.Info("streaming", "log line", logLine)
+		logger.Debugw("streaming", "log line", logLine)
 
 		msg, err := json.Marshal(logLine)
 		if err != nil {
@@ -242,7 +242,7 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 
 		err = conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
-			logger.Error(err, "failed to write to websockets")
+			logger.Errorw("failed to write to websockets", "error", err)
 
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				connectionCloseError := conn.Close()
@@ -260,7 +260,7 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 					return connectionCloseError
 				}
 
-				logger.Error(err, "websockets connection unexpectedly closed")
+				logger.Errorw("websockets connection unexpectedly closed", "error", err)
 				return nil
 			}
 
@@ -278,8 +278,8 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 		}
 	}
 
-	logger.Info("stream copying done")
-	logger.Info("websocket teardown")
+	logger.Debugw("stream copying done")
+	logger.Debugw("websocket teardown")
 
 	if err := conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{}); err != nil {
 		return err

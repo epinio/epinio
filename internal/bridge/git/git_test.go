@@ -18,7 +18,7 @@ import (
 
 	"github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -58,7 +58,7 @@ var _ = Describe("Manager", func() {
 
 				mockSecretLister := &mockSecretLister{list: &v1.SecretList{Items: secrets}}
 
-				gitManager, err := git.NewManager(logr.Discard(), mockSecretLister)
+				gitManager, err := git.NewManager(zap.NewNop().Sugar(), mockSecretLister)
 				Expect(err).To(BeNil())
 
 				Expect(gitManager.Configurations[0].ID).To(Equal("aaa"))

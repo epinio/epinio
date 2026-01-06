@@ -22,9 +22,8 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
-
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -43,12 +42,12 @@ var (
 type DefinitionCount map[string]int
 
 type AuthService struct {
-	Logger logr.Logger
+	Logger *zap.SugaredLogger
 	typedcorev1.SecretInterface
 	typedcorev1.ConfigMapInterface
 }
 
-func NewAuthServiceFromContext(ctx context.Context, logger logr.Logger) (*AuthService, error) {
+func NewAuthServiceFromContext(ctx context.Context, logger *zap.SugaredLogger) (*AuthService, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting kubernetes cluster")
@@ -57,9 +56,9 @@ func NewAuthServiceFromContext(ctx context.Context, logger logr.Logger) (*AuthSe
 	return NewAuthService(logger, cluster), nil
 }
 
-func NewAuthService(logger logr.Logger, cluster *kubernetes.Cluster) *AuthService {
+func NewAuthService(logger *zap.SugaredLogger, cluster *kubernetes.Cluster) *AuthService {
 	return &AuthService{
-		Logger:             logger.WithName("AuthService"),
+		Logger:             logger.With("component", "AuthService"),
 		SecretInterface:    cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
 		ConfigMapInterface: cluster.Kubectl.CoreV1().ConfigMaps(helmchart.Namespace()),
 	}
@@ -69,7 +68,7 @@ func NewAuthService(logger logr.Logger, cluster *kubernetes.Cluster) *AuthServic
 // of definition counts enabling the caller to distinguish between `truly does not exist` versus
 // `has conflicting definitions`.
 func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, error) {
-	s.Logger.V(1).Info("GetUsers")
+	s.Logger.Debugw("GetUsers")
 
 	secrets, err := s.getUsersSecrets(ctx)
 	if err != nil {
@@ -92,7 +91,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, er
 
 	for _, user := range allUsers {
 		if userCount[user.Username] > 1 {
-			s.Logger.V(1).Info("skip duplicate user", "user", user.Username)
+			s.Logger.Debugw("skip duplicate user", "user", user.Username)
 			continue
 		}
 
@@ -100,7 +99,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, er
 		users = append(users, user)
 	}
 
-	s.Logger.V(1).Info(fmt.Sprintf("found %d users", len(users)), "users", strings.Join(usernames, ","))
+	s.Logger.Debugw("found users", "count", len(users), "users", strings.Join(usernames, ","))
 
 	// return the good users, and the map of definition counts, enablign the caller to
 	// distinguish actual missing users from users weeded out because of conflicting
@@ -110,7 +109,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, er
 }
 
 func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
-	s.Logger.V(1).Info("GetRoles")
+	s.Logger.Debugw("GetRoles")
 
 	roleConfigs, err := s.getRolesConfigMaps(ctx)
 	if err != nil {
@@ -128,7 +127,7 @@ func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
 	}
 
 	roleIDs := strings.Join(epinioRoles.IDs(), ",")
-	s.Logger.V(1).Info(fmt.Sprintf("found %d roles", len(epinioRoles)), "roles", roleIDs)
+	s.Logger.Debugw("found roles", "count", len(epinioRoles), "roles", roleIDs)
 
 	return epinioRoles, nil
 }
@@ -136,7 +135,7 @@ func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
 // GetUserByUsername returns the user with the provided username
 // It will return a UserNotFound error if the user is not found
 func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (User, error) {
-	s.Logger.V(1).Info("GetUserByUsername", "username", username)
+	s.Logger.Debugw("GetUserByUsername", "username", username)
 
 	users, counts, err := s.GetUsers(ctx)
 	if err != nil {
@@ -154,19 +153,19 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 
 	count, ok := counts[username]
 	if ok && (count > 1) {
-		s.Logger.V(1).Info("user defined multiple times", "user", username, "count", count)
+		s.Logger.Debugw("user defined multiple times", "user", username, "count", count)
 
 		return User{}, ErrUsernameConflict
 	}
 
-	s.Logger.V(1).Info("user not found")
+	s.Logger.Debugw("user not found")
 
 	return User{}, ErrUserNotFound
 }
 
 // SaveUser will save the user
 func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
-	s.Logger.V(1).Info("SaveUser", "username", user.Username)
+	s.Logger.Debugw("SaveUser", "username", user.Username)
 
 	userSecret := newSecretFromUser(user)
 
@@ -175,14 +174,14 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 		return User{}, err
 	}
 
-	s.Logger.V(1).Info("user saved")
+	s.Logger.Debugw("user saved")
 
 	return newUserFromSecret(s.Logger, *createdUserSecret), nil
 }
 
 // UpdateUser will update an existing user
 func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
-	s.Logger.V(1).Info("UpdateUser", "username", user.Username)
+	s.Logger.Debugw("UpdateUser", "username", user.Username)
 
 	userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 	if err != nil {
@@ -196,14 +195,14 @@ func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
 	}
 	updatedUser := newUserFromSecret(s.Logger, *updatedUserSecret)
 
-	s.Logger.V(1).Info("user updated")
+	s.Logger.Debugw("user updated")
 
 	return updatedUser, nil
 }
 
 // RemoveNamespaceFromUsers will remove the specified namespace from all users
 func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace string) error {
-	s.Logger.V(1).Info("RemoveNamespaceFromUsers", "namespace", namespace)
+	s.Logger.Debugw("RemoveNamespaceFromUsers", "namespace", namespace)
 
 	users, _, err := s.GetUsers(ctx)
 	if err != nil {
@@ -220,7 +219,7 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 
 		_, err = s.UpdateUser(ctx, user)
 		if err != nil {
-			s.Logger.V(1).Error(err, "error removing namespace from user", "namespace", namespace, "user", user.Username)
+			s.Logger.Debugw("error removing namespace from user", "error", err, "namespace", namespace, "user", user.Username)
 			errorMessages = append(errorMessages, err.Error())
 		}
 	}
@@ -233,7 +232,7 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 
 // RemoveGitconfigFromUsers will remove the specified gitconfig from all users
 func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig string) error {
-	s.Logger.V(1).Info("RemoveGitconfigFromUsers", "gitconfig", gitconfig)
+	s.Logger.Debugw("RemoveGitconfigFromUsers", "gitconfig", gitconfig)
 
 	users, _, err := s.GetUsers(ctx)
 	if err != nil {
@@ -250,7 +249,7 @@ func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig st
 
 		_, err = s.UpdateUser(ctx, user)
 		if err != nil {
-			s.Logger.V(1).Error(err, "error removing gitconfig from user", "gitconfig", gitconfig, "user", user.Username)
+			s.Logger.Debugw("error removing gitconfig from user", "error", err, "gitconfig", gitconfig, "user", user.Username)
 			errorMessages = append(errorMessages, err.Error())
 		}
 	}

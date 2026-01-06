@@ -21,7 +21,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +33,7 @@ type SecretLister interface {
 }
 
 type Manager struct {
-	logger         logr.Logger
+	logger         *zap.SugaredLogger
 	SecretLister   SecretLister
 	Configurations []Configuration
 }
@@ -68,8 +68,8 @@ func (c Configuration) Gitconfig() string {
 	return c.ID
 }
 
-func NewManager(logger logr.Logger, secretLoader SecretLister) (*Manager, error) {
-	logger = logger.WithName("GitManager")
+func NewManager(logger *zap.SugaredLogger, secretLoader SecretLister) (*Manager, error) {
+	logger = logger.With("component", "GitManager")
 
 	secretSelector := labels.Set(map[string]string{
 		kubernetes.EpinioAPIGitCredentialsLabelKey: "true",
@@ -93,7 +93,7 @@ func NewManager(logger logr.Logger, secretLoader SecretLister) (*Manager, error)
 		return configurations[i].ID < configurations[j].ID
 	})
 
-	logger.V(1).Info(fmt.Sprintf("found %d git configurations [%s]", len(configurations), strings.Join(configIDs, ", ")))
+	logger.Debugw("found git configurations", "count", len(configurations), "configs", strings.Join(configIDs, ", "))
 
 	return &Manager{
 		logger:         logger,

@@ -119,7 +119,7 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, namespace stri
 	}()
 
 	p, err := ants.NewPoolWithFunc(maxConcurrent, func(i interface{}) {
-		err := application.Delete(ctx, cluster, i.(models.AppRef))
+		err := application.Delete(ctx, cluster, i.(models.AppRef), false)
 		if err != nil {
 			errChan <- err
 		}

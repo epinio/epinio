@@ -31,15 +31,15 @@ func Match(c *gin.Context) apierror.APIErrors {
 	log := requestctx.Logger(ctx)
 	user := requestctx.User(ctx)
 
-	log.Info("match namespaces")
-	defer log.Info("return")
+	log.Infow("match namespaces")
+	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	log.Info("list namespaces")
+	log.Infow("list namespaces")
 	namespaces, err := namespaces.List(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -47,10 +47,10 @@ func Match(c *gin.Context) apierror.APIErrors {
 
 	namespaces = auth.FilterResources(user, namespaces)
 
-	log.Info("get namespace prefix")
+	log.Infow("get namespace prefix")
 	prefix := c.Param("pattern")
 
-	log.Info("match prefix", "pattern", prefix)
+	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, namespace := range namespaces {
 		if strings.HasPrefix(namespace.Name, prefix) {
@@ -58,7 +58,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	log.Info("deliver matches", "found", matches)
+	log.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.NamespacesMatchResponse{
 		Names: matches,

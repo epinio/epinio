@@ -117,12 +117,12 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	chartName := appObj.Configuration.AppChart
 	domains := domain.MatchMapLoad(ctx, app.Namespace)
 
-	maplog := log.V(1)
-	maplog.Info("domain map begin")
+	maplog := log.With("component", "domain-map")
+	maplog.Debugw("domain map begin")
 	for k, v := range domains {
-		maplog.Info("domain map", k, v)
+		maplog.Debugw("domain map", k, v)
 	}
-	maplog.Info("domain map end")
+	maplog.Debugw("domain map end")
 
 	var start *int64
 	if restart {
@@ -147,7 +147,7 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		Settings:       appObj.Configuration.Settings,
 	}
 
-	log.Info("deploying app", "namespace", app.Namespace, "app", app.Name)
+	log.Infow("deploying app", "namespace", app.Namespace, "app", app.Name)
 
 	deployParams.ImageURL, err = replaceInternalRegistry(ctx, cluster, imageURL)
 	if err != nil {
@@ -161,7 +161,7 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 
 	// Delete previous staging jobs except for the current one
 	if stageID != "" {
-		log.Info("app staging drop", "namespace", app.Namespace, "app", app.Name, "stage id", stageID)
+		log.Infow("app staging drop", "namespace", app.Namespace, "app", app.Name, "stage id", stageID)
 
 		if err := application.Unstage(ctx, cluster, app, stageID); err != nil {
 			return nil, apierror.InternalError(err)

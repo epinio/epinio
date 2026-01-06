@@ -13,6 +13,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -309,10 +310,9 @@ func changeOptions(cmd *cobra.Command, cfg *ChangeConfig) {
 	err := cmd.Flags().MarkDeprecated("remove", "please use --unset instead")
 	if err != nil {
 		if helpers.Logger != nil {
-			helpers.Logger.Fatal(err)
-		} else {
-			panic(fmt.Sprintf("failed to mark flag as deprecated: %v", err))
+			helpers.Logger.Fatalw("failed to mark flag as deprecated", "flag", "remove", "error", err)
 		}
+		log.Fatal(err)
 	}
 
 	// Note: No completion functionality. This would require asking the configuration for

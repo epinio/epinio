@@ -12,8 +12,6 @@
 package middleware
 
 import (
-	"fmt"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -25,7 +23,7 @@ import (
 // NamespaceExists is a gin middleware used to check if a namespaced route is valid.
 // It checks the validity of the requested namespace, returning a 404 if it doesn't exists
 func NamespaceExists(c *gin.Context) {
-	logger := requestctx.Logger(c.Request.Context()).WithName("NamespaceMiddleware")
+	logger := requestctx.Logger(c.Request.Context()).With("component", "NamespaceMiddleware")
 	ctx := c.Request.Context()
 
 	namespace := c.Param("namespace")
@@ -35,7 +33,7 @@ func NamespaceExists(c *gin.Context) {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		logger.Info("unable to get cluster", "error", err)
+		logger.Infow("unable to get cluster", "error", err)
 		response.Error(c, apierrors.InternalError(err))
 		c.Abort()
 		return
@@ -43,14 +41,14 @@ func NamespaceExists(c *gin.Context) {
 
 	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
-		logger.Info("unable to check if namespace exists", "error", err)
+		logger.Infow("unable to check if namespace exists", "error", err)
 		response.Error(c, apierrors.InternalError(err))
 		c.Abort()
 		return
 	}
 
 	if !exists {
-		logger.Info(fmt.Sprintf("namespace [%s] doesn't exists", namespace))
+		logger.Infow("namespace doesn't exist", "namespace", namespace)
 		response.Error(c, apierrors.NamespaceIsNotKnown(namespace))
 		c.Abort()
 	}

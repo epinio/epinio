@@ -34,7 +34,7 @@ func Index(c *gin.Context) apierror.APIErrors {
 	appName := c.Param("app")
 	grouped := c.Query("grouped") == "true"
 
-	log.Info("returning environment", "namespace", namespaceName, "app", appName, "grouped", grouped)
+	log.Infow("returning environment", "namespace", namespaceName, "app", appName, "grouped", grouped)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {

@@ -21,7 +21,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,7 +150,7 @@ func filterRolesByNamespace(roles Roles, namespace string) Roles {
 // newUserFromSecret create an Epinio User from a Secret
 // this is an internal function that should not be used from the outside.
 // It could contain internals details on how create a user from a secret.
-func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
+func newUserFromSecret(logger *zap.SugaredLogger, secret corev1.Secret) User {
 	user := User{
 		Username:   string(secret.Data["username"]),
 		Password:   string(secret.Data["password"]),
@@ -177,7 +177,7 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 			// find the role for the user
 			userRole, found := EpinioRoles.FindByID(userRoleID)
 			if !found {
-				logger.V(1).Info("role not found", "user", user.Username, "role", userRoleID)
+				logger.Debugw("role not found", "user", user.Username, "role", userRoleID)
 				continue
 			}
 
@@ -272,12 +272,12 @@ func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 }
 
 // IsUpdateUserNeeded returns whenever a user needs to be updated, and the user with the updated information
-func IsUpdateUserNeeded(logger logr.Logger, user User) (User, bool) {
+func IsUpdateUserNeeded(logger *zap.SugaredLogger, user User) (User, bool) {
 	var updateNeeded bool
 
 	newRoles, needsUpdate := isUpdateUserRoleNeeded(user.roleIDs, user.Roles.IDs())
 	if needsUpdate {
-		logger.Info(
+		logger.Infow(
 			"user needs update for different roles",
 			"old", strings.Join(user.roleIDs, ","),
 			"new", strings.Join(newRoles, ","),
@@ -288,7 +288,7 @@ func IsUpdateUserNeeded(logger logr.Logger, user User) (User, bool) {
 
 	newNamespaces, needsUpdate := isUpdateUserNamespacesNeeded(user.Namespaces, user.Roles)
 	if needsUpdate {
-		logger.Info(
+		logger.Infow(
 			"user needs update for different namespaces",
 			"old", strings.Join(user.Namespaces, ","),
 			"new", strings.Join(newNamespaces, ","),

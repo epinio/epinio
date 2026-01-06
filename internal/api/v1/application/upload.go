@@ -49,9 +49,9 @@ func Upload(c *gin.Context) apierror.APIErrors {
 	namespace := c.Param("namespace")
 	name := c.Param("app")
 
-	log.Info("processing upload", "namespace", namespace, "app", name)
+	log.Infow("processing upload", "namespace", namespace, "app", name)
 
-	log.V(2).Info("parsing multipart form")
+	log.Debugw("parsing multipart form")
 
 	file, fileheader, err := c.Request.FormFile("file")
 
@@ -61,7 +61,7 @@ func Upload(c *gin.Context) apierror.APIErrors {
 
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Error(err, "file failed to close: ")
+			log.Errorw("file failed to close", "error", err)
 		}
 	}()
 
@@ -97,7 +97,7 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 
-	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
+	log.Infow("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
 	/*Delete the temporary file created by the multipart form if upload is
 		successful. If it fails the net/http package doesn't store the multipart file
@@ -105,17 +105,17 @@ func Upload(c *gin.Context) apierror.APIErrors {
 	if tempFile, err := fileheader.Open(); err == nil {
 		if osFile, ok := tempFile.(*os.File); ok {
 			tempPath := osFile.Name()
-			log.Info("Deleting multipart temp file", "path", tempPath)
+			log.Infow("Deleting multipart temp file", "path", tempPath)
 			fileRemoveError := os.Remove(tempPath)
 
 			if fileRemoveError != nil {
-				log.Error(fileRemoveError, "Multipart failed to remove: ")
+				log.Errorw("Multipart failed to remove", "error", fileRemoveError)
 			}
 		}
 
 		tempFileCloseError := tempFile.Close()
 		if tempFileCloseError != nil {
-			log.Error(tempFileCloseError, "Temp file failed to close: ")
+			log.Errorw("Temp file failed to close", "error", tempFileCloseError)
 		}
 	}
 

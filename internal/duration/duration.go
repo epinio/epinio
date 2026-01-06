@@ -14,7 +14,7 @@
 package duration
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -45,10 +45,9 @@ func Flags(pf *flag.FlagSet, argToEnv map[string]string) {
 	err := viper.BindPFlag("timeout-multiplier", pf.Lookup("timeout-multiplier"))
 	if err != nil {
 		if helpers.Logger != nil {
-			helpers.Logger.Fatal(err)
-		} else {
-			panic(fmt.Sprintf("failed to bind timeout-multiplier flag: %v", err))
+			helpers.Logger.Fatalw("failed to bind timeout-multiplier flag", "error", err)
 		}
+		log.Fatal(err)
 	}
 	argToEnv["timeout-multiplier"] = "EPINIO_TIMEOUT_MULTIPLIER"
 }

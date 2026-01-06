@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/epinio/epinio/internal/urlcache"
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -29,7 +29,12 @@ func TestEpinio(t *testing.T) {
 	RunSpecs(t, "URL Cache Suite")
 }
 
-var logger = logr.Discard()
+var logger *zap.SugaredLogger
+
+func init() {
+	// Create a no-op zap logger for tests
+	logger = zap.NewNop().Sugar()
+}
 
 var _ = BeforeSuite(func() {
 	fmt.Printf("Running tests on node %d\n", GinkgoParallelProcess())

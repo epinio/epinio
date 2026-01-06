@@ -26,8 +26,8 @@ import (
 // TokenAuth middleware is used to authenticate a user from a 'authtoken'
 // It's used when trying to establish a websocket connections for authenticated users.
 func TokenAuth(ctx *gin.Context) {
-	logger := requestctx.Logger(ctx.Request.Context()).WithName("TokenAuth")
-	logger.V(1).Info("Authtoken authentication")
+	logger := requestctx.Logger(ctx.Request.Context()).With("component", "TokenAuth")
+	logger.Debugw("Authtoken authentication")
 
 	token := ctx.Query("authtoken")
 	claims, err := authtoken.Validate(token)
@@ -46,7 +46,7 @@ func TokenAuth(ctx *gin.Context) {
 		}
 
 		// detailed log message
-		logger.V(2).Info(apiErr.Title, "error", err.Error())
+		logger.Debugw(apiErr.Title, "error", err.Error())
 		// not too specific log message for unauthorized client
 		response.Error(ctx, apiErr)
 		ctx.Abort()
