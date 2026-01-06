@@ -75,7 +75,12 @@ func (c *EpinioClient) Namespaces() error {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().Msg("Listing namespaces")
+	// Check JSON mode early to avoid printing messages that would corrupt JSON output
+	jsonMode := c.ui.JSONEnabled()
+
+	if !jsonMode {
+		c.ui.Note().Msg("Listing namespaces")
+	}
 
 	details.Info("list namespaces")
 
@@ -86,7 +91,7 @@ func (c *EpinioClient) Namespaces() error {
 
 	sort.Sort(namespaces)
 
-	if c.ui.JSONEnabled() {
+	if jsonMode {
 		return c.ui.JSON(namespaces)
 	}
 

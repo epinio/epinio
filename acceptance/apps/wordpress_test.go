@@ -133,7 +133,7 @@ var _ = Describe("Wordpress", func() {
 		appURL, err := wordpress.AppURL()
 		Expect(err).ToNot(HaveOccurred())
 
-		request, err := http.NewRequest("GET", appURL + ":8443", nil)
+		request, err := http.NewRequest("GET", appURL + getPortSuffixFromServerURL(), nil)
 		Expect(err).ToNot(HaveOccurred())
 		client := env.Client()
 		Eventually(func() int {

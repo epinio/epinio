@@ -24,3 +24,4 @@ acceptance/acceptance.test
 contrib/
 Session.vim
 .idea/
+acceptance/**/*.test

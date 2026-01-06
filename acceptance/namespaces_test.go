@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
@@ -194,7 +195,8 @@ var _ = Describe("Namespaces", LNamespace, func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				namespace := models.Namespace{}
-				err = json.Unmarshal([]byte(out), &namespace)
+				jsonOut := testenv.ExtractJSON(out)
+				err = json.Unmarshal([]byte(jsonOut), &namespace)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(namespace.Meta.Name).To(Equal(namespaceName))
 			})

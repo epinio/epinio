@@ -278,6 +278,17 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 	}
 }
 
+// extractJSONFromBytes extracts JSON from a byte slice that may contain log messages or other text.
+// It finds the first '{' or '[' character and returns everything from there to the end.
+func extractJSONFromBytes(bodyBytes []byte) []byte {
+	for i, b := range bodyBytes {
+		if b == '{' || b == '[' {
+			return bodyBytes[i:]
+		}
+	}
+	return bodyBytes
+}
+
 func handleError(logger logr.Logger, response *http.Response) error {
 	defer func() {
 		if err := response.Body.Close(); err != nil {
@@ -302,10 +313,46 @@ func handleError(logger logr.Logger, response *http.Response) error {
 	}
 
 	if len(bodyBytes) > 0 {
-		err = json.Unmarshal(bodyBytes, epinioError.Err)
-		if err != nil {
-			logger.Error(err, "decoding json error")
-			return errors.Wrap(err, "parsing error response")
+		// Try to extract JSON from the response body (in case it's mixed with other content)
+		jsonBytes := extractJSONFromBytes(bodyBytes)
+		
+		// Only try to parse if it looks like JSON (starts with { or [)
+		if len(jsonBytes) > 0 && (jsonBytes[0] == '{' || jsonBytes[0] == '[') {
+			err = json.Unmarshal(jsonBytes, epinioError.Err)
+			if err != nil {
+				// If JSON parsing fails, log the error but don't fail completely
+				// Create a generic error response with the status code
+				bodyPreview := string(bodyBytes)
+				if len(bodyBytes) > 200 {
+					bodyPreview = string(bodyBytes[:200]) + "..."
+				}
+				logger.Error(err, "failed to parse error response as JSON, using generic error", "body_preview", bodyPreview)
+				epinioError.Err = &apierrors.ErrorResponse{
+					Errors: []apierrors.APIError{
+						{
+							Status:  response.StatusCode,
+							Title:   fmt.Sprintf("HTTP %d: %s", response.StatusCode, response.Status),
+							Details: fmt.Sprintf("Server returned non-JSON response: %s", bodyPreview),
+						},
+					},
+				}
+			}
+		} else {
+			// Response doesn't look like JSON, create a generic error
+			bodyPreview := string(bodyBytes)
+			if len(bodyBytes) > 200 {
+				bodyPreview = string(bodyBytes[:200]) + "..."
+			}
+			logger.Info("error response is not JSON, using generic error", "body_preview", bodyPreview)
+			epinioError.Err = &apierrors.ErrorResponse{
+				Errors: []apierrors.APIError{
+					{
+						Status:  response.StatusCode,
+						Title:   fmt.Sprintf("HTTP %d: %s", response.StatusCode, response.Status),
+						Details: fmt.Sprintf("Server returned non-JSON response: %s", bodyPreview),
+					},
+				},
+			}
 		}
 	}
 

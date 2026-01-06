@@ -41,7 +41,7 @@ var _ = Describe("Login", LMisc, func() {
 	})
 
 	It("succeeds with a valid user", func() {
-		// check that the initial settings are empt
+		// check that the initial settings are empty
 		ExpectEmptySettings(tmpSettingsPath)
 
 		// login with a valid user

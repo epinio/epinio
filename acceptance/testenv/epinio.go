@@ -145,3 +145,14 @@ func AppRouteFromOutput(out string) string {
 	routeRegexp := regexp.MustCompile(`Routes: .*\n.*(https:\/\/.*\.sslip\.io)`)
 	return routeRegexp.FindStringSubmatch(out)[1]
 }
+
+// ExtractJSON extracts JSON from output that may contain log messages or other text.
+// It finds the first '{' or '[' character and returns everything from there to the end.
+func ExtractJSON(out string) string {
+	for i, r := range out {
+		if r == '{' || r == '[' {
+			return out[i:]
+		}
+	}
+	return out
+}
