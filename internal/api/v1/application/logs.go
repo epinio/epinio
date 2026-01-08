@@ -49,8 +49,8 @@ type LogParameterUpdate struct {
 	} `json:"params"`
 }
 
-// parseLogParameters parses and validates log query parameters
-func parseLogParameters(
+// ParseLogParameters parses and validates log query parameters
+func ParseLogParameters(
 	tailStr,
 	sinceStr,
 	sinceTimeStr string,
@@ -106,15 +106,6 @@ func parseLogParameters(
 	}
 
 	return params, nil
-}
-
-// ParseLogParametersForTest is a test helper that exposes parseLogParameters for testing
-func ParseLogParametersForTest(
-	tailStr,
-	sinceStr,
-	sinceTimeStr string,
-) (*application.LogParameters, error) {
-	return parseLogParameters(tailStr, sinceStr, sinceTimeStr)
 }
 
 // Logs handles the API endpoints GET /namespaces/:namespace/applications/:app/logs
@@ -179,7 +170,7 @@ func Logs(c *gin.Context) {
 	sinceTimeStr := c.Query("since_time")
 
 	// Parse and validate log parameters
-	logParams, err := parseLogParameters(tailStr, sinceStr, sinceTimeStr)
+	logParams, err := ParseLogParameters(tailStr, sinceStr, sinceTimeStr)
 	if err != nil {
 		response.Error(c, apierror.NewBadRequestError(err.Error()))
 		return
@@ -305,7 +296,7 @@ func streamPodLogs(
 				// Start new streaming with updated parameters
 				logCtx, logCancelFunc = context.WithCancel(ctx)
 
-				parsedParams, parsedParamsError := parseLogParameters(
+				parsedParams, parsedParamsError := ParseLogParameters(
 					strconv.Itoa(update.Params.Tail),
 					update.Params.Since,
 					update.Params.SinceTime,
