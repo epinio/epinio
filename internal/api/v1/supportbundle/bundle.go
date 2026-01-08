@@ -169,7 +169,11 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(errors.Wrap(err, "failed to open archive file"))
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Error(err, "failed to close archive file")
+		}
+	}()
 
 	// Set headers for file download
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))

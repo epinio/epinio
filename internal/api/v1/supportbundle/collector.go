@@ -58,7 +58,7 @@ func (c *Collector) CollectEpinioServerLogs(ctx context.Context) error {
 	selector = selector.Add(*req)
 
 	// Collect logs including previous containers
-	return c.collectPodLogsWithPrevious(ctx, "epinio-server", SupportBundleNamespace, selector, "epinio-server")
+	return c.collectPodLogsWithPrevious(ctx, "epinio-server", SupportBundleNamespace, selector)
 }
 
 // CollectEpinioUILogs collects logs from Epinio UI pods (current and previous containers)
@@ -73,10 +73,10 @@ func (c *Collector) CollectEpinioUILogs(ctx context.Context) error {
 
 	// Try to collect from epinio namespace first, fallback to all namespaces
 	// Collect logs including previous containers
-	err = c.collectPodLogsWithPrevious(ctx, "epinio-ui", SupportBundleNamespace, selector, "")
+	err = c.collectPodLogsWithPrevious(ctx, "epinio-ui", SupportBundleNamespace, selector)
 	if err != nil {
 		// If not found in epinio namespace, try all namespaces
-		return c.collectPodLogsWithPrevious(ctx, "epinio-ui", "", selector, "")
+		return c.collectPodLogsWithPrevious(ctx, "epinio-ui", "", selector)
 	}
 	return nil
 }
@@ -100,7 +100,7 @@ func (c *Collector) CollectStagingJobLogs(ctx context.Context) error {
 	cutoffTime := time.Now().Add(-RecentStagingJobsWindow)
 	var recentJobs []string
 	for _, job := range jobs.Items {
-		if job.CreationTimestamp.Time.After(cutoffTime) {
+		if job.CreationTimestamp.After(cutoffTime) {
 			recentJobs = append(recentJobs, job.Name)
 		}
 	}
@@ -131,7 +131,7 @@ func (c *Collector) CollectStagingJobLogs(ctx context.Context) error {
 
 		dirName := fmt.Sprintf("staging-jobs/%s", jobName)
 		// For staging jobs, apply the 24-hour time window
-		if err := c.collectPodLogs(ctx, dirName, "", jobSelector, "", true); err != nil {
+		if err := c.collectPodLogs(ctx, dirName, "", jobSelector, true); err != nil {
 			c.logger.Error(err, "failed to collect logs for staging job", "job", jobName)
 			// Continue with other jobs
 		}
@@ -166,7 +166,7 @@ func (c *Collector) CollectMinioLogs(ctx context.Context) error {
 	namespaces := []string{SupportBundleNamespace, "minio", "default"}
 	for _, ns := range namespaces {
 		for _, selector := range selectors {
-			if err := c.collectPodLogs(ctx, "minio", ns, selector, "", false); err == nil {
+			if err := c.collectPodLogs(ctx, "minio", ns, selector, false); err == nil {
 				return nil // Successfully collected
 			}
 		}
@@ -174,7 +174,7 @@ func (c *Collector) CollectMinioLogs(ctx context.Context) error {
 
 	// If not found in specific namespaces, try all namespaces
 	for _, selector := range selectors {
-		if err := c.collectPodLogs(ctx, "minio", "", selector, "", false); err == nil {
+		if err := c.collectPodLogs(ctx, "minio", "", selector, false); err == nil {
 			return nil
 		}
 	}
@@ -217,7 +217,7 @@ func (c *Collector) CollectRegistryLogs(ctx context.Context) error {
 	namespaces := []string{SupportBundleNamespace, "registry", "default"}
 	for _, ns := range namespaces {
 		for _, selector := range selectors {
-			if err := c.collectPodLogs(ctx, "registry", ns, selector, "", false); err == nil {
+			if err := c.collectPodLogs(ctx, "registry", ns, selector, false); err == nil {
 				return nil // Successfully collected
 			}
 		}
@@ -225,7 +225,7 @@ func (c *Collector) CollectRegistryLogs(ctx context.Context) error {
 
 	// If not found in specific namespaces, try all namespaces
 	for _, selector := range selectors {
-		if err := c.collectPodLogs(ctx, "registry", "", selector, "", false); err == nil {
+		if err := c.collectPodLogs(ctx, "registry", "", selector, false); err == nil {
 			return nil
 		}
 	}
@@ -292,7 +292,7 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 
 // collectPodLogs collects logs from pods matching the selector
 // applyTimeWindow: if true, only collect logs from last 24 hours (for staging jobs)
-func (c *Collector) collectPodLogs(ctx context.Context, dirName, namespace string, selector labels.Selector, containerName string, applyTimeWindow bool) error {
+func (c *Collector) collectPodLogs(ctx context.Context, dirName, namespace string, selector labels.Selector, applyTimeWindow bool) error {
 	podList, err := c.cluster.Kubectl.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: selector.String(),
 	})
@@ -315,7 +315,7 @@ func (c *Collector) collectPodLogs(ctx context.Context, dirName, namespace strin
 }
 
 // collectPodLogsWithPrevious collects logs from pods including previous containers
-func (c *Collector) collectPodLogsWithPrevious(ctx context.Context, dirName, namespace string, selector labels.Selector, containerName string) error {
+func (c *Collector) collectPodLogsWithPrevious(ctx context.Context, dirName, namespace string, selector labels.Selector) error {
 	podList, err := c.cluster.Kubectl.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: selector.String(),
 	})
@@ -428,7 +428,11 @@ func (c *Collector) writePodLogs(ctx context.Context, namespace, podName, contai
 	if err != nil {
 		return errors.Wrap(err, "failed to create log file")
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			c.logger.Error(err, "failed to close log file", "file", filePath)
+		}
+	}()
 
 	// Get pod logs using Kubernetes API
 	podLogOptions := &corev1.PodLogOptions{
@@ -459,7 +463,11 @@ func (c *Collector) writePodLogs(ctx context.Context, namespace, podName, contai
 		}
 		return nil
 	}
-	defer stream.Close()
+	defer func() {
+		if err := stream.Close(); err != nil {
+			c.logger.Error(err, "failed to close log stream", "pod", podName, "container", containerName)
+		}
+	}()
 
 	// Copy logs to file
 	_, err = io.Copy(file, stream)
@@ -477,7 +485,11 @@ func (c *Collector) writePreviousPodLogs(ctx context.Context, namespace, podName
 	if err != nil {
 		return errors.Wrap(err, "failed to create log file")
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			c.logger.Error(err, "failed to close log file", "file", filePath)
+		}
+	}()
 
 	// Get previous container logs using Kubernetes API
 	podLogOptions := &corev1.PodLogOptions{
@@ -501,7 +513,11 @@ func (c *Collector) writePreviousPodLogs(ctx context.Context, namespace, podName
 		}
 		return nil
 	}
-	defer stream.Close()
+	defer func() {
+		if err := stream.Close(); err != nil {
+			c.logger.Error(err, "failed to close log stream", "pod", podName, "container", containerName)
+		}
+	}()
 
 	// Copy logs to file
 	_, err = io.Copy(file, stream)
@@ -563,7 +579,11 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create archive file")
 	}
-	defer outFile.Close()
+	defer func() {
+		if err := outFile.Close(); err != nil {
+			c.logger.Error(err, "failed to close archive file", "path", archivePath)
+		}
+	}()
 
 	// Create compressed tar archive
 	format := archives.CompressedArchive{
