@@ -85,8 +85,10 @@ func FromIngress(ingress networkingv1.Ingress) ([]Route, error) {
 	result := []Route{}
 	for _, r := range ingress.Spec.Rules {
 		domain := r.Host
-		for _, p := range r.HTTP.Paths {
-			result = append(result, Route{Domain: domain, Path: p.Path})
+		if r.HTTP != nil {
+			for _, p := range r.HTTP.Paths {
+				result = append(result, Route{Domain: domain, Path: p.Path})
+			}
 		}
 	}
 
