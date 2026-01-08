@@ -24,7 +24,6 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/pkg/errors"
-	"gorm.io/gorm/logger"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -164,7 +163,7 @@ func FetchLogs(
 	}
 
 	if config.Ordered {
-		logger.Info("fetch in order")
+		helpers.Logger.Debug("fetch in order")
 
 		for _, t := range tails {
 			helpers.Logger.Debug(
@@ -178,7 +177,7 @@ func FetchLogs(
 
 			err := t.Start(ctx, logChan, false)
 			if err != nil {
-				logger.Error(err, "failed to start a Tail")
+				helpers.Logger.Error(err, "failed to start a Tail")
 			}
 		}
 
@@ -199,7 +198,7 @@ func FetchLogs(
 		go func(tail *Tail) {
 			err := tail.Start(ctx, logChan, false)
 			if err != nil {
-				logger.Error(err, "failed to start a Tail")
+				helpers.Logger.Error(err, "failed to start a Tail")
 			}
 			wg.Done()
 		}(t)
