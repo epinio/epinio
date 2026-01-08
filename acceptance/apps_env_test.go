@@ -312,4 +312,38 @@ var _ = Describe("apps env", LApplication, func() {
 			})
 		})
 	})
+
+	Describe("env merge and replace", func() {
+		BeforeEach(func() {
+			appDir := "../assets/sample-app"
+			out, err := env.EpinioPush(appDir, appName, "--name", appName, "--env", "FOO=frommanifest")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				return deployedEnv(namespace, appName)
+			}).Should(ContainSubstring("FOO"))
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("merges envs by default when updating", func() {
+			out, err := env.Epinio("", "apps", "update", appName, "--env", "BAR=fromupdate")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				return deployedEnv(namespace, appName)
+			}).Should(And(ContainSubstring("FOO"), ContainSubstring("BAR")))
+		})
+
+		It("replaces envs when --env-replace is set", func() {
+			out, err := env.Epinio("", "apps", "update", appName, "--env-replace", "--env", "BAR=replaced")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				return deployedEnv(namespace, appName)
+			}).Should(And(Not(ContainSubstring("FOO")), ContainSubstring("BAR")))
+		})
+	})
 })
