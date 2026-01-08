@@ -32,6 +32,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
+	"github.com/epinio/epinio/internal/api/v1/supportbundle"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -92,7 +93,10 @@ func put(path string, h gin.HandlerFunc) routes.Route {
 }
 
 // AdminRoutes is the list of restricted routes, only accessible by admins
-var AdminRoutes map[string]struct{} = map[string]struct{}{}
+// The key is the full path as it appears in the request URL (e.g., "/api/v1/support-bundle")
+var AdminRoutes map[string]struct{} = map[string]struct{}{
+	"/api/v1/support-bundle": {},
+}
 
 var Routes = routes.NamedRoutes{
 	"AuthToken": get("/authtoken", errorHandler(AuthToken)),
@@ -223,6 +227,9 @@ var Routes = routes.NamedRoutes{
 	"ExportregistriesMatch0": get("/exportregistrymatches", errorHandler(exportregistry.Match)),
 
 	"GitProxy": post("/gitproxy", errorHandler(gitproxy.ProxyHandler)),
+
+	// Support bundle
+	"SupportBundle": get("/support-bundle", errorHandler(supportbundle.Bundle)),
 }
 
 var WsRoutes = routes.NamedRoutes{
