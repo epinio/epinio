@@ -113,6 +113,10 @@ func ParseLogParameters(
 // It arranges for the logs of the specified application to be
 // streamed over a websocket. Dependent on the endpoint this may be
 // either regular logs, or the app's staging logs.
+//
+// There is also support for dynamic updating of log parameters via
+// the websocket connection. The client can send a JSON message with tail,
+// since, and since_time fields to update the log filtering parameters.
 func Logs(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -164,6 +168,7 @@ func Logs(c *gin.Context) {
 
 	helpers.Logger.Debug("process query")
 
+	// Extract query parameters
 	followStr := c.Query("follow")
 	tailStr := c.Query("tail")
 	sinceStr := c.Query("since")
@@ -204,7 +209,16 @@ func Logs(c *gin.Context) {
 	helpers.Logger.Debug("streaming mode", "follow", logParams.Follow)
 	helpers.Logger.Debug("streaming begin")
 
-	err = streamPodLogs(ctx, conn, namespace, appName, stageID, cluster, logParams)
+	// Start streaming logs, if there is an error, return after logging it
+	err = streamPodLogs(
+		ctx,
+		conn,
+		namespace,
+		appName,
+		stageID,
+		cluster,
+		logParams,
+	)
 	if err != nil {
 		helpers.Logger.Error(
 			err,
@@ -224,20 +238,9 @@ closed.
 Internally this uses two concurrent "threads" talking with each other
 over the logChan. This is a channel of ContainerLogLine.
 
-The first thread runs `application.Logs` in a go routine. It spins up a
-number of supporting go routines that are stopped when the passed context is
-"Done()". The parent go routine waits until all the subordinate routines are
-stopped. It does this by waiting on a WaitGroup.
-
-When that happens the parent go routine closes the logChan. This signals
-the main "thread" to also stop.
-
-The second (and main) thread reads the logChan and sends the received log
-messages over to the websocket connection. It returns either when the channel
-is closed or when the connection is closed. In any case it will call the
-cancel func that will stop all the children go routines described above and
-then will wait for their parent go routine to stop too (using another
-WaitGroup).
+If the filtering parameters are updated a new log streaming goroutine is
+started and the previous one is cancelled. The logChan is shared between
+the goroutines to prevent the need for reconnecting the websocket.
 */
 func streamPodLogs(
 	ctx context.Context,
@@ -296,6 +299,8 @@ func streamPodLogs(
 				// Start new streaming with updated parameters
 				logCtx, logCancelFunc = context.WithCancel(ctx)
 
+				// Make sure we have valid parameters before continuing, if not, log
+				// the error and ignore the update
 				parsedParams, parsedParamsError := ParseLogParameters(
 					strconv.Itoa(update.Params.Tail),
 					update.Params.Since,
@@ -307,8 +312,10 @@ func streamPodLogs(
 						parsedParamsError,
 						"failed to parse updated log parameters",
 					)
+					continue
 				}
 
+				// Set follow to false for updates, as these are one-off requests
 				update.Params.Follow = false
 
 				logWg.Add(1)
@@ -326,6 +333,7 @@ func streamPodLogs(
 		}
 	}()
 
+	// Start initial log streaming
 	logWg.Add(1)
 	go startLogStreaming(
 		&logWg,
@@ -385,6 +393,8 @@ func streamPodLogs(
 	return conn.Close()
 }
 
+// startLogStreaming starts a goroutine to stream logs with the given parameters
+// and writes them to logChan. It signals completion on wg when done.
 func startLogStreaming(
 	wg *sync.WaitGroup,
 	ctx context.Context,
@@ -399,6 +409,7 @@ func startLogStreaming(
 	defer func() {
 		helpers.Logger.Info("backend ends")
 
+		// Indicate end of log stream if not following
 		if !logParams.Follow {
 			logChan <- tailer.ContainerLogLine{
 				Message:       "___FILTER_COMPLETE___",

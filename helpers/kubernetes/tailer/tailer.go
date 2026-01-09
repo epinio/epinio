@@ -167,7 +167,7 @@ OUTER:
 			}
 		}
 
-		helpers.Logger.Info("passing", "container", ident, "", message)
+		helpers.Logger.Debug("passing", "container", ident, "", message)
 		logChan <- ContainerLogLine{
 			Message:       message,
 			ContainerName: t.ContainerName,

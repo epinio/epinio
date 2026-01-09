@@ -91,17 +91,20 @@ func FetchLogs(
 		TailLines:  config.TailLines,
 	}
 
+	// If no TailLines is set, or it is set to 0, override it to the max value
 	if config.TailLines == nil || (config.TailLines != nil && *config.TailLines == 0) {
 		tailOverride := int64(100000)
 		tailOptions.TailLines = &tailOverride
 	}
 
+	// Set SinceSeconds to 2 days if no other value is set
 	if config.Since != 0 {
 		tailOptions.SinceSeconds = int64(config.Since.Seconds())
 	} else {
 		tailOptions.SinceSeconds = int64(172800)
 	}
 
+	// SinceTime overrides SinceSeconds
 	if config.SinceTime != nil {
 		tailOptions.SinceSeconds = 0
 		tailOptions.SinceTime = config.SinceTime
