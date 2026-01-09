@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -53,22 +54,32 @@ import (
 const EpinioApplicationAreaLabel = "epinio.io/area"
 
 type JobLister interface {
-	ListJobs(ctx context.Context, namespace, selector string) (*apibatchv1.JobList, error)
+	ListJobs(
+		ctx context.Context,
+		namespace, selector string,
+	) (*apibatchv1.JobList, error)
 }
 
-// ValidateCV checks the custom values against the declarations. It reports as many issues as it can find.
-func ValidateCV(cv models.ChartValueSettings, decl map[string]models.ChartSetting) []error {
-	// See also internal/helm Deploy(). A last-minute check to catch any changes possibly
-	// landing in the time window between the check here and the actual deployment.
+// ValidateCV checks the custom values against the declarations.
+// It reports as many issues as it can find.
+func ValidateCV(
+	cv models.ChartValueSettings,
+	decl map[string]models.ChartSetting,
+) []error {
+	// See also internal/helm Deploy(). A last-minute check to catch any changes
+	// possibly landing in the time window between the check here and the actual
+	// deployment.
 
 	var issues []error
 
-	// Pattern to strip array index syntax from the actual key to determine the underlying base
-	// setting to check against. Note that this handles inner array syntax too.
-	//
-	// Examples:                                   KEY                           KEYBASE
-	//   --set 'keycloak.ingress.hosts[0]=auth1' ~ 'keycloak.ingress.hosts[0]' ~ 'keycloak.ingress.hosts'
-	//   --set 'servers[0].port=80'              ~ 'servers[0].port'           ~ 'servers.port'
+	/* Pattern to strip array index syntax from the actual key to determine the
+		 underlying base setting to check against. Note that this handles inner
+		 array syntax too.
+
+	Examples:                                   KEY                           KEYBASE
+	  --set 'keycloak.ingress.hosts[0]=auth1' ~ 'keycloak.ingress.hosts[0]' ~ 'keycloak.ingress.hosts'
+		--set 'servers[0].port=80'              ~ 'servers[0].port'           ~ 'servers.port'
+	*/
 
 	rex := regexp.MustCompile(`\[[^]]\]`)
 
@@ -106,8 +117,8 @@ func ValidateCV(cv models.ChartValueSettings, decl map[string]models.ChartSettin
 			continue
 		}
 
-		// Note: The interface{} result for the properly typed value is ignored here. We do
-		// not care about the value, just that it is ok.
+		// Note: The interface{} result for the properly typed value is ignored here.
+		// We do not care about the value, just that it is ok.
 
 		_, err := helm.ValidateField(keybase, value, spec)
 		if err != nil {
@@ -117,9 +128,18 @@ func ValidateCV(cv models.ChartValueSettings, decl map[string]models.ChartSettin
 	return issues
 }
 
-// Create generates a new kube app resource in the namespace of the namespace. Note that this is the
-// passive resource holding the app's configuration. It is not the active workload
-func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string, chart string, settings models.ChartValueSettings) error {
+// Create generates a new kube app resource in the namespace of the namespace.
+// Note that this is the passive resource holding the app's configuration.
+// It is not the active workload.
+func Create(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+	username string,
+	routes []string,
+	chart string,
+	settings models.ChartValueSettings,
+) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -157,9 +177,14 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	return err
 }
 
-// Get returns the application resource from the cluster.  This should be changed to
-// return a typed application struct, like epinioappv1.App if needed in the future.
-func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*unstructured.Unstructured, error) {
+// Get returns the application resource from the cluster.  This should be
+// changed to return a typed application struct, like epinioappv1.App if needed
+// in the future.
+func Get(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+) (*unstructured.Unstructured, error) {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return nil, err
@@ -168,9 +193,13 @@ func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*
 	return client.Namespace(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
 }
 
-// Exists checks if the named application exists or not, and returns an appropriate
-// boolean flag
-func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (bool, error) {
+// Exists checks if the named application exists or not, and returns an
+// appropriate boolean flag
+func Exists(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+) (bool, error) {
 	_, err := Get(ctx, cluster, app)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -181,10 +210,15 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return true, nil
 }
 
-// IsCurrentlyStaging returns true if the named application is staging (there is an active Job for
-// this application).  If this information is needed for more than one application use
-// StagingStatuses instead.
-func IsCurrentlyStaging(ctx context.Context, cluster JobLister, namespace, appName string) (bool, error) {
+// IsCurrentlyStaging returns true if the named application is staging
+// (there is an active Job for this application). If this information is needed
+// for more than one application use StagingStatuses instead.
+func IsCurrentlyStaging(
+	ctx context.Context,
+	cluster JobLister,
+	namespace,
+	appName string,
+) (bool, error) {
 	staging, err := stagingStatus(ctx, cluster, namespace, appName)
 	if err != nil {
 		return false, err
@@ -194,14 +228,26 @@ func IsCurrentlyStaging(ctx context.Context, cluster JobLister, namespace, appNa
 }
 
 // StagingStatuses returns a map of applications and their staging statuses
-func StagingStatuses(ctx context.Context, cluster JobLister, namespace string) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
+func StagingStatuses(
+	ctx context.Context,
+	cluster JobLister,
+	namespace string,
+) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
 	return stagingStatus(ctx, cluster, namespace, "")
 }
 
-// stagingStatus is a utility function loading a map of the status of the application's staging jobs
-// (active, done, error).  If no appName is specified it will load a complete map, otherwise the map
-// will contain only the status of the job of the specified app
-func stagingStatus(ctx context.Context, cluster JobLister, namespace, appName string) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
+/*
+stagingStatus is a utility function loading a map of the status of the
+application's staging jobs (active, done, error).  If no appName is specified
+it will load a complete map, otherwise the map will contain only the status
+of the job of the specified app
+*/
+func stagingStatus(
+	ctx context.Context,
+	cluster JobLister,
+	namespace,
+	appName string,
+) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
 	stagingJobsMap := make(map[ConfigurationKey]models.ApplicationStagingStatus)
 
 	// filter the jobs in the namespace
@@ -252,7 +298,10 @@ func stagingStatus(ctx context.Context, cluster JobLister, namespace, appName st
 	return stagingJobsMap, nil
 }
 
-func updateAppDataMapWithStagingJobStatus(appDataMap map[ConfigurationKey]AppData, stagingJobsMap map[ConfigurationKey]models.ApplicationStagingStatus) map[ConfigurationKey]AppData {
+func updateAppDataMapWithStagingJobStatus(
+	appDataMap map[ConfigurationKey]AppData,
+	stagingJobsMap map[ConfigurationKey]models.ApplicationStagingStatus,
+) map[ConfigurationKey]AppData {
 	for appName, stagingStatus := range stagingJobsMap {
 		appData := appDataMap[appName]
 		appData.staging = stagingStatus
@@ -262,7 +311,12 @@ func updateAppDataMapWithStagingJobStatus(appDataMap map[ConfigurationKey]AppDat
 }
 
 // Lookup locates the named application (and namespace).
-func Lookup(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName string) (*models.App, error) {
+func Lookup(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace,
+	appName string,
+) (*models.App, error) {
 	meta := models.NewAppRef(appName, namespace)
 
 	ok, err := Exists(ctx, cluster, meta)
@@ -279,10 +333,16 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName
 	return app, err
 }
 
-// ListAppRefs returns an app reference for every application resource in the specified
-// namespace. If no namespace is specified (empty string) then apps across all namespaces
-// are returned.
-func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]models.AppRef, error) {
+/*
+ListAppRefs returns an app reference for every application resource in the
+specified namespace. If no namespace is specified (empty string) then apps
+across all namespaces are returned.
+*/
+func ListAppRefs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+) ([]models.AppRef, error) {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return nil, err
@@ -312,14 +372,22 @@ type AppData struct {
 	staging  models.ApplicationStagingStatus
 }
 
-// List returns a list of all available apps in the specified namespace. If no namespace
-// is specified (empty string) then apps across all namespaces are returned.
-func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (models.AppList, error) {
+/*
+List returns a list of all available apps in the specified namespace.
+If no namespace	is specified (empty string) then apps across all namespaces
+are returned.
+*/
+func List(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+) (models.AppList, error) {
 
 	// Verify namespace, if specified
 	// This is actually handled by `NamespaceMiddleware`.
 
-	// Fast batch queries to load all relevant resources in as few kube calls as possible.
+	// Fast batch queries to load all relevant resources in as few kube calls as
+	// possible.
 
 	// I. Get the application resources for all apps, deployed or not
 
@@ -332,12 +400,15 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 		return nil, err
 	}
 
-	// II. Load the auxiliary application data found in adjacent kube Secret resources
-	//     (environment, scaling, bound configs).
+	// II. Load the auxiliary application data found in adjacent kube Secret
+	// resources (environment, scaling, bound configs).
 
-	secrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/managed-by=epinio",
-	})
+	secrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(
+		ctx,
+		metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/managed-by=epinio",
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +424,12 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 
 	// IV. Actual application routes from the ingresses
 
-	appAuxiliary, err = AddActualApplicationRoutes(appAuxiliary, ctx, cluster, namespace)
+	appAuxiliary, err = AddActualApplicationRoutes(
+		appAuxiliary,
+		ctx,
+		cluster,
+		namespace,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -362,9 +438,9 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 
 	metrics, err := GetPodMetrics(ctx, cluster, namespace)
 	if err != nil {
-		// While the error is ignored, as the server can operate without metrics, and while
-		// the missing metrics will be noted in the data shown to the user, it is logged so
-		// that the operator can see this as well.
+		// While the error is ignored, as the server can operate without metrics,
+		// and while the missing metrics will be noted in the data shown to the
+		// user, it is logged so that the operator can see this as well.
 		requestctx.Logger(ctx).Error(err, "metrics not available")
 	}
 
@@ -374,7 +450,10 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 	if err != nil {
 		return nil, err
 	}
-	appAuxiliary = updateAppDataMapWithStagingJobStatus(appAuxiliary, stagingStatuses)
+	appAuxiliary = updateAppDataMapWithStagingJobStatus(
+		appAuxiliary,
+		stagingStatuses,
+	)
 
 	// Fuse the loaded resources into full application structures.
 
@@ -393,10 +472,18 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 	return result, nil
 }
 
-// Delete removes the named application, its workload (if active), bindings (if any), the
-// stored application sources, and any staging jobs from when the application was staged
-// (if active). Waits for the application's deployment's pods to disappear (if active).
-func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, deleteImage bool) error {
+/*
+Delete removes the named application, its workload (if active), bindings
+(if any), the stored application sources, and any staging jobs from when the
+application was staged (if active). Waits for the application's deployment's
+pods to disappear (if active).
+*/
+func Delete(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+  deleteImage bool,
+) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -426,13 +513,17 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 		return err
 	}
 
-	// Keep existing code to remove the CRD and everything it owns.  Only the workload
-	// resources needed their own removal to ensure that helm information stays
-	// consistent.
+	// Keep existing code to remove the CRD and everything it owns. Only the
+	// workload resources needed their own removal to ensure that helm information
+	// stays consistent.
 
 	// delete application resource, will cascade and delete dependents like
 	// environment variables, bindings, etc.
-	err = client.Namespace(appRef.Namespace).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
+	err = client.Namespace(appRef.Namespace).Delete(
+		ctx,
+		appRef.Name,
+		metav1.DeleteOptions{},
+	)
 	if err != nil {
 		return err
 	}
@@ -591,21 +682,38 @@ func deleteContainerImage(ctx context.Context, log logr.Logger, cluster *kuberne
 
 // deleteCacheStagePVC removes the kube PVC resource which was used to hold the application
 // sources for staging.
-func deleteCacheStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
-	return cluster.Kubectl.CoreV1().
-		PersistentVolumeClaims(helmchart.Namespace()).Delete(ctx, appRef.MakeCachePVCName(), metav1.DeleteOptions{})
+func deleteCacheStagePVC(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+) error {
+	return cluster.Kubectl.CoreV1().PersistentVolumeClaims(
+		helmchart.Namespace(),
+	).Delete(ctx, appRef.MakeCachePVCName(), metav1.DeleteOptions{})
 }
 
-func deleteSourceBlobsStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
+func deleteSourceBlobsStagePVC(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+) error {
 	return cluster.Kubectl.CoreV1().
-		PersistentVolumeClaims(helmchart.Namespace()).Delete(ctx, appRef.MakeSourceBlobsPVCName(), metav1.DeleteOptions{})
+		PersistentVolumeClaims(
+			helmchart.Namespace(),
+		).Delete(ctx, appRef.MakeSourceBlobsPVCName(), metav1.DeleteOptions{})
 }
 
-// AppChart returns the app chart (to be) used for application deployment, if one
-// exists. It returns an empty string otherwise. The information is pulled out of the app
-// resource itself, saved there by the deploy endpoint.
+/*
+AppChart returns the app chart (to be) used for application deployment, if
+one exists. It returns an empty string otherwise. The information is pulled
+out of the app resource itself, saved there by the deploy endpoint.
+*/
 func AppChart(app *unstructured.Unstructured) (string, error) {
-	chartName, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "chartname")
+	chartName, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"chartname",
+	)
 	if err != nil {
 		return "", errors.New("chartname should be string")
 	}
@@ -613,11 +721,17 @@ func AppChart(app *unstructured.Unstructured) (string, error) {
 	return chartName, nil
 }
 
-// Settings returns the app chart customization settings used for application deployment. It returns
-// an empty slice otherwise. The information is pulled out of the app resource itself, saved there
-// by the deploy endpoint.
+/*
+Settings returns the app chart customization settings used for application
+deployment. It returns an empty slice otherwise. The information is pulled
+out of the app resource itself, saved there by the deploy endpoint.
+*/
 func Settings(app *unstructured.Unstructured) (models.ChartValueSettings, error) {
-	settings, _, err := unstructured.NestedStringMap(app.UnstructuredContent(), "spec", "settings")
+	settings, _, err := unstructured.NestedStringMap(
+		app.UnstructuredContent(),
+		"spec",
+		"settings",
+	)
 	if err != nil {
 		return models.ChartValueSettings{}, errors.New("chartname should be string")
 	}
@@ -625,12 +739,18 @@ func Settings(app *unstructured.Unstructured) (models.ChartValueSettings, error)
 	return settings, nil
 }
 
-// StageID returns the stage ID of the last attempt at staging, if one exists. It returns
-// an empty string otherwise. The information is pulled out of the app resource itself,
-// saved there by the staging endpoint. Note that success/failure of staging is immaterial
-// to this.
+/*
+StageID returns the stage ID of the last attempt at staging, if one exists.
+It returns an empty string otherwise. The information is pulled out of the
+app resource itself, saved there by the staging endpoint. Note that
+success/failure of staging is immaterial to this.
+*/
 func StageID(app *unstructured.Unstructured) (string, error) {
-	stageID, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "stageid")
+	stageID, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"stageid",
+	)
 	if err != nil {
 		return "", errors.New("stageid should be string")
 	}
@@ -638,11 +758,17 @@ func StageID(app *unstructured.Unstructured) (string, error) {
 	return stageID, nil
 }
 
-// ImageURL returns the image url of the currently running build, if one exists. It
-// returns an empty string otherwise. The information is pulled out of the app resource
-// itself, saved there by the deploy endpoint.
+/*
+ImageURL returns the image url of the currently running build, if one exists.
+It returns an empty string otherwise. The information is pulled out of the
+app resource itself, saved there by the deploy endpoint.
+*/
 func ImageURL(app *unstructured.Unstructured) (string, error) {
-	imageURL, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "imageurl")
+	imageURL, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"imageurl",
+	)
 	if err != nil {
 		return "", errors.New("imageurl should be string")
 	}
@@ -650,11 +776,17 @@ func ImageURL(app *unstructured.Unstructured) (string, error) {
 	return imageURL, nil
 }
 
-// BuilderURL returns the builder url of the currently running build, if one exists. It
-// returns an empty string otherwise. The information is pulled out of the app resource
-// itself, saved there by the deploy endpoint.
+/*
+BuilderURL returns the builder url of the currently running build, if one
+exists. It returns an empty string otherwise. The information is pulled out
+of the app resource	itself, saved there by the deploy endpoint.
+*/
 func BuilderURL(app *unstructured.Unstructured) (string, error) {
-	builderURL, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "builderimage")
+	builderURL, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"builderimage",
+	)
 	if err != nil {
 		return "", errors.New("builderimage should be string")
 	}
@@ -662,14 +794,24 @@ func BuilderURL(app *unstructured.Unstructured) (string, error) {
 	return builderURL, nil
 }
 
-// Unstage removes staging resources. It deletes either all Jobs of the named application,
-// or all but stageIDCurrent. It also deletes the staged objects from the S3 storage
-// except for the current one.
-func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
+/*
+Unstage removes staging resources. It deletes either all Jobs of the named
+application, or all but stageIDCurrent. It also deletes the staged objects
+from the S3 storage	except for the current one.
+*/
+func Unstage(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+	stageIDCurrent string,
+) error {
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
-		return errors.Wrap(err, "fetching the S3 connection details from the Kubernetes secret")
+		return errors.Wrap(
+			err,
+			"fetching the S3 connection details from the Kubernetes secret",
+		)
 	}
 	s3m, err := s3manager.New(s3ConnectionDetails)
 	if err != nil {
@@ -720,10 +862,13 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 	return nil
 }
 
-// Logs method writes log lines to the specified logChan. The caller can stop the logging
-// with the ctx cancelFunc. It's also the callers responsibility to close the logChan when
-// done.  When stageID is an empty string, no staging logs are returned. If it is set,
-// LogParameters represents the log filtering parameters
+/*
+Logs method writes log lines to the specified logChan. The caller can stop
+the logging with the ctx cancelFunc. It's also the callers responsibility to
+close the logChan when done. When stageID is an empty string, no staging logs
+are returned. If it is set, LogParameters represents the log filtering
+parameters.
+*/
 type LogParameters struct {
 	Tail      *int64
 	Since     *time.Duration
@@ -732,7 +877,16 @@ type LogParameters struct {
 }
 
 // then only logs from that staging process are returned.
-func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, app, stageID, namespace string, logParams *LogParameters) error {
+func Logs(
+	ctx context.Context,
+	logChan chan tailer.ContainerLogLine,
+	wg *sync.WaitGroup,
+	cluster *kubernetes.Cluster,
+	app,
+	stageID,
+	namespace string,
+	logParams *LogParameters,
+) error {
 	logger := requestctx.Logger(ctx).WithName("logs-backend").V(2)
 	selector := labels.NewSelector()
 
@@ -752,7 +906,11 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	}
 
 	for _, req := range selectors {
-		req, err := labels.NewRequirement(req[0], selection.Equals, []string{req[1]})
+		req, err := labels.NewRequirement(
+			req[0],
+			selection.Equals,
+			[]string{req[1]},
+		)
 		if err != nil {
 			return err
 		}
@@ -765,7 +923,8 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 		Exclude:               nil,
 		Include:               nil,
 		Timestamps:            true,
-		Since:                 duration.LogHistory(),
+		SinceTime:             nil,
+		Since:                 0,
 		AllNamespaces:         true,
 		LabelSelector:         selector,
 		TailLines:             getTailLines(),
@@ -789,36 +948,21 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 
 		// Handle time-based filtering
 		if logParams.SinceTime != nil {
-			// SinceTime takes precedence over Since
-			// Calculate duration from the specified time to now
-			sinceDuration := time.Since(*logParams.SinceTime)
-
-			// If the time is in the future, the duration will be negative
-			// Pass the negative duration to the tailer so it can properly handle it
-			// (by returning no logs)
-			config.Since = sinceDuration
-
-			if sinceDuration < 0 {
-				logger.Info("since_time is in the future, no logs will be returned",
-					"since_time", *logParams.SinceTime,
-					"now", time.Now(),
-					"since_duration", sinceDuration)
-			} else {
-				logger.Info("applied since_time parameter",
-					"since_time", *logParams.SinceTime,
-					"since_duration", config.Since)
-			}
+			config.SinceTime = logParams.SinceTime
+			helpers.Logger.Info(
+				"applying since time parameter | ",
+				"since_time: ",
+				*logParams.SinceTime,
+			)
 		} else if logParams.Since != nil {
 			config.Since = *logParams.Since
-			logger.Info("applied since parameter", "since", *logParams.Since)
+			helpers.Logger.Info(
+				"applied since parameter | ",
+				"since: ",
+				*logParams.Since,
+			)
 		}
 	}
-
-	// Log final config values for debugging
-	logger.Info("final tailer config",
-		"tail_lines", config.TailLines,
-		"since", config.Since,
-		"since_seconds", int64(config.Since.Seconds()))
 
 	// Use follow from logParams if provided, otherwise default to false
 	follow := false
@@ -835,15 +979,17 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	return tailer.FetchLogs(ctx, logChan, wg, config, cluster)
 }
 
-// makeAuxiliaryMap restructures the data from the auxiliary secrets into a map for quick access during the
-// following data fusion
+// makeAuxiliaryMap restructures the data from the auxiliary secrets into a map
+// for quick access during the following data fusion
 func makeAuxiliaryMap(secrets []v1.Secret) map[ConfigurationKey]AppData {
-	// Note: The returned secrets are a mix of scaling instructions, bound configurations, and
-	// environment assignments. Split them into separate maps as per their area (*). Key the
-	// maps by namespace and name of their controlling application for quick access in the
-	// aggregation step.
-	//
-	// (*) Label "epinio.io/area": "environment"|"scaling"|"configuration"
+	/*
+		Note: The returned secrets are a mix of scaling instructions, bound
+		configurations, and environment assignments. Split them into separate maps
+		as per their area (*). Key the maps by namespace and name of their
+		controlling application for quick access in the	aggregation step.
+
+		(*) Label "epinio.io/area": "environment"|"scaling"|"configuration"
+	*/
 
 	result := map[ConfigurationKey]AppData{}
 
@@ -885,8 +1031,9 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[ConfigurationKey]AppData {
 	return result
 }
 
-// aggregate is an internal helper for List. It merges the information from an application resource
-// and adjacent secrets, pods, metrics, etc. into a proper application structure.
+// Aggregate is an internal helper for List. It merges the information from an
+// application resource and adjacent secrets, pods, metrics, etc. into a proper
+// application structure.
 func aggregate(ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appCR unstructured.Unstructured,
@@ -899,7 +1046,8 @@ func aggregate(ctx context.Context,
 	key := EncodeConfigurationKey(appName, namespace)
 
 	// I. Unpack the auxiliary data in the various secrets
-	//    Note: missing aux data, all or parts indicates an app in deletion and not fully gone.
+	//    Note: missing aux data, all or parts indicates an app in deletion and
+	//		not fully gone.
 	//    We signal them as not existing, instead of erroring out
 
 	aux, found := auxiliary[key]
