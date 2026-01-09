@@ -75,11 +75,12 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
-	AppDeleteStub        func(string, []string) (models.ApplicationDeleteResponse, error)
+	AppDeleteStub        func(string, []string, bool) (models.ApplicationDeleteResponse, error)
 	appDeleteMutex       sync.RWMutex
 	appDeleteArgsForCall []struct {
 		arg1 string
 		arg2 []string
+		arg3 bool
 	}
 	appDeleteReturns struct {
 		result1 models.ApplicationDeleteResponse
@@ -975,6 +976,20 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
+	StagingCompleteStreamStub        func(context.Context, string, string, func(models.StageCompleteEvent) error) error
+	stagingCompleteStreamMutex       sync.RWMutex
+	stagingCompleteStreamArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 func(models.StageCompleteEvent) error
+	}
+	stagingCompleteStreamReturns struct {
+		result1 error
+	}
+	stagingCompleteStreamReturnsOnCall map[int]struct {
+		result1 error
+	}
 	VersionWarningEnabledStub        func() bool
 	versionWarningEnabledMutex       sync.RWMutex
 	versionWarningEnabledArgsForCall []struct {
@@ -1222,7 +1237,7 @@ func (fake *FakeAPIClient) AppCreateReturnsOnCall(i int, result1 models.Response
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string) (models.ApplicationDeleteResponse, error) {
+func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string, arg3 bool) (models.ApplicationDeleteResponse, error) {
 	var arg2Copy []string
 	if arg2 != nil {
 		arg2Copy = make([]string, len(arg2))
@@ -1233,13 +1248,14 @@ func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string) (models.Applica
 	fake.appDeleteArgsForCall = append(fake.appDeleteArgsForCall, struct {
 		arg1 string
 		arg2 []string
-	}{arg1, arg2Copy})
+		arg3 bool
+	}{arg1, arg2Copy, arg3})
 	stub := fake.AppDeleteStub
 	fakeReturns := fake.appDeleteReturns
-	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy})
+	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy, arg3})
 	fake.appDeleteMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -1253,17 +1269,17 @@ func (fake *FakeAPIClient) AppDeleteCallCount() int {
 	return len(fake.appDeleteArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppDeleteCalls(stub func(string, []string) (models.ApplicationDeleteResponse, error)) {
+func (fake *FakeAPIClient) AppDeleteCalls(stub func(string, []string, bool) (models.ApplicationDeleteResponse, error)) {
 	fake.appDeleteMutex.Lock()
 	defer fake.appDeleteMutex.Unlock()
 	fake.AppDeleteStub = stub
 }
 
-func (fake *FakeAPIClient) AppDeleteArgsForCall(i int) (string, []string) {
+func (fake *FakeAPIClient) AppDeleteArgsForCall(i int) (string, []string, bool) {
 	fake.appDeleteMutex.RLock()
 	defer fake.appDeleteMutex.RUnlock()
 	argsForCall := fake.appDeleteArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeAPIClient) AppDeleteReturns(result1 models.ApplicationDeleteResponse, result2 error) {
@@ -5441,6 +5457,70 @@ func (fake *FakeAPIClient) StagingCompleteReturnsOnCall(i int, result1 models.Re
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) StagingCompleteStream(arg1 context.Context, arg2 string, arg3 string, arg4 func(models.StageCompleteEvent) error) error {
+	fake.stagingCompleteStreamMutex.Lock()
+	ret, specificReturn := fake.stagingCompleteStreamReturnsOnCall[len(fake.stagingCompleteStreamArgsForCall)]
+	fake.stagingCompleteStreamArgsForCall = append(fake.stagingCompleteStreamArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 func(models.StageCompleteEvent) error
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.StagingCompleteStreamStub
+	fakeReturns := fake.stagingCompleteStreamReturns
+	fake.recordInvocation("StagingCompleteStream", []interface{}{arg1, arg2, arg3, arg4})
+	fake.stagingCompleteStreamMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamCallCount() int {
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
+	return len(fake.stagingCompleteStreamArgsForCall)
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamCalls(stub func(context.Context, string, string, func(models.StageCompleteEvent) error) error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = stub
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamArgsForCall(i int) (context.Context, string, string, func(models.StageCompleteEvent) error) {
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
+	argsForCall := fake.stagingCompleteStreamArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamReturns(result1 error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = nil
+	fake.stagingCompleteStreamReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamReturnsOnCall(i int, result1 error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = nil
+	if fake.stagingCompleteStreamReturnsOnCall == nil {
+		fake.stagingCompleteStreamReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.stagingCompleteStreamReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeAPIClient) VersionWarningEnabled() bool {
 	fake.versionWarningEnabledMutex.Lock()
 	ret, specificReturn := fake.versionWarningEnabledReturnsOnCall[len(fake.versionWarningEnabledArgsForCall)]
@@ -5497,6 +5577,148 @@ func (fake *FakeAPIClient) VersionWarningEnabledReturnsOnCall(i int, result1 boo
 func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.allAppsMutex.RLock()
+	defer fake.allAppsMutex.RUnlock()
+	fake.allConfigurationsMutex.RLock()
+	defer fake.allConfigurationsMutex.RUnlock()
+	fake.allServicesMutex.RLock()
+	defer fake.allServicesMutex.RUnlock()
+	fake.appCreateMutex.RLock()
+	defer fake.appCreateMutex.RUnlock()
+	fake.appDeleteMutex.RLock()
+	defer fake.appDeleteMutex.RUnlock()
+	fake.appDeployMutex.RLock()
+	defer fake.appDeployMutex.RUnlock()
+	fake.appExecMutex.RLock()
+	defer fake.appExecMutex.RUnlock()
+	fake.appExportMutex.RLock()
+	defer fake.appExportMutex.RUnlock()
+	fake.appGetPartMutex.RLock()
+	defer fake.appGetPartMutex.RUnlock()
+	fake.appImportGitMutex.RLock()
+	defer fake.appImportGitMutex.RUnlock()
+	fake.appLogsMutex.RLock()
+	defer fake.appLogsMutex.RUnlock()
+	fake.appMatchMutex.RLock()
+	defer fake.appMatchMutex.RUnlock()
+	fake.appPortForwardMutex.RLock()
+	defer fake.appPortForwardMutex.RUnlock()
+	fake.appRestartMutex.RLock()
+	defer fake.appRestartMutex.RUnlock()
+	fake.appRunningMutex.RLock()
+	defer fake.appRunningMutex.RUnlock()
+	fake.appShowMutex.RLock()
+	defer fake.appShowMutex.RUnlock()
+	fake.appStageMutex.RLock()
+	defer fake.appStageMutex.RUnlock()
+	fake.appUpdateMutex.RLock()
+	defer fake.appUpdateMutex.RUnlock()
+	fake.appUploadMutex.RLock()
+	defer fake.appUploadMutex.RUnlock()
+	fake.appValidateCVMutex.RLock()
+	defer fake.appValidateCVMutex.RUnlock()
+	fake.appsMutex.RLock()
+	defer fake.appsMutex.RUnlock()
+	fake.authTokenMutex.RLock()
+	defer fake.authTokenMutex.RUnlock()
+	fake.chartListMutex.RLock()
+	defer fake.chartListMutex.RUnlock()
+	fake.chartMatchMutex.RLock()
+	defer fake.chartMatchMutex.RUnlock()
+	fake.chartShowMutex.RLock()
+	defer fake.chartShowMutex.RUnlock()
+	fake.configurationAppsMutex.RLock()
+	defer fake.configurationAppsMutex.RUnlock()
+	fake.configurationBindingCreateMutex.RLock()
+	defer fake.configurationBindingCreateMutex.RUnlock()
+	fake.configurationBindingDeleteMutex.RLock()
+	defer fake.configurationBindingDeleteMutex.RUnlock()
+	fake.configurationCreateMutex.RLock()
+	defer fake.configurationCreateMutex.RUnlock()
+	fake.configurationDeleteMutex.RLock()
+	defer fake.configurationDeleteMutex.RUnlock()
+	fake.configurationMatchMutex.RLock()
+	defer fake.configurationMatchMutex.RUnlock()
+	fake.configurationShowMutex.RLock()
+	defer fake.configurationShowMutex.RUnlock()
+	fake.configurationUpdateMutex.RLock()
+	defer fake.configurationUpdateMutex.RUnlock()
+	fake.configurationsMutex.RLock()
+	defer fake.configurationsMutex.RUnlock()
+	fake.disableVersionWarningMutex.RLock()
+	defer fake.disableVersionWarningMutex.RUnlock()
+	fake.envListMutex.RLock()
+	defer fake.envListMutex.RUnlock()
+	fake.envMatchMutex.RLock()
+	defer fake.envMatchMutex.RUnlock()
+	fake.envSetMutex.RLock()
+	defer fake.envSetMutex.RUnlock()
+	fake.envShowMutex.RLock()
+	defer fake.envShowMutex.RUnlock()
+	fake.envUnsetMutex.RLock()
+	defer fake.envUnsetMutex.RUnlock()
+	fake.exportregistryListMutex.RLock()
+	defer fake.exportregistryListMutex.RUnlock()
+	fake.exportregistryMatchMutex.RLock()
+	defer fake.exportregistryMatchMutex.RUnlock()
+	fake.gitconfigCreateMutex.RLock()
+	defer fake.gitconfigCreateMutex.RUnlock()
+	fake.gitconfigDeleteMutex.RLock()
+	defer fake.gitconfigDeleteMutex.RUnlock()
+	fake.gitconfigShowMutex.RLock()
+	defer fake.gitconfigShowMutex.RUnlock()
+	fake.gitconfigsMutex.RLock()
+	defer fake.gitconfigsMutex.RUnlock()
+	fake.gitconfigsMatchMutex.RLock()
+	defer fake.gitconfigsMatchMutex.RUnlock()
+	fake.headersMutex.RLock()
+	defer fake.headersMutex.RUnlock()
+	fake.infoMutex.RLock()
+	defer fake.infoMutex.RUnlock()
+	fake.meMutex.RLock()
+	defer fake.meMutex.RUnlock()
+	fake.namespaceCreateMutex.RLock()
+	defer fake.namespaceCreateMutex.RUnlock()
+	fake.namespaceDeleteMutex.RLock()
+	defer fake.namespaceDeleteMutex.RUnlock()
+	fake.namespaceShowMutex.RLock()
+	defer fake.namespaceShowMutex.RUnlock()
+	fake.namespacesMutex.RLock()
+	defer fake.namespacesMutex.RUnlock()
+	fake.namespacesMatchMutex.RLock()
+	defer fake.namespacesMatchMutex.RUnlock()
+	fake.serviceBindMutex.RLock()
+	defer fake.serviceBindMutex.RUnlock()
+	fake.serviceCatalogMutex.RLock()
+	defer fake.serviceCatalogMutex.RUnlock()
+	fake.serviceCatalogMatchMutex.RLock()
+	defer fake.serviceCatalogMatchMutex.RUnlock()
+	fake.serviceCatalogShowMutex.RLock()
+	defer fake.serviceCatalogShowMutex.RUnlock()
+	fake.serviceCreateMutex.RLock()
+	defer fake.serviceCreateMutex.RUnlock()
+	fake.serviceDeleteMutex.RLock()
+	defer fake.serviceDeleteMutex.RUnlock()
+	fake.serviceListMutex.RLock()
+	defer fake.serviceListMutex.RUnlock()
+	fake.serviceMatchMutex.RLock()
+	defer fake.serviceMatchMutex.RUnlock()
+	fake.servicePortForwardMutex.RLock()
+	defer fake.servicePortForwardMutex.RUnlock()
+	fake.serviceShowMutex.RLock()
+	defer fake.serviceShowMutex.RUnlock()
+	fake.serviceUnbindMutex.RLock()
+	defer fake.serviceUnbindMutex.RUnlock()
+	fake.serviceUpdateMutex.RLock()
+	defer fake.serviceUpdateMutex.RUnlock()
+	fake.setHeaderMutex.RLock()
+	defer fake.setHeaderMutex.RUnlock()
+	fake.stagingCompleteMutex.RLock()
+	defer fake.stagingCompleteMutex.RUnlock()
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
+	fake.versionWarningEnabledMutex.RLock()
+	defer fake.versionWarningEnabledMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

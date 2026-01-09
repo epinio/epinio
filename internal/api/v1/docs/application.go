@@ -207,6 +207,22 @@ type StagingCompleteResponse struct {
 	Body models.Response
 }
 
+// swagger:route GET /namespaces/{Namespace}/staging/{StageID}/complete websocket StagingCompleteWs
+// Stream staging completion status for the specified `StageID` in the `Namespace` over a websocket.
+// responses:
+//   200: StagingCompleteWsResponse
+
+// swagger:parameters StagingCompleteWs
+type StagingCompleteWsParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	StageID string
+}
+
+// swagger:response StagingCompleteWsResponse
+type StagingCompleteWsResponse struct{}
+
 // swagger:route DELETE /namespaces/{Namespace}/applications AppBatchDelete
 // Delete the named `Applications` in the `Namespace`.
 // responses:

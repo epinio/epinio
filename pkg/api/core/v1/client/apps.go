@@ -152,7 +152,7 @@ func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, er
 }
 
 // AppDelete deletes an app
-func (c *Client) AppDelete(namespace string, names []string) (models.ApplicationDeleteResponse, error) {
+func (c *Client) AppDelete(namespace string, names []string, deleteImage bool) (models.ApplicationDeleteResponse, error) {
 	response := models.ApplicationDeleteResponse{}
 
 	queryParams := url.Values{}
@@ -166,7 +166,11 @@ func (c *Client) AppDelete(namespace string, names []string) (models.Application
 		queryParams.Encode(),
 	)
 
-	return Delete(c, endpoint, nil, response)
+	request := models.ApplicationDeleteRequest{
+		DeleteImage: deleteImage,
+	}
+
+	return Delete(c, endpoint, request, response)
 }
 
 // AppUpload uploads a tarball for the named app, which is later used in staging
@@ -297,6 +301,55 @@ func (c *Client) StagingComplete(namespace string, id string) (models.Response, 
 	endpoint := api.Routes.Path("StagingComplete", namespace, id)
 
 	return Get(c, endpoint, response)
+}
+
+// StagingCompleteStream opens a websocket that emits a single completion event
+// for the given staging run and closes once the job finishes.
+func (c *Client) StagingCompleteStream(ctx context.Context, namespace, id string, callback func(models.StageCompleteEvent) error) error {
+	tokenResponse, err := c.AuthToken()
+	if err != nil {
+		return err
+	}
+
+	endpoint := api.WsRoutes.Path("StagingCompleteWs", namespace, id)
+	queryParams := url.Values{}
+	queryParams.Add("authtoken", tokenResponse.Token)
+	websocketURL := fmt.Sprintf("%s%s/%s?%s", c.Settings.WSS, api.WsRoot, endpoint, queryParams.Encode())
+
+	webSocketConn, resp, err := websocket.DefaultDialer.DialContext(ctx, websocketURL, c.Headers())
+	if err != nil {
+		if resp != nil && resp.StatusCode != http.StatusOK {
+			return handleError(c.log, resp)
+		}
+		return errors.Wrap(err, "failed to connect to staging completion websocket")
+	}
+	defer func() { _ = webSocketConn.Close() }()
+
+	for {
+		_, message, readErr := webSocketConn.ReadMessage()
+		if readErr != nil {
+			// Normal close means the server is done sending updates.
+			if websocket.IsCloseError(readErr, websocket.CloseNormalClosure) {
+				return nil
+			}
+			return errors.Wrap(readErr, "reading staging completion websocket message")
+		}
+
+		var event models.StageCompleteEvent
+		if unmarshalErr := json.Unmarshal(message, &event); unmarshalErr != nil {
+			return errors.Wrap(unmarshalErr, "decoding staging completion event")
+		}
+
+		if callback != nil {
+			if cbErr := callback(event); cbErr != nil {
+				return cbErr
+			}
+		}
+
+		if event.Completed {
+			return nil
+		}
+	}
 }
 
 // AppRunning checks if the app is running

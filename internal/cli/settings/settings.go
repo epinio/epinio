@@ -120,7 +120,26 @@ func LoadFrom(file string) (*Settings, error) {
 		auth.ExtendLocalTrust(cfg.Certs)
 	}
 
-	if viper.GetBool("skip-ssl-verification") {
+	// Check skip-ssl-verification flag from viper (bound flag) or environment variable
+	// The flag is bound in root.go, so we check the global viper instance
+	skipSSLVerification := viper.GetBool("skip-ssl-verification")
+	
+	// Also check environment variables as fallback (viper might not have the flag value yet)
+	// Check both EPINIO_SKIP_SSL_VERIFICATION and SKIP_SSL_VERIFICATION
+	envSkipSSL := os.Getenv("EPINIO_SKIP_SSL_VERIFICATION")
+	if envSkipSSL == "" {
+		envSkipSSL = os.Getenv("SKIP_SSL_VERIFICATION")
+	}
+	if envSkipSSL == "true" || envSkipSSL == "1" {
+		skipSSLVerification = true
+	}
+	
+	log.V(1).Info("SSL verification check", 
+		"skip-ssl-verification", skipSSLVerification,
+		"viper-value", viper.GetBool("skip-ssl-verification"),
+		"env-value", envSkipSSL)
+
+	if skipSSLVerification {
 		// Note: This has to work regardless of if `ExtendLocalTrust` was invoked or not.
 		// I.e. the `TLSClientConfig` of default http transport and default dialer may or
 		// may not be nil. Actually we can assume that either both are nil, or none, and
