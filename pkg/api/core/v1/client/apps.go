@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -225,9 +226,11 @@ func (c *Client) AppDeploy(request models.DeployRequest) (*models.DeployResponse
 
 // LogOptions represents the optional filters for retrieving application logs.
 type LogOptions struct {
-	Tail      *int64
-	Since     *time.Duration
-	SinceTime *time.Time
+	Tail              *int64
+	Since             *time.Duration
+	SinceTime         *time.Time
+	IncludeContainers []string // List of container names/patterns to include (regex patterns supported)
+	ExcludeContainers []string // List of container names/patterns to exclude (regex patterns supported)
 }
 
 // AppLogs streams the logs of all the application instances, in the targeted namespace
@@ -246,7 +249,9 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, option
 
 	queryParams := url.Values{}
 	queryParams.Add("follow", strconv.FormatBool(follow))
-	queryParams.Add("stage_id", stageID)
+	if stageID != "" {
+		queryParams.Add("stage_id", stageID)
+	}
 	queryParams.Add("authtoken", tokenResponse.Token)
 
 	if options != nil {
@@ -258,6 +263,12 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, option
 		}
 		if options.SinceTime != nil {
 			queryParams.Add("since_time", options.SinceTime.Format(time.RFC3339))
+		}
+		if len(options.IncludeContainers) > 0 {
+			queryParams.Add("include_containers", strings.Join(options.IncludeContainers, ","))
+		}
+		if len(options.ExcludeContainers) > 0 {
+			queryParams.Add("exclude_containers", strings.Join(options.ExcludeContainers, ","))
 		}
 	}
 

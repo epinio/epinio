@@ -164,10 +164,14 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 		return errors.New("no namespace set for tailing logs")
 	}
 
+	excludedStr := "<none>"
+	if config.ExcludeContainerQuery != nil {
+		excludedStr = config.ExcludeContainerQuery.String()
+	}
 	logger.Info("start watcher",
 		"pods", config.PodQuery.String(),
 		"containers", config.ContainerQuery.String(),
-		"excluded", config.ExcludeContainerQuery.String(),
+		"excluded", excludedStr,
 		"selector", config.LabelSelector.String())
 	added, removed, err := Watch(ctx, cluster.Kubectl.CoreV1().Pods(namespace),
 		config.PodQuery, config.ContainerQuery, config.ExcludeContainerQuery, config.ContainerState, config.LabelSelector)

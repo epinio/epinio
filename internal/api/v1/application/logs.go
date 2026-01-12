@@ -16,6 +16,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,14 +36,26 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
+var (
 	// MaxTailLines is the maximum number of log lines that can be requested via the tail parameter
 	// This prevents excessive memory usage and ensures reasonable response times
-	MaxTailLines = 10000
+	// Can be overridden via EPINIO_MAX_TAIL_LINES environment variable
+	MaxTailLines = getMaxTailLines()
 )
 
+// getMaxTailLines returns the maximum tail lines from environment variable or default
+func getMaxTailLines() int64 {
+	if val := os.Getenv("EPINIO_MAX_TAIL_LINES"); val != "" {
+		if maxLines, err := strconv.ParseInt(val, 10, 64); err == nil && maxLines > 0 {
+			return maxLines
+		}
+	}
+	// Default to 10000 if not set or invalid
+	return 10000
+}
+
 // parseLogParameters parses and validates log query parameters
-func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
+func parseLogParameters(tailStr, sinceStr, sinceTimeStr string, includeContainersStr, excludeContainersStr string) (*application.LogParameters, error) {
 	params := &application.LogParameters{}
 
 	if tailStr != "" {
@@ -79,12 +93,115 @@ func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.Lo
 		}
 	}
 
+	// Parse container filtering parameters
+	if includeContainersStr != "" {
+		split := strings.Split(includeContainersStr, ",")
+		params.IncludeContainers = make([]string, 0, len(split))
+		for _, container := range split {
+			trimmed := strings.TrimSpace(container)
+			if trimmed != "" {
+				params.IncludeContainers = append(params.IncludeContainers, trimmed)
+			}
+		}
+	}
+
+	if excludeContainersStr != "" {
+		split := strings.Split(excludeContainersStr, ",")
+		params.ExcludeContainers = make([]string, 0, len(split))
+		for _, container := range split {
+			trimmed := strings.TrimSpace(container)
+			if trimmed != "" {
+				params.ExcludeContainers = append(params.ExcludeContainers, trimmed)
+			}
+		}
+	}
+
 	return params, nil
 }
 
+// validateContainerFilterPatterns validates that container filter patterns are valid regex
+// This is called before upgrading to websocket so errors can be returned as HTTP errors
+// Note: This mirrors the pattern building logic in application.Logs() to ensure consistency
+func validateContainerFilterPatterns(logParams *application.LogParameters) error {
+	if logParams == nil {
+		return nil
+	}
+
+	// Validate include_containers patterns
+	// Determine if user has specified include_containers (after filtering empty strings)
+	// This affects whether default exclusion is applied in validation
+	var hasUserIncludeFilter bool
+	if len(logParams.IncludeContainers) > 0 {
+		// Filter out empty strings and build pattern
+		validIncludes := make([]string, 0, len(logParams.IncludeContainers))
+		for _, container := range logParams.IncludeContainers {
+			if trimmed := strings.TrimSpace(container); trimmed != "" {
+				validIncludes = append(validIncludes, trimmed)
+			}
+		}
+
+		if len(validIncludes) == 0 {
+			// All containers were empty strings - this is an error
+			// Match the behavior in application.Logs()
+			return fmt.Errorf("include_containers parameter contains no valid container names")
+		}
+
+		// User has valid include filter
+		hasUserIncludeFilter = true
+
+		// Build pattern similar to application.Logs
+		escapedIncludes := make([]string, len(validIncludes))
+		for i, container := range validIncludes {
+			if strings.ContainsAny(container, ".*+?^$|[]{}()\\") {
+				escapedIncludes[i] = container
+			} else {
+				escapedIncludes[i] = regexp.QuoteMeta(container)
+			}
+		}
+		pattern := strings.Join(escapedIncludes, "|")
+		if _, err := regexp.Compile(pattern); err != nil {
+			return fmt.Errorf("invalid include_containers pattern: %w", err)
+		}
+	}
+
+	// Validate exclude_containers patterns
+	// Only include default exclusions if user hasn't specified include_containers
+	// This matches the behavior in application.Logs()
+	var excludePatterns []string
+	if !hasUserIncludeFilter {
+		excludePatterns = []string{"linkerd-(proxy|init)"}
+	}
+
+	if len(logParams.ExcludeContainers) > 0 {
+		if excludePatterns == nil {
+			excludePatterns = []string{}
+		}
+		for _, container := range logParams.ExcludeContainers {
+			trimmed := strings.TrimSpace(container)
+			if trimmed == "" {
+				continue
+			}
+			if strings.ContainsAny(trimmed, ".*+?^$|[]{}()\\") {
+				excludePatterns = append(excludePatterns, trimmed)
+			} else {
+				excludePatterns = append(excludePatterns, regexp.QuoteMeta(trimmed))
+			}
+		}
+	}
+
+	if len(excludePatterns) > 0 {
+		pattern := strings.Join(excludePatterns, "|")
+		if _, err := regexp.Compile(pattern); err != nil {
+			return fmt.Errorf("invalid exclude_containers pattern: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // ParseLogParametersForTest is a test helper that exposes parseLogParameters for testing
-func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
-	return parseLogParameters(tailStr, sinceStr, sinceTimeStr)
+func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string, includeContainersStr, excludeContainersStr string) (*application.LogParameters, error) {
+	return parseLogParameters(tailStr, sinceStr, sinceTimeStr, includeContainersStr, excludeContainersStr)
 }
 
 // Logs handles the API endpoints GET /namespaces/:namespace/applications/:app/logs
@@ -139,9 +256,11 @@ func Logs(c *gin.Context) {
 	tailStr := c.Query("tail")
 	sinceStr := c.Query("since")
 	sinceTimeStr := c.Query("since_time")
+	includeContainersStr := c.Query("include_containers")
+	excludeContainersStr := c.Query("exclude_containers")
 
 	// Parse and validate log parameters
-	logParams, err := parseLogParameters(tailStr, sinceStr, sinceTimeStr)
+	logParams, err := parseLogParameters(tailStr, sinceStr, sinceTimeStr, includeContainersStr, excludeContainersStr)
 	if err != nil {
 		response.Error(c, apierror.NewBadRequestError(err.Error()))
 		return
@@ -149,10 +268,15 @@ func Logs(c *gin.Context) {
 
 	// Set follow parameter
 	follow := followStr == "true"
-	if logParams == nil {
-		logParams = &application.LogParameters{}
-	}
+	// parseLogParameters always returns non-nil, so this check is unnecessary
 	logParams.Follow = follow
+
+	// Validate container filter regex patterns before upgrading to websocket
+	// This allows us to return HTTP errors instead of silently failing
+	if err := validateContainerFilterPatterns(logParams); err != nil {
+		response.Error(c, apierror.NewBadRequestError(err.Error()))
+		return
+	}
 
 	// Log the parsed parameters for debugging
 	log.Info("parsed log parameters",
@@ -160,7 +284,9 @@ func Logs(c *gin.Context) {
 		"since", logParams.Since,
 		"since_time", logParams.SinceTime,
 		"follow", logParams.Follow,
-		"follow_raw", followStr)
+		"follow_raw", followStr,
+		"include_containers", logParams.IncludeContainers,
+		"exclude_containers", logParams.ExcludeContainers)
 
 	log.Info("upgrade to web socket")
 
@@ -177,6 +303,9 @@ func Logs(c *gin.Context) {
 	err = streamPodLogs(ctx, conn, namespace, appName, stageID, cluster, logParams)
 	if err != nil {
 		log.V(1).Error(err, "error occurred after upgrading the websockets connection")
+		if closeErr := conn.Close(); closeErr != nil {
+			log.V(1).Error(closeErr, "error closing websocket connection")
+		}
 		return
 	}
 
