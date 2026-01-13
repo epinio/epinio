@@ -856,7 +856,6 @@ func applyLogParameters(config *tailer.Config, logParams *LogParameters) {
 
 // then only logs from that staging process are returned.
 func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, app, stageID, namespace string, logParams *LogParameters) error {
-	logger := requestctx.Logger(ctx).WithName("logs-backend").V(2)
 	selector := labels.NewSelector()
 
 	var selectors [][]string
