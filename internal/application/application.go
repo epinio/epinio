@@ -968,34 +968,34 @@ func buildContainerExcludePattern(logParams *LogParameters, hasUserIncludeFilter
 }
 
 // applyLogParameters applies log filtering parameters to the tailer config.
-func applyLogParameters(config *tailer.Config, logParams *LogParameters) {
+func applyLogParameters(config *tailer.Config, logParams *LogParameters, logger logr.Logger) {
 	if logParams == nil {
 		return
 	}
 
+	logger.Info("applying log parameters", "params", logParams)
+
 	// Handle line limiting
 	if logParams.Tail != nil {
 		config.TailLines = logParams.Tail
+		logger.Info("applied tail parameter", "tail", *logParams.Tail)
 	}
 
 	// Handle time-based filtering
 	if logParams.SinceTime != nil {
-		// SinceTime takes precedence over Since
-		// Calculate duration from the specified time to now
-		sinceDuration := time.Since(*logParams.SinceTime)
-
-		// If the time is in the future and follow is enabled, treat as zero (start from now)
-		// This keeps the stream open instead of closing immediately
-		if sinceDuration < 0 && logParams.Follow {
-			config.Since = 0
-		} else if sinceDuration < 0 {
-			// For non-follow mode, pass negative duration to return no logs
-			config.Since = sinceDuration
-		} else {
-			config.Since = sinceDuration
-		}
+		config.SinceTime = logParams.SinceTime
+		helpers.Logger.Info(
+			"applying since time parameter | ",
+			"since_time: ",
+			*logParams.SinceTime,
+		)
 	} else if logParams.Since != nil {
 		config.Since = *logParams.Since
+		helpers.Logger.Info(
+			"applied since parameter | ",
+			"since: ",
+			*logParams.Since,
+		)
 	}
 }
 
@@ -1077,32 +1077,7 @@ func Logs(
 	}
 
 	// Apply log parameters if provided
-	if logParams != nil {
-		logger.Info("applying log parameters", "params", logParams)
-
-		// Handle line limiting
-		if logParams.Tail != nil {
-			config.TailLines = logParams.Tail
-			logger.Info("applied tail parameter", "tail", *logParams.Tail)
-		}
-
-		// Handle time-based filtering
-		if logParams.SinceTime != nil {
-			config.SinceTime = logParams.SinceTime
-			helpers.Logger.Info(
-				"applying since time parameter | ",
-				"since_time: ",
-				*logParams.SinceTime,
-			)
-		} else if logParams.Since != nil {
-			config.Since = *logParams.Since
-			helpers.Logger.Info(
-				"applied since parameter | ",
-				"since: ",
-				*logParams.Since,
-			)
-		}
-	}
+	applyLogParameters(config, logParams, logger)
 
 	// Use follow from logParams if provided, otherwise default to false
 	follow := false
