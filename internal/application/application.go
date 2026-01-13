@@ -735,7 +735,7 @@ type LogParameters struct {
 
 // buildContainerIncludePattern builds the regex pattern for including containers.
 // Returns the pattern and whether the user specified an include filter.
-func buildContainerIncludePattern(logParams *LogParameters, logger logr.Logger) (string, bool, error) {
+func buildContainerIncludePattern(logParams *LogParameters) (string, bool, error) {
 	containerQueryPattern := ".*"
 	hasUserIncludeFilter := false
 
@@ -770,14 +770,12 @@ func buildContainerIncludePattern(logParams *LogParameters, logger logr.Logger) 
 		}
 	}
 	containerQueryPattern = strings.Join(escapedIncludes, "|")
-	logger.Info("applied include_containers filter", "pattern", containerQueryPattern)
-	logger.Info("default linkerd exclusion disabled due to include_containers filter")
 
 	return containerQueryPattern, hasUserIncludeFilter, nil
 }
 
 // buildContainerExcludePattern builds the regex pattern for excluding containers.
-func buildContainerExcludePattern(logParams *LogParameters, hasUserIncludeFilter bool, logger logr.Logger) (*regexp.Regexp, error) {
+func buildContainerExcludePattern(logParams *LogParameters, hasUserIncludeFilter bool) (*regexp.Regexp, error) {
 	var excludeContainerPatterns []string
 
 	// Only apply default linkerd exclusion if user hasn't specified include_containers
@@ -817,8 +815,6 @@ func buildContainerExcludePattern(logParams *LogParameters, hasUserIncludeFilter
 		if err != nil {
 			return nil, fmt.Errorf("invalid exclude_containers pattern: %w", err)
 		}
-		logger.Info("final exclude container pattern", "pattern", combinedExcludePattern)
-		logger.Info("applied exclude_containers filter", "patterns", excludeContainerPatterns)
 		return excludeContainerQuery, nil
 	}
 
@@ -827,17 +823,14 @@ func buildContainerExcludePattern(logParams *LogParameters, hasUserIncludeFilter
 }
 
 // applyLogParameters applies log filtering parameters to the tailer config.
-func applyLogParameters(config *tailer.Config, logParams *LogParameters, logger logr.Logger) {
+func applyLogParameters(config *tailer.Config, logParams *LogParameters) {
 	if logParams == nil {
 		return
 	}
 
-	logger.Info("applying log parameters", "params", logParams)
-
 	// Handle line limiting
 	if logParams.Tail != nil {
 		config.TailLines = logParams.Tail
-		logger.Info("applied tail parameter", "tail", *logParams.Tail)
 	}
 
 	// Handle time-based filtering
@@ -849,27 +842,15 @@ func applyLogParameters(config *tailer.Config, logParams *LogParameters, logger 
 		// If the time is in the future and follow is enabled, treat as zero (start from now)
 		// This keeps the stream open instead of closing immediately
 		if sinceDuration < 0 && logParams.Follow {
-			logger.Info("since_time is in the future with follow=true, starting from now",
-				"since_time", *logParams.SinceTime,
-				"now", time.Now(),
-				"since_duration", sinceDuration)
 			config.Since = 0
 		} else if sinceDuration < 0 {
 			// For non-follow mode, pass negative duration to return no logs
 			config.Since = sinceDuration
-			logger.Info("since_time is in the future, no logs will be returned",
-				"since_time", *logParams.SinceTime,
-				"now", time.Now(),
-				"since_duration", sinceDuration)
 		} else {
 			config.Since = sinceDuration
-			logger.Info("applied since_time parameter",
-				"since_time", *logParams.SinceTime,
-				"since_duration", config.Since)
 		}
 	} else if logParams.Since != nil {
 		config.Since = *logParams.Since
-		logger.Info("applied since parameter", "since", *logParams.Since)
 	}
 }
 
@@ -902,12 +883,12 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	}
 
 	// Build container filtering regex patterns
-	containerQueryPattern, hasUserIncludeFilter, err := buildContainerIncludePattern(logParams, logger)
+	containerQueryPattern, hasUserIncludeFilter, err := buildContainerIncludePattern(logParams)
 	if err != nil {
 		return err
 	}
 
-	excludeContainerQuery, err := buildContainerExcludePattern(logParams, hasUserIncludeFilter, logger)
+	excludeContainerQuery, err := buildContainerExcludePattern(logParams, hasUserIncludeFilter)
 	if err != nil {
 		return err
 	}
@@ -937,13 +918,7 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	}
 
 	// Apply log parameters if provided
-	applyLogParameters(config, logParams, logger)
-
-	// Log final config values for debugging
-	logger.Info("final tailer config",
-		"tail_lines", config.TailLines,
-		"since", config.Since,
-		"since_seconds", int64(config.Since.Seconds()))
+	applyLogParameters(config, logParams)
 
 	// Use follow from logParams if provided, otherwise default to false
 	follow := false
@@ -952,11 +927,9 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	}
 
 	if follow {
-		logger.Info("stream")
 		return tailer.StreamLogs(ctx, logChan, wg, config, cluster)
 	}
 
-	logger.Info("fetch")
 	return tailer.FetchLogs(ctx, logChan, wg, config, cluster)
 }
 
