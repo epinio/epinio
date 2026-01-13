@@ -278,15 +278,6 @@ func Logs(c *gin.Context) {
 		return
 	}
 
-	// Log the parsed parameters for debugging
-	log.Info("parsed log parameters",
-		"tail", logParams.Tail,
-		"since", logParams.Since,
-		"since_time", logParams.SinceTime,
-		"follow", logParams.Follow,
-		"follow_raw", followStr,
-		"include_containers", logParams.IncludeContainers,
-		"exclude_containers", logParams.ExcludeContainers)
 
 	log.Info("upgrade to web socket")
 
