@@ -236,15 +236,41 @@ func (c *Collector) CollectRegistryLogs(ctx context.Context) error {
 
 // CollectApplicationLogs collects logs from all Epinio applications
 func (c *Collector) CollectApplicationLogs(ctx context.Context) error {
-	selector := labels.NewSelector()
-	req, err := labels.NewRequirement("app.kubernetes.io/component", selection.Equals, []string{"application"})
+	// Build base selector with component requirement
+	baseSelector := labels.NewSelector()
+	req1, err := labels.NewRequirement("app.kubernetes.io/component", selection.Equals, []string{"application"})
 	if err != nil {
-		return errors.Wrap(err, "failed to create label requirement")
+		return errors.Wrap(err, "failed to create component label requirement")
 	}
-	selector = selector.Add(*req)
+	baseSelector = baseSelector.Add(*req1)
 
-	// Collect logs grouped by namespace and application
-	return c.collectApplicationLogsByNamespace(ctx, selector)
+	// First try with managed-by label for more specific matching
+	selectorWithManagedBy := labels.NewSelector()
+	selectorWithManagedBy = selectorWithManagedBy.Add(*req1)
+	
+	req2, err := labels.NewRequirement("app.kubernetes.io/managed-by", selection.Equals, []string{"epinio"})
+	if err != nil {
+		return errors.Wrap(err, "failed to create managed-by label requirement")
+	}
+	selectorWithManagedBy = selectorWithManagedBy.Add(*req2)
+
+	// Check if any pods exist with managed-by label
+	podList, err := c.cluster.Kubectl.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+		LabelSelector: selectorWithManagedBy.String(),
+	})
+	if err != nil {
+		c.logger.Error(err, "failed to check pods with managed-by label, trying without it")
+		// Fall through to try without managed-by
+	} else if len(podList.Items) > 0 {
+		// Found pods with managed-by label, use that selector
+		c.logger.V(1).Info("found application pods with managed-by label", "count", len(podList.Items))
+		return c.collectApplicationLogsByNamespace(ctx, selectorWithManagedBy)
+	}
+
+	// Fallback: try without managed-by requirement
+	// (Some Helm charts may not set managed-by on pods, only on other resources)
+	c.logger.Info("no pods found with managed-by label, trying without it")
+	return c.collectApplicationLogsByNamespace(ctx, baseSelector)
 }
 
 // collectApplicationLogsByNamespace collects application logs organized by namespace
@@ -257,12 +283,18 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 		return errors.Wrap(err, "failed to list application pods")
 	}
 
+	c.logger.Info("found application pods", "count", len(podList.Items), "selector", selector.String())
+
 	// Group pods by namespace and application name
 	podsByApp := make(map[string]map[string][]corev1.Pod) // namespace -> app -> pods
+	skippedPods := 0
 	for _, pod := range podList.Items {
 		ns := pod.Namespace
 		appName := pod.Labels["app.kubernetes.io/name"]
 		if appName == "" {
+			c.logger.V(1).Info("skipping pod without app.kubernetes.io/name label",
+				"pod", pod.Name, "namespace", ns, "labels", pod.Labels)
+			skippedPods++
 			continue
 		}
 
@@ -272,9 +304,20 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 		podsByApp[ns][appName] = append(podsByApp[ns][appName], pod)
 	}
 
+	if skippedPods > 0 {
+		c.logger.Info("skipped pods without app name label", "count", skippedPods)
+	}
+
+	if len(podsByApp) == 0 {
+		c.logger.Info("no application pods found matching selector", "selector", selector.String())
+		return nil
+	}
+
 	// Collect logs for each application
 	for ns, apps := range podsByApp {
 		for appName, pods := range apps {
+			c.logger.V(1).Info("collecting logs for application",
+				"namespace", ns, "app", appName, "pod_count", len(pods))
 			dirName := fmt.Sprintf("applications/%s/%s", ns, appName)
 			for _, pod := range pods {
 				// Application logs: no time window, collect all available logs
@@ -282,6 +325,9 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 					c.logger.Error(err, "failed to collect logs for application pod",
 						"namespace", ns, "app", appName, "pod", pod.Name)
 					// Continue with other pods
+				} else {
+					c.logger.V(1).Info("successfully collected logs for application pod",
+						"namespace", ns, "app", appName, "pod", pod.Name)
 				}
 			}
 		}
