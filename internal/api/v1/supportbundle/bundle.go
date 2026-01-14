@@ -58,7 +58,12 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Parse optional query parameters
-	includeAppLogs := c.Query("include_app_logs") == "true"
+	// Support both "include_apps" and "include_app_logs" for flexibility
+	includeAppLogsParam := c.Query("include_apps")
+	if includeAppLogsParam == "" {
+		includeAppLogsParam = c.Query("include_app_logs")
+	}
+	includeAppLogs := includeAppLogsParam == "true"
 	tailLinesStr := c.Query("tail")
 	tailLines := DefaultTailLines
 	if tailLinesStr != "" {
@@ -117,10 +122,14 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 
 	// Optionally collect application logs
 	if includeAppLogs {
-		log.Info("collecting application logs")
+		log.Info("collecting application logs", "include_apps_param", c.Query("include_apps"), "include_app_logs_param", c.Query("include_app_logs"))
 		if err := collector.CollectApplicationLogs(ctx); err != nil {
 			log.Error(err, "failed to collect application logs")
+		} else {
+			log.Info("application logs collection completed")
 		}
+	} else {
+		log.V(1).Info("skipping application logs collection (include_apps or include_app_logs not set to true)")
 	}
 
 	// Check if any logs were collected before creating archive

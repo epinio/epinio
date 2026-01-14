@@ -236,6 +236,8 @@ func (c *Collector) CollectRegistryLogs(ctx context.Context) error {
 
 // CollectApplicationLogs collects logs from all Epinio applications
 func (c *Collector) CollectApplicationLogs(ctx context.Context) error {
+	c.logger.Info("starting application logs collection")
+	
 	// Build base selector with component requirement
 	baseSelector := labels.NewSelector()
 	req1, err := labels.NewRequirement("app.kubernetes.io/component", selection.Equals, []string{"application"})
@@ -254,22 +256,24 @@ func (c *Collector) CollectApplicationLogs(ctx context.Context) error {
 	}
 	selectorWithManagedBy = selectorWithManagedBy.Add(*req2)
 
+	c.logger.V(1).Info("checking for application pods", "selector_with_managed_by", selectorWithManagedBy.String(), "selector_base", baseSelector.String())
+
 	// Check if any pods exist with managed-by label
 	podList, err := c.cluster.Kubectl.CoreV1().Pods("").List(ctx, metav1.ListOptions{
 		LabelSelector: selectorWithManagedBy.String(),
 	})
 	if err != nil {
-		c.logger.Error(err, "failed to check pods with managed-by label, trying without it")
+		c.logger.Error(err, "failed to check pods with managed-by label, trying without it", "selector", selectorWithManagedBy.String())
 		// Fall through to try without managed-by
 	} else if len(podList.Items) > 0 {
 		// Found pods with managed-by label, use that selector
-		c.logger.V(1).Info("found application pods with managed-by label", "count", len(podList.Items))
+		c.logger.Info("found application pods with managed-by label", "count", len(podList.Items), "selector", selectorWithManagedBy.String())
 		return c.collectApplicationLogsByNamespace(ctx, selectorWithManagedBy)
 	}
 
 	// Fallback: try without managed-by requirement
 	// (Some Helm charts may not set managed-by on pods, only on other resources)
-	c.logger.Info("no pods found with managed-by label, trying without it")
+	c.logger.V(1).Info("no pods found with managed-by label, trying without it", "selector", selectorWithManagedBy.String(), "fallback_selector", baseSelector.String())
 	return c.collectApplicationLogsByNamespace(ctx, baseSelector)
 }
 
@@ -284,6 +288,21 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 	}
 
 	c.logger.Info("found application pods", "count", len(podList.Items), "selector", selector.String())
+
+	// Log details about found pods for debugging
+	if len(podList.Items) > 0 {
+		for _, pod := range podList.Items {
+			c.logger.V(1).Info("found application pod",
+				"pod", pod.Name,
+				"namespace", pod.Namespace,
+				"app_name", pod.Labels["app.kubernetes.io/name"],
+				"component", pod.Labels["app.kubernetes.io/component"],
+				"part_of", pod.Labels["app.kubernetes.io/part-of"],
+				"managed_by", pod.Labels["app.kubernetes.io/managed-by"],
+				"containers", len(pod.Spec.Containers),
+				"app_container", pod.Annotations["epinio.io/app-container"])
+		}
+	}
 
 	// Group pods by namespace and application name
 	podsByApp := make(map[string]map[string][]corev1.Pod) // namespace -> app -> pods
@@ -309,14 +328,21 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 	}
 
 	if len(podsByApp) == 0 {
-		c.logger.Info("no application pods found matching selector", "selector", selector.String())
+		c.logger.Info("no application pods found matching selector - application logs will not be included in bundle", 
+			"selector", selector.String(), 
+			"pods_found", len(podList.Items),
+			"pods_skipped", skippedPods)
 		return nil
 	}
 
 	// Collect logs for each application
+	totalApps := 0
+	totalPods := 0
 	for ns, apps := range podsByApp {
 		for appName, pods := range apps {
-			c.logger.V(1).Info("collecting logs for application",
+			totalApps++
+			totalPods += len(pods)
+			c.logger.Info("collecting logs for application",
 				"namespace", ns, "app", appName, "pod_count", len(pods))
 			dirName := fmt.Sprintf("applications/%s/%s", ns, appName)
 			for _, pod := range pods {
@@ -331,6 +357,13 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 				}
 			}
 		}
+	}
+
+	c.logger.Info("completed application log collection", 
+		"total_apps", totalApps, "total_pods", totalPods, "namespaces", len(podsByApp))
+	
+	if totalApps == 0 && totalPods == 0 {
+		c.logger.Info("WARNING: no application logs were collected - check if application pods exist with label app.kubernetes.io/component=application")
 	}
 
 	return nil
@@ -392,20 +425,41 @@ func (c *Collector) collectPodLogsDirect(ctx context.Context, dirName string, po
 		return errors.Wrap(err, "failed to create component directory")
 	}
 
-	// Collect logs from all containers in the pod
+	// Get the app container name from annotation if available (for application pods)
+	appContainerName := pod.Annotations["epinio.io/app-container"]
+
+	// Collect logs from all containers in the pod (including sidecars)
+	containersCollected := 0
 	for _, container := range pod.Spec.Containers {
 		containerName := container.Name
+
 		logFileName := fmt.Sprintf("%s-%s-%s.log", pod.Namespace, pod.Name, containerName)
 		logFilePath := filepath.Join(componentDir, logFileName)
+
+		c.logger.V(1).Info("collecting logs for container", 
+			"pod", pod.Name, "container", containerName, "namespace", pod.Namespace,
+			"is_app_container", containerName == appContainerName)
 
 		if err := c.writePodLogs(ctx, pod.Namespace, pod.Name, containerName, logFilePath, applyTimeWindow); err != nil {
 			c.logger.Error(err, "failed to write logs for container",
 				"pod", pod.Name, "container", containerName)
 			// Continue with other containers
+		} else {
+			containersCollected++
 		}
 	}
 
-	// Also collect from init containers if they exist
+	if containersCollected == 0 {
+		containerNames := make([]string, len(pod.Spec.Containers))
+		for i, c := range pod.Spec.Containers {
+			containerNames[i] = c.Name
+		}
+		c.logger.Info("WARNING: no containers collected from pod",
+			"pod", pod.Name, "namespace", pod.Namespace, "total_containers", len(pod.Spec.Containers),
+			"container_names", containerNames)
+	}
+
+	// Also collect from init containers if they exist (typically for staging jobs)
 	for _, container := range pod.Spec.InitContainers {
 		containerName := container.Name
 		logFileName := fmt.Sprintf("%s-%s-%s-init.log", pod.Namespace, pod.Name, containerName)
@@ -498,15 +552,17 @@ func (c *Collector) writePodLogs(ctx context.Context, namespace, podName, contai
 	req := c.cluster.Kubectl.CoreV1().Pods(namespace).GetLogs(podName, podLogOptions)
 	stream, err := req.Stream(ctx)
 	if err != nil {
-		// If container doesn't exist or pod is not ready, log and continue
-		// This is not necessarily an error - container may not have started yet
-		c.logger.V(1).Info("could not get logs for container", "pod", podName, "container", containerName, "namespace", namespace, "error", err.Error())
+		// If container doesn't exist or pod is not ready, log at Info level so it's visible
+		// This helps debug why logs aren't being collected
+		c.logger.Info("could not get logs for container - logs will not be included in bundle", 
+			"pod", podName, "container", containerName, "namespace", namespace, "error", err.Error())
 		// Write a note to the file instead of leaving it empty
 		errorMsg := fmt.Sprintf("Logs not available for container %s in pod %s (namespace: %s): %s\n", containerName, podName, namespace, err.Error())
 		_, writeErr := file.WriteString(errorMsg)
 		if writeErr != nil {
 			return errors.Wrap(writeErr, "failed to write error message to file")
 		}
+		// Return nil to continue with other containers, but the error is logged at Info level
 		return nil
 	}
 	defer func() {
@@ -516,10 +572,14 @@ func (c *Collector) writePodLogs(ctx context.Context, namespace, podName, contai
 	}()
 
 	// Copy logs to file
-	_, err = io.Copy(file, stream)
+	bytesWritten, err := io.Copy(file, stream)
 	if err != nil {
 		return errors.Wrap(err, "failed to copy logs to file")
 	}
+
+	c.logger.V(1).Info("successfully wrote pod logs to file", 
+		"pod", podName, "container", containerName, "namespace", namespace, 
+		"file", filePath, "bytes", bytesWritten)
 
 	return nil
 }
