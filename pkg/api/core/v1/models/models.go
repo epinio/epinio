@@ -87,13 +87,17 @@ type ConfigurationCreateRequest struct {
 // ConfigurationUpdateRequest represents and contains the data needed to
 // update a configuration instance (add/change, and remove keys)
 type ConfigurationUpdateRequest struct {
-	Remove []string          `json:"remove,omitempty"`
-	Set    map[string]string `json:"edit,omitempty"`
+	Remove  []string          `json:"remove,omitempty"`
+	Set     map[string]string `json:"edit,omitempty"`
+	Restart *bool             `json:"restart,omitempty"`
 }
 
 // ConfigurationReplaceRequest represents and contains the data needed to
 // replace a configuration instance
-type ConfigurationReplaceRequest map[string]string
+type ConfigurationReplaceRequest struct {
+	Data    map[string]string `json:"data"`
+	Restart *bool             `json:"restart,omitempty"`
+}
 
 // ConfigurationDeleteRequest represents and contains the data needed to delete a configuration
 type ConfigurationDeleteRequest struct {

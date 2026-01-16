@@ -48,11 +48,13 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 		return apierror.NewBadRequestError(err.Error())
 	}
 
-	restart, err := configurations.ReplaceConfiguration(ctx, cluster, configuration, replaceRequest)
+	dataChanged, err := configurations.ReplaceConfiguration(ctx, cluster, configuration, replaceRequest.Data)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
+	// backward compatibility: if no flag provided then restart the app
+	restart := (replaceRequest.Restart == nil || *replaceRequest.Restart) && dataChanged
 	if restart {
 		// Determine bound apps, as candidates for restart.
 		appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
