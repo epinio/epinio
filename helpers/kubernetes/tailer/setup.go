@@ -22,7 +22,6 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,7 +59,7 @@ type ContainerLogLine struct {
 // If ctx is Done() the method stops even if not all logs are fetched.
 func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
 	// Convert zap logger to logr for tailer functions (compatibility bridge for logr.Logger interface)
-	logger := helpers.SugaredLoggerToLogr(requestctx.Logger(ctx).With("component", "fetching-logs")).V(3)
+	logger := helpers.SugaredLoggerToLogr(helpers.Logger.With("component", "fetching-logs")).V(3)
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
@@ -79,7 +78,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 	newTail := func(pod corev1.Pod, c corev1.Container) *Tail {
 		// Convert zap logger to logr for tailer functions (compatibility bridge for logr.Logger interface)
 		return NewTail(pod.Namespace, pod.Name, c.Name,
-			helpers.SugaredLoggerToLogr(requestctx.Logger(ctx).With("component", "log-tracing")).V(4),
+			helpers.SugaredLoggerToLogr(helpers.Logger.With("component", "log-tracing")).V(4),
 			cluster.Kubectl,
 			&TailOptions{
 				Timestamps:   config.Timestamps,
@@ -159,7 +158,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 // polling the cluster for pod __changes__.
 func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
 	// Convert zap logger to logr for tailer functions (compatibility bridge for logr.Logger interface)
-	logger := helpers.SugaredLoggerToLogr(requestctx.Logger(ctx).With("component", "tail-handling")).V(3)
+	logger := helpers.SugaredLoggerToLogr(helpers.Logger.With("component", "tail-handling")).V(3)
 
 	var namespace string
 	if config.AllNamespaces {
@@ -199,7 +198,7 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 
 			// Convert zap logger to logr for tailer functions (compatibility bridge for logr.Logger interface)
 			tail := NewTail(p.Namespace, p.Pod, p.Container,
-				helpers.SugaredLoggerToLogr(requestctx.Logger(ctx).With("component", "log-tracing")),
+				helpers.SugaredLoggerToLogr(helpers.Logger.With("component", "log-tracing")),
 				cluster.Kubectl,
 				&TailOptions{
 					Timestamps:   config.Timestamps,

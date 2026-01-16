@@ -17,7 +17,6 @@ import (
 	"regexp"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/pkg/errors"
 
 	corev1 "k8s.io/api/core/v1"
@@ -47,7 +46,7 @@ func Watch(ctx context.Context, i v1.PodInterface, podFilter *regexp.Regexp,
 	containerState ContainerState, labelSelector labels.Selector) (chan *Target, chan *Target, error) {
 
 	// Convert zap logger to logr for tailer functions (compatibility bridge for logr.Logger interface)
-	logger := helpers.SugaredLoggerToLogr(requestctx.Logger(ctx).With("component", "pod-watch")).V(4)
+	logger := helpers.SugaredLoggerToLogr(helpers.Logger.With("component", "pod-watch")).V(4)
 
 	logger.Info("create")
 	watcher, err := i.Watch(ctx, metav1.ListOptions{Watch: true, LabelSelector: labelSelector.String()})

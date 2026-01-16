@@ -70,9 +70,8 @@ func Logger(ctx context.Context) *zap.SugaredLogger {
 		if helpers.Logger != nil {
 			return helpers.Logger.With("component", "fallback")
 		}
-		// Last resort: create a no-op logger
-		zapLogger, _ := zap.NewDevelopment()
-		return zapLogger.Sugar()
+		// Last resort: use a no-op logger (doesn't create a new logger instance)
+		return zap.NewNop().Sugar()
 	}
 	return log
 }

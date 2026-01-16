@@ -28,7 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
-	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/auth"
 )
 
@@ -75,7 +75,7 @@ func Load() (*Settings, error) {
 func LoadFrom(file string) (*Settings, error) {
 	cfg := new(Settings)
 
-	log := tracelog.NewLogger().WithName(fmt.Sprintf("Settings-%p", cfg)).V(3)
+	log := helpers.LoggerToLogr().WithName(fmt.Sprintf("Settings-%p", cfg)).V(3)
 	log.Info("Loading", "from", file)
 
 	v := viper.New()

@@ -25,9 +25,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -365,7 +365,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 		// While the error is ignored, as the server can operate without metrics, and while
 		// the missing metrics will be noted in the data shown to the user, it is logged so
 		// that the operator can see this as well.
-		requestctx.Logger(ctx).Error(err, "metrics not available")
+		helpers.Logger.Errorw("metrics not available", "error", err)
 	}
 
 	// VI. load the statuses of all staging jobs
@@ -402,7 +402,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 		return err
 	}
 
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger.With("component", "ApplicationDelete")
 
 	// Get image URL before deleting the app resource (needed for image deletion)
 	var imageURL string
@@ -733,7 +733,7 @@ type LogParameters struct {
 
 // then only logs from that staging process are returned.
 func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, app, stageID, namespace string, logParams *LogParameters) error {
-	logger := requestctx.Logger(ctx).With("component", "logs-backend")
+	logger := helpers.Logger.With("component", "logs-backend")
 	selector := labels.NewSelector()
 
 	var selectors [][]string

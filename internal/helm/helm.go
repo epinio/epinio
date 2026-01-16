@@ -24,9 +24,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/appchart"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/names"
@@ -124,7 +124,7 @@ func RemoveService(logger *zap.SugaredLogger, cluster *kubernetes.Cluster, app m
 }
 
 func DeployService(ctx context.Context, parameters ServiceParameters) error {
-	logger := requestctx.Logger(ctx)
+	logger := helpers.Logger.With("component", "helm-service")
 	logger.Infow("service helm setup", "parameters", parameters)
 
 	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)

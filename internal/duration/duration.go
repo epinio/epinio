@@ -14,7 +14,6 @@
 package duration
 
 import (
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -47,7 +46,8 @@ func Flags(pf *flag.FlagSet, argToEnv map[string]string) {
 		if helpers.Logger != nil {
 			helpers.Logger.Fatalw("failed to bind timeout-multiplier flag", "error", err)
 		}
-		log.Fatal(err)
+		// Programming/configuration error; abort early.
+		panic(err)
 	}
 	argToEnv["timeout-multiplier"] = "EPINIO_TIMEOUT_MULTIPLIER"
 }

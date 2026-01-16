@@ -18,8 +18,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -94,7 +94,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		InternalRoutes:        internalRoutes,
 	}
 
-	logger := requestctx.Logger(ctx).With("component", "ServiceStatus")
+	logger := helpers.Logger.With("component", "ServiceStatus")
 
 	var settings map[string]models.ChartSetting
 	if catalogEntry != nil {
@@ -194,7 +194,7 @@ func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) erro
 	service := serviceResourceName(name)
 
 	err := helm.RemoveService(
-		requestctx.Logger(ctx),
+		helpers.Logger.With("component", "helm-remove-service"),
 		s.kubeClient,
 		models.NewAppRef(name, namespace),
 	)
@@ -244,7 +244,7 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, namespace string) error {
 		// Inlined Delete() ... Avoids back and forth conversion between service and secret names
 		service := srv.GetLabels()[ServiceNameLabelKey]
 
-		err = helm.RemoveService(requestctx.Logger(ctx),
+		err = helm.RemoveService(helpers.Logger.With("component", "helm-remove-service"),
 			s.kubeClient,
 			models.NewAppRef(service, srv.Namespace))
 		if err != nil {
@@ -325,7 +325,7 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 			CatalogServiceVersion: srv.GetLabels()[CatalogServiceVersionLabelKey],
 		}
 
-		logger := requestctx.Logger(ctx).With("component", "ServiceStatus")
+		logger := helpers.Logger.With("component", "ServiceStatus")
 
 		theServiceSecret := srv
 		err = setServiceStatusAndCustomValues(&service, &theServiceSecret, ctx, logger, s.kubeClient,
@@ -525,7 +525,7 @@ func (s *ServiceClient) DeployOrUpdate(
 
 	epinioValues, err := getEpinioValues(name, catalogService.Meta.Name)
 	if err != nil {
-		logger := requestctx.Logger(ctx).With("component", "Create")
+		logger := helpers.Logger.With("component", "ServiceCreate")
 		logger.Errorw("getting epinio values", "error", err)
 	}
 

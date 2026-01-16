@@ -13,7 +13,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/epinio/epinio/helpers"
 	"k8s.io/client-go/discovery"
@@ -70,6 +69,7 @@ func checkErr(err error) {
 		if helpers.Logger != nil {
 			helpers.Logger.Fatalw("fatal error in config checker", "error", err)
 		}
-		log.Fatal(err)
+		// Programming/configuration error; abort early.
+		panic(err)
 	}
 }

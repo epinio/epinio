@@ -74,6 +74,9 @@ func InitLogger() error {
 
 	// Parse log level
 	logLevel := viper.GetString("log-level")
+	if logLevel == "" {
+		logLevel = "info" // Default to info level if not specified
+	}
 	var lvl zapcore.Level
 	if err := lvl.UnmarshalText([]byte(logLevel)); err != nil {
 		return fmt.Errorf("invalid log level '%s'", logLevel)
@@ -96,6 +99,8 @@ func InitLogger() error {
 
 	// Optional level coloring
 	if viper.GetBool("no-colors") {
+		cfg.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	} else {
 		cfg.EncoderConfig.EncodeLevel = coloredLevelEncoder
 	}
 
