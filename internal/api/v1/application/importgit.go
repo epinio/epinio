@@ -165,7 +165,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Create a tarball
-	tmpDir, tarball, err := helpers.Tar(gitRepo)
+		tmpDir, tarball, err := helpers.Tar(gitRepo, nil)
 	defer func() {
 		if tmpDir != "" {
 			_ = os.RemoveAll(tmpDir)
@@ -197,8 +197,8 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{
-		BlobUID: blobUID,
-		Branch: branch,
+		BlobUID:  blobUID,
+		Branch:   branch,
 		Revision: revision,
 	})
 	return nil
@@ -351,7 +351,7 @@ func findReferenceForRevision(repo *git.Repository, revision plumbing.Hash) (*pl
 	err = refIter.ForEach(func(r *plumbing.Reference) error {
 		err = w.Checkout(&git.CheckoutOptions{
 			Branch: r.Name(),
-			Force: true,
+			Force:  true,
 		})
 		if err != nil {
 			return err

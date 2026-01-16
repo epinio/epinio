@@ -56,6 +56,14 @@
     - ChartMatch
     - ChartMatch0
 
+# Allow users to restart an app without write permissions
+- id: app_restart
+  name: App Restart
+  dependsOn:
+    - app_read
+  routes:
+    - AppRestart
+
 # App Write
 - id: app_write
   name: App Write
@@ -87,6 +95,7 @@
   wsRoutes:
     - AppLogs
     - StagingLogs
+    - StagingCompleteWs
 
 # App Exec
 - id: app_exec
@@ -172,6 +181,7 @@
     - ServiceReplace
     - ServiceBind
     - ServiceUnbind
+    - ServiceBatchBind
 
 # Service Write
 - id: service_portforward

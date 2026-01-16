@@ -196,6 +196,11 @@ var Routes = routes.NamedRoutes{
 		"/namespaces/:namespace/services/:service/unbind",
 		errorHandler(service.Unbind)),
 
+	// Batch bind multiple services to an application
+	"ServiceBatchBind": post(
+		"/namespaces/:namespace/applications/:app/servicebindings",
+		errorHandler(service.BatchBind)),
+
 	// App charts
 	"ChartList":   get("/appcharts", errorHandler(appchart.Index)),
 	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Match)),
@@ -226,6 +231,7 @@ var WsRoutes = routes.NamedRoutes{
 	"AppLogs":            get("/namespaces/:namespace/applications/:app/logs", application.Logs),
 	"ServicePortForward": get("/namespaces/:namespace/services/:service/portforward", errorHandler(service.PortForward)),
 	"StagingLogs":        get("/namespaces/:namespace/staging/:stage_id/logs", application.Logs),
+	"StagingCompleteWs":  get("/namespaces/:namespace/staging/:stage_id/complete", application.StagedWebsocket),
 }
 
 // Lemon extends the specified router with the methods and urls

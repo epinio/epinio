@@ -11,8 +11,10 @@ personal-setup
 .envrc
 /*values.yaml
 /output
+/vendor
 /local
 /tmp
+/vendor
 /dist
 /resources
 /vendor
@@ -21,3 +23,4 @@ acceptance/acceptance.test
 .ignore
 contrib/
 Session.vim
+.idea/

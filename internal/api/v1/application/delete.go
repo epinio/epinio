@@ -34,6 +34,13 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		applicationNames = append(applicationNames, appName)
 	}
 
+	var deleteRequest models.ApplicationDeleteRequest
+	err := c.BindJSON(&deleteRequest)
+	if err != nil {
+		// If no body is provided, default to false (backward compatibility)
+		deleteRequest.DeleteImage = false
+	}
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -57,7 +64,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		}
 		boundConfigurations = append(boundConfigurations, configurations...)
 
-		err = application.Delete(ctx, cluster, appRef)
+		err = application.Delete(ctx, cluster, appRef, deleteRequest.DeleteImage)
 		if err != nil {
 			return apierror.InternalError(err)
 		}

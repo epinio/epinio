@@ -15,6 +15,7 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/mask"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
@@ -77,6 +78,8 @@ func Show(c *gin.Context) apierror.APIErrors {
 		// Examples:
 		//   - `foo` and `foo.1` for a single conflict between two keys.
 		//   - `bar`, `bar.1`, `bar.2`, etc. for a conflict with more than 2 keys.
+		//
+		// SECURITY: All secret values are masked to prevent exposure in API responses.
 
 		service.Details = map[string]string{}
 		for _, serviceConfig := range serviceConfigurations {
@@ -90,7 +93,8 @@ func Show(c *gin.Context) apierror.APIErrors {
 						xkey := fmt.Sprintf("%s.%d", key, j)
 						if _, ok := service.Details[xkey]; !ok {
 							// Conflict resolved, key + this serial not yet used.
-							service.Details[key] = string(value)
+							// Mask the value to prevent secret exposure
+							service.Details[xkey] = mask.MaskValue(string(value))
 							break
 						}
 						// Still in conflict, continue to next serial
@@ -98,8 +102,8 @@ func Show(c *gin.Context) apierror.APIErrors {
 					// Break above comes to here, conflict resolved, continue with next key
 					continue
 				}
-				// No conflict
-				service.Details[key] = string(value)
+				// No conflict - mask the value to prevent secret exposure
+				service.Details[key] = mask.MaskValue(string(value))
 			}
 		}
 	}

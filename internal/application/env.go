@@ -15,6 +15,7 @@ import (
 	"context"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/mask"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -142,10 +143,11 @@ func ConfigurationEnvironment(ctx context.Context, cluster *kubernetes.Cluster, 
 
 		// Add all key-value pairs from this configuration to the result
 		// Prefix with configuration name to avoid conflicts
+		// SECURITY: Mask values to prevent secret exposure in API responses
 		for key, value := range secret.Data {
 			// Use a composite key to avoid collisions: configName/key
 			compositeKey := configName + "/" + key
-			result[compositeKey] = string(value)
+			result[compositeKey] = mask.MaskValue(string(value))
 		}
 	}
 

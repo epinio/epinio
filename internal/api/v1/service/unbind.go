@@ -130,3 +130,23 @@ func UnbindService(
 	logger.Info("unbound service")
 	return nil
 }
+
+func deleteServiceBindings(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace, appName, userName string,
+	serviceConfigurations []v1.Secret,
+	deleteBinding func(context.Context, *kubernetes.Cluster, string, string, string, []string) apierror.APIErrors,
+) apierror.APIErrors {
+	configNames := make([]string, 0, len(serviceConfigurations))
+	for _, secret := range serviceConfigurations {
+		configNames = append(configNames, secret.Name)
+	}
+
+	// TODO: Don't `helm upgrade` after each removal. Do it once.
+	if len(configNames) == 0 {
+		return nil
+	}
+
+	return deleteBinding(ctx, cluster, namespace, appName, userName, configNames)
+}

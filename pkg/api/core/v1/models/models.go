@@ -144,9 +144,11 @@ type ApplicationConfiguration struct {
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	Services       []string           `json:"services,omitempty" yaml:"services,omitempty"`
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Ignore         []string           `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
@@ -262,6 +264,24 @@ type StageResponse struct {
 	ImageURL string   `json:"image,omitempty"`
 }
 
+// StageCompleteEvent is sent over the staging completion websocket endpoint
+// to signal the status of a staging job.
+type StageCompleteEvent struct {
+	StageID   string `json:"stage_id"`
+	Namespace string `json:"namespace"`
+	Status    string `json:"status"`
+	Message   string `json:"message,omitempty"`
+	Completed bool   `json:"completed"`
+}
+
+// StageComplete statuses used in websocket payloads.
+const (
+	StageStatusWaiting   = "waiting"
+	StageStatusSucceeded = "succeeded"
+	StageStatusFailed    = "failed"
+	StageStatusError     = "error"
+)
+
 // DeployRequest represents and contains the data needed to deploy an application
 // Note that the overall application configuration (instances, configurations, EVs) is
 // already known server side, through AppCreate/AppUpdate requests.
@@ -277,6 +297,11 @@ type DeployRequest struct {
 // DeployResponse represents the server's response to a successful app deployment
 type DeployResponse struct {
 	Routes []string `json:"routes,omitempty"`
+}
+
+// ApplicationDeleteRequest represents and contains the data needed to delete an application
+type ApplicationDeleteRequest struct {
+	DeleteImage bool `json:"deleteImage"`
 }
 
 // ApplicationDeleteResponse represents the server's response to a successful app deletion

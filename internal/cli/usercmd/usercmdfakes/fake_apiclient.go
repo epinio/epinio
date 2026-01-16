@@ -75,11 +75,12 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
-	AppDeleteStub        func(string, []string) (models.ApplicationDeleteResponse, error)
+	AppDeleteStub        func(string, []string, bool) (models.ApplicationDeleteResponse, error)
 	appDeleteMutex       sync.RWMutex
 	appDeleteArgsForCall []struct {
 		arg1 string
 		arg2 []string
+		arg3 bool
 	}
 	appDeleteReturns struct {
 		result1 models.ApplicationDeleteResponse
@@ -513,6 +514,20 @@ type FakeAPIClient struct {
 		result1 models.EnvVariableMap
 		result2 error
 	}
+	EnvListGroupedStub        func(string, string) (models.EnvVariableGroupedResponse, error)
+	envListGroupedMutex       sync.RWMutex
+	envListGroupedArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	envListGroupedReturns struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}
+	envListGroupedReturnsOnCall map[int]struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}
 	EnvMatchStub        func(string, string, string) (models.EnvMatchResponse, error)
 	envMatchMutex       sync.RWMutex
 	envMatchArgsForCall []struct {
@@ -775,6 +790,21 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
+	ServiceBatchBindStub        func(models.ServiceBatchBindRequest, string, string) (models.Response, error)
+	serviceBatchBindMutex       sync.RWMutex
+	serviceBatchBindArgsForCall []struct {
+		arg1 models.ServiceBatchBindRequest
+		arg2 string
+		arg3 string
+	}
+	serviceBatchBindReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	serviceBatchBindReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
 	ServiceCatalogStub        func() (models.CatalogServices, error)
 	serviceCatalogMutex       sync.RWMutex
 	serviceCatalogArgsForCall []struct {
@@ -945,6 +975,20 @@ type FakeAPIClient struct {
 	stagingCompleteReturnsOnCall map[int]struct {
 		result1 models.Response
 		result2 error
+	}
+	StagingCompleteStreamStub        func(context.Context, string, string, func(models.StageCompleteEvent) error) error
+	stagingCompleteStreamMutex       sync.RWMutex
+	stagingCompleteStreamArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 func(models.StageCompleteEvent) error
+	}
+	stagingCompleteStreamReturns struct {
+		result1 error
+	}
+	stagingCompleteStreamReturnsOnCall map[int]struct {
+		result1 error
 	}
 	VersionWarningEnabledStub        func() bool
 	versionWarningEnabledMutex       sync.RWMutex
@@ -1193,7 +1237,7 @@ func (fake *FakeAPIClient) AppCreateReturnsOnCall(i int, result1 models.Response
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string) (models.ApplicationDeleteResponse, error) {
+func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string, arg3 bool) (models.ApplicationDeleteResponse, error) {
 	var arg2Copy []string
 	if arg2 != nil {
 		arg2Copy = make([]string, len(arg2))
@@ -1204,13 +1248,14 @@ func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string) (models.Applica
 	fake.appDeleteArgsForCall = append(fake.appDeleteArgsForCall, struct {
 		arg1 string
 		arg2 []string
-	}{arg1, arg2Copy})
+		arg3 bool
+	}{arg1, arg2Copy, arg3})
 	stub := fake.AppDeleteStub
 	fakeReturns := fake.appDeleteReturns
-	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy})
+	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy, arg3})
 	fake.appDeleteMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -1224,17 +1269,17 @@ func (fake *FakeAPIClient) AppDeleteCallCount() int {
 	return len(fake.appDeleteArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppDeleteCalls(stub func(string, []string) (models.ApplicationDeleteResponse, error)) {
+func (fake *FakeAPIClient) AppDeleteCalls(stub func(string, []string, bool) (models.ApplicationDeleteResponse, error)) {
 	fake.appDeleteMutex.Lock()
 	defer fake.appDeleteMutex.Unlock()
 	fake.AppDeleteStub = stub
 }
 
-func (fake *FakeAPIClient) AppDeleteArgsForCall(i int) (string, []string) {
+func (fake *FakeAPIClient) AppDeleteArgsForCall(i int) (string, []string, bool) {
 	fake.appDeleteMutex.RLock()
 	defer fake.appDeleteMutex.RUnlock()
 	argsForCall := fake.appDeleteArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeAPIClient) AppDeleteReturns(result1 models.ApplicationDeleteResponse, result2 error) {
@@ -3225,6 +3270,71 @@ func (fake *FakeAPIClient) EnvListReturnsOnCall(i int, result1 models.EnvVariabl
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) EnvListGrouped(arg1 string, arg2 string) (models.EnvVariableGroupedResponse, error) {
+	fake.envListGroupedMutex.Lock()
+	ret, specificReturn := fake.envListGroupedReturnsOnCall[len(fake.envListGroupedArgsForCall)]
+	fake.envListGroupedArgsForCall = append(fake.envListGroupedArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.EnvListGroupedStub
+	fakeReturns := fake.envListGroupedReturns
+	fake.recordInvocation("EnvListGrouped", []interface{}{arg1, arg2})
+	fake.envListGroupedMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) EnvListGroupedCallCount() int {
+	fake.envListGroupedMutex.RLock()
+	defer fake.envListGroupedMutex.RUnlock()
+	return len(fake.envListGroupedArgsForCall)
+}
+
+func (fake *FakeAPIClient) EnvListGroupedCalls(stub func(string, string) (models.EnvVariableGroupedResponse, error)) {
+	fake.envListGroupedMutex.Lock()
+	defer fake.envListGroupedMutex.Unlock()
+	fake.EnvListGroupedStub = stub
+}
+
+func (fake *FakeAPIClient) EnvListGroupedArgsForCall(i int) (string, string) {
+	fake.envListGroupedMutex.RLock()
+	defer fake.envListGroupedMutex.RUnlock()
+	argsForCall := fake.envListGroupedArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeAPIClient) EnvListGroupedReturns(result1 models.EnvVariableGroupedResponse, result2 error) {
+	fake.envListGroupedMutex.Lock()
+	defer fake.envListGroupedMutex.Unlock()
+	fake.EnvListGroupedStub = nil
+	fake.envListGroupedReturns = struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) EnvListGroupedReturnsOnCall(i int, result1 models.EnvVariableGroupedResponse, result2 error) {
+	fake.envListGroupedMutex.Lock()
+	defer fake.envListGroupedMutex.Unlock()
+	fake.EnvListGroupedStub = nil
+	if fake.envListGroupedReturnsOnCall == nil {
+		fake.envListGroupedReturnsOnCall = make(map[int]struct {
+			result1 models.EnvVariableGroupedResponse
+			result2 error
+		})
+	}
+	fake.envListGroupedReturnsOnCall[i] = struct {
+		result1 models.EnvVariableGroupedResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeAPIClient) EnvMatch(arg1 string, arg2 string, arg3 string) (models.EnvMatchResponse, error) {
 	fake.envMatchMutex.Lock()
 	ret, specificReturn := fake.envMatchReturnsOnCall[len(fake.envMatchArgsForCall)]
@@ -4474,6 +4584,72 @@ func (fake *FakeAPIClient) ServiceBindReturnsOnCall(i int, result1 models.Respon
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) ServiceBatchBind(arg1 models.ServiceBatchBindRequest, arg2 string, arg3 string) (models.Response, error) {
+	fake.serviceBatchBindMutex.Lock()
+	ret, specificReturn := fake.serviceBatchBindReturnsOnCall[len(fake.serviceBatchBindArgsForCall)]
+	fake.serviceBatchBindArgsForCall = append(fake.serviceBatchBindArgsForCall, struct {
+		arg1 models.ServiceBatchBindRequest
+		arg2 string
+		arg3 string
+	}{arg1, arg2, arg3})
+	stub := fake.ServiceBatchBindStub
+	fakeReturns := fake.serviceBatchBindReturns
+	fake.recordInvocation("ServiceBatchBind", []interface{}{arg1, arg2, arg3})
+	fake.serviceBatchBindMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindCallCount() int {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	return len(fake.serviceBatchBindArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindCalls(stub func(models.ServiceBatchBindRequest, string, string) (models.Response, error)) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindArgsForCall(i int) (models.ServiceBatchBindRequest, string, string) {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	argsForCall := fake.serviceBatchBindArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindReturns(result1 models.Response, result2 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	fake.serviceBatchBindReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceBatchBindReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	if fake.serviceBatchBindReturnsOnCall == nil {
+		fake.serviceBatchBindReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.serviceBatchBindReturnsOnCall[i] = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeAPIClient) ServiceCatalog() (models.CatalogServices, error) {
 	fake.serviceCatalogMutex.Lock()
 	ret, specificReturn := fake.serviceCatalogReturnsOnCall[len(fake.serviceCatalogArgsForCall)]
@@ -5281,6 +5457,70 @@ func (fake *FakeAPIClient) StagingCompleteReturnsOnCall(i int, result1 models.Re
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) StagingCompleteStream(arg1 context.Context, arg2 string, arg3 string, arg4 func(models.StageCompleteEvent) error) error {
+	fake.stagingCompleteStreamMutex.Lock()
+	ret, specificReturn := fake.stagingCompleteStreamReturnsOnCall[len(fake.stagingCompleteStreamArgsForCall)]
+	fake.stagingCompleteStreamArgsForCall = append(fake.stagingCompleteStreamArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 func(models.StageCompleteEvent) error
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.StagingCompleteStreamStub
+	fakeReturns := fake.stagingCompleteStreamReturns
+	fake.recordInvocation("StagingCompleteStream", []interface{}{arg1, arg2, arg3, arg4})
+	fake.stagingCompleteStreamMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamCallCount() int {
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
+	return len(fake.stagingCompleteStreamArgsForCall)
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamCalls(stub func(context.Context, string, string, func(models.StageCompleteEvent) error) error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = stub
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamArgsForCall(i int) (context.Context, string, string, func(models.StageCompleteEvent) error) {
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
+	argsForCall := fake.stagingCompleteStreamArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamReturns(result1 error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = nil
+	fake.stagingCompleteStreamReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamReturnsOnCall(i int, result1 error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = nil
+	if fake.stagingCompleteStreamReturnsOnCall == nil {
+		fake.stagingCompleteStreamReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.stagingCompleteStreamReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeAPIClient) VersionWarningEnabled() bool {
 	fake.versionWarningEnabledMutex.Lock()
 	ret, specificReturn := fake.versionWarningEnabledReturnsOnCall[len(fake.versionWarningEnabledArgsForCall)]
@@ -5475,6 +5715,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.setHeaderMutex.RUnlock()
 	fake.stagingCompleteMutex.RLock()
 	defer fake.stagingCompleteMutex.RUnlock()
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
 	fake.versionWarningEnabledMutex.RLock()
 	defer fake.versionWarningEnabledMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

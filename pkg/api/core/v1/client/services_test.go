@@ -123,12 +123,18 @@ func DescribeServicesErrors() {
 			Entry("service catalog match", func() (any, error) {
 				return epinioClient.ServiceCatalogMatch("servicenameprefix")
 			}),
-			Entry("service bind", func() (any, error) {
-				return epinioClient.ServiceBind(models.ServiceBindRequest{}, "namespace", "servicename")
-			}),
-			Entry("service unbind", func() (any, error) {
-				return epinioClient.ServiceUnbind(models.ServiceUnbindRequest{}, "namespace", "servicename")
-			}),
+		Entry("service bind", func() (any, error) {
+			return epinioClient.ServiceBind(models.ServiceBindRequest{}, "namespace", "servicename")
+		}),
+		Entry("service batch bind", func() (any, error) {
+			return epinioClient.ServiceBatchBind(models.ServiceBatchBindRequest{
+				AppName:      "testapp",
+				ServiceNames: []string{"service1", "service2"},
+			}, "namespace", "testapp")
+		}),
+		Entry("service unbind", func() (any, error) {
+			return epinioClient.ServiceUnbind(models.ServiceUnbindRequest{}, "namespace", "servicename")
+		}),
 			Entry("service list", func() (any, error) {
 				return epinioClient.ServiceList("namespace")
 			}),

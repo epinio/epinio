@@ -197,6 +197,18 @@ type FakeServicesService struct {
 	serviceUpdateReturnsOnCall map[int]struct {
 		result1 error
 	}
+	ServiceBatchBindStub        func(string, []string) error
+	serviceBatchBindMutex       sync.RWMutex
+	serviceBatchBindArgsForCall []struct {
+		arg1 string
+		arg2 []string
+	}
+	serviceBatchBindReturns struct {
+		result1 error
+	}
+	serviceBatchBindReturnsOnCall map[int]struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -1118,6 +1130,73 @@ func (fake *FakeServicesService) ServiceUpdateReturnsOnCall(i int, result1 error
 	}{result1}
 }
 
+func (fake *FakeServicesService) ServiceBatchBind(arg1 string, arg2 []string) error {
+	var arg2Copy []string
+	if arg2 != nil {
+		arg2Copy = make([]string, len(arg2))
+		copy(arg2Copy, arg2)
+	}
+	fake.serviceBatchBindMutex.Lock()
+	ret, specificReturn := fake.serviceBatchBindReturnsOnCall[len(fake.serviceBatchBindArgsForCall)]
+	fake.serviceBatchBindArgsForCall = append(fake.serviceBatchBindArgsForCall, struct {
+		arg1 string
+		arg2 []string
+	}{arg1, arg2Copy})
+	stub := fake.ServiceBatchBindStub
+	fakeReturns := fake.serviceBatchBindReturns
+	fake.recordInvocation("ServiceBatchBind", []interface{}{arg1, arg2Copy})
+	fake.serviceBatchBindMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeServicesService) ServiceBatchBindCallCount() int {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	return len(fake.serviceBatchBindArgsForCall)
+}
+
+func (fake *FakeServicesService) ServiceBatchBindCalls(stub func(string, []string) error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = stub
+}
+
+func (fake *FakeServicesService) ServiceBatchBindArgsForCall(i int) (string, []string) {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	argsForCall := fake.serviceBatchBindArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeServicesService) ServiceBatchBindReturns(result1 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	fake.serviceBatchBindReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceBatchBindReturnsOnCall(i int, result1 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	if fake.serviceBatchBindReturnsOnCall == nil {
+		fake.serviceBatchBindReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.serviceBatchBindReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeServicesService) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -1151,6 +1230,8 @@ func (fake *FakeServicesService) Invocations() map[string][][]interface{} {
 	defer fake.serviceUnbindMutex.RUnlock()
 	fake.serviceUpdateMutex.RLock()
 	defer fake.serviceUpdateMutex.RUnlock()
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

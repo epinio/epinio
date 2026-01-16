@@ -24,11 +24,11 @@ import (
 )
 
 type ServicePortForwarder struct {
-	Client *Client
-	Endpoint string
+	Client             *Client
+	Endpoint           string
 	ListeningAddresses []ListenAddress
-	Ports []ForwardedPort
-	StopChan <-chan struct{}
+	Ports              []ForwardedPort
+	StopChan           <-chan struct{}
 }
 
 func NewServicePortForwarder(client *Client, endpoint string, addresses []string, ports []string, stopChan <-chan struct{}) (*ServicePortForwarder, error) {
@@ -47,11 +47,11 @@ func NewServicePortForwarder(client *Client, endpoint string, addresses []string
 		return nil, err
 	}
 	return &ServicePortForwarder{
-		Client: client,
-		Endpoint: endpoint,
+		Client:             client,
+		Endpoint:           endpoint,
 		ListeningAddresses: parsedAddresses,
-		Ports: parsedPorts,
-		StopChan: stopChan,
+		Ports:              parsedPorts,
+		StopChan:           stopChan,
 	}, nil
 }
 
@@ -145,7 +145,7 @@ func (pf *ServicePortForwarder) waitForConnection(listener net.Listener, port Fo
 		} else {
 			defer func() {
 				if err := listener.Close(); err != nil {
-					fmt.Sprintf("failed to close listener: %s", err)
+					pf.Client.log.Error(err, "failed to close listener")
 				}
 			}()
 		}
@@ -161,7 +161,7 @@ func (pf *ServicePortForwarder) waitForConnection(listener net.Listener, port Fo
 func (pf *ServicePortForwarder) handleConnection(localConn net.Conn) error {
 	defer func() {
 		if err := localConn.Close(); err != nil {
-			fmt.Sprintf("failed to close local connection: %s", err)
+			pf.Client.log.Error(err, "failed to close local connection")
 		}
 	}()
 
@@ -186,16 +186,16 @@ func (pf *ServicePortForwarder) handleConnection(localConn net.Conn) error {
 	if c != nil {
 		defer func() {
 			if err := c.Close(); err != nil {
-				fmt.Sprintf("failed to close websocket dialer: %s", err)
+				pf.Client.log.Error(err, "failed to close websocket dialer")
 			}
 		}()
 	}
 
 	upgradedConnection := c.UnderlyingConn()
-	
+
 	defer func() {
 		if err := upgradedConnection.Close(); err != nil {
-			fmt.Sprintf("failed to close upgraded connection: %s", err)
+			pf.Client.log.Error(err, "failed to close upgraded connection")
 		}
 	}()
 

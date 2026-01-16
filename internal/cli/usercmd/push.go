@@ -14,6 +14,7 @@ package usercmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"sort"
@@ -53,7 +54,7 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 	source := manifest.Origin.String()
 	appRef := models.AppRef{
 		Meta: models.Meta{
-			Name: manifest.Name,
+			Name:      manifest.Name,
 			Namespace: c.Settings.Namespace,
 		},
 	}
@@ -115,7 +116,7 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 
 	updateRequest := models.NewApplicationUpdateRequest(manifest)
 	_, err := c.API.AppCreate(models.ApplicationCreateRequest{
-		Name: appRef.Name,
+		Name:          appRef.Name,
 		Configuration: updateRequest,
 	}, appRef.Namespace)
 	if err != nil {
@@ -154,7 +155,7 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 	case models.OriginNone:
 		return fmt.Errorf("%s", "No application origin")
 	case models.OriginPath:
-		uploadedSourceBlobID, err := c.uploadSources(log, appRef, source)
+		uploadedSourceBlobID, err := c.uploadSources(log, appRef, source, manifest)
 		if err != nil {
 			return err
 		}
@@ -203,8 +204,8 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 		c.ui.ProgressNote().Msg("Running staging")
 
 		req := models.StageRequest{
-			App: appRef,
-			BlobUID: blobUID,
+			App:          appRef,
+			BlobUID:      blobUID,
 			BuilderImage: manifest.Staging.Builder,
 		}
 		details.Info("staging code", "Blob", blobUID)
@@ -233,7 +234,7 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 	// AppDeploy
 	c.ui.Normal().Msg("Deploying application ...")
 	deployRequest := models.DeployRequest{
-		App: appRef,
+		App:    appRef,
 		Origin: manifest.Origin,
 	}
 	// If container param is specified, then we just take it into ImageURL
@@ -265,7 +266,7 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 	return nil
 }
 
-func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, source string) (string, error) {
+func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, source string, manifest models.ApplicationManifest) (string, error) {
 	c.ui.Normal().Msg("Collecting the application sources ...")
 
 	fileInfo, err := os.Stat(source)
@@ -277,11 +278,12 @@ func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, sour
 
 	if fileInfo.IsDir() {
 		// package directory as archive/tarball
-		tmpDir, tarball, err := helpers.Tar(source)
-		
+		// Pass ignore patterns from manifest
+		tmpDir, tarball, err := helpers.Tar(source, manifest.Configuration.Ignore)
+
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				fmt.Sprintf("failed to directory: %s", err)
+				slog.Error("failed to remove temporary directory", "error", err)
 			}
 		}()
 
@@ -303,7 +305,7 @@ func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, sour
 
 	defer func() {
 		if err := file.Close(); err != nil {
-			fmt.Sprintf("failed to close file: %s", err)
+			slog.Error("failed to close file", "error", err)
 		}
 	}()
 

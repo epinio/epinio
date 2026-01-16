@@ -9,12 +9,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package mask
 
-import (
-	"github.com/epinio/epinio/internal/cli"
-)
-
-func main() {
-	cli.Execute()
+// MaskValue masks a sensitive value for display purposes.
+// Returns "****" for any non-empty value to prevent exposure of secrets.
+func MaskValue(value string) string {
+	if value == "" {
+		return ""
+	}
+	return "****"
 }
+
+// MaskMap masks all values in a map[string]string, returning a new map
+// with the same keys but masked values.
+func MaskMap(data map[string]string) map[string]string {
+	if data == nil {
+		return nil
+	}
+	masked := make(map[string]string, len(data))
+	for k, v := range data {
+		masked[k] = MaskValue(v)
+	}
+	return masked
+}
+
