@@ -21,11 +21,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 const (
@@ -48,9 +50,14 @@ const (
 // It collects logs from all Epinio components and returns them as a tar archive
 func Bundle(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	requestID := requestctx.ID(ctx)
+	base := helpers.Logger
+	if base == nil {
+		base = zap.NewNop().Sugar()
+	}
+	log := base.With("requestId", requestID, "component", "support-bundle")
 
-	log.Info("starting support bundle collection")
+	log.Infow("starting support bundle collection")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -70,7 +77,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 		if parsed, err := parseTailLines(tailLinesStr); err == nil {
 			tailLines = parsed
 		} else {
-			log.Info("invalid tail parameter, using default", "input", tailLinesStr, "error", err)
+			log.Infow("invalid tail parameter, using default", "input", tailLinesStr, "error", err)
 		}
 	}
 
@@ -87,49 +94,49 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	}
 	defer func() {
 		if err := os.RemoveAll(tmpDir); err != nil {
-			log.Error(err, "failed to cleanup temporary directory")
+			log.Errorw("failed to cleanup temporary directory", "error", err)
 		}
 	}()
 
 	collector := NewCollector(cluster, tmpDir, tailLines, log)
 
 	// Collect logs from all components
-	log.Info("collecting Epinio server logs")
+	log.Infow("collecting Epinio server logs")
 	if err := collector.CollectEpinioServerLogs(ctx); err != nil {
-		log.Error(err, "failed to collect Epinio server logs")
+		log.Errorw("failed to collect Epinio server logs", "error", err)
 		// Continue with other components even if one fails
 	}
 
-	log.Info("collecting Epinio UI logs")
+	log.Infow("collecting Epinio UI logs")
 	if err := collector.CollectEpinioUILogs(ctx); err != nil {
-		log.Error(err, "failed to collect Epinio UI logs")
+		log.Errorw("failed to collect Epinio UI logs", "error", err)
 	}
 
-	log.Info("collecting staging job logs")
+	log.Infow("collecting staging job logs")
 	if err := collector.CollectStagingJobLogs(ctx); err != nil {
-		log.Error(err, "failed to collect staging job logs")
+		log.Errorw("failed to collect staging job logs", "error", err)
 	}
 
-	log.Info("collecting Minio logs")
+	log.Infow("collecting Minio logs")
 	if err := collector.CollectMinioLogs(ctx); err != nil {
-		log.Error(err, "failed to collect Minio logs")
+		log.Errorw("failed to collect Minio logs", "error", err)
 	}
 
-	log.Info("collecting container registry logs")
+	log.Infow("collecting container registry logs")
 	if err := collector.CollectRegistryLogs(ctx); err != nil {
-		log.Error(err, "failed to collect container registry logs")
+		log.Errorw("failed to collect container registry logs", "error", err)
 	}
 
 	// Optionally collect application logs
 	if includeAppLogs {
-		log.Info("collecting application logs", "include_apps_param", c.Query("include_apps"), "include_app_logs_param", c.Query("include_app_logs"))
+		log.Infow("collecting application logs", "include_apps_param", c.Query("include_apps"), "include_app_logs_param", c.Query("include_app_logs"))
 		if err := collector.CollectApplicationLogs(ctx); err != nil {
-			log.Error(err, "failed to collect application logs")
+			log.Errorw("failed to collect application logs", "error", err)
 		} else {
-			log.Info("application logs collection completed")
+			log.Infow("application logs collection completed")
 		}
 	} else {
-		log.V(1).Info("skipping application logs collection (include_apps or include_app_logs not set to true)")
+		log.Debugw("skipping application logs collection (include_apps or include_app_logs not set to true)")
 	}
 
 	// Check if any logs were collected before creating archive
@@ -142,14 +149,14 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Create tar archive
-	log.Info("creating support bundle archive")
+	log.Infow("creating support bundle archive")
 	archivePath, err := collector.CreateArchive(ctx)
 	if err != nil {
 		return apierror.InternalError(errors.Wrap(err, "failed to create support bundle archive"))
 	}
 	defer func() {
 		if err := os.Remove(archivePath); err != nil {
-			log.Error(err, "failed to cleanup archive file")
+			log.Errorw("failed to cleanup archive file", "error", err)
 		}
 	}()
 
@@ -167,7 +174,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	// Warn if archive is very large - log but don't fail
 	if fileInfo.Size() > MaxRecommendedBundleSize {
 		sizeMB := fileInfo.Size() / (1024 * 1024)
-		log.Info("support bundle is very large, may cause download issues", "size_mb", sizeMB, "max_recommended_mb", MaxRecommendedBundleSize/(1024*1024))
+		log.Infow("support bundle is very large, may cause download issues", "size_mb", sizeMB, "max_recommended_mb", MaxRecommendedBundleSize/(1024*1024))
 	}
 
 	// Generate filename with timestamp
@@ -180,7 +187,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Error(err, "failed to close archive file")
+			log.Errorw("failed to close archive file", "error", err)
 		}
 	}()
 
@@ -192,7 +199,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	// Stream the file to the client using DataFromReader (similar to part.go)
 	c.DataFromReader(http.StatusOK, fileInfo.Size(), "application/gzip", bufio.NewReader(file), nil)
 
-	log.Info("support bundle download completed successfully", "filename", filename, "size_bytes", fileInfo.Size(), "size_mb", fileInfo.Size()/(1024*1024))
+	log.Infow("support bundle download completed successfully", "filename", filename, "size_bytes", fileInfo.Size(), "size_mb", fileInfo.Size()/(1024*1024))
 
 	return nil
 }

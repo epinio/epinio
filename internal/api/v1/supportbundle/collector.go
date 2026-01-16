@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/go-logr/logr"
 	"github.com/mholt/archives"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -35,11 +35,11 @@ type Collector struct {
 	cluster   *kubernetes.Cluster
 	bundleDir string
 	tailLines *int64
-	logger    logr.Logger
+	logger    *zap.SugaredLogger
 }
 
 // NewCollector creates a new log collector
-func NewCollector(cluster *kubernetes.Cluster, bundleDir string, tailLines int64, logger logr.Logger) *Collector {
+func NewCollector(cluster *kubernetes.Cluster, bundleDir string, tailLines int64, logger *zap.SugaredLogger) *Collector {
 	return &Collector{
 		cluster:   cluster,
 		bundleDir: bundleDir,
@@ -106,7 +106,7 @@ func (c *Collector) CollectStagingJobLogs(ctx context.Context) error {
 	}
 
 	if len(recentJobs) == 0 {
-		c.logger.Info("no recent staging jobs found")
+		c.logger.Infow("no recent staging jobs found")
 		return nil
 	}
 
@@ -116,7 +116,7 @@ func (c *Collector) CollectStagingJobLogs(ctx context.Context) error {
 		// Add staging component requirement explicitly
 		jobStagingReq, err := labels.NewRequirement("app.kubernetes.io/component", selection.Equals, []string{"staging"})
 		if err != nil {
-			c.logger.Error(err, "failed to create staging requirement for job", "job", jobName)
+			c.logger.Errorw("failed to create staging requirement for job", "error", err, "job", jobName)
 			continue
 		}
 		jobSelector = jobSelector.Add(*jobStagingReq)
@@ -124,7 +124,7 @@ func (c *Collector) CollectStagingJobLogs(ctx context.Context) error {
 		// Add job-name requirement
 		jobReq, err := labels.NewRequirement("job-name", selection.Equals, []string{jobName})
 		if err != nil {
-			c.logger.Error(err, "failed to create job-name requirement", "job", jobName)
+			c.logger.Errorw("failed to create job-name requirement", "error", err, "job", jobName)
 			continue
 		}
 		jobSelector = jobSelector.Add(*jobReq)
@@ -132,7 +132,7 @@ func (c *Collector) CollectStagingJobLogs(ctx context.Context) error {
 		dirName := fmt.Sprintf("staging-jobs/%s", jobName)
 		// For staging jobs, apply the 24-hour time window
 		if err := c.collectPodLogs(ctx, dirName, "", jobSelector, true); err != nil {
-			c.logger.Error(err, "failed to collect logs for staging job", "job", jobName)
+			c.logger.Errorw("failed to collect logs for staging job", "error", err, "job", jobName)
 			// Continue with other jobs
 		}
 	}
@@ -179,7 +179,7 @@ func (c *Collector) CollectMinioLogs(ctx context.Context) error {
 		}
 	}
 
-	c.logger.Info("Minio pods not found, skipping Minio logs")
+	c.logger.Infow("Minio pods not found, skipping Minio logs")
 	return nil
 }
 
@@ -230,13 +230,13 @@ func (c *Collector) CollectRegistryLogs(ctx context.Context) error {
 		}
 	}
 
-	c.logger.Info("Container registry pods not found, skipping registry logs")
+	c.logger.Infow("Container registry pods not found, skipping registry logs")
 	return nil
 }
 
 // CollectApplicationLogs collects logs from all Epinio applications
 func (c *Collector) CollectApplicationLogs(ctx context.Context) error {
-	c.logger.Info("starting application logs collection")
+	c.logger.Infow("starting application logs collection")
 	
 	// Build base selector with component requirement
 	baseSelector := labels.NewSelector()
@@ -256,24 +256,24 @@ func (c *Collector) CollectApplicationLogs(ctx context.Context) error {
 	}
 	selectorWithManagedBy = selectorWithManagedBy.Add(*req2)
 
-	c.logger.V(1).Info("checking for application pods", "selector_with_managed_by", selectorWithManagedBy.String(), "selector_base", baseSelector.String())
+	c.logger.Debugw("checking for application pods", "selector_with_managed_by", selectorWithManagedBy.String(), "selector_base", baseSelector.String())
 
 	// Check if any pods exist with managed-by label
 	podList, err := c.cluster.Kubectl.CoreV1().Pods("").List(ctx, metav1.ListOptions{
 		LabelSelector: selectorWithManagedBy.String(),
 	})
 	if err != nil {
-		c.logger.Error(err, "failed to check pods with managed-by label, trying without it", "selector", selectorWithManagedBy.String())
+		c.logger.Errorw("failed to check pods with managed-by label, trying without it", "error", err, "selector", selectorWithManagedBy.String())
 		// Fall through to try without managed-by
 	} else if len(podList.Items) > 0 {
 		// Found pods with managed-by label, use that selector
-		c.logger.Info("found application pods with managed-by label", "count", len(podList.Items), "selector", selectorWithManagedBy.String())
+		c.logger.Infow("found application pods with managed-by label", "count", len(podList.Items), "selector", selectorWithManagedBy.String())
 		return c.collectApplicationLogsByNamespace(ctx, selectorWithManagedBy)
 	}
 
 	// Fallback: try without managed-by requirement
 	// (Some Helm charts may not set managed-by on pods, only on other resources)
-	c.logger.V(1).Info("no pods found with managed-by label, trying without it", "selector", selectorWithManagedBy.String(), "fallback_selector", baseSelector.String())
+	c.logger.Debugw("no pods found with managed-by label, trying without it", "selector", selectorWithManagedBy.String(), "fallback_selector", baseSelector.String())
 	return c.collectApplicationLogsByNamespace(ctx, baseSelector)
 }
 
@@ -287,12 +287,12 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 		return errors.Wrap(err, "failed to list application pods")
 	}
 
-	c.logger.Info("found application pods", "count", len(podList.Items), "selector", selector.String())
+	c.logger.Infow("found application pods", "count", len(podList.Items), "selector", selector.String())
 
 	// Log details about found pods for debugging
 	if len(podList.Items) > 0 {
 		for _, pod := range podList.Items {
-			c.logger.V(1).Info("found application pod",
+			c.logger.Debugw("found application pod",
 				"pod", pod.Name,
 				"namespace", pod.Namespace,
 				"app_name", pod.Labels["app.kubernetes.io/name"],
@@ -311,7 +311,7 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 		ns := pod.Namespace
 		appName := pod.Labels["app.kubernetes.io/name"]
 		if appName == "" {
-			c.logger.V(1).Info("skipping pod without app.kubernetes.io/name label",
+			c.logger.Debugw("skipping pod without app.kubernetes.io/name label",
 				"pod", pod.Name, "namespace", ns, "labels", pod.Labels)
 			skippedPods++
 			continue
@@ -324,11 +324,11 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 	}
 
 	if skippedPods > 0 {
-		c.logger.Info("skipped pods without app name label", "count", skippedPods)
+		c.logger.Infow("skipped pods without app name label", "count", skippedPods)
 	}
 
 	if len(podsByApp) == 0 {
-		c.logger.Info("no application pods found matching selector - application logs will not be included in bundle", 
+		c.logger.Infow("no application pods found matching selector - application logs will not be included in bundle", 
 			"selector", selector.String(), 
 			"pods_found", len(podList.Items),
 			"pods_skipped", skippedPods)
@@ -342,28 +342,28 @@ func (c *Collector) collectApplicationLogsByNamespace(ctx context.Context, selec
 		for appName, pods := range apps {
 			totalApps++
 			totalPods += len(pods)
-			c.logger.Info("collecting logs for application",
+			c.logger.Infow("collecting logs for application",
 				"namespace", ns, "app", appName, "pod_count", len(pods))
 			dirName := fmt.Sprintf("applications/%s/%s", ns, appName)
 			for _, pod := range pods {
 				// Application logs: no time window, collect all available logs
 				if err := c.collectPodLogsDirect(ctx, dirName, pod, false); err != nil {
-					c.logger.Error(err, "failed to collect logs for application pod",
-						"namespace", ns, "app", appName, "pod", pod.Name)
+					c.logger.Errorw("failed to collect logs for application pod",
+						"error", err, "namespace", ns, "app", appName, "pod", pod.Name)
 					// Continue with other pods
 				} else {
-					c.logger.V(1).Info("successfully collected logs for application pod",
+					c.logger.Debugw("successfully collected logs for application pod",
 						"namespace", ns, "app", appName, "pod", pod.Name)
 				}
 			}
 		}
 	}
 
-	c.logger.Info("completed application log collection", 
+	c.logger.Infow("completed application log collection", 
 		"total_apps", totalApps, "total_pods", totalPods, "namespaces", len(podsByApp))
 	
 	if totalApps == 0 && totalPods == 0 {
-		c.logger.Info("WARNING: no application logs were collected - check if application pods exist with label app.kubernetes.io/component=application")
+		c.logger.Infow("WARNING: no application logs were collected - check if application pods exist with label app.kubernetes.io/component=application")
 	}
 
 	return nil
@@ -385,7 +385,7 @@ func (c *Collector) collectPodLogs(ctx context.Context, dirName, namespace strin
 
 	for _, pod := range podList.Items {
 		if err := c.collectPodLogsDirect(ctx, dirName, pod, applyTimeWindow); err != nil {
-			c.logger.Error(err, "failed to collect logs for pod", "pod", pod.Name, "namespace", pod.Namespace)
+			c.logger.Errorw("failed to collect logs for pod", "error", err, "pod", pod.Name, "namespace", pod.Namespace)
 			// Continue with other pods
 		}
 	}
@@ -408,7 +408,7 @@ func (c *Collector) collectPodLogsWithPrevious(ctx context.Context, dirName, nam
 
 	for _, pod := range podList.Items {
 		if err := c.collectPodLogsDirectWithPrevious(ctx, dirName, pod); err != nil {
-			c.logger.Error(err, "failed to collect logs for pod", "pod", pod.Name, "namespace", pod.Namespace)
+			c.logger.Errorw("failed to collect logs for pod", "error", err, "pod", pod.Name, "namespace", pod.Namespace)
 			// Continue with other pods
 		}
 	}
@@ -436,13 +436,13 @@ func (c *Collector) collectPodLogsDirect(ctx context.Context, dirName string, po
 		logFileName := fmt.Sprintf("%s-%s-%s.log", pod.Namespace, pod.Name, containerName)
 		logFilePath := filepath.Join(componentDir, logFileName)
 
-		c.logger.V(1).Info("collecting logs for container", 
+		c.logger.Debugw("collecting logs for container", 
 			"pod", pod.Name, "container", containerName, "namespace", pod.Namespace,
 			"is_app_container", containerName == appContainerName)
 
 		if err := c.writePodLogs(ctx, pod.Namespace, pod.Name, containerName, logFilePath, applyTimeWindow); err != nil {
-			c.logger.Error(err, "failed to write logs for container",
-				"pod", pod.Name, "container", containerName)
+			c.logger.Errorw("failed to write logs for container",
+				"error", err, "pod", pod.Name, "container", containerName)
 			// Continue with other containers
 		} else {
 			containersCollected++
@@ -454,7 +454,7 @@ func (c *Collector) collectPodLogsDirect(ctx context.Context, dirName string, po
 		for i, c := range pod.Spec.Containers {
 			containerNames[i] = c.Name
 		}
-		c.logger.Info("WARNING: no containers collected from pod",
+		c.logger.Infow("WARNING: no containers collected from pod",
 			"pod", pod.Name, "namespace", pod.Namespace, "total_containers", len(pod.Spec.Containers),
 			"container_names", containerNames)
 	}
@@ -466,8 +466,8 @@ func (c *Collector) collectPodLogsDirect(ctx context.Context, dirName string, po
 		logFilePath := filepath.Join(componentDir, logFileName)
 
 		if err := c.writePodLogs(ctx, pod.Namespace, pod.Name, containerName, logFilePath, applyTimeWindow); err != nil {
-			c.logger.Error(err, "failed to write logs for init container",
-				"pod", pod.Name, "container", containerName)
+			c.logger.Errorw("failed to write logs for init container",
+				"error", err, "pod", pod.Name, "container", containerName)
 		}
 	}
 
@@ -490,8 +490,8 @@ func (c *Collector) collectPodLogsDirectWithPrevious(ctx context.Context, dirNam
 		logFileName := fmt.Sprintf("%s-%s-%s.log", pod.Namespace, pod.Name, containerName)
 		logFilePath := filepath.Join(componentDir, logFileName)
 		if err := c.writePodLogs(ctx, pod.Namespace, pod.Name, containerName, logFilePath, false); err != nil {
-			c.logger.Error(err, "failed to write logs for container",
-				"pod", pod.Name, "container", containerName)
+			c.logger.Errorw("failed to write logs for container",
+				"error", err, "pod", pod.Name, "container", containerName)
 			// Continue with other containers
 		}
 
@@ -499,8 +499,8 @@ func (c *Collector) collectPodLogsDirectWithPrevious(ctx context.Context, dirNam
 		prevLogFileName := fmt.Sprintf("%s-%s-%s-previous.log", pod.Namespace, pod.Name, containerName)
 		prevLogFilePath := filepath.Join(componentDir, prevLogFileName)
 		if err := c.writePreviousPodLogs(ctx, pod.Namespace, pod.Name, containerName, prevLogFilePath); err != nil {
-			c.logger.Error(err, "failed to write previous container logs",
-				"pod", pod.Name, "container", containerName)
+			c.logger.Errorw("failed to write previous container logs",
+				"error", err, "pod", pod.Name, "container", containerName)
 			// Continue - previous logs may not exist
 		}
 	}
@@ -512,8 +512,8 @@ func (c *Collector) collectPodLogsDirectWithPrevious(ctx context.Context, dirNam
 		logFilePath := filepath.Join(componentDir, logFileName)
 
 		if err := c.writePodLogs(ctx, pod.Namespace, pod.Name, containerName, logFilePath, false); err != nil {
-			c.logger.Error(err, "failed to write logs for init container",
-				"pod", pod.Name, "container", containerName)
+			c.logger.Errorw("failed to write logs for init container",
+				"error", err, "pod", pod.Name, "container", containerName)
 		}
 	}
 
@@ -530,7 +530,7 @@ func (c *Collector) writePodLogs(ctx context.Context, namespace, podName, contai
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			c.logger.Error(err, "failed to close log file", "file", filePath)
+			c.logger.Errorw("failed to close log file", "error", err, "file", filePath)
 		}
 	}()
 
@@ -546,7 +546,7 @@ func (c *Collector) writePodLogs(ctx context.Context, namespace, podName, contai
 	if applyTimeWindow {
 		sinceSeconds := int64(RecentStagingJobsWindow.Seconds())
 		podLogOptions.SinceSeconds = &sinceSeconds
-		c.logger.V(1).Info("applying time window filter", "since_seconds", sinceSeconds, "pod", podName, "container", containerName)
+		c.logger.Debugw("applying time window filter", "since_seconds", sinceSeconds, "pod", podName, "container", containerName)
 	}
 
 	req := c.cluster.Kubectl.CoreV1().Pods(namespace).GetLogs(podName, podLogOptions)
@@ -554,7 +554,7 @@ func (c *Collector) writePodLogs(ctx context.Context, namespace, podName, contai
 	if err != nil {
 		// If container doesn't exist or pod is not ready, log at Info level so it's visible
 		// This helps debug why logs aren't being collected
-		c.logger.Info("could not get logs for container - logs will not be included in bundle", 
+		c.logger.Infow("could not get logs for container - logs will not be included in bundle", 
 			"pod", podName, "container", containerName, "namespace", namespace, "error", err.Error())
 		// Write a note to the file instead of leaving it empty
 		errorMsg := fmt.Sprintf("Logs not available for container %s in pod %s (namespace: %s): %s\n", containerName, podName, namespace, err.Error())
@@ -567,7 +567,7 @@ func (c *Collector) writePodLogs(ctx context.Context, namespace, podName, contai
 	}
 	defer func() {
 		if err := stream.Close(); err != nil {
-			c.logger.Error(err, "failed to close log stream", "pod", podName, "container", containerName)
+			c.logger.Errorw("failed to close log stream", "error", err, "pod", podName, "container", containerName)
 		}
 	}()
 
@@ -577,7 +577,7 @@ func (c *Collector) writePodLogs(ctx context.Context, namespace, podName, contai
 		return errors.Wrap(err, "failed to copy logs to file")
 	}
 
-	c.logger.V(1).Info("successfully wrote pod logs to file", 
+	c.logger.Debugw("successfully wrote pod logs to file", 
 		"pod", podName, "container", containerName, "namespace", namespace, 
 		"file", filePath, "bytes", bytesWritten)
 
@@ -593,7 +593,7 @@ func (c *Collector) writePreviousPodLogs(ctx context.Context, namespace, podName
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			c.logger.Error(err, "failed to close log file", "file", filePath)
+			c.logger.Errorw("failed to close log file", "error", err, "file", filePath)
 		}
 	}()
 
@@ -610,7 +610,7 @@ func (c *Collector) writePreviousPodLogs(ctx context.Context, namespace, podName
 	if err != nil {
 		// Previous container logs may not exist (e.g., first run, container hasn't restarted)
 		// This is expected behavior, not an error
-		c.logger.V(1).Info("previous container logs not available", "pod", podName, "container", containerName, "namespace", namespace, "note", "this is normal if container hasn't restarted")
+		c.logger.Debugw("previous container logs not available", "pod", podName, "container", containerName, "namespace", namespace, "note", "this is normal if container hasn't restarted")
 		// Write a note to the file explaining why logs aren't available
 		note := fmt.Sprintf("Previous container logs not available for container %s in pod %s (namespace: %s).\nThis is normal for first run or if the container hasn't restarted.\n", containerName, podName, namespace)
 		_, writeErr := file.WriteString(note)
@@ -621,7 +621,7 @@ func (c *Collector) writePreviousPodLogs(ctx context.Context, namespace, podName
 	}
 	defer func() {
 		if err := stream.Close(); err != nil {
-			c.logger.Error(err, "failed to close log stream", "pod", podName, "container", containerName)
+			c.logger.Errorw("failed to close log stream", "error", err, "pod", podName, "container", containerName)
 		}
 	}()
 
@@ -672,7 +672,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 		return "", errors.New("no files found to include in archive")
 	}
 
-	c.logger.V(1).Info("creating archive", "file_count", len(files), "archive_path", archivePath)
+	c.logger.Debugw("creating archive", "file_count", len(files), "archive_path", archivePath)
 
 	// Use the archives library to create the tar.gz
 	filesFromDisk, err := archives.FilesFromDisk(ctx, nil, files)
@@ -687,7 +687,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	}
 	defer func() {
 		if err := outFile.Close(); err != nil {
-			c.logger.Error(err, "failed to close archive file", "path", archivePath)
+			c.logger.Errorw("failed to close archive file", "error", err, "path", archivePath)
 		}
 	}()
 
@@ -706,7 +706,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 		return "", errors.Wrap(err, "failed to verify archive was created")
 	}
 
-	c.logger.Info("archive created successfully", "path", archivePath, "size_bytes", archiveInfo.Size(), "file_count", len(files))
+	c.logger.Infow("archive created successfully", "path", archivePath, "size_bytes", archiveInfo.Size(), "file_count", len(files))
 
 	return archivePath, nil
 }
