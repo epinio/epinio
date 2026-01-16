@@ -109,8 +109,6 @@ func (fake *FakeJobLister) ListJobsReturnsOnCall(i int, result1 *v1.JobList, res
 func (fake *FakeJobLister) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.listJobsMutex.RLock()
-	defer fake.listJobsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

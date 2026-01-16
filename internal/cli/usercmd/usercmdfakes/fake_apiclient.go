@@ -775,21 +775,6 @@ type FakeAPIClient struct {
 		result1 models.NamespacesMatchResponse
 		result2 error
 	}
-	ServiceBindStub        func(models.ServiceBindRequest, string, string) (models.Response, error)
-	serviceBindMutex       sync.RWMutex
-	serviceBindArgsForCall []struct {
-		arg1 models.ServiceBindRequest
-		arg2 string
-		arg3 string
-	}
-	serviceBindReturns struct {
-		result1 models.Response
-		result2 error
-	}
-	serviceBindReturnsOnCall map[int]struct {
-		result1 models.Response
-		result2 error
-	}
 	ServiceBatchBindStub        func(models.ServiceBatchBindRequest, string, string) (models.Response, error)
 	serviceBatchBindMutex       sync.RWMutex
 	serviceBatchBindArgsForCall []struct {
@@ -802,6 +787,21 @@ type FakeAPIClient struct {
 		result2 error
 	}
 	serviceBatchBindReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
+	ServiceBindStub        func(models.ServiceBindRequest, string, string) (models.Response, error)
+	serviceBindMutex       sync.RWMutex
+	serviceBindArgsForCall []struct {
+		arg1 models.ServiceBindRequest
+		arg2 string
+		arg3 string
+	}
+	serviceBindReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	serviceBindReturnsOnCall map[int]struct {
 		result1 models.Response
 		result2 error
 	}
@@ -4518,72 +4518,6 @@ func (fake *FakeAPIClient) NamespacesMatchReturnsOnCall(i int, result1 models.Na
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceBind(arg1 models.ServiceBindRequest, arg2 string, arg3 string) (models.Response, error) {
-	fake.serviceBindMutex.Lock()
-	ret, specificReturn := fake.serviceBindReturnsOnCall[len(fake.serviceBindArgsForCall)]
-	fake.serviceBindArgsForCall = append(fake.serviceBindArgsForCall, struct {
-		arg1 models.ServiceBindRequest
-		arg2 string
-		arg3 string
-	}{arg1, arg2, arg3})
-	stub := fake.ServiceBindStub
-	fakeReturns := fake.serviceBindReturns
-	fake.recordInvocation("ServiceBind", []interface{}{arg1, arg2, arg3})
-	fake.serviceBindMutex.Unlock()
-	if stub != nil {
-		return stub(arg1, arg2, arg3)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fakeReturns.result1, fakeReturns.result2
-}
-
-func (fake *FakeAPIClient) ServiceBindCallCount() int {
-	fake.serviceBindMutex.RLock()
-	defer fake.serviceBindMutex.RUnlock()
-	return len(fake.serviceBindArgsForCall)
-}
-
-func (fake *FakeAPIClient) ServiceBindCalls(stub func(models.ServiceBindRequest, string, string) (models.Response, error)) {
-	fake.serviceBindMutex.Lock()
-	defer fake.serviceBindMutex.Unlock()
-	fake.ServiceBindStub = stub
-}
-
-func (fake *FakeAPIClient) ServiceBindArgsForCall(i int) (models.ServiceBindRequest, string, string) {
-	fake.serviceBindMutex.RLock()
-	defer fake.serviceBindMutex.RUnlock()
-	argsForCall := fake.serviceBindArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
-}
-
-func (fake *FakeAPIClient) ServiceBindReturns(result1 models.Response, result2 error) {
-	fake.serviceBindMutex.Lock()
-	defer fake.serviceBindMutex.Unlock()
-	fake.ServiceBindStub = nil
-	fake.serviceBindReturns = struct {
-		result1 models.Response
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeAPIClient) ServiceBindReturnsOnCall(i int, result1 models.Response, result2 error) {
-	fake.serviceBindMutex.Lock()
-	defer fake.serviceBindMutex.Unlock()
-	fake.ServiceBindStub = nil
-	if fake.serviceBindReturnsOnCall == nil {
-		fake.serviceBindReturnsOnCall = make(map[int]struct {
-			result1 models.Response
-			result2 error
-		})
-	}
-	fake.serviceBindReturnsOnCall[i] = struct {
-		result1 models.Response
-		result2 error
-	}{result1, result2}
-}
-
 func (fake *FakeAPIClient) ServiceBatchBind(arg1 models.ServiceBatchBindRequest, arg2 string, arg3 string) (models.Response, error) {
 	fake.serviceBatchBindMutex.Lock()
 	ret, specificReturn := fake.serviceBatchBindReturnsOnCall[len(fake.serviceBatchBindArgsForCall)]
@@ -4645,6 +4579,72 @@ func (fake *FakeAPIClient) ServiceBatchBindReturnsOnCall(i int, result1 models.R
 		})
 	}
 	fake.serviceBatchBindReturnsOnCall[i] = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceBind(arg1 models.ServiceBindRequest, arg2 string, arg3 string) (models.Response, error) {
+	fake.serviceBindMutex.Lock()
+	ret, specificReturn := fake.serviceBindReturnsOnCall[len(fake.serviceBindArgsForCall)]
+	fake.serviceBindArgsForCall = append(fake.serviceBindArgsForCall, struct {
+		arg1 models.ServiceBindRequest
+		arg2 string
+		arg3 string
+	}{arg1, arg2, arg3})
+	stub := fake.ServiceBindStub
+	fakeReturns := fake.serviceBindReturns
+	fake.recordInvocation("ServiceBind", []interface{}{arg1, arg2, arg3})
+	fake.serviceBindMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceBindCallCount() int {
+	fake.serviceBindMutex.RLock()
+	defer fake.serviceBindMutex.RUnlock()
+	return len(fake.serviceBindArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceBindCalls(stub func(models.ServiceBindRequest, string, string) (models.Response, error)) {
+	fake.serviceBindMutex.Lock()
+	defer fake.serviceBindMutex.Unlock()
+	fake.ServiceBindStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceBindArgsForCall(i int) (models.ServiceBindRequest, string, string) {
+	fake.serviceBindMutex.RLock()
+	defer fake.serviceBindMutex.RUnlock()
+	argsForCall := fake.serviceBindArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) ServiceBindReturns(result1 models.Response, result2 error) {
+	fake.serviceBindMutex.Lock()
+	defer fake.serviceBindMutex.Unlock()
+	fake.ServiceBindStub = nil
+	fake.serviceBindReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceBindReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.serviceBindMutex.Lock()
+	defer fake.serviceBindMutex.Unlock()
+	fake.ServiceBindStub = nil
+	if fake.serviceBindReturnsOnCall == nil {
+		fake.serviceBindReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.serviceBindReturnsOnCall[i] = struct {
 		result1 models.Response
 		result2 error
 	}{result1, result2}
@@ -5577,148 +5577,6 @@ func (fake *FakeAPIClient) VersionWarningEnabledReturnsOnCall(i int, result1 boo
 func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.allAppsMutex.RLock()
-	defer fake.allAppsMutex.RUnlock()
-	fake.allConfigurationsMutex.RLock()
-	defer fake.allConfigurationsMutex.RUnlock()
-	fake.allServicesMutex.RLock()
-	defer fake.allServicesMutex.RUnlock()
-	fake.appCreateMutex.RLock()
-	defer fake.appCreateMutex.RUnlock()
-	fake.appDeleteMutex.RLock()
-	defer fake.appDeleteMutex.RUnlock()
-	fake.appDeployMutex.RLock()
-	defer fake.appDeployMutex.RUnlock()
-	fake.appExecMutex.RLock()
-	defer fake.appExecMutex.RUnlock()
-	fake.appExportMutex.RLock()
-	defer fake.appExportMutex.RUnlock()
-	fake.appGetPartMutex.RLock()
-	defer fake.appGetPartMutex.RUnlock()
-	fake.appImportGitMutex.RLock()
-	defer fake.appImportGitMutex.RUnlock()
-	fake.appLogsMutex.RLock()
-	defer fake.appLogsMutex.RUnlock()
-	fake.appMatchMutex.RLock()
-	defer fake.appMatchMutex.RUnlock()
-	fake.appPortForwardMutex.RLock()
-	defer fake.appPortForwardMutex.RUnlock()
-	fake.appRestartMutex.RLock()
-	defer fake.appRestartMutex.RUnlock()
-	fake.appRunningMutex.RLock()
-	defer fake.appRunningMutex.RUnlock()
-	fake.appShowMutex.RLock()
-	defer fake.appShowMutex.RUnlock()
-	fake.appStageMutex.RLock()
-	defer fake.appStageMutex.RUnlock()
-	fake.appUpdateMutex.RLock()
-	defer fake.appUpdateMutex.RUnlock()
-	fake.appUploadMutex.RLock()
-	defer fake.appUploadMutex.RUnlock()
-	fake.appValidateCVMutex.RLock()
-	defer fake.appValidateCVMutex.RUnlock()
-	fake.appsMutex.RLock()
-	defer fake.appsMutex.RUnlock()
-	fake.authTokenMutex.RLock()
-	defer fake.authTokenMutex.RUnlock()
-	fake.chartListMutex.RLock()
-	defer fake.chartListMutex.RUnlock()
-	fake.chartMatchMutex.RLock()
-	defer fake.chartMatchMutex.RUnlock()
-	fake.chartShowMutex.RLock()
-	defer fake.chartShowMutex.RUnlock()
-	fake.configurationAppsMutex.RLock()
-	defer fake.configurationAppsMutex.RUnlock()
-	fake.configurationBindingCreateMutex.RLock()
-	defer fake.configurationBindingCreateMutex.RUnlock()
-	fake.configurationBindingDeleteMutex.RLock()
-	defer fake.configurationBindingDeleteMutex.RUnlock()
-	fake.configurationCreateMutex.RLock()
-	defer fake.configurationCreateMutex.RUnlock()
-	fake.configurationDeleteMutex.RLock()
-	defer fake.configurationDeleteMutex.RUnlock()
-	fake.configurationMatchMutex.RLock()
-	defer fake.configurationMatchMutex.RUnlock()
-	fake.configurationShowMutex.RLock()
-	defer fake.configurationShowMutex.RUnlock()
-	fake.configurationUpdateMutex.RLock()
-	defer fake.configurationUpdateMutex.RUnlock()
-	fake.configurationsMutex.RLock()
-	defer fake.configurationsMutex.RUnlock()
-	fake.disableVersionWarningMutex.RLock()
-	defer fake.disableVersionWarningMutex.RUnlock()
-	fake.envListMutex.RLock()
-	defer fake.envListMutex.RUnlock()
-	fake.envMatchMutex.RLock()
-	defer fake.envMatchMutex.RUnlock()
-	fake.envSetMutex.RLock()
-	defer fake.envSetMutex.RUnlock()
-	fake.envShowMutex.RLock()
-	defer fake.envShowMutex.RUnlock()
-	fake.envUnsetMutex.RLock()
-	defer fake.envUnsetMutex.RUnlock()
-	fake.exportregistryListMutex.RLock()
-	defer fake.exportregistryListMutex.RUnlock()
-	fake.exportregistryMatchMutex.RLock()
-	defer fake.exportregistryMatchMutex.RUnlock()
-	fake.gitconfigCreateMutex.RLock()
-	defer fake.gitconfigCreateMutex.RUnlock()
-	fake.gitconfigDeleteMutex.RLock()
-	defer fake.gitconfigDeleteMutex.RUnlock()
-	fake.gitconfigShowMutex.RLock()
-	defer fake.gitconfigShowMutex.RUnlock()
-	fake.gitconfigsMutex.RLock()
-	defer fake.gitconfigsMutex.RUnlock()
-	fake.gitconfigsMatchMutex.RLock()
-	defer fake.gitconfigsMatchMutex.RUnlock()
-	fake.headersMutex.RLock()
-	defer fake.headersMutex.RUnlock()
-	fake.infoMutex.RLock()
-	defer fake.infoMutex.RUnlock()
-	fake.meMutex.RLock()
-	defer fake.meMutex.RUnlock()
-	fake.namespaceCreateMutex.RLock()
-	defer fake.namespaceCreateMutex.RUnlock()
-	fake.namespaceDeleteMutex.RLock()
-	defer fake.namespaceDeleteMutex.RUnlock()
-	fake.namespaceShowMutex.RLock()
-	defer fake.namespaceShowMutex.RUnlock()
-	fake.namespacesMutex.RLock()
-	defer fake.namespacesMutex.RUnlock()
-	fake.namespacesMatchMutex.RLock()
-	defer fake.namespacesMatchMutex.RUnlock()
-	fake.serviceBindMutex.RLock()
-	defer fake.serviceBindMutex.RUnlock()
-	fake.serviceCatalogMutex.RLock()
-	defer fake.serviceCatalogMutex.RUnlock()
-	fake.serviceCatalogMatchMutex.RLock()
-	defer fake.serviceCatalogMatchMutex.RUnlock()
-	fake.serviceCatalogShowMutex.RLock()
-	defer fake.serviceCatalogShowMutex.RUnlock()
-	fake.serviceCreateMutex.RLock()
-	defer fake.serviceCreateMutex.RUnlock()
-	fake.serviceDeleteMutex.RLock()
-	defer fake.serviceDeleteMutex.RUnlock()
-	fake.serviceListMutex.RLock()
-	defer fake.serviceListMutex.RUnlock()
-	fake.serviceMatchMutex.RLock()
-	defer fake.serviceMatchMutex.RUnlock()
-	fake.servicePortForwardMutex.RLock()
-	defer fake.servicePortForwardMutex.RUnlock()
-	fake.serviceShowMutex.RLock()
-	defer fake.serviceShowMutex.RUnlock()
-	fake.serviceUnbindMutex.RLock()
-	defer fake.serviceUnbindMutex.RUnlock()
-	fake.serviceUpdateMutex.RLock()
-	defer fake.serviceUpdateMutex.RUnlock()
-	fake.setHeaderMutex.RLock()
-	defer fake.setHeaderMutex.RUnlock()
-	fake.stagingCompleteMutex.RLock()
-	defer fake.stagingCompleteMutex.RUnlock()
-	fake.stagingCompleteStreamMutex.RLock()
-	defer fake.stagingCompleteStreamMutex.RUnlock()
-	fake.versionWarningEnabledMutex.RLock()
-	defer fake.versionWarningEnabledMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
