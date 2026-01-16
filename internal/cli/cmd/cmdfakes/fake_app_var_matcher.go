@@ -239,12 +239,6 @@ func (fake *FakeAppVarMatcher) GetAPIReturnsOnCall(i int, result1 usercmd.APICli
 func (fake *FakeAppVarMatcher) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.appsMatchingMutex.RLock()
-	defer fake.appsMatchingMutex.RUnlock()
-	fake.envMatchingMutex.RLock()
-	defer fake.envMatchingMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

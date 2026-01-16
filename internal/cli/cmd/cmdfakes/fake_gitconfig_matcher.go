@@ -162,10 +162,6 @@ func (fake *FakeGitconfigMatcher) GitconfigsMatchingReturnsOnCall(i int, result1
 func (fake *FakeGitconfigMatcher) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
-	fake.gitconfigsMatchingMutex.RLock()
-	defer fake.gitconfigsMatchingMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
