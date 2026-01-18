@@ -429,7 +429,22 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		return err
 	}
 
-	resp, err := c.API.ConfigurationShow(c.Settings.Namespace, name)
+	// When displaying to user (not JSON mode), request unmasked values
+	// JSON mode should always use masked values for security
+	var resp models.ConfigurationResponse
+	var err error
+	if jsonMode {
+		resp, err = c.API.ConfigurationShow(c.Settings.Namespace, name)
+	} else {
+		// Use unmasked values for user display by calling the HTTP client directly
+		// This allows users to see their own configuration values when displaying
+		if httpClient, ok := c.API.(*client.Client); ok {
+			resp, err = httpClient.ConfigurationShowWithUnmask(c.Settings.Namespace, name, true)
+		} else {
+			// Fallback to regular call if not HTTP client (e.g., in tests)
+			resp, err = c.API.ConfigurationShow(c.Settings.Namespace, name)
+		}
+	}
 	if err != nil {
 		return err
 	}

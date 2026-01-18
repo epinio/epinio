@@ -183,17 +183,38 @@ var _ = Describe("Login", LMisc, func() {
 		Expect(err).To(HaveOccurred(), out)
 
 		// split and filter the lines to check that the port is present in both of them
+		// Filter out log messages that may appear before the actual output
 		outLines := []string{}
 		for _, l := range strings.Split(out, "\n") {
-			if strings.TrimSpace(l) != "" {
-				outLines = append(outLines, l)
+			trimmed := strings.TrimSpace(l)
+			// Skip log messages and empty lines
+			if trimmed != "" && !strings.Contains(trimmed, "ZAP FALLBACK") {
+				outLines = append(outLines, trimmed)
 			}
 		}
 
-		Expect(outLines[0]).To(ContainSubstring("Login to your Epinio cluster"))
-		Expect(outLines[0]).To(ContainSubstring(fmt.Sprintf("%d", randomPort)))
+		// Find the line containing "Login to your Epinio cluster" (may not be first due to log messages)
+		var loginLine string
+		for _, line := range outLines {
+			if strings.Contains(line, "Login to your Epinio cluster") {
+				loginLine = line
+				break
+			}
+		}
+		Expect(loginLine).ToNot(BeEmpty(), "Expected to find 'Login to your Epinio cluster' in output: %s", out)
+		Expect(loginLine).To(ContainSubstring("Login to your Epinio cluster"))
+		Expect(loginLine).To(ContainSubstring(fmt.Sprintf("%d", randomPort)))
 
-		Expect(outLines[1]).To(ContainSubstring("error while checking CA"))
-		Expect(outLines[1]).To(ContainSubstring(fmt.Sprintf("%d: connect: connection refused", randomPort)))
+		// Find the error line
+		var errorLine string
+		for _, line := range outLines {
+			if strings.Contains(line, "error while checking CA") {
+				errorLine = line
+				break
+			}
+		}
+		Expect(errorLine).ToNot(BeEmpty(), "Expected to find 'error while checking CA' in output: %s", out)
+		Expect(errorLine).To(ContainSubstring("error while checking CA"))
+		Expect(errorLine).To(ContainSubstring(fmt.Sprintf("%d: connect: connection refused", randomPort)))
 	})
 })

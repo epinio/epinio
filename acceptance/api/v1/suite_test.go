@@ -119,6 +119,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		serverURL = "https://" + out + ":" + port
 		websocketURL = "wss://" + out + ":" + port
 	}
+
+	// Update the settings file with the correct API URL
+	// This ensures ShowApp and other functions that use GetSettings() work correctly
+	theSettings.API = serverURL
+	theSettings.WSS = websocketURL
+	err = theSettings.Save()
+	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {

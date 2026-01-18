@@ -148,11 +148,73 @@ func AppRouteFromOutput(out string) string {
 
 // ExtractJSON extracts JSON from output that may contain log messages or other text.
 // It finds the first '{' or '[' character and returns everything from there to the end.
+// It also handles cases where log messages appear after the JSON by finding the last
+// complete JSON object/array.
 func ExtractJSON(out string) string {
+	// First, try to find the first '{' or '[' as before
+	firstJSONStart := -1
 	for i, r := range out {
 		if r == '{' || r == '[' {
-			return out[i:]
+			firstJSONStart = i
+			break
 		}
 	}
-	return out
+	
+	if firstJSONStart == -1 {
+		return out
+	}
+	
+	// Extract from first JSON start
+	jsonCandidate := out[firstJSONStart:]
+	
+	// Try to find the end of the JSON by finding matching braces/brackets
+	// This handles cases where log messages appear after JSON
+	braceCount := 0
+	bracketCount := 0
+	inString := false
+	escapeNext := false
+	
+	for i, r := range jsonCandidate {
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+		
+		if r == '\\' {
+			escapeNext = true
+			continue
+		}
+		
+		if r == '"' && !escapeNext {
+			inString = !inString
+			continue
+		}
+		
+		if inString {
+			continue
+		}
+		
+		switch r {
+		case '{':
+			braceCount++
+		case '}':
+			braceCount--
+			if braceCount == 0 && bracketCount == 0 {
+				// Found the end of the JSON object
+				return jsonCandidate[:i+1]
+			}
+		case '[':
+			bracketCount++
+		case ']':
+			bracketCount--
+			if braceCount == 0 && bracketCount == 0 {
+				// Found the end of the JSON array
+				return jsonCandidate[:i+1]
+			}
+		}
+	}
+	
+	// If we couldn't find a complete JSON, return from first start to end
+	// (might be incomplete, but better than nothing)
+	return jsonCandidate
 }

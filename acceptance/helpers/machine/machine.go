@@ -175,6 +175,10 @@ func isTransientEpinioError(out string, err error) bool {
 		"context deadline exceeded",
 		"the object has been modified",
 		"timeout",
+		"eof", // Connection closed unexpectedly (server restart, network issue, etc.)
+		"connection refused",
+		"no such host",
+		"network is unreachable",
 	}
 	for _, marker := range transientMarkers {
 		if strings.Contains(combined, marker) {
