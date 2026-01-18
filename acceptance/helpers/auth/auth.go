@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/internal/dex"
 	"github.com/pkg/errors"
@@ -44,7 +45,7 @@ func GetToken(domain, email, password string) (string, error) {
 	}
 	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, dexClient.Client)
 
-	oidcProvider, err := dex.NewOIDCProvider(ctx, dexURL, "epinio-cli")
+	oidcProvider, err := newOIDCProvider(ctx, dexURL, "epinio-cli")
 	if err != nil {
 		return "", errors.Wrap(err, "error creating OIDC provider")
 	}
@@ -69,6 +70,48 @@ func GetToken(domain, email, password string) (string, error) {
 	return token.AccessToken, nil
 }
 
+func newOIDCProvider(ctx context.Context, dexURL, clientID string) (*dex.OIDCProvider, error) {
+	endpoint, err := url.Parse(dexURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing dex URL")
+	}
+
+	issuer := dexURL
+	if endpoint.Port() != "" {
+		issuer = endpoint.Scheme + "://" + endpoint.Hostname()
+	}
+
+	config := dex.Config{
+		Issuer:   issuer,
+		ClientID: clientID,
+		Endpoint: endpoint,
+	}
+
+	provider, err := dex.NewOIDCProviderWithConfig(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
+	if endpoint.Port() != "" && provider.Config.Oauth2 != nil {
+		provider.Config.Oauth2.Endpoint.AuthURL = ensureURLPort(provider.Config.Oauth2.Endpoint.AuthURL, endpoint.Port())
+		provider.Config.Oauth2.Endpoint.TokenURL = ensureURLPort(provider.Config.Oauth2.Endpoint.TokenURL, endpoint.Port())
+	}
+
+	return provider, nil
+}
+
+func ensureURLPort(rawURL, port string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if parsed.Port() != "" {
+		return rawURL
+	}
+	parsed.Host = parsed.Hostname() + ":" + port
+	return parsed.String()
+}
+
 // newClient creates an HttpClient with Session Storage and that will store the last redirect in the lastURL var
 func NewDexClient(dexURL string) (*DexClient, error) {
 	dexClient := &DexClient{
@@ -76,6 +119,7 @@ func NewDexClient(dexURL string) (*DexClient, error) {
 	}
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // nolint:gosec // tests using self signed certs
+	customTransport.TLSHandshakeTimeout = 60 * time.Second
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -85,6 +129,7 @@ func NewDexClient(dexURL string) (*DexClient, error) {
 	dexClient.Client = &http.Client{
 		Transport: customTransport,
 		Jar:       jar,
+		Timeout:   30 * time.Second, // Add timeout to prevent hanging requests
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			dexClient.lastURL = req.URL.RequestURI()
 			return nil

@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -65,7 +66,7 @@ func (m *Machine) ShowStagingLogs(app string) {
 // dir parameter defines the directory from which the command should be run.
 // It defaults to the current dir if left empty.
 func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
-	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
+	return m.epinioWithRetry(dir, command, arg...)
 }
 
 // EpinioCmd creates a Cmd to run the Epinio client
@@ -89,7 +90,7 @@ const stagingError = "Failed to stage"
 // EpinioPush shows the staging log if the error indicates that staging
 // failed
 func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, error) {
-	out, err := proc.Run(dir, false, m.epinioBinaryPath, append([]string{"apps", "push"}, arg...)...)
+	out, err := m.epinioWithRetry(dir, "apps", append([]string{"push"}, arg...)...)
 	if err != nil && strings.Contains(out, stagingError) {
 		m.ShowStagingLogs(name)
 	}
@@ -100,10 +101,10 @@ func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, er
 func (m *Machine) SetupNamespace(namespace string) {
 	By(fmt.Sprintf("creating a namespace: %s", namespace))
 
-	out, err := m.Epinio("", "namespace", "create", namespace)
+	out, err := m.epinioWithRetry("", "namespace", "create", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	out, err = m.Epinio("", "namespace", "show", namespace)
+	out, err = m.epinioWithRetry("", "namespace", "show", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + namespace))
 }
@@ -111,10 +112,10 @@ func (m *Machine) SetupNamespace(namespace string) {
 func (m *Machine) TargetNamespace(namespace string) {
 	By(fmt.Sprintf("targeting a namespace: %s", namespace))
 
-	out, err := m.Epinio(m.nodeTmpDir, "target", namespace)
+	out, err := m.epinioWithRetry(m.nodeTmpDir, "target", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	out, err = m.Epinio(m.nodeTmpDir, "target")
+	out, err = m.epinioWithRetry(m.nodeTmpDir, "target")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted namespace: " + namespace))
 }
@@ -129,12 +130,58 @@ func (m *Machine) DeleteNamespace(namespace string) {
 
 	By(fmt.Sprintf("deleting a namespace: %s", namespace))
 
-	out, err := m.Epinio("", "namespace", "delete", "-f", namespace)
+	out, err := m.epinioWithRetry("", "namespace", "delete", "-f", namespace)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	out, err = proc.Kubectl("get", "namespace", namespace)
 	Expect(err).To(HaveOccurred())
 	Expect(out).To(ContainSubstring("not found"))
+}
+
+const (
+	epinioRetryTimeout  = 2 * time.Minute
+	epinioRetryInterval = 5 * time.Second
+)
+
+func (m *Machine) epinioRaw(dir, command string, arg ...string) (string, error) {
+	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
+}
+
+func (m *Machine) epinioWithRetry(dir, command string, arg ...string) (string, error) {
+	start := time.Now()
+	var out string
+	var err error
+	for {
+		out, err = m.epinioRaw(dir, command, arg...)
+		if err == nil || !isTransientEpinioError(out, err) {
+			return out, err
+		}
+		if time.Since(start) >= epinioRetryTimeout {
+			return out, err
+		}
+		time.Sleep(epinioRetryInterval)
+	}
+}
+
+func isTransientEpinioError(out string, err error) bool {
+	if err == nil {
+		return false
+	}
+	combined := strings.ToLower(out + "\n" + err.Error())
+	transientMarkers := []string{
+		"tls handshake timeout",
+		"connection reset by peer",
+		"i/o timeout",
+		"context deadline exceeded",
+		"the object has been modified",
+		"timeout",
+	}
+	for _, marker := range transientMarkers {
+		if strings.Contains(combined, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Machine) VerifyNamespaceNotExist(namespace string) {
