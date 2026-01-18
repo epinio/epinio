@@ -59,18 +59,22 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		return apierror.InternalError(err)
 	}
 
-	// Determine bound apps, as candidates for restart.
+	// backward compatibility: if no flag provided then restart the app
+	restart := updateRequest.Restart == nil || *updateRequest.Restart
+	if restart {
+		// Determine bound apps, as candidates for restart.
 
-	appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
+		appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
 
-	// Perform restart on the candidates which are actually running
+		// Perform restart on the candidates which are actually running
 
-	apiErr := apiapp.Redeploy(ctx, cluster, namespace, appNames)
-	if apiErr != nil {
-		return apiErr
+		apiErr := apiapp.Redeploy(ctx, cluster, namespace, appNames)
+		if apiErr != nil {
+			return apiErr
+		}
 	}
 
 	response.OK(c)

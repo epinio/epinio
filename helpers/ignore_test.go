@@ -13,17 +13,11 @@ package helpers_test
 import (
 	"os"
 	"path/filepath"
-	"testing"
 
 	"github.com/epinio/epinio/helpers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
-
-func TestIgnore(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Ignore Suite")
-}
 
 var _ = Describe("IgnoreMatcher", func() {
 	var tempDir string
@@ -44,12 +38,12 @@ var _ = Describe("IgnoreMatcher", func() {
 	Context("when .epinioignore file exists", func() {
 		BeforeEach(func() {
 			ignoreContent := `node_modules/
-*.log
-dist/
-.env
-# This is a comment
-!important.log
-`
+				*.log
+				dist/
+				.env
+				# This is a comment
+				!important.log
+			`
 			ignoreFile := filepath.Join(tempDir, ".epinioignore")
 			err := os.WriteFile(ignoreFile, []byte(ignoreContent), 0644)
 			Expect(err).NotTo(HaveOccurred())
@@ -348,8 +342,8 @@ dist/
 
 	Context("with pattern normalization edge cases", func() {
 		BeforeEach(func() {
-			ignoreContent := `  !  pattern  
- pattern / 
+			ignoreContent := `  !  pattern
+ pattern /
 `
 			ignoreFile := filepath.Join(tempDir, ".epinioignore")
 			err := os.WriteFile(ignoreFile, []byte(ignoreContent), 0644)
