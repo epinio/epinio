@@ -87,7 +87,7 @@ type Cluster struct {
 }
 
 // GetHTTP1Client returns a clientset that is always using HTTP/1.1 (not HTTP2)
-// We need that when using the SPDY protocol and UPGRADE requests which HTTP2
+// We need that when using the WebSocket protocol and UPGRADE requests which HTTP2
 // doesn't understand:
 // https://github.com/golang/net/blob/183a9ca12b87817e0ced91cdd139606cbb193ef2/http2/transport.go#L1083-L1085
 func GetHTTP1Client(ctx context.Context) (*kubernetes.Clientset, error) {
