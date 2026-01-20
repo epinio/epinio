@@ -33,9 +33,9 @@ import (
 	"github.com/epinio/epinio/internal/routes"
 	"github.com/epinio/epinio/internal/urlcache"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"go.uber.org/zap"
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
@@ -83,10 +83,13 @@ type ChartParameters struct {
 	Settings       models.ChartValueSettings
 }
 
-func Values(cluster *kubernetes.Cluster, logger *zap.SugaredLogger, app models.AppRef) ([]byte, error) {
+func Values(
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+) ([]byte, error) {
 	none := []byte{}
 
-	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
+	client, err := GetHelmClient(cluster.RestConfig, app.Namespace)
 	if err != nil {
 		return none, err
 	}
@@ -104,8 +107,11 @@ func Values(cluster *kubernetes.Cluster, logger *zap.SugaredLogger, app models.A
 	return yaml, nil
 }
 
-func Remove(cluster *kubernetes.Cluster, logger *zap.SugaredLogger, app models.AppRef) error {
-	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
+func Remove(
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+) error {
+	client, err := GetHelmClient(cluster.RestConfig, app.Namespace)
 	if err != nil {
 		return err
 	}
@@ -113,8 +119,11 @@ func Remove(cluster *kubernetes.Cluster, logger *zap.SugaredLogger, app models.A
 	return client.UninstallReleaseByName(names.ReleaseName(app.Name))
 }
 
-func RemoveService(logger *zap.SugaredLogger, cluster *kubernetes.Cluster, app models.AppRef) error {
-	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
+func RemoveService(
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+) error {
+	client, err := GetHelmClient(cluster.RestConfig, app.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "create a helm client")
 	}
@@ -127,7 +136,10 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	logger := helpers.Logger.With("component", "helm-service")
 	logger.Infow("service helm setup", "parameters", parameters)
 
-	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
+	client, err := GetHelmClient(
+		parameters.Cluster.RestConfig,
+		parameters.Namespace,
+	)
 	if err != nil {
 		return errors.Wrap(err, "create a helm client")
 	}
@@ -354,7 +366,10 @@ func Deploy(logger *zap.SugaredLogger, parameters ChartParameters) error {
 		return err
 	}
 
-	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
+	client, err := GetHelmClient(
+		parameters.Cluster.RestConfig,
+		parameters.Namespace,
+	)
 	if err != nil {
 		return errors.Wrap(err, "create a helm client")
 	}
@@ -405,7 +420,7 @@ const (
 func Release(ctx context.Context, logger *zap.SugaredLogger, cluster *kubernetes.Cluster,
 	namespace, releaseName string) (*helmrelease.Release, error) {
 
-	helmClient, err := GetHelmClient(cluster.RestConfig, logger, namespace)
+	helmClient, err := GetHelmClient(cluster.RestConfig, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +506,10 @@ type SynchronizedClient struct {
 	helmClient hc.Client
 }
 
-func GetHelmClient(restConfig *rest.Config, logger *zap.SugaredLogger, namespace string) (*SynchronizedClient, error) {
+func GetHelmClient(
+	restConfig *rest.Config,
+	namespace string,
+) (*SynchronizedClient, error) {
 	options := &hc.RestConfClientOptions{
 		RestConfig: restConfig,
 		Options: &hc.Options{
@@ -501,7 +519,7 @@ func GetHelmClient(restConfig *rest.Config, logger *zap.SugaredLogger, namespace
 			Linting:          true,
 			Debug:            true,
 			DebugLog: func(format string, v ...interface{}) {
-				logger.Infow("helm", "report", fmt.Sprintf(format, v...))
+				helpers.Logger.Infow("helm", "report", fmt.Sprintf(format, v...))
 			},
 		},
 	}
@@ -666,7 +684,7 @@ func getChartReference(ctx context.Context, logger *zap.SugaredLogger, client hc
 
 		logger.Infow("deploy app", "appchart-url", appChart.HelmChart)
 
-		helmChart, err := urlcache.Get(ctx, logger, appChart.HelmChart)
+		helmChart, err := urlcache.Get(ctx, appChart.HelmChart)
 		if err != nil {
 			return "", "", err
 		}

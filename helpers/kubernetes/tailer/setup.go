@@ -65,7 +65,6 @@ func FetchLogs(
 	config *Config,
 	cluster *kubernetes.Cluster,
 ) error {
-  logger := helpers.SugaredLoggerToLogr(helpers.Logger.With("component", "fetching-logs")).V(3)
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""

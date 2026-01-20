@@ -28,6 +28,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/gorilla/websocket"
@@ -377,11 +378,21 @@ func streamPodLogs(
 					return connectionCloseError
 				}
 
-				logger.Errorw("websockets connection unexpectedly closed", "error", err)
+				helpers.Logger.Errorw(
+					"websockets connection unexpectedly closed",
+					"error",
+					err,
+				)
 				return nil
 			}
 
-			normalCloseErr := conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
+			normalCloseErr := conn.WriteControl(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure,
+					"",
+				),
+				time.Time{},
+			)
 			if normalCloseErr != nil {
 				err = errors.Wrap(err, normalCloseErr.Error())
 			}

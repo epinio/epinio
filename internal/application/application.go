@@ -34,7 +34,6 @@ import (
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
@@ -481,7 +480,7 @@ func Delete(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
-  deleteImage bool,
+	deleteImage bool,
 ) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -489,22 +488,6 @@ func Delete(
 	}
 
 	log := helpers.Logger.With("component", "ApplicationDelete")
-
-	// Get image URL before deleting the app resource (needed for image deletion)
-	var imageURL string
-	if deleteImage {
-		appCR, err := Get(ctx, cluster, appRef)
-		if err != nil {
-			log.Errorw("Failed to get application to retrieve image URL, skipping image deletion", "error", err, "app", appRef.Name)
-		} else {
-			imageURL, err = ImageURL(appCR)
-			if err != nil {
-				log.Errorw("Failed to get image URL from application, skipping image deletion", "error", err, "app", appRef.Name)
-			} else if imageURL == "" {
-				log.Infow("No image URL found in application, skipping image deletion", "app", appRef.Name)
-			}
-		}
-	}
 
 	// Get image URL before deleting the app resource (needed for image deletion)
 	var imageURL string
@@ -545,7 +528,7 @@ func Delete(
 
 	// Delete container image from registry if requested
 	if deleteImage && imageURL != "" {
-		err = deleteContainerImage(ctx, log, cluster, imageURL)
+		err = deleteContainerImage(ctx, cluster, imageURL)
 		if err != nil {
 			// Log the error but don't fail the deletion - the app is already deleted
 			log.Error(err, "Failed to delete container image from registry", "image", imageURL)
@@ -581,9 +564,18 @@ func Delete(
 }
 
 // deleteContainerImage deletes the container image from the registry
-func deleteContainerImage(ctx context.Context, log logr.Logger, cluster *kubernetes.Cluster, imageURL string) error {
+func deleteContainerImage(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	imageURL string,
+) error {
 	// Get registry connection details
-	connectionDetails, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
+	connectionDetails, err := registry.GetConnectionDetails(
+		ctx,
+		cluster,
+		helmchart.Namespace(),
+		registry.CredentialsSecretName,
+	)
 	if err != nil {
 		return errors.Wrap(err, "getting registry connection details")
 	}
@@ -616,7 +608,11 @@ func deleteContainerImage(ctx context.Context, log logr.Logger, cluster *kuberne
 	if !found {
 		// If no exact match, use the first credentials (might work for some registries)
 		matchingCreds = credentials
-		log.Info("No exact registry match found, using first available credentials", "imageRegistry", imageRegistryURL)
+		helpers.Logger.Infow(
+			"No exact registry match found, using first available credentials",
+			"imageRegistry",
+			imageRegistryURL,
+		)
 	}
 
 	// Get TLS config to handle self-signed certificates
@@ -636,11 +632,21 @@ func deleteContainerImage(ctx context.Context, log logr.Logger, cluster *kuberne
 			if certData, found := secret.Data["tls.crt"]; found {
 				if rootCAs.AppendCertsFromPEM(certData) {
 					certsAdded = true
-					log.Info("Added registry certificate from secret to TLS config", "secret", registryCertSecret)
+					helpers.Logger.Infow(
+						"Added registry certificate from secret to TLS config",
+						"secret",
+						registryCertSecret,
+					)
 				}
 			}
 		} else {
-			log.Info("Registry certificate secret not found, continuing without it", "secret", registryCertSecret, "error", err)
+			helpers.Logger.Infow(
+				"Registry certificate secret not found, continuing without it",
+				"secret",
+				registryCertSecret,
+				"error",
+				err,
+			)
 		}
 	}
 
@@ -681,7 +687,11 @@ func deleteContainerImage(ctx context.Context, log logr.Logger, cluster *kuberne
 				InsecureSkipVerify: true, // nolint:gosec // Internal registry with self-signed cert
 				MinVersion:         tls.VersionTLS12,
 			}
-			log.Info("No registry certificate found, skipping TLS verification for internal registry", "registry", imageRegistryURL)
+			helpers.Logger.Infow(
+				"No registry certificate found, skipping TLS verification for internal registry",
+				"registry",
+				imageRegistryURL,
+			)
 		} else {
 			// External registry - use system cert pool (may fail if cert is not trusted)
 			tlsConfig = &tls.Config{
@@ -692,7 +702,7 @@ func deleteContainerImage(ctx context.Context, log logr.Logger, cluster *kuberne
 	}
 
 	// Delete the image
-	return registry.DeleteImage(ctx, log, imageURL, matchingCreds, tlsConfig)
+	return registry.DeleteImage(ctx, imageURL, matchingCreds, tlsConfig)
 }
 
 // deleteCacheStagePVC removes the kube PVC resource which was used to hold the application
@@ -902,7 +912,6 @@ func Logs(
 	namespace string,
 	logParams *LogParameters,
 ) error {
-	logger := requestctx.Logger(ctx).WithName("logs-backend").V(2)
 	selector := labels.NewSelector()
 
 	var selectors [][]string
@@ -953,12 +962,12 @@ func Logs(
 
 	// Apply log parameters if provided
 	if logParams != nil {
-		logger.Info("applying log parameters", "params", logParams)
+		helpers.Logger.Infow("applying log parameters", "params", logParams)
 
 		// Handle line limiting
 		if logParams.Tail != nil {
 			config.TailLines = logParams.Tail
-			logger.Info("applied tail parameter", "tail", *logParams.Tail)
+			helpers.Logger.Infow("applied tail parameter", "tail", *logParams.Tail)
 		}
 
 		// Handle time-based filtering
@@ -986,11 +995,11 @@ func Logs(
 	}
 
 	if follow {
-		logger.Info("stream")
+		helpers.Logger.Info("stream")
 		return tailer.StreamLogs(ctx, logChan, wg, config, cluster)
 	}
 
-	logger.Info("fetch")
+	helpers.Logger.Info("fetch")
 	return tailer.FetchLogs(ctx, logChan, wg, config, cluster)
 }
 

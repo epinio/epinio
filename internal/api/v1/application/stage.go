@@ -21,10 +21,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 	batchv1 "k8s.io/api/batch/v1"
@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
@@ -513,7 +514,10 @@ func StagedWebsocket(c *gin.Context) {
 
 	// initial acknowledgement so the caller knows the socket is established
 	if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-		log.V(1).Error(err, "failed to send initial staging websocket message")
+		helpers.Logger.Error(
+			err,
+			"failed to send initial staging websocket message",
+		)
 		return
 	}
 
@@ -564,17 +568,30 @@ func StagedWebsocket(c *gin.Context) {
 				_ = sendUpdate(models.StageStatusSucceeded, "", true)
 				return
 			}
-			_ = sendUpdate(models.StageStatusFailed, fmt.Sprintf("stage-id = %s failed to complete", stageID), true)
+			_ = sendUpdate(
+				models.StageStatusFailed,
+				fmt.Sprintf("stage-id = %s failed to complete", stageID),
+				true,
+			)
 			return
 		case <-heartbeat.C:
-			if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-				log.V(1).Error(err, "failed to send staging heartbeat")
+			if err := sendUpdate(
+				models.StageStatusWaiting,
+				"waiting for staging job to finish",
+				false,
+			); err != nil {
+				helpers.Logger.Error(err, "failed to send staging heartbeat")
 			}
 		}
 	}
 }
 
-func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3ConnectionDetails s3manager.ConnectionDetails) apierror.APIErrors {
+func validateBlob(
+	ctx context.Context,
+	blobUID string,
+	app models.AppRef,
+	s3ConnectionDetails s3manager.ConnectionDetails,
+) apierror.APIErrors {
 
 	manager, err := s3manager.New(s3ConnectionDetails)
 	if err != nil {

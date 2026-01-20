@@ -28,9 +28,10 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/bridge/git"
-	"go.uber.org/zap"
+	"github.com/labstack/gommon/log"
 	parser "github.com/novln/docker-parser"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -372,7 +373,12 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 // DeleteImage deletes a container image from the registry using the Docker Registry HTTP API v2.
 // It deletes all tags/manifests for the repository to ensure complete removal.
 // It requires the image URL, registry credentials, and optionally a TLS config for self-signed certificates.
-func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credentials RegistryCredentials, tlsConfig *tls.Config) error {
+func DeleteImage(
+	ctx context.Context,
+	imageURL string,
+	credentials RegistryCredentials,
+	tlsConfig *tls.Config,
+) error {
 	if imageURL == "" {
 		// No image to delete
 		return nil
@@ -391,7 +397,7 @@ func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credenti
 	if tag == "" {
 		tag = "latest"
 	}
-	
+
 	log.Info("Deleting image from registry", "image", imageURL, "repository", repository, "tag", tag)
 
 	// Determine scheme from credentials URL (dockerconfigjson may contain http:// or https://)
@@ -471,7 +477,7 @@ func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credenti
 
 	// Get the digest from the response header (preferred)
 	digest := resp.Header.Get("Docker-Content-Digest")
-	
+
 	// If digest is not in header, compute it from the manifest body
 	if digest == "" {
 		// Compute SHA256 digest of the manifest body
@@ -484,16 +490,16 @@ func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credenti
 	// This ensures complete removal of the repository from the catalog
 	allTags, err := listRepositoryTags(ctx, scheme, registryURL, repository, auth, client)
 	if err != nil {
-		log.Info("Could not list tags for repository, will delete only the specified tag", 
-			"repository", repository, 
+		log.Info("Could not list tags for repository, will delete only the specified tag",
+			"repository", repository,
 			"error", err)
 		allTags = []string{tag} // Fall back to just deleting the specified tag
 	} else if len(allTags) == 0 {
 		log.Info("Repository has no tags, nothing to delete", "repository", repository)
 		return nil
 	} else {
-		log.Info("Found tags for repository, will delete all of them", 
-			"repository", repository, 
+		log.Info("Found tags for repository, will delete all of them",
+			"repository", repository,
 			"tagCount", len(allTags),
 			"tags", allTags)
 	}
@@ -501,7 +507,7 @@ func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credenti
 	// Delete all tags for this repository
 	var lastErr error
 	for _, tagToDelete := range allTags {
-		if err := deleteTagByTag(ctx, log, scheme, registryURL, repository, tagToDelete, auth, client); err != nil {
+		if err := deleteTagByTag(ctx, scheme, registryURL, repository, tagToDelete, auth, client); err != nil {
 			// Log error but continue with other tags
 			log.Error(err, "Failed to delete tag", "repository", repository, "tag", tagToDelete)
 			lastErr = err
@@ -512,7 +518,7 @@ func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credenti
 		return errors.Wrap(lastErr, "some tags failed to delete")
 	}
 
-	log.Info("Successfully deleted all tags from repository", 
+	log.Info("Successfully deleted all tags from repository",
 		"repository", repository,
 		"tagCount", len(allTags))
 	return nil
@@ -521,14 +527,14 @@ func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credenti
 // listRepositoryTags lists all tags for a repository
 func listRepositoryTags(ctx context.Context, scheme, registryURL, repository, auth string, client *http.Client) ([]string, error) {
 	tagsListURL := fmt.Sprintf("%s://%s/v2/%s/tags/list", scheme, registryURL, repository)
-	
+
 	listReq, err := http.NewRequestWithContext(ctx, http.MethodGet, tagsListURL, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating tags list request")
 	}
-	
+
 	listReq.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
-	
+
 	listResp, err := client.Do(listReq)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing tags")
@@ -536,43 +542,51 @@ func listRepositoryTags(ctx context.Context, scheme, registryURL, repository, au
 	defer func() {
 		_ = listResp.Body.Close()
 	}()
-	
+
 	if listResp.StatusCode == http.StatusNotFound {
 		// Repository doesn't exist or has no tags
 		return []string{}, nil
 	}
-	
+
 	if listResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(listResp.Body)
 		return nil, errors.Errorf("failed to list tags: status %d, body: %s", listResp.StatusCode, string(body))
 	}
-	
+
 	// Parse the tags list response
 	var tagsList struct {
 		Name string   `json:"name"`
 		Tags []string `json:"tags"`
 	}
-	
+
 	if err := json.NewDecoder(listResp.Body).Decode(&tagsList); err != nil {
 		return nil, errors.Wrap(err, "parsing tags list response")
 	}
-	
+
 	return tagsList.Tags, nil
 }
 
 // deleteTagByTag deletes a tag by fetching its manifest and deleting by digest
-func deleteTagByTag(ctx context.Context, log *zap.SugaredLogger, scheme, registryURL, repository, tag, auth string, client *http.Client) error {
+func deleteTagByTag(
+	ctx context.Context,
+	scheme,
+	registryURL,
+	repository,
+	tag,
+	auth string,
+	client *http.Client,
+) error {
 	// Get the manifest for this tag to get its digest
 	manifestURL := fmt.Sprintf("%s://%s/v2/%s/manifests/%s", scheme, registryURL, repository, tag)
-	
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL, nil)
 	if err != nil {
 		return errors.Wrap(err, "creating manifest request")
 	}
-	
+
 	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json")
-	
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "fetching manifest")
@@ -580,45 +594,45 @@ func deleteTagByTag(ctx context.Context, log *zap.SugaredLogger, scheme, registr
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	
+
 	if resp.StatusCode == http.StatusNotFound {
 		// Tag doesn't exist, skip it
 		log.Info("Tag not found, skipping", "repository", repository, "tag", tag)
 		return nil
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return errors.Errorf("failed to get manifest: status %d, body: %s", resp.StatusCode, string(body))
 	}
-	
+
 	// Read manifest body to compute digest
 	manifestBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return errors.Wrap(err, "reading manifest body")
 	}
-	
+
 	// Get digest from header or compute it
 	digest := resp.Header.Get("Docker-Content-Digest")
 	if digest == "" {
 		hash := sha256.Sum256(manifestBody)
 		digest = fmt.Sprintf("sha256:%s", hex.EncodeToString(hash[:]))
 	}
-	
+
 	// Delete by digest (required by Docker Registry API v2)
 	deleteURL := fmt.Sprintf("%s://%s/v2/%s/manifests/%s", scheme, registryURL, repository, digest)
 	deleteReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, deleteURL, nil)
 	if err != nil {
 		return errors.Wrap(err, "creating delete request")
 	}
-	
+
 	deleteReq.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 	acceptHeader := resp.Header.Get("Content-Type")
 	if acceptHeader == "" {
 		acceptHeader = "application/vnd.docker.distribution.manifest.v2+json"
 	}
 	deleteReq.Header.Set("Accept", acceptHeader)
-	
+
 	deleteResp, err := client.Do(deleteReq)
 	if err != nil {
 		return errors.Wrap(err, "deleting manifest")
@@ -626,21 +640,20 @@ func deleteTagByTag(ctx context.Context, log *zap.SugaredLogger, scheme, registr
 	defer func() {
 		_ = deleteResp.Body.Close()
 	}()
-	
-	if deleteResp.StatusCode == http.StatusAccepted || 
-		deleteResp.StatusCode == http.StatusOK || 
+
+	if deleteResp.StatusCode == http.StatusAccepted ||
+		deleteResp.StatusCode == http.StatusOK ||
 		deleteResp.StatusCode == http.StatusNotFound {
 		log.Info("Deleted tag from repository", "repository", repository, "tag", tag, "digest", digest)
 		return nil
 	}
-	
+
 	// Check if deletion is disabled
 	if deleteResp.StatusCode == http.StatusMethodNotAllowed {
 		log.Info("Image deletion is disabled on this registry for this tag", "repository", repository, "tag", tag)
 		return nil // Don't fail - registry doesn't support deletion
 	}
-	
+
 	body, _ := io.ReadAll(deleteResp.Body)
 	return errors.Errorf("failed to delete tag: status %d, body: %s", deleteResp.StatusCode, string(body))
 }
-
