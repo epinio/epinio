@@ -190,6 +190,11 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {
+		// Check if the error is due to quota exhaustion
+		if s3manager.IsQuotaExceededError(err) {
+			return apierror.NewQuotaExceededError("",
+				"uploading the application sources blob: "+err.Error())
+		}
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 

@@ -98,7 +98,7 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 		return apierr
 	}
 
-	routes, apierr := deploy.DeployApp(ctx, cluster, req.App, username, req.Stage.ID)
+	deployResult, apierr := deploy.DeployApp(ctx, cluster, req.App, username, req.Stage.ID)
 	if apierr != nil {
 		return apierr
 	}
@@ -109,7 +109,8 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 	}
 
 	response.OKReturn(c, models.DeployResponse{
-		Routes: routes,
+		Routes:   deployResult.Routes,
+		Warnings: deployResult.Warnings,
 	})
 	return nil
 }
