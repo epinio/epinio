@@ -87,13 +87,17 @@ type ConfigurationCreateRequest struct {
 // ConfigurationUpdateRequest represents and contains the data needed to
 // update a configuration instance (add/change, and remove keys)
 type ConfigurationUpdateRequest struct {
-	Remove []string          `json:"remove,omitempty"`
-	Set    map[string]string `json:"edit,omitempty"`
+	Remove  []string          `json:"remove,omitempty"`
+	Set     map[string]string `json:"edit,omitempty"`
+	Restart *bool             `json:"restart,omitempty"`
 }
 
 // ConfigurationReplaceRequest represents and contains the data needed to
 // replace a configuration instance
-type ConfigurationReplaceRequest map[string]string
+type ConfigurationReplaceRequest struct {
+	Data    map[string]string `json:"data"`
+	Restart *bool             `json:"restart,omitempty"`
+}
 
 // ConfigurationDeleteRequest represents and contains the data needed to delete a configuration
 type ConfigurationDeleteRequest struct {
@@ -144,6 +148,7 @@ type ApplicationConfiguration struct {
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Ignore         []string           `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
@@ -259,16 +264,17 @@ type StageResponse struct {
 	ImageURL string   `json:"image,omitempty"`
 }
 
-// StageCompleteEvent represents a websocket event sent when staging completes
+// StageCompleteEvent is sent over the staging completion websocket endpoint
+// to signal the status of a staging job.
 type StageCompleteEvent struct {
-	StageID   string `json:"stage_id,omitempty"`
-	Namespace string `json:"namespace,omitempty"`
-	Status    string `json:"status,omitempty"`
+	StageID   string `json:"stage_id"`
+	Namespace string `json:"namespace"`
+	Status    string `json:"status"`
 	Message   string `json:"message,omitempty"`
-	Completed bool   `json:"completed,omitempty"`
+	Completed bool   `json:"completed"`
 }
 
-// Stage status constants for websocket events
+// StageComplete statuses used in websocket payloads.
 const (
 	StageStatusWaiting   = "waiting"
 	StageStatusSucceeded = "succeeded"
@@ -291,6 +297,11 @@ type DeployRequest struct {
 // DeployResponse represents the server's response to a successful app deployment
 type DeployResponse struct {
 	Routes []string `json:"routes,omitempty"`
+}
+
+// ApplicationDeleteRequest represents and contains the data needed to delete an application
+type ApplicationDeleteRequest struct {
+	DeleteImage bool `json:"deleteImage"`
 }
 
 // ApplicationDeleteResponse represents the server's response to a successful app deletion

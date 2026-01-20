@@ -53,13 +53,14 @@ type APIClient interface {
 	AllApps() (models.AppList, error)
 	AppShow(namespace string, appName string) (models.App, error)
 	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)
-	AppDelete(namespace string, names []string) (models.ApplicationDeleteResponse, error)
+	AppDelete(namespace string, names []string, deleteImage bool) (models.ApplicationDeleteResponse, error)
 	AppUpload(namespace string, name string, file client.FormFile) (models.UploadResponse, error)
 	AppImportGit(namespace string, name string, gitRef models.GitRef) (models.ImportGitResponse, error)
 	AppStage(req models.StageRequest) (*models.StageResponse, error)
 	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
 	AppLogs(namespace, appName, stageID string, follow bool, options *client.LogOptions, callback func(tailer.ContainerLogLine)) error
 	StagingComplete(namespace string, id string) (models.Response, error)
+	StagingCompleteStream(ctx context.Context, namespace, id string, callback func(models.StageCompleteEvent) error) error
 	AppRunning(app models.AppRef) (models.Response, error)
 	AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error
 	AppPortForward(namespace string, appName, instance string, opts *client.PortForwardOpts) error

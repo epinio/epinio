@@ -75,11 +75,12 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
-	AppDeleteStub        func(string, []string) (models.ApplicationDeleteResponse, error)
+	AppDeleteStub        func(string, []string, bool) (models.ApplicationDeleteResponse, error)
 	appDeleteMutex       sync.RWMutex
 	appDeleteArgsForCall []struct {
 		arg1 string
 		arg2 []string
+		arg3 bool
 	}
 	appDeleteReturns struct {
 		result1 models.ApplicationDeleteResponse
@@ -774,21 +775,6 @@ type FakeAPIClient struct {
 		result1 models.NamespacesMatchResponse
 		result2 error
 	}
-	ServiceBindStub        func(models.ServiceBindRequest, string, string) (models.Response, error)
-	serviceBindMutex       sync.RWMutex
-	serviceBindArgsForCall []struct {
-		arg1 models.ServiceBindRequest
-		arg2 string
-		arg3 string
-	}
-	serviceBindReturns struct {
-		result1 models.Response
-		result2 error
-	}
-	serviceBindReturnsOnCall map[int]struct {
-		result1 models.Response
-		result2 error
-	}
 	ServiceBatchBindStub        func(models.ServiceBatchBindRequest, string, string) (models.Response, error)
 	serviceBatchBindMutex       sync.RWMutex
 	serviceBatchBindArgsForCall []struct {
@@ -801,6 +787,21 @@ type FakeAPIClient struct {
 		result2 error
 	}
 	serviceBatchBindReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
+	ServiceBindStub        func(models.ServiceBindRequest, string, string) (models.Response, error)
+	serviceBindMutex       sync.RWMutex
+	serviceBindArgsForCall []struct {
+		arg1 models.ServiceBindRequest
+		arg2 string
+		arg3 string
+	}
+	serviceBindReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	serviceBindReturnsOnCall map[int]struct {
 		result1 models.Response
 		result2 error
 	}
@@ -974,6 +975,20 @@ type FakeAPIClient struct {
 	stagingCompleteReturnsOnCall map[int]struct {
 		result1 models.Response
 		result2 error
+	}
+	StagingCompleteStreamStub        func(context.Context, string, string, func(models.StageCompleteEvent) error) error
+	stagingCompleteStreamMutex       sync.RWMutex
+	stagingCompleteStreamArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 func(models.StageCompleteEvent) error
+	}
+	stagingCompleteStreamReturns struct {
+		result1 error
+	}
+	stagingCompleteStreamReturnsOnCall map[int]struct {
+		result1 error
 	}
 	VersionWarningEnabledStub        func() bool
 	versionWarningEnabledMutex       sync.RWMutex
@@ -1222,7 +1237,7 @@ func (fake *FakeAPIClient) AppCreateReturnsOnCall(i int, result1 models.Response
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string) (models.ApplicationDeleteResponse, error) {
+func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string, arg3 bool) (models.ApplicationDeleteResponse, error) {
 	var arg2Copy []string
 	if arg2 != nil {
 		arg2Copy = make([]string, len(arg2))
@@ -1233,13 +1248,14 @@ func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string) (models.Applica
 	fake.appDeleteArgsForCall = append(fake.appDeleteArgsForCall, struct {
 		arg1 string
 		arg2 []string
-	}{arg1, arg2Copy})
+		arg3 bool
+	}{arg1, arg2Copy, arg3})
 	stub := fake.AppDeleteStub
 	fakeReturns := fake.appDeleteReturns
-	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy})
+	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy, arg3})
 	fake.appDeleteMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -1253,17 +1269,17 @@ func (fake *FakeAPIClient) AppDeleteCallCount() int {
 	return len(fake.appDeleteArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppDeleteCalls(stub func(string, []string) (models.ApplicationDeleteResponse, error)) {
+func (fake *FakeAPIClient) AppDeleteCalls(stub func(string, []string, bool) (models.ApplicationDeleteResponse, error)) {
 	fake.appDeleteMutex.Lock()
 	defer fake.appDeleteMutex.Unlock()
 	fake.AppDeleteStub = stub
 }
 
-func (fake *FakeAPIClient) AppDeleteArgsForCall(i int) (string, []string) {
+func (fake *FakeAPIClient) AppDeleteArgsForCall(i int) (string, []string, bool) {
 	fake.appDeleteMutex.RLock()
 	defer fake.appDeleteMutex.RUnlock()
 	argsForCall := fake.appDeleteArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeAPIClient) AppDeleteReturns(result1 models.ApplicationDeleteResponse, result2 error) {
@@ -4502,72 +4518,6 @@ func (fake *FakeAPIClient) NamespacesMatchReturnsOnCall(i int, result1 models.Na
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceBind(arg1 models.ServiceBindRequest, arg2 string, arg3 string) (models.Response, error) {
-	fake.serviceBindMutex.Lock()
-	ret, specificReturn := fake.serviceBindReturnsOnCall[len(fake.serviceBindArgsForCall)]
-	fake.serviceBindArgsForCall = append(fake.serviceBindArgsForCall, struct {
-		arg1 models.ServiceBindRequest
-		arg2 string
-		arg3 string
-	}{arg1, arg2, arg3})
-	stub := fake.ServiceBindStub
-	fakeReturns := fake.serviceBindReturns
-	fake.recordInvocation("ServiceBind", []interface{}{arg1, arg2, arg3})
-	fake.serviceBindMutex.Unlock()
-	if stub != nil {
-		return stub(arg1, arg2, arg3)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fakeReturns.result1, fakeReturns.result2
-}
-
-func (fake *FakeAPIClient) ServiceBindCallCount() int {
-	fake.serviceBindMutex.RLock()
-	defer fake.serviceBindMutex.RUnlock()
-	return len(fake.serviceBindArgsForCall)
-}
-
-func (fake *FakeAPIClient) ServiceBindCalls(stub func(models.ServiceBindRequest, string, string) (models.Response, error)) {
-	fake.serviceBindMutex.Lock()
-	defer fake.serviceBindMutex.Unlock()
-	fake.ServiceBindStub = stub
-}
-
-func (fake *FakeAPIClient) ServiceBindArgsForCall(i int) (models.ServiceBindRequest, string, string) {
-	fake.serviceBindMutex.RLock()
-	defer fake.serviceBindMutex.RUnlock()
-	argsForCall := fake.serviceBindArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
-}
-
-func (fake *FakeAPIClient) ServiceBindReturns(result1 models.Response, result2 error) {
-	fake.serviceBindMutex.Lock()
-	defer fake.serviceBindMutex.Unlock()
-	fake.ServiceBindStub = nil
-	fake.serviceBindReturns = struct {
-		result1 models.Response
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeAPIClient) ServiceBindReturnsOnCall(i int, result1 models.Response, result2 error) {
-	fake.serviceBindMutex.Lock()
-	defer fake.serviceBindMutex.Unlock()
-	fake.ServiceBindStub = nil
-	if fake.serviceBindReturnsOnCall == nil {
-		fake.serviceBindReturnsOnCall = make(map[int]struct {
-			result1 models.Response
-			result2 error
-		})
-	}
-	fake.serviceBindReturnsOnCall[i] = struct {
-		result1 models.Response
-		result2 error
-	}{result1, result2}
-}
-
 func (fake *FakeAPIClient) ServiceBatchBind(arg1 models.ServiceBatchBindRequest, arg2 string, arg3 string) (models.Response, error) {
 	fake.serviceBatchBindMutex.Lock()
 	ret, specificReturn := fake.serviceBatchBindReturnsOnCall[len(fake.serviceBatchBindArgsForCall)]
@@ -4629,6 +4579,72 @@ func (fake *FakeAPIClient) ServiceBatchBindReturnsOnCall(i int, result1 models.R
 		})
 	}
 	fake.serviceBatchBindReturnsOnCall[i] = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceBind(arg1 models.ServiceBindRequest, arg2 string, arg3 string) (models.Response, error) {
+	fake.serviceBindMutex.Lock()
+	ret, specificReturn := fake.serviceBindReturnsOnCall[len(fake.serviceBindArgsForCall)]
+	fake.serviceBindArgsForCall = append(fake.serviceBindArgsForCall, struct {
+		arg1 models.ServiceBindRequest
+		arg2 string
+		arg3 string
+	}{arg1, arg2, arg3})
+	stub := fake.ServiceBindStub
+	fakeReturns := fake.serviceBindReturns
+	fake.recordInvocation("ServiceBind", []interface{}{arg1, arg2, arg3})
+	fake.serviceBindMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceBindCallCount() int {
+	fake.serviceBindMutex.RLock()
+	defer fake.serviceBindMutex.RUnlock()
+	return len(fake.serviceBindArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceBindCalls(stub func(models.ServiceBindRequest, string, string) (models.Response, error)) {
+	fake.serviceBindMutex.Lock()
+	defer fake.serviceBindMutex.Unlock()
+	fake.ServiceBindStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceBindArgsForCall(i int) (models.ServiceBindRequest, string, string) {
+	fake.serviceBindMutex.RLock()
+	defer fake.serviceBindMutex.RUnlock()
+	argsForCall := fake.serviceBindArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) ServiceBindReturns(result1 models.Response, result2 error) {
+	fake.serviceBindMutex.Lock()
+	defer fake.serviceBindMutex.Unlock()
+	fake.ServiceBindStub = nil
+	fake.serviceBindReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceBindReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.serviceBindMutex.Lock()
+	defer fake.serviceBindMutex.Unlock()
+	fake.ServiceBindStub = nil
+	if fake.serviceBindReturnsOnCall == nil {
+		fake.serviceBindReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.serviceBindReturnsOnCall[i] = struct {
 		result1 models.Response
 		result2 error
 	}{result1, result2}
@@ -5439,6 +5455,70 @@ func (fake *FakeAPIClient) StagingCompleteReturnsOnCall(i int, result1 models.Re
 		result1 models.Response
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) StagingCompleteStream(arg1 context.Context, arg2 string, arg3 string, arg4 func(models.StageCompleteEvent) error) error {
+	fake.stagingCompleteStreamMutex.Lock()
+	ret, specificReturn := fake.stagingCompleteStreamReturnsOnCall[len(fake.stagingCompleteStreamArgsForCall)]
+	fake.stagingCompleteStreamArgsForCall = append(fake.stagingCompleteStreamArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 func(models.StageCompleteEvent) error
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.StagingCompleteStreamStub
+	fakeReturns := fake.stagingCompleteStreamReturns
+	fake.recordInvocation("StagingCompleteStream", []interface{}{arg1, arg2, arg3, arg4})
+	fake.stagingCompleteStreamMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamCallCount() int {
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
+	return len(fake.stagingCompleteStreamArgsForCall)
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamCalls(stub func(context.Context, string, string, func(models.StageCompleteEvent) error) error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = stub
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamArgsForCall(i int) (context.Context, string, string, func(models.StageCompleteEvent) error) {
+	fake.stagingCompleteStreamMutex.RLock()
+	defer fake.stagingCompleteStreamMutex.RUnlock()
+	argsForCall := fake.stagingCompleteStreamArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamReturns(result1 error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = nil
+	fake.stagingCompleteStreamReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeAPIClient) StagingCompleteStreamReturnsOnCall(i int, result1 error) {
+	fake.stagingCompleteStreamMutex.Lock()
+	defer fake.stagingCompleteStreamMutex.Unlock()
+	fake.StagingCompleteStreamStub = nil
+	if fake.stagingCompleteStreamReturnsOnCall == nil {
+		fake.stagingCompleteStreamReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.stagingCompleteStreamReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeAPIClient) VersionWarningEnabled() bool {

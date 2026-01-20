@@ -26,32 +26,51 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 )
 
 const (
 	// MaxTailLines is the maximum number of log lines that can be requested via the tail parameter
 	// This prevents excessive memory usage and ensures reasonable response times
-	MaxTailLines = 10000
+	MaxTailLines = 100000
 )
 
-// parseLogParameters parses and validates log query parameters
-func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
+type LogParameterUpdate struct {
+	Type   string `json:"type"`
+	Params struct {
+		Since     string `json:"since"`
+		SinceTime string `json:"since_time"`
+		Tail      int    `json:"tail"`
+		Follow    bool   `json:"follow"`
+	} `json:"params"`
+}
+
+// ParseLogParameters parses and validates log query parameters
+func ParseLogParameters(
+	tailStr,
+	sinceStr,
+	sinceTimeStr string,
+) (*application.LogParameters, error) {
 	params := &application.LogParameters{}
 
 	if tailStr != "" {
 		if tail, err := strconv.ParseInt(tailStr, 10, 64); err == nil {
 			if tail < 0 {
-				return nil, fmt.Errorf("tail parameter must be non-negative, got: %d", tail)
+				return nil, fmt.Errorf(
+					"tail parameter must be non-negative, got: %d",
+					tail,
+				)
 			}
 			if tail > MaxTailLines {
-				return nil, fmt.Errorf("tail parameter exceeds maximum of %d lines, got: %d", MaxTailLines, tail)
+				return nil, fmt.Errorf(
+					"tail parameter exceeds maximum of %d lines, got: %d",
+					MaxTailLines,
+					tail,
+				)
 			}
 			params.Tail = &tail
 		} else {
@@ -62,7 +81,10 @@ func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.Lo
 	if sinceStr != "" {
 		if since, err := time.ParseDuration(sinceStr); err == nil {
 			if since < 0 {
-				return nil, fmt.Errorf("since parameter must be non-negative, got: %s", since)
+				return nil, fmt.Errorf(
+					"since parameter must be non-negative, got: %s",
+					since,
+				)
 			}
 			params.Since = &since
 		} else {
@@ -72,20 +94,18 @@ func parseLogParameters(tailStr, sinceStr, sinceTimeStr string) (*application.Lo
 
 	if sinceTimeStr != "" {
 		if sinceTime, err := time.Parse(time.RFC3339, sinceTimeStr); err == nil {
-			// Note: We allow future times here as they will be handled by returning no logs
-			// This is better UX than rejecting the request
+			// Note: We allow future times here as they will be handled by returning
+			// no logs. This is better UX than rejecting the request
 			params.SinceTime = &sinceTime
 		} else {
-			return nil, fmt.Errorf("invalid since_time parameter: %s (must be RFC3339 format)", sinceTimeStr)
+			return nil, fmt.Errorf(
+				"invalid since_time parameter: %s (must be RFC3339 format)",
+				sinceTimeStr,
+			)
 		}
 	}
 
 	return params, nil
-}
-
-// ParseLogParametersForTest is a test helper that exposes parseLogParameters for testing
-func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string) (*application.LogParameters, error) {
-	return parseLogParameters(tailStr, sinceStr, sinceTimeStr)
 }
 
 // Logs handles the API endpoints GET /namespaces/:namespace/applications/:app/logs
@@ -93,15 +113,18 @@ func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string) (*applica
 // It arranges for the logs of the specified application to be
 // streamed over a websocket. Dependent on the endpoint this may be
 // either regular logs, or the app's staging logs.
+//
+// There is also support for dynamic updating of log parameters via
+// the websocket connection. The client can send a JSON message with tail,
+// since, and since_time fields to update the log filtering parameters.
 func Logs(c *gin.Context) {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	stageID := c.Param("stage_id")
 
-	log.Infow("get cluster client")
+	helpers.Logger.Debug("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		response.Error(c, apierror.InternalError(err))
@@ -109,7 +132,7 @@ func Logs(c *gin.Context) {
 	}
 
 	if appName != "" {
-		log.Infow("retrieve application", "name", appName, "namespace", namespace)
+		helpers.Logger.Debug("retrieve application", "name", appName, "namespace", namespace)
 
 		app, err := application.Lookup(ctx, cluster, namespace, appName)
 		if err != nil {
@@ -124,25 +147,35 @@ func Logs(c *gin.Context) {
 
 		if app.Workload == nil {
 			// While the app exists it has no workload, therefore no logs
-			response.Error(c, apierror.NewAPIError("No logs available for application without workload", http.StatusBadRequest))
+			response.Error(
+				c,
+				apierror.NewAPIError(
+					"No logs available for application without workload",
+					http.StatusBadRequest,
+				),
+			)
 			return
 		}
 	}
 
 	if appName == "" && stageID == "" {
-		response.Error(c, apierror.NewBadRequestError("you need to specify either the stage id or the app"))
+		response.Error(
+			c,
+			apierror.NewBadRequestError("you need to specify either the stage id or the app"),
+		)
 		return
 	}
 
-	log.Infow("process query")
+	helpers.Logger.Debug("process query")
 
+	// Extract query parameters
 	followStr := c.Query("follow")
 	tailStr := c.Query("tail")
 	sinceStr := c.Query("since")
 	sinceTimeStr := c.Query("since_time")
 
 	// Parse and validate log parameters
-	logParams, err := parseLogParameters(tailStr, sinceStr, sinceTimeStr)
+	logParams, err := ParseLogParameters(tailStr, sinceStr, sinceTimeStr)
 	if err != nil {
 		response.Error(c, apierror.NewBadRequestError(err.Error()))
 		return
@@ -156,14 +189,15 @@ func Logs(c *gin.Context) {
 	logParams.Follow = follow
 
 	// Log the parsed parameters for debugging
-	log.Infow("parsed log parameters",
-		"tail", logParams.Tail,
-		"since", logParams.Since,
-		"since_time", logParams.SinceTime,
-		"follow", logParams.Follow,
-		"follow_raw", followStr)
+	helpers.Logger.Debug(
+		"parsed log parameters | ",
+		"tail: ", logParams.Tail,
+		"since: ", logParams.Since,
+		"since_time: ", logParams.SinceTime,
+		"follow: ", logParams.Follow,
+		"follow_raw: ", followStr)
 
-	log.Infow("upgrade to web socket")
+	helpers.Logger.Debug("upgrade to web socket")
 
 	var upgrader = newUpgrader()
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -172,69 +206,157 @@ func Logs(c *gin.Context) {
 		return
 	}
 
-	log.Infow("streaming mode", "follow", logParams.Follow)
-	log.Infow("streaming begin")
+	helpers.Logger.Debug("streaming mode", "follow", logParams.Follow)
+	helpers.Logger.Debug("streaming begin")
 
-	err = streamPodLogs(ctx, conn, namespace, appName, stageID, cluster, logParams)
+	// Start streaming logs, if there is an error, return after logging it
+	err = streamPodLogs(
+		ctx,
+		conn,
+		namespace,
+		appName,
+		stageID,
+		cluster,
+		logParams,
+	)
 	if err != nil {
-		log.Debugw("error occurred after upgrading the websockets connection", "error", err)
+		helpers.Logger.Error(
+			err,
+			"error occurred after upgrading the websockets connection",
+		)
 		return
 	}
 
-	log.Infow("streaming completed")
+	helpers.Logger.Debug("streaming completed")
 }
 
-// streamPodLogs sends the logs of any containers matching namespaceName, appName
-// and stageID to hc.conn (websockets) until ctx is Done or the connection is
-// closed.
-// Internally this uses two concurrent "threads" talking with each other
-// over the logChan. This is a channel of ContainerLogLine.
-// The first thread runs `application.Logs` in a go routine. It spins up a number of supporting go routines
-// that are stopped when the passed context is "Done()". The parent go routine
-// waits until all the subordinate routines are stopped. It does this by waiting on a WaitGroup.
-// When that happens the parent go routine closes the logChan. This signals
-// the main "thread" to also stop.
-// The second (and main) thread reads the logChan and sends the received log messages over to the
-// websocket connection. It returns either when the channel is closed or when the
-// connection is closed. In any case it will call the cancel func that will stop
-// all the children go routines described above and then will wait for their parent
-// go routine to stop too (using another WaitGroup).
-func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, appName, stageID string, cluster *kubernetes.Cluster, logParams *application.LogParameters) error {
-	logger := helpers.Logger.With("component", "streamer-to-websockets")
-	logChan := make(chan tailer.ContainerLogLine)
+/*
+streamPodLogs sends the logs of any containers matching namespaceName, appName
+and stageID to hc.conn (websockets) until ctx is Done or the connection is
+closed.
+
+Internally this uses two concurrent "threads" talking with each other
+over the logChan. This is a channel of ContainerLogLine.
+
+If the filtering parameters are updated a new log streaming goroutine is
+started and the previous one is cancelled. The logChan is shared between
+the goroutines to prevent the need for reconnecting the websocket.
+*/
+func streamPodLogs(
+	ctx context.Context,
+	conn *websocket.Conn,
+	namespaceName,
+	appName,
+	stageID string,
+	cluster *kubernetes.Cluster,
+	logParams *application.LogParameters,
+) error {
 	logCtx, logCancelFunc := context.WithCancel(ctx)
+	logChan := make(chan tailer.ContainerLogLine)
 	var wg sync.WaitGroup
+	var logWg sync.WaitGroup
 
 	wg.Add(1)
-	go func(outerWg *sync.WaitGroup) {
-		logger.Debugw("create backend", "follow", logParams.Follow, "app", appName, "stage", stageID, "namespace", namespaceName)
-		defer func() {
-			logger.Debugw("backend ends")
-		}()
+	go func() {
+		defer wg.Done()
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				if websocket.IsCloseError(
+					err,
+					websocket.CloseNormalClosure,
+					websocket.CloseGoingAway,
+				) {
+					helpers.Logger.Debug("websocket closed normally")
+				} else {
+					helpers.Logger.Error(err, "error reading websocket message")
+				}
+				logCancelFunc() // Stop log streaming
+				return
+			}
 
-		var tailWg sync.WaitGroup
-		err := application.Logs(logCtx, logChan, &tailWg, cluster, appName, stageID, namespaceName, logParams)
-		if err != nil {
-			logger.Errorw("setting up log routines failed", "error", err)
+			var update LogParameterUpdate
+			if err := json.Unmarshal(message, &update); err != nil {
+				helpers.Logger.Error(err, "failed to unmarshal parameter update")
+				continue
+			}
+
+			if update.Type == "filter_params" {
+				helpers.Logger.Debug(
+					"received parameter update | ",
+					"params: ",
+					update.Params,
+				)
+
+				// Cancel current log streaming
+				logCancelFunc()
+				logWg.Wait()
+
+				if len(logChan) > 0 {
+					<-logChan
+				}
+
+				// Start new streaming with updated parameters
+				logCtx, logCancelFunc = context.WithCancel(ctx)
+
+				// Make sure we have valid parameters before continuing, if not, log
+				// the error and ignore the update
+				parsedParams, parsedParamsError := ParseLogParameters(
+					strconv.Itoa(update.Params.Tail),
+					update.Params.Since,
+					update.Params.SinceTime,
+				)
+
+				if parsedParamsError != nil {
+					helpers.Logger.Error(
+						parsedParamsError,
+						"failed to parse updated log parameters",
+					)
+					continue
+				}
+
+				// Set follow to false for updates, as these are one-off requests
+				update.Params.Follow = false
+
+				logWg.Add(1)
+				go startLogStreaming(
+					&logWg,
+					logCtx,
+					logChan,
+					cluster,
+					appName,
+					stageID,
+					namespaceName,
+					parsedParams,
+				)
+			}
 		}
-
-		logger.Debugw("wait for backend completion", "follow", logParams.Follow, "app", appName, "stage", stageID, "namespace", namespaceName)
-		tailWg.Wait()  // Wait until all child routines are stopped
-		close(logChan) // Close the channel so the loop below can stop
-		outerWg.Done() // Let the outer method know we are done
-	}(&wg)
-
-	defer func() {
-		logCancelFunc() // Just in case return some error, out of the normal flow.
-		wg.Wait()
 	}()
 
-	logger.Debugw("stream copying begin")
+	// Start initial log streaming
+	logWg.Add(1)
+	go startLogStreaming(
+		&logWg,
+		logCtx,
+		logChan,
+		cluster,
+		appName,
+		stageID,
+		namespaceName,
+		logParams,
+	)
 
-	// Send logs received on logChan to the websockets connection until either
-	// logChan is closed or websocket connection is closed.
+	defer func() {
+		logCancelFunc()
+		wg.Wait()
+		logWg.Wait()
+		close(logChan)
+	}()
+
+	helpers.Logger.Debug("stream copying begin")
+
 	for logLine := range logChan {
-		logger.Debugw("streaming", "log line", logLine)
+		helpers.Logger.Debug("streaming", "log line", logLine)
 
 		msg, err := json.Marshal(logLine)
 		if err != nil {
@@ -243,16 +365,10 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 
 		err = conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
-			logger.Errorw("failed to write to websockets", "error", err)
+			helpers.Logger.Error(err, "failed to write to websockets")
 
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-				connectionCloseError := conn.Close()
-
-				if connectionCloseError != nil {
-					return connectionCloseError
-				}
-
-				return nil
+				return conn.Close()
 			}
 			if websocket.IsUnexpectedCloseError(err) {
 				connectionCloseError := conn.Close()
@@ -273,20 +389,87 @@ func streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, app
 			abnormalCloseErr := conn.Close()
 			if abnormalCloseErr != nil {
 				err = errors.Wrap(err, abnormalCloseErr.Error())
+				helpers.Logger.Error(err, "websockets connection unexpectedly closed")
+				return conn.Close()
 			}
 
 			return err
 		}
 	}
 
-	logger.Debugw("stream copying done")
-	logger.Debugw("websocket teardown")
+	helpers.Logger.Debug("stream copying done")
+	helpers.Logger.Debug("websocket teardown")
 
-	if err := conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{}); err != nil {
+	if err := conn.WriteControl(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure,
+			"",
+		), time.Time{}); err != nil {
 		return err
 	}
 
 	return conn.Close()
+}
+
+// startLogStreaming starts a goroutine to stream logs with the given parameters
+// and writes them to logChan. It signals completion on wg when done.
+func startLogStreaming(
+	wg *sync.WaitGroup,
+	ctx context.Context,
+	logChan chan tailer.ContainerLogLine,
+	cluster *kubernetes.Cluster,
+	appName,
+	stageID,
+	namespaceName string,
+	logParams *application.LogParameters,
+) {
+
+	defer func() {
+		helpers.Logger.Info("backend ends")
+
+		// Indicate end of log stream if not following
+		if !logParams.Follow {
+			logChan <- tailer.ContainerLogLine{
+				Message:       "___FILTER_COMPLETE___",
+				ContainerName: "",
+				PodName:       "",
+				Namespace:     "",
+				Timestamp:     "",
+			}
+		}
+
+		wg.Done()
+	}()
+
+	helpers.Logger.Debug(
+		"create backend | ",
+		"follow: ",
+		logParams.Follow,
+		"app: ",
+		appName,
+		"stage: ",
+		stageID,
+		"namespace: ",
+		namespaceName,
+	)
+
+	var tailWg sync.WaitGroup
+	err := application.Logs(
+		ctx,
+		logChan,
+		&tailWg,
+		cluster,
+		appName,
+		stageID,
+		namespaceName,
+		logParams,
+	)
+	if err != nil {
+		helpers.Logger.Error(err, "setting up log routines failed")
+	}
+
+	helpers.Logger.Debug("wait for backend completion")
+	tailWg.Wait()
 }
 
 // https://pkg.go.dev/github.com/gorilla/websocket#hdr-Origin_Considerations

@@ -200,11 +200,27 @@ func GetRegistryCredentialsFromSecret(secret v1.Secret) (RegistryCredentials, er
 	}
 
 	for key, cred := range auths {
+		username := cred.Username
+		password := cred.Password
+
+		// If username/password are empty but auth is set, decode the base64 auth field
+		if (username == "" || password == "") && cred.Auth != "" {
+			decoded, err := base64.StdEncoding.DecodeString(cred.Auth)
+			if err == nil {
+				decodedStr := string(decoded)
+				parts := strings.SplitN(decodedStr, ":", 2)
+				if len(parts) == 2 {
+					username = parts[0]
+					password = parts[1]
+				}
+			}
+		}
+
 		// return the single credentials, as the first credentials found in the map
 		return RegistryCredentials{
 			URL:      key + "/" + namespace,
-			Username: cred.Username,
-			Password: cred.Password,
+			Username: username,
+			Password: password,
 		}, nil
 	}
 
@@ -325,10 +341,28 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 	details.Namespace = secret.Annotations[RegistrySecretNamespaceAnnotationKey]
 
 	for url, auth := range dockerconfigjson.Auths {
+		username := auth.Username
+		password := auth.Password
+
+		// If username/password are empty but auth is set, decode the base64 auth field
+		// This handles the standard dockerconfigjson format where credentials are stored
+		// in the auth field as base64(username:password)
+		if (username == "" || password == "") && auth.Auth != "" {
+			decoded, err := base64.StdEncoding.DecodeString(auth.Auth)
+			if err == nil {
+				decodedStr := string(decoded)
+				parts := strings.SplitN(decodedStr, ":", 2)
+				if len(parts) == 2 {
+					username = parts[0]
+					password = parts[1]
+				}
+			}
+		}
+
 		details.RegistryCredentials = append(details.RegistryCredentials, RegistryCredentials{
 			URL:      url,
-			Username: auth.Username,
-			Password: auth.Password,
+			Username: username,
+			Password: password,
 		})
 	}
 
@@ -338,7 +372,7 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 // DeleteImage deletes a container image from the registry using the Docker Registry HTTP API v2.
 // It deletes all tags/manifests for the repository to ensure complete removal.
 // It requires the image URL, registry credentials, and optionally a TLS config for self-signed certificates.
-func DeleteImage(ctx context.Context, log *zap.SugaredLogger, imageURL string, credentials RegistryCredentials, tlsConfig *tls.Config) error {
+func DeleteImage(ctx context.Context, log logr.Logger, imageURL string, credentials RegistryCredentials, tlsConfig *tls.Config) error {
 	if imageURL == "" {
 		// No image to delete
 		return nil
@@ -358,7 +392,7 @@ func DeleteImage(ctx context.Context, log *zap.SugaredLogger, imageURL string, c
 		tag = "latest"
 	}
 	
-	log.Infow("Deleting image from registry", "image", imageURL, "repository", repository, "tag", tag)
+	log.Info("Deleting image from registry", "image", imageURL, "repository", repository, "tag", tag)
 
 	// Determine scheme from credentials URL (dockerconfigjson may contain http:// or https://)
 	// or fall back to heuristics based on registry URL and TLS config
@@ -420,7 +454,7 @@ func DeleteImage(ctx context.Context, log *zap.SugaredLogger, imageURL string, c
 
 	if resp.StatusCode == http.StatusNotFound {
 		// Image doesn't exist, nothing to delete
-		log.Infow("Image not found in registry, skipping deletion", "image", imageURL)
+		log.Info("Image not found in registry, skipping deletion", "image", imageURL)
 		return nil
 	}
 
@@ -443,22 +477,22 @@ func DeleteImage(ctx context.Context, log *zap.SugaredLogger, imageURL string, c
 		// Compute SHA256 digest of the manifest body
 		hash := sha256.Sum256(manifestBody)
 		digest = fmt.Sprintf("sha256:%s", hex.EncodeToString(hash[:]))
-		log.Infow("Computed digest from manifest body", "digest", digest, "image", imageURL)
+		log.Info("Computed digest from manifest body", "digest", digest, "image", imageURL)
 	}
 
 	// First, list all tags for this repository so we can delete them all
 	// This ensures complete removal of the repository from the catalog
 	allTags, err := listRepositoryTags(ctx, scheme, registryURL, repository, auth, client)
 	if err != nil {
-		log.Infow("Could not list tags for repository, will delete only the specified tag", 
+		log.Info("Could not list tags for repository, will delete only the specified tag", 
 			"repository", repository, 
 			"error", err)
 		allTags = []string{tag} // Fall back to just deleting the specified tag
 	} else if len(allTags) == 0 {
-		log.Infow("Repository has no tags, nothing to delete", "repository", repository)
+		log.Info("Repository has no tags, nothing to delete", "repository", repository)
 		return nil
 	} else {
-		log.Infow("Found tags for repository, will delete all of them", 
+		log.Info("Found tags for repository, will delete all of them", 
 			"repository", repository, 
 			"tagCount", len(allTags),
 			"tags", allTags)
@@ -469,7 +503,7 @@ func DeleteImage(ctx context.Context, log *zap.SugaredLogger, imageURL string, c
 	for _, tagToDelete := range allTags {
 		if err := deleteTagByTag(ctx, log, scheme, registryURL, repository, tagToDelete, auth, client); err != nil {
 			// Log error but continue with other tags
-			log.Errorw("Failed to delete tag", "error", err, "repository", repository, "tag", tagToDelete)
+			log.Error(err, "Failed to delete tag", "repository", repository, "tag", tagToDelete)
 			lastErr = err
 		}
 	}
@@ -478,7 +512,7 @@ func DeleteImage(ctx context.Context, log *zap.SugaredLogger, imageURL string, c
 		return errors.Wrap(lastErr, "some tags failed to delete")
 	}
 
-	log.Infow("Successfully deleted all tags from repository", 
+	log.Info("Successfully deleted all tags from repository", 
 		"repository", repository,
 		"tagCount", len(allTags))
 	return nil
@@ -549,7 +583,7 @@ func deleteTagByTag(ctx context.Context, log *zap.SugaredLogger, scheme, registr
 	
 	if resp.StatusCode == http.StatusNotFound {
 		// Tag doesn't exist, skip it
-		log.Infow("Tag not found, skipping", "repository", repository, "tag", tag)
+		log.Info("Tag not found, skipping", "repository", repository, "tag", tag)
 		return nil
 	}
 	
@@ -596,13 +630,13 @@ func deleteTagByTag(ctx context.Context, log *zap.SugaredLogger, scheme, registr
 	if deleteResp.StatusCode == http.StatusAccepted || 
 		deleteResp.StatusCode == http.StatusOK || 
 		deleteResp.StatusCode == http.StatusNotFound {
-		log.Infow("Deleted tag from repository", "repository", repository, "tag", tag, "digest", digest)
+		log.Info("Deleted tag from repository", "repository", repository, "tag", tag, "digest", digest)
 		return nil
 	}
-
+	
 	// Check if deletion is disabled
 	if deleteResp.StatusCode == http.StatusMethodNotAllowed {
-		log.Infow("Image deletion is disabled on this registry for this tag", "repository", repository, "tag", tag)
+		log.Info("Image deletion is disabled on this registry for this tag", "repository", repository, "tag", tag)
 		return nil // Don't fail - registry doesn't support deletion
 	}
 	

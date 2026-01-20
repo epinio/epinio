@@ -54,6 +54,18 @@ type FakeServicesService struct {
 	getAPIReturnsOnCall map[int]struct {
 		result1 usercmd.APIClient
 	}
+	ServiceBatchBindStub        func(string, []string) error
+	serviceBatchBindMutex       sync.RWMutex
+	serviceBatchBindArgsForCall []struct {
+		arg1 string
+		arg2 []string
+	}
+	serviceBatchBindReturns struct {
+		result1 error
+	}
+	serviceBatchBindReturnsOnCall map[int]struct {
+		result1 error
+	}
 	ServiceBindStub        func(string, string) error
 	serviceBindMutex       sync.RWMutex
 	serviceBindArgsForCall []struct {
@@ -183,30 +195,19 @@ type FakeServicesService struct {
 	serviceUnbindReturnsOnCall map[int]struct {
 		result1 error
 	}
-	ServiceUpdateStub        func(string, bool, []string, map[string]string) error
+	ServiceUpdateStub        func(string, bool, []string, map[string]string, bool) error
 	serviceUpdateMutex       sync.RWMutex
 	serviceUpdateArgsForCall []struct {
 		arg1 string
 		arg2 bool
 		arg3 []string
 		arg4 map[string]string
+		arg5 bool
 	}
 	serviceUpdateReturns struct {
 		result1 error
 	}
 	serviceUpdateReturnsOnCall map[int]struct {
-		result1 error
-	}
-	ServiceBatchBindStub        func(string, []string) error
-	serviceBatchBindMutex       sync.RWMutex
-	serviceBatchBindArgsForCall []struct {
-		arg1 string
-		arg2 []string
-	}
-	serviceBatchBindReturns struct {
-		result1 error
-	}
-	serviceBatchBindReturnsOnCall map[int]struct {
 		result1 error
 	}
 	invocations      map[string][][]interface{}
@@ -385,6 +386,73 @@ func (fake *FakeServicesService) GetAPIReturnsOnCall(i int, result1 usercmd.APIC
 	}
 	fake.getAPIReturnsOnCall[i] = struct {
 		result1 usercmd.APIClient
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceBatchBind(arg1 string, arg2 []string) error {
+	var arg2Copy []string
+	if arg2 != nil {
+		arg2Copy = make([]string, len(arg2))
+		copy(arg2Copy, arg2)
+	}
+	fake.serviceBatchBindMutex.Lock()
+	ret, specificReturn := fake.serviceBatchBindReturnsOnCall[len(fake.serviceBatchBindArgsForCall)]
+	fake.serviceBatchBindArgsForCall = append(fake.serviceBatchBindArgsForCall, struct {
+		arg1 string
+		arg2 []string
+	}{arg1, arg2Copy})
+	stub := fake.ServiceBatchBindStub
+	fakeReturns := fake.serviceBatchBindReturns
+	fake.recordInvocation("ServiceBatchBind", []interface{}{arg1, arg2Copy})
+	fake.serviceBatchBindMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeServicesService) ServiceBatchBindCallCount() int {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	return len(fake.serviceBatchBindArgsForCall)
+}
+
+func (fake *FakeServicesService) ServiceBatchBindCalls(stub func(string, []string) error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = stub
+}
+
+func (fake *FakeServicesService) ServiceBatchBindArgsForCall(i int) (string, []string) {
+	fake.serviceBatchBindMutex.RLock()
+	defer fake.serviceBatchBindMutex.RUnlock()
+	argsForCall := fake.serviceBatchBindArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeServicesService) ServiceBatchBindReturns(result1 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	fake.serviceBatchBindReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceBatchBindReturnsOnCall(i int, result1 error) {
+	fake.serviceBatchBindMutex.Lock()
+	defer fake.serviceBatchBindMutex.Unlock()
+	fake.ServiceBatchBindStub = nil
+	if fake.serviceBatchBindReturnsOnCall == nil {
+		fake.serviceBatchBindReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.serviceBatchBindReturnsOnCall[i] = struct {
+		result1 error
 	}{result1}
 }
 
@@ -1061,7 +1129,7 @@ func (fake *FakeServicesService) ServiceUnbindReturnsOnCall(i int, result1 error
 	}{result1}
 }
 
-func (fake *FakeServicesService) ServiceUpdate(arg1 string, arg2 bool, arg3 []string, arg4 map[string]string) error {
+func (fake *FakeServicesService) ServiceUpdate(arg1 string, arg2 bool, arg3 []string, arg4 map[string]string, arg5 bool) error {
 	var arg3Copy []string
 	if arg3 != nil {
 		arg3Copy = make([]string, len(arg3))
@@ -1074,13 +1142,14 @@ func (fake *FakeServicesService) ServiceUpdate(arg1 string, arg2 bool, arg3 []st
 		arg2 bool
 		arg3 []string
 		arg4 map[string]string
-	}{arg1, arg2, arg3Copy, arg4})
+		arg5 bool
+	}{arg1, arg2, arg3Copy, arg4, arg5})
 	stub := fake.ServiceUpdateStub
 	fakeReturns := fake.serviceUpdateReturns
-	fake.recordInvocation("ServiceUpdate", []interface{}{arg1, arg2, arg3Copy, arg4})
+	fake.recordInvocation("ServiceUpdate", []interface{}{arg1, arg2, arg3Copy, arg4, arg5})
 	fake.serviceUpdateMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4)
+		return stub(arg1, arg2, arg3, arg4, arg5)
 	}
 	if specificReturn {
 		return ret.result1
@@ -1094,17 +1163,17 @@ func (fake *FakeServicesService) ServiceUpdateCallCount() int {
 	return len(fake.serviceUpdateArgsForCall)
 }
 
-func (fake *FakeServicesService) ServiceUpdateCalls(stub func(string, bool, []string, map[string]string) error) {
+func (fake *FakeServicesService) ServiceUpdateCalls(stub func(string, bool, []string, map[string]string, bool) error) {
 	fake.serviceUpdateMutex.Lock()
 	defer fake.serviceUpdateMutex.Unlock()
 	fake.ServiceUpdateStub = stub
 }
 
-func (fake *FakeServicesService) ServiceUpdateArgsForCall(i int) (string, bool, []string, map[string]string) {
+func (fake *FakeServicesService) ServiceUpdateArgsForCall(i int) (string, bool, []string, map[string]string, bool) {
 	fake.serviceUpdateMutex.RLock()
 	defer fake.serviceUpdateMutex.RUnlock()
 	argsForCall := fake.serviceUpdateArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
 func (fake *FakeServicesService) ServiceUpdateReturns(result1 error) {
@@ -1130,108 +1199,9 @@ func (fake *FakeServicesService) ServiceUpdateReturnsOnCall(i int, result1 error
 	}{result1}
 }
 
-func (fake *FakeServicesService) ServiceBatchBind(arg1 string, arg2 []string) error {
-	var arg2Copy []string
-	if arg2 != nil {
-		arg2Copy = make([]string, len(arg2))
-		copy(arg2Copy, arg2)
-	}
-	fake.serviceBatchBindMutex.Lock()
-	ret, specificReturn := fake.serviceBatchBindReturnsOnCall[len(fake.serviceBatchBindArgsForCall)]
-	fake.serviceBatchBindArgsForCall = append(fake.serviceBatchBindArgsForCall, struct {
-		arg1 string
-		arg2 []string
-	}{arg1, arg2Copy})
-	stub := fake.ServiceBatchBindStub
-	fakeReturns := fake.serviceBatchBindReturns
-	fake.recordInvocation("ServiceBatchBind", []interface{}{arg1, arg2Copy})
-	fake.serviceBatchBindMutex.Unlock()
-	if stub != nil {
-		return stub(arg1, arg2)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fakeReturns.result1
-}
-
-func (fake *FakeServicesService) ServiceBatchBindCallCount() int {
-	fake.serviceBatchBindMutex.RLock()
-	defer fake.serviceBatchBindMutex.RUnlock()
-	return len(fake.serviceBatchBindArgsForCall)
-}
-
-func (fake *FakeServicesService) ServiceBatchBindCalls(stub func(string, []string) error) {
-	fake.serviceBatchBindMutex.Lock()
-	defer fake.serviceBatchBindMutex.Unlock()
-	fake.ServiceBatchBindStub = stub
-}
-
-func (fake *FakeServicesService) ServiceBatchBindArgsForCall(i int) (string, []string) {
-	fake.serviceBatchBindMutex.RLock()
-	defer fake.serviceBatchBindMutex.RUnlock()
-	argsForCall := fake.serviceBatchBindArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
-}
-
-func (fake *FakeServicesService) ServiceBatchBindReturns(result1 error) {
-	fake.serviceBatchBindMutex.Lock()
-	defer fake.serviceBatchBindMutex.Unlock()
-	fake.ServiceBatchBindStub = nil
-	fake.serviceBatchBindReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeServicesService) ServiceBatchBindReturnsOnCall(i int, result1 error) {
-	fake.serviceBatchBindMutex.Lock()
-	defer fake.serviceBatchBindMutex.Unlock()
-	fake.ServiceBatchBindStub = nil
-	if fake.serviceBatchBindReturnsOnCall == nil {
-		fake.serviceBatchBindReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.serviceBatchBindReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *FakeServicesService) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.appsMatchingMutex.RLock()
-	defer fake.appsMatchingMutex.RUnlock()
-	fake.catalogMatchingMutex.RLock()
-	defer fake.catalogMatchingMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
-	fake.serviceBindMutex.RLock()
-	defer fake.serviceBindMutex.RUnlock()
-	fake.serviceCatalogMutex.RLock()
-	defer fake.serviceCatalogMutex.RUnlock()
-	fake.serviceCatalogShowMutex.RLock()
-	defer fake.serviceCatalogShowMutex.RUnlock()
-	fake.serviceCreateMutex.RLock()
-	defer fake.serviceCreateMutex.RUnlock()
-	fake.serviceDeleteMutex.RLock()
-	defer fake.serviceDeleteMutex.RUnlock()
-	fake.serviceListMutex.RLock()
-	defer fake.serviceListMutex.RUnlock()
-	fake.serviceListAllMutex.RLock()
-	defer fake.serviceListAllMutex.RUnlock()
-	fake.serviceMatchingMutex.RLock()
-	defer fake.serviceMatchingMutex.RUnlock()
-	fake.servicePortForwardMutex.RLock()
-	defer fake.servicePortForwardMutex.RUnlock()
-	fake.serviceShowMutex.RLock()
-	defer fake.serviceShowMutex.RUnlock()
-	fake.serviceUnbindMutex.RLock()
-	defer fake.serviceUnbindMutex.RUnlock()
-	fake.serviceUpdateMutex.RLock()
-	defer fake.serviceUpdateMutex.RUnlock()
-	fake.serviceBatchBindMutex.RLock()
-	defer fake.serviceBatchBindMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

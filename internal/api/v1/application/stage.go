@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"
-	"go.uber.org/zap"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
@@ -218,15 +218,15 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to retrieve staging configuration")
 	}
 
-	log.Infow("staging app", "scripts", config.Name)
-	log.Infow("staging app", "builder", builderImage)
-	log.Infow("staging app", "download", config.DownloadImage)
-	log.Infow("staging app", "unpack", config.UnpackImage)
-	log.Infow("staging app", "userid", config.UserID)
-	log.Infow("staging app", "groupid", config.GroupID)
-	log.Infow("staging app", "build env", config.Env)
-	log.Infow("staging app", "Staging Values", config.HelmValues)
-	log.Infow("staging app", "namespace", namespace, "app", req)
+	log.Info("staging app", "scripts", config.Name)
+	log.Info("staging app", "builder", builderImage)
+	log.Info("staging app", "download", config.DownloadImage)
+	log.Info("staging app", "unpack", config.UnpackImage)
+	log.Info("staging app", "userid", config.UserID)
+	log.Info("staging app", "groupid", config.GroupID)
+	log.Info("staging app", "build env", config.Env)
+	log.Info("staging app", "Staging Values", config.HelmValues)
+	log.Info("staging app", "namespace", namespace, "app", req)
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
@@ -345,7 +345,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 
 	imageURL := params.ImageURL(params.RegistryURL)
 
-	log.Infow("staged app", "namespace", helmchart.Namespace(), "app", params.AppRef, "uid", uid, "image", imageURL)
+	log.Info("staged app", "namespace", helmchart.Namespace(), "app", params.AppRef, "uid", uid, "image", imageURL)
 
 	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
@@ -513,7 +513,7 @@ func StagedWebsocket(c *gin.Context) {
 
 	// initial acknowledgement so the caller knows the socket is established
 	if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-		log.Debugw("failed to send initial staging websocket message", "error", err)
+		log.V(1).Error(err, "failed to send initial staging websocket message")
 		return
 	}
 
@@ -556,7 +556,7 @@ func StagedWebsocket(c *gin.Context) {
 			return
 		case res := <-resultCh:
 			if res.err != nil {
-				log.Errorw("staging completion watcher failed", "error", res.err)
+				log.Error(res.err, "staging completion watcher failed")
 				_ = sendUpdate(models.StageStatusError, res.err.Error(), true)
 				return
 			}
@@ -568,7 +568,7 @@ func StagedWebsocket(c *gin.Context) {
 			return
 		case <-heartbeat.C:
 			if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-				log.Debugw("failed to send staging heartbeat", "error", err)
+				log.V(1).Error(err, "failed to send staging heartbeat")
 			}
 		}
 	}
@@ -1121,19 +1121,19 @@ func DetermineStagingScripts(ctx context.Context,
 			fallback = config
 			continue
 		}
-		logger.Infow("locate staging scripts - found",
+		logger.Info("locate staging scripts - found",
 			"name", config.Name, "match", pattern)
 		matchable = append(matchable, config)
 	}
 	if fallback != nil {
-		logger.Infow("locate staging scripts - fallback",
+		logger.Info("locate staging scripts - fallback",
 			"name", fallback.Name, "match", fallback.Builder)
 	}
 
 	// match by pattern
 	for _, config := range matchable {
 		pattern := config.Builder
-		logger.Infow("locate staging scripts - checking",
+		logger.Info("locate staging scripts - checking",
 			"name", config.Name, "match", pattern)
 
 		matched, err := filepath.Match(pattern, builder)
@@ -1141,7 +1141,7 @@ func DetermineStagingScripts(ctx context.Context,
 			return nil, err
 		}
 		if matched {
-			logger.Infow("locate staging scripts - match",
+			logger.Info("locate staging scripts - match",
 				"name", config.Name, "match", pattern, "builder", builder)
 
 			err := StagingScriptConfigResolve(ctx, logger, cluster, config)
@@ -1154,7 +1154,7 @@ func DetermineStagingScripts(ctx context.Context,
 	}
 
 	if fallback != nil {
-		logger.Infow("locate staging scripts - using fallback", "name", fallback.Name)
+		logger.Info("locate staging scripts - using fallback", "name", fallback.Name)
 		err := StagingScriptConfigResolve(ctx, logger, cluster, fallback)
 		if err != nil {
 			return nil, err
@@ -1171,7 +1171,7 @@ func StagingScriptConfigResolve(ctx context.Context, logger *zap.SugaredLogger, 
 		return nil
 	}
 
-	logger.Infow("locate staging scripts - inherit", "base", config.Base)
+	logger.Info("locate staging scripts - inherit", "base", config.Base)
 
 	base, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), config.Base)
 	if err != nil {

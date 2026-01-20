@@ -35,12 +35,13 @@ type FakeApplicationsService struct {
 	appCreateReturnsOnCall map[int]struct {
 		result1 error
 	}
-	AppDeleteStub        func(context.Context, []string, bool) error
+	AppDeleteStub        func(context.Context, []string, bool, bool) error
 	appDeleteMutex       sync.RWMutex
 	appDeleteArgsForCall []struct {
 		arg1 context.Context
 		arg2 []string
 		arg3 bool
+		arg4 bool
 	}
 	appDeleteReturns struct {
 		result1 error
@@ -428,7 +429,7 @@ func (fake *FakeApplicationsService) AppCreateReturnsOnCall(i int, result1 error
 	}{result1}
 }
 
-func (fake *FakeApplicationsService) AppDelete(arg1 context.Context, arg2 []string, arg3 bool) error {
+func (fake *FakeApplicationsService) AppDelete(arg1 context.Context, arg2 []string, arg3 bool, arg4 bool) error {
 	var arg2Copy []string
 	if arg2 != nil {
 		arg2Copy = make([]string, len(arg2))
@@ -440,13 +441,14 @@ func (fake *FakeApplicationsService) AppDelete(arg1 context.Context, arg2 []stri
 		arg1 context.Context
 		arg2 []string
 		arg3 bool
-	}{arg1, arg2Copy, arg3})
+		arg4 bool
+	}{arg1, arg2Copy, arg3, arg4})
 	stub := fake.AppDeleteStub
 	fakeReturns := fake.appDeleteReturns
-	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy, arg3})
+	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy, arg3, arg4})
 	fake.appDeleteMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
@@ -460,17 +462,17 @@ func (fake *FakeApplicationsService) AppDeleteCallCount() int {
 	return len(fake.appDeleteArgsForCall)
 }
 
-func (fake *FakeApplicationsService) AppDeleteCalls(stub func(context.Context, []string, bool) error) {
+func (fake *FakeApplicationsService) AppDeleteCalls(stub func(context.Context, []string, bool, bool) error) {
 	fake.appDeleteMutex.Lock()
 	defer fake.appDeleteMutex.Unlock()
 	fake.AppDeleteStub = stub
 }
 
-func (fake *FakeApplicationsService) AppDeleteArgsForCall(i int) (context.Context, []string, bool) {
+func (fake *FakeApplicationsService) AppDeleteArgsForCall(i int) (context.Context, []string, bool, bool) {
 	fake.appDeleteMutex.RLock()
 	defer fake.appDeleteMutex.RUnlock()
 	argsForCall := fake.appDeleteArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeApplicationsService) AppDeleteReturns(result1 error) {
@@ -2117,62 +2119,6 @@ func (fake *FakeApplicationsService) GetAPIReturnsOnCall(i int, result1 usercmd.
 func (fake *FakeApplicationsService) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.appCreateMutex.RLock()
-	defer fake.appCreateMutex.RUnlock()
-	fake.appDeleteMutex.RLock()
-	defer fake.appDeleteMutex.RUnlock()
-	fake.appExecMutex.RLock()
-	defer fake.appExecMutex.RUnlock()
-	fake.appExportMutex.RLock()
-	defer fake.appExportMutex.RUnlock()
-	fake.appLogsMutex.RLock()
-	defer fake.appLogsMutex.RUnlock()
-	fake.appManifestMutex.RLock()
-	defer fake.appManifestMutex.RUnlock()
-	fake.appPortForwardMutex.RLock()
-	defer fake.appPortForwardMutex.RUnlock()
-	fake.appPushMutex.RLock()
-	defer fake.appPushMutex.RUnlock()
-	fake.appRestageMutex.RLock()
-	defer fake.appRestageMutex.RUnlock()
-	fake.appRestartMutex.RLock()
-	defer fake.appRestartMutex.RUnlock()
-	fake.appShowMutex.RLock()
-	defer fake.appShowMutex.RUnlock()
-	fake.appStageIDMutex.RLock()
-	defer fake.appStageIDMutex.RUnlock()
-	fake.appUpdateMutex.RLock()
-	defer fake.appUpdateMutex.RUnlock()
-	fake.appsMutex.RLock()
-	defer fake.appsMutex.RUnlock()
-	fake.appsMatchingMutex.RLock()
-	defer fake.appsMatchingMutex.RUnlock()
-	fake.chartDefaultSetMutex.RLock()
-	defer fake.chartDefaultSetMutex.RUnlock()
-	fake.chartDefaultShowMutex.RLock()
-	defer fake.chartDefaultShowMutex.RUnlock()
-	fake.chartListMutex.RLock()
-	defer fake.chartListMutex.RUnlock()
-	fake.chartMatchingMutex.RLock()
-	defer fake.chartMatchingMutex.RUnlock()
-	fake.chartShowMutex.RLock()
-	defer fake.chartShowMutex.RUnlock()
-	fake.configurationMatchingMutex.RLock()
-	defer fake.configurationMatchingMutex.RUnlock()
-	fake.envListMutex.RLock()
-	defer fake.envListMutex.RUnlock()
-	fake.envMatchingMutex.RLock()
-	defer fake.envMatchingMutex.RUnlock()
-	fake.envSetMutex.RLock()
-	defer fake.envSetMutex.RUnlock()
-	fake.envShowMutex.RLock()
-	defer fake.envShowMutex.RUnlock()
-	fake.envUnsetMutex.RLock()
-	defer fake.envUnsetMutex.RUnlock()
-	fake.exportregistryMatchingMutex.RLock()
-	defer fake.exportregistryMatchingMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
