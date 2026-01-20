@@ -87,8 +87,19 @@ func (c *Client) ConfigurationUpdate(request models.ConfigurationUpdateRequest, 
 
 // ConfigurationShow shows a configuration
 func (c *Client) ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error) {
+	return c.ConfigurationShowWithUnmask(namespace, name, false)
+}
+
+// ConfigurationShowWithUnmask shows a configuration with optional unmasking of values
+func (c *Client) ConfigurationShowWithUnmask(namespace string, name string, unmask bool) (models.ConfigurationResponse, error) {
 	v := models.ConfigurationResponse{}
 	endpoint := api.Routes.Path("ConfigurationShow", namespace, name)
+	
+	if unmask {
+		queryParams := url.Values{}
+		queryParams.Set("unmask", "true")
+		endpoint = fmt.Sprintf("%s?%s", endpoint, queryParams.Encode())
+	}
 
 	return Get(c, endpoint, v)
 }

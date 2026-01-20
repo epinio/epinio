@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/auth"
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
@@ -64,11 +65,22 @@ func ExpectGoodTokenLogin(tmpSettingsPath, serverURL string) {
 
 	// read the full output, until the command asks you to paste the auth code
 	By("Waiting for auth code query")
+	deadline := time.After(2 * time.Minute)
 	for {
-		if strings.Contains(out.String(), "paste the authorization code") {
-			break
+		select {
+		case cmdErr := <-iscomplete:
+			Expect(cmdErr).ToNot(HaveOccurred(), out.String())
+			Fail("oidc login exited before prompting for auth code")
+		case <-deadline:
+			Fail("timed out waiting for auth code prompt\n" + out.String())
+		default:
+			if strings.Contains(out.String(), "paste the authorization code") {
+				goto authPromptReady
+			}
+			time.Sleep(200 * time.Millisecond)
 		}
 	}
+authPromptReady:
 
 	fullOutput := out.String()
 

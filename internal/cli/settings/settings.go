@@ -157,6 +157,10 @@ func LoadFrom(file string) (*Settings, error) {
 		}
 		websocket.DefaultDialer.TLSClientConfig = http.DefaultTransport.(*http.Transport).TLSClientConfig.Clone()
 	}
+	if transport, ok := http.DefaultTransport.(*http.Transport); ok {
+		// Allow slower TLS handshakes in noisy test environments.
+		transport.TLSHandshakeTimeout = 60 * time.Second
+	}
 
 	if !cfg.Colors || viper.GetBool("no-colors") {
 		color.NoColor = true

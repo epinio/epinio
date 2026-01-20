@@ -234,14 +234,13 @@ var _ = Describe("Services", LService, func() {
 				)
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
 				Eventually(func() int {
 					tr := &http.Transport{
 						TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
 					}
 					noTlsClient := &http.Client{Transport: tr}
 					
-					resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
+					resp, err := noTlsClient.Get("https://" + serviceHostname + getPortSuffixFromServerURL())
 					
 					if err != nil {
 						fmt.Println(resp)
@@ -1077,14 +1076,13 @@ var _ = Describe("Services", LService, func() {
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
 			Eventually(func() int {
 				tr := &http.Transport{
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
 				}
 				noTlsClient := &http.Client{Transport: tr}
 				
-				resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
+				resp, err := noTlsClient.Get("https://" + serviceHostname + getPortSuffixFromServerURL())
 				
 				if err != nil {
 					fmt.Println(resp)

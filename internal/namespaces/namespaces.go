@@ -116,9 +116,12 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 		return errors.Wrap(err, "failed to create a service account for apps")
 	}
 
-	if _, err := kubeClient.WaitForSecret(ctx, namespace, "registry-creds", duration.ToSecretCopied()); err != nil {
-		return errors.Wrap(err, "timed out while waiting for registry-creds secret to be copied to the new namespace")
-	}
+	// Note: We do NOT wait for the registry-creds secret here to avoid gateway timeouts.
+	// The secret is copied asynchronously by a controller, and applications will wait
+	// for it when they actually need it (during staging). This allows namespace creation
+	// to complete quickly (within seconds) instead of waiting up to 5 minutes, preventing
+	// gateway timeouts (typically 60s) while still allowing the namespace to be usable.
+	// The secret will be available when applications try to stage.
 
 	return nil
 }

@@ -80,8 +80,18 @@ func Show(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	// SECURITY: Mask all configuration details to prevent secret exposure in API responses
-	maskedDetails := mask.MaskMap(configurationDetails)
+	// SECURITY: By default, mask all configuration details to prevent secret exposure in API responses.
+	// However, allow unmasked values when explicitly requested via query parameter for authenticated users
+	// viewing their own configurations (e.g., when CLI displays to user).
+	unmask := c.Query("unmask") == "true"
+	var detailsToReturn map[string]string
+	if unmask {
+		// Return unmasked details for authenticated user viewing their own configuration
+		detailsToReturn = configurationDetails
+	} else {
+		// Default: mask all details for security
+		detailsToReturn = mask.MaskMap(configurationDetails)
+	}
 
 	response.OKReturn(c, models.ConfigurationResponse{
 		Meta: models.ConfigurationRef{
@@ -93,7 +103,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 		},
 		Configuration: models.ConfigurationShowResponse{
 			Username:  configuration.User(),
-			Details:   maskedDetails,
+			Details:   detailsToReturn,
 			BoundApps: appNames,
 			Type:      configuration.Type,
 			Origin:    configuration.Origin,
