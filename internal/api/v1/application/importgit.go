@@ -80,14 +80,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gin-gonic/gin"
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/storer"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/epinio/epinio/helpers"
-	"go.uber.org/zap"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
@@ -96,6 +89,13 @@ import (
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/storer"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"go.uber.org/zap"
 )
 
 // ImportGit handles the API endpoint /namespaces/:namespace/applications/:app/import-git.
@@ -163,7 +163,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Create a tarball
-		tmpDir, tarball, err := helpers.Tar(gitRepo, nil)
+	tmpDir, tarball, err := helpers.Tar(gitRepo, nil)
 	defer func() {
 		if tmpDir != "" {
 			_ = os.RemoveAll(tmpDir)
