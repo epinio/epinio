@@ -15,14 +15,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/gin-gonic/gin"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Match handles the API endpoint /namespaces/:namespace/applications/:app/environment/:env/match/:pattern
@@ -31,13 +31,12 @@ import (
 // with prefix
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
 
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
 	prefix := c.Param("pattern")
 
-	log.Info("returning matching environment variable names",
+	helpers.Logger.Infow("returning matching environment variable names",
 		"namespace", namespaceName, "app", appName, "prefix", prefix)
 
 	cluster, err := kubernetes.GetCluster(ctx)

@@ -22,11 +22,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
@@ -35,7 +35,6 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
@@ -60,7 +59,6 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	partName := c.Param("part")
-	logger := requestctx.Logger(ctx)
 
 	switch partName {
 	case "manifest", "values", "chart", "image":
@@ -96,11 +94,11 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 
 	switch partName {
 	case "chart":
-		return fetchAppChart(c, ctx, logger, cluster, app)
+		return fetchAppChart(c, ctx, cluster, app)
 	case "image":
-		return fetchAppImage(c, ctx, logger, cluster, app)
+		return fetchAppImage(c, ctx, cluster, app)
 	case "values":
-		return fetchAppValues(c, logger, cluster, app.Meta)
+		return fetchAppValues(c, cluster, app.Meta)
 	}
 
 	return apierror.InternalError(fmt.Errorf("should not be reached"))
@@ -108,7 +106,12 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 
 // ATTENTION TODO Compare `fetchAppChartFile` (see `export.go`), DRY them.
 
-func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, theApp *models.App) apierror.APIErrors {
+func fetchAppChart(
+	c *gin.Context,
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	theApp *models.App,
+) apierror.APIErrors {
 	// Get the application's app chart
 	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
 	if err != nil {
@@ -118,21 +121,21 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
 	}
 
-	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig, logger)
+	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "chart archive", chartArchive)
+	helpers.Logger.Infow("input", "chart archive", chartArchive)
 
 	// Ensure presence of the chart archive as a local file.
 
-	chartArchive, err = urlcache.Get(ctx, logger, chartArchive)
+	chartArchive, err = urlcache.Get(ctx, chartArchive)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "local chart archive", chartArchive)
+	helpers.Logger.Infow("input", "local chart archive", chartArchive)
 
 	// Here the archive is surely a local file
 
@@ -141,21 +144,21 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input is file")
+	helpers.Logger.Infow("input is file")
 
 	fileInfo, err := file.Stat()
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input has stat")
+	helpers.Logger.Infow("input has stat")
 
 	contentLength := fileInfo.Size()
 	contentType := "application/x-gzip"
 
-	logger.Info("input, returning file")
+	helpers.Logger.Infow("input, returning file")
 
-	logger.Info("OK",
+	helpers.Logger.Infow("OK",
 		"origin", c.Request.URL.String(),
 		"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
 	)
@@ -164,16 +167,27 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 	return nil
 }
 
-func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, theApp *models.App) apierror.APIErrors {
-	logger.Info("fetching app image")
+func fetchAppImage(
+	c *gin.Context,
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	theApp *models.App,
+) apierror.APIErrors {
+	helpers.Logger.Infow("fetching app image")
 
 	// Mixing in nanoseconds to prevent multiple requests for the same app to clash over the file name
 	now := strconv.Itoa(time.Now().Nanosecond())
-	imageOutputFilename := fmt.Sprintf("%s-%s-%s-%s.tar", theApp.Meta.Namespace, theApp.Meta.Name, theApp.StageID, now)
+	imageOutputFilename := fmt.Sprintf(
+		"%s-%s-%s-%s.tar",
+		theApp.Meta.Namespace,
+		theApp.Meta.Name,
+		theApp.StageID,
+		now,
+	)
 
-	logger.Info("got app chart", "chart image", theApp.ImageURL)
+	helpers.Logger.Infow("got app chart", "chart image", theApp.ImageURL)
 
-	file, err := fetchAppImageFile(ctx, logger, cluster, theApp, imageOutputFilename)
+	file, err := fetchAppImageFile(ctx, cluster, theApp, imageOutputFilename)
 	if err != nil {
 		return apierror.NewInternalError("failed to retrieve image", err.Error())
 	}
@@ -181,7 +195,13 @@ func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 	defer func() {
 		err := os.Remove(imageExportVolume + imageOutputFilename)
 		if err != nil {
-			logger.Info("error cleaning up image file", "filename", imageOutputFilename, "error", err.Error())
+			helpers.Logger.Infow(
+				"error cleaning up image file",
+				"filename",
+				imageOutputFilename,
+				"error",
+				err.Error(),
+			)
 		}
 	}()
 
@@ -194,18 +214,41 @@ func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 	return nil
 }
 
-func fetchAppImageFile(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, theApp *models.App, imageOutputFilename string) (*os.File, error) {
+func fetchAppImageFile(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	theApp *models.App,
+	imageOutputFilename string,
+) (*os.File, error) {
 	// Mixing in nanoseconds to prevent multiple requests for the same app to clash over the job name
 
 	nano := strconv.Itoa(time.Now().Nanosecond())
-	jobName := names.GenerateResourceName("image-export-job", theApp.Meta.Namespace, theApp.Meta.Name, theApp.StageID, nano)
+	jobName := names.GenerateResourceName(
+		"image-export-job",
+		theApp.Meta.Namespace,
+		theApp.Meta.Name,
+		theApp.StageID,
+		nano,
+	)
 
-	err := runDownloadImageJob(ctx, cluster, jobName, theApp.ImageURL, imageOutputFilename)
+	err := runDownloadImageJob(
+		ctx,
+		cluster,
+		jobName,
+		theApp.ImageURL,
+		imageOutputFilename,
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to create job")
 	}
 
-	file, err := getFileImageAndJobCleanup(ctx, logger, cluster, jobName, imageOutputFilename)
+	file, err := getFileImageAndJobCleanup(
+		ctx,
+		cluster,
+		jobName,
+		imageOutputFilename,
+	)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "failed waiting for job completion")
 	}
@@ -213,7 +256,13 @@ func fetchAppImageFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 	return file, nil
 }
 
-func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobName, imageURL, imageOutputFilename string) error {
+func runDownloadImageJob(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	jobName,
+	imageURL,
+	imageOutputFilename string,
+) error {
 	appImageExporter := viper.GetString("app-image-exporter")
 
 	labels := map[string]string{
@@ -325,18 +374,28 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 	return cluster.CreateJob(ctx, helmchart.Namespace(), job)
 }
 
-func getFileImageAndJobCleanup(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, jobName, imageOutputFilename string) (*os.File, error) {
+func getFileImageAndJobCleanup(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	jobName,
+	imageOutputFilename string,
+) (*os.File, error) {
 	err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), jobName, time.Minute*2)
 	if err != nil {
-		logger.Info("export job wait error", "error", err, "job", jobName)
+		helpers.Logger.Infow("export job wait error", "error", err, "job", jobName)
 
 		if errors.Is(err, context.Canceled) {
-			logger.Info("delete job, canceled", "job", jobName)
+			helpers.Logger.Infow("delete job, canceled", "job", jobName)
 			// NOTE: Use bg context here, the regular once is canceled.
 			err := cluster.DeleteJob(context.Background(), helmchart.Namespace(), jobName)
 			if err != nil {
-				logger.Info("export job delete error, in cancellation",
-					"error", err, "job", jobName)
+				helpers.Logger.Infow(
+					"export job delete error, in cancellation",
+					"error",
+					err,
+					"job",
+					jobName,
+				)
 			}
 		}
 
@@ -348,21 +407,31 @@ func getFileImageAndJobCleanup(ctx context.Context, logger logr.Logger, cluster 
 	if err != nil {
 		// NOTE: job is kept, allows for debugging.
 
-		logger.Info("export job result error", "error", err, "job", jobName)
+		helpers.Logger.Infow(
+			"export job result error",
+			"error",
+			err,
+			"job",
+			jobName,
+		)
 		return nil, errors.Wrap(err, "failed to open tar file")
 	}
 
-	logger.Info("delete job, done", "job", jobName)
+	helpers.Logger.Infow("delete job, done", "job", jobName)
 
 	err = cluster.DeleteJob(ctx, helmchart.Namespace(), jobName)
 	if err != nil {
-		logger.Info("export job delete error", "error", err, "job", jobName)
+		helpers.Logger.Infow("export job delete error", "error", err, "job", jobName)
 	}
 	return file, errors.Wrapf(err, "error deleting job %s", jobName)
 }
 
-func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
-	yaml, err := helm.Values(cluster, logger, app)
+func fetchAppValues(
+	c *gin.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+) apierror.APIErrors {
+	yaml, err := helm.Values(cluster, app)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -403,7 +472,10 @@ func fetchAppManifest(c *gin.Context, app *models.App) apierror.APIErrors {
 //
 // The advantage of this hack: We get a fetchable url we can feed into the part invoked when the
 // chart was specified as direct url. No going through a temp file.
-func chartArchiveURL(c *models.AppChartFull, restConfig *restclient.Config, logger logr.Logger) (string, error) {
+func chartArchiveURL(
+	c *models.AppChartFull,
+	restConfig *restclient.Config,
+) (string, error) {
 	if c.HelmRepo == "" {
 		return c.HelmChart, nil
 	}
@@ -421,7 +493,7 @@ func chartArchiveURL(c *models.AppChartFull, restConfig *restclient.Config, logg
 	// Set up client and repo, ensures proper directory structure and presence of index file
 	name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(c.HelmRepo)))
 
-	client, err := helm.GetHelmClient(restConfig, logger, "")
+	client, err := helm.GetHelmClient(restConfig, "")
 	if err != nil {
 		return "", err
 	}

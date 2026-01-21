@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"github.com/epinio/epinio/internal/urlcache"
-	"github.com/go-logr/logr"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -28,8 +27,6 @@ func TestEpinio(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "URL Cache Suite")
 }
-
-var logger = logr.Discard()
 
 var _ = BeforeSuite(func() {
 	fmt.Printf("Running tests on node %d\n", GinkgoParallelProcess())

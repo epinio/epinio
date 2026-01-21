@@ -14,34 +14,34 @@ package gitconfig
 import (
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/gin-gonic/gin"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/gin-gonic/gin"
 )
 
 // Match handles the API endpoint /gitconfigmatches/:pattern (GET)
 // It returns a list of all Epinio-controlled git configurations matching the prefix pattern.
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
 	user := requestctx.User(ctx)
-	logger := requestctx.Logger(ctx)
 
-	log.Info("match gitconfigs")
-	defer log.Info("return")
+	helpers.Logger.Infow("match gitconfigs")
+	defer helpers.Logger.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	manager, err := gitbridge.NewManager(logger, cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
+	manager, err := gitbridge.NewManager(cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
 	if err != nil {
 		return apierror.InternalError(err, "creating git configuration manager")
 	}
@@ -50,10 +50,10 @@ func Match(c *gin.Context) apierror.APIErrors {
 
 	gitconfigList = auth.FilterGitconfigResources(user, gitconfigList)
 
-	log.Info("get gitconfig prefix")
+	helpers.Logger.Infow("get gitconfig prefix")
 	prefix := c.Param("pattern")
 
-	log.Info("match prefix", "pattern", prefix)
+	helpers.Logger.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, gitconfig := range gitconfigList {
 		if strings.HasPrefix(gitconfig.ID, prefix) {
@@ -61,7 +61,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	log.Info("deliver matches", "found", matches)
+	helpers.Logger.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.GitconfigsMatchResponse{
 		Names: matches,

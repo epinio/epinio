@@ -17,13 +17,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"syscall"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -257,7 +257,9 @@ func checkCA(address string) (*x509.Certificate, error) {
 
 	defer func() {
 		if err := conn.Close(); err != nil {
-			slog.Error("failed to close connection", "error", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close connection", "error", err)
+			}
 		}
 	}()
 

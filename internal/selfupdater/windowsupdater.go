@@ -15,12 +15,12 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/pkg/errors"
 )
 
@@ -50,7 +50,9 @@ func (u WindowsUpdater) Update(targetVersion string) error {
 
 	defer func() {
 		if err := os.Remove(tmpFile); err != nil {
-			slog.Error("failed to remove temporary file", "error", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to remove temporary file", "error", err)
+			}
 		}
 	}()
 
@@ -67,7 +69,9 @@ func (u WindowsUpdater) Update(targetVersion string) error {
 
 	defer func() {
 		if err := os.RemoveAll(tmpDir); err != nil {
-			slog.Error("failed to remove temporary directory", "error", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to remove temporary directory", "error", err)
+			}
 		}
 	}()
 

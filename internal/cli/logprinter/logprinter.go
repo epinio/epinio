@@ -14,12 +14,10 @@ package logprinter
 
 import (
 	"bytes"
-	"fmt"
 	"hash/fnv"
-	"log/slog"
-	"os"
 	"text/template"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/fatih/color"
 )
@@ -62,7 +60,9 @@ func (printer LogPrinter) Print(log Log, uiMsg *termui.Message) {
 	var result bytes.Buffer
 	err := printer.Tmpl.Execute(&result, log)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "expanding template failed: %s", err)
+		if helpers.Logger != nil {
+			helpers.Logger.Errorw("expanding template failed", "error", err)
+		}
 		return
 	}
 
@@ -73,7 +73,9 @@ func determineColor(podName string) (podColor, containerColor *color.Color) {
 	hash := fnv.New32()
 	_, hashError := hash.Write([]byte(podName))
 	if hashError != nil {
-		slog.Error("error hashing pod name for color determination", "error", hashError)
+		if helpers.Logger != nil {
+			helpers.Logger.Errorw("error hashing pod name for color determination", "error", hashError)
+		}
 	}
 
 	//Don't need to worry about as the pod name is known and the colorList is static

@@ -17,7 +17,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/auth"
 	epiniosettings "github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/dex"
@@ -37,7 +37,7 @@ type Client struct {
 
 // New returns a new Epinio API client
 func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
-	log := tracelog.NewLogger().WithName("EpinioApiClient").V(3)
+	log := helpers.LoggerToLogr().WithName("EpinioApiClient").V(3)
 
 	if settings.Certs != "" {
 		auth.ExtendLocalTrust(settings.Certs)

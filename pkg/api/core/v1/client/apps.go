@@ -16,7 +16,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -33,6 +32,7 @@ import (
 	"k8s.io/client-go/transport"
 	gospdy "k8s.io/client-go/transport/spdy"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -50,7 +50,9 @@ type Upgrader struct {
 func (upgr *Upgrader) NewConnection(resp *http.Response) (httpstream.Connection, error) {
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			slog.Error("failed to close response body", "error", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close response body", "error", err)
+			}
 		}
 	}()
 

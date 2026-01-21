@@ -14,7 +14,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -25,7 +24,6 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
 	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
@@ -132,9 +130,14 @@ var CmdServer = &cobra.Command{
 	Long:  "This command starts the Epinio server. `epinio install` ensures the server is running inside your cluster. Normally you don't need to run this command manually.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-		logger := tracelog.NewLogger().WithName("EpinioServer")
+		// Ensure the centralized logger is initialized (root persistent pre-run normally does this)
+		if helpers.Logger == nil {
+			if err := helpers.InitLogger(); err != nil {
+				return errors.Wrap(err, "initializing logger")
+			}
+		}
 
-		handler, err := server.NewHandler(logger)
+		handler, err := server.NewHandler()
 		if err != nil {
 			return errors.Wrap(err, "error creating handler")
 		}
@@ -145,28 +148,28 @@ var CmdServer = &cobra.Command{
 			return errors.Wrap(err, "error creating listener")
 		}
 
-		helpers.Logger.Info("Epinio version: " + version.Version)
+		helpers.Logger.Infow("Epinio version", "version", version.Version)
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-		helpers.Logger.Info("listening on localhost on port " + listeningPort)
+		helpers.Logger.Infow("listening on localhost", "port", listeningPort)
 
 		trackingDisabled := viper.GetBool("disable-tracking")
 		upgradeResponderAddress := viper.GetString("upgrade-responder-address")
-		helpers.Logger.Info(
-			"Checking upgrade-responder tracking disabled=",
-			trackingDisabled,
-			" upgradeResponderAddress=",
-			upgradeResponderAddress,
+		helpers.Logger.Infow("checking upgrade-responder",
+			"tracking_disabled", trackingDisabled,
+			"upgrade_responder_address", upgradeResponderAddress,
 		)
 
 		if !trackingDisabled {
+			// Convert zap logger to logr.Logger for upgraderesponder (compatibility bridge)
+			logrLogger := helpers.LoggerToLogr().WithName("UpgradeResponder")
 			checker, err := upgraderesponder.NewChecker(
 				context.Background(),
-				logger,
+				logrLogger,
 				upgradeResponderAddress,
 			)
 
 			if err != nil {
-				helpers.Logger.Error(err.Error() + " | error creating listener")
+				helpers.Logger.Errorw("error creating listener", "error", err)
 				return err
 			}
 
@@ -197,24 +200,24 @@ func startServerGracefully(listener net.Listener, handler http.Handler) error {
 	}
 
 	go func() {
-		if err := srv.Serve(listener); err != nil && errors.Is(err, http.ErrServerClosed) {
-			log.Printf("listen: %s\n", err)
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			helpers.Logger.Errorw("server listen error", "error", err)
 		}
 	}()
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	helpers.Logger.Infow("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
+		helpers.Logger.Fatalw("Server forced to shutdown", "error", err)
 		return err
 	}
 
-	log.Println("Server exiting")
+	helpers.Logger.Infow("Server exiting")
 	return nil
 }
