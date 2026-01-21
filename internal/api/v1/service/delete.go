@@ -12,8 +12,6 @@
 package service
 
 import (
-	"strings"
-
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -46,12 +44,6 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	serviceNames, found := c.GetQueryArray("services[]")
 	if !found {
 		serviceNames = append(serviceNames, serviceName)
-	}
-
-	var deleteRequest models.ServiceDeleteRequest
-	err := c.BindJSON(&deleteRequest)
-	if err != nil {
-		return apierror.NewBadRequestError(err.Error())
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -128,18 +120,19 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 	boundAppNames = helpers.UniqueStrings(boundAppNames)
 
-	logger.Infow("bound to", "apps", boundAppNames, "count", len(boundAppNames), "unbind", deleteRequest.Unbind)
+	logger.Infow(
+		"bound to",
+		"apps",
+		boundAppNames,
+		"count",
+		len(boundAppNames),
+	)
 
 	// Verify that the services are unbound. IOW not bound to any application.  If they are, and
 	// automatic unbind was requested, do that.  Without automatic unbind such applications are
 	// reported as error.
 
 	if len(boundAppNames) > 0 {
-		if !deleteRequest.Unbind {
-			return apierror.NewBadRequestError("bound applications exist").
-				WithDetails(strings.Join(boundAppNames, ","))
-		}
-
 		logger.Infow("app/configuration linkage", "map", appConfigurationsMap)
 
 		// Unbind all the services' configurations from the found applications.  Using the
@@ -157,8 +150,15 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			for serviceName, serviceConfigurations := range infoMap {
 				logger.Infow("unbinding of", "app", appName, "service", serviceName)
 
-				apiErr := UnbindService(ctx, cluster, namespace, serviceName,
-					appName, username, serviceConfigurations)
+				apiErr := UnbindService(
+					ctx,
+					cluster,
+					namespace,
+					serviceName,
+					appName,
+					username,
+					serviceConfigurations,
+				)
 				if apiErr != nil {
 					return apiErr
 				}
