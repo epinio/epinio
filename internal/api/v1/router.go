@@ -18,8 +18,7 @@ import (
 	"reflect"
 	"runtime"
 
-	"github.com/gin-gonic/gin"
-
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/internal/api/v1/appchart"
 	"github.com/epinio/epinio/internal/api/v1/application"
@@ -33,7 +32,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
 	"github.com/epinio/epinio/internal/auth"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/gin-gonic/gin"
+
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
@@ -61,7 +61,7 @@ func funcName(i interface{}) string {
 func errorHandler(action APIActionFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if errors := action(c); errors != nil {
-			requestctx.Logger(c.Request.Context()).Infow(
+			helpers.Logger.Infow(
 				"responding with json error response",
 				"action", funcName(action),
 				"errors", errors,

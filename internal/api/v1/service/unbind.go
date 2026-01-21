@@ -14,6 +14,7 @@ package service
 import (
 	"context"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -21,7 +22,6 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -32,7 +32,7 @@ import (
 // It removes the binding between the specified service and application
 func Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).With("component", "ServiceUnbind")
+	logger := helpers.Logger.With("component", "ServiceUnbind")
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
@@ -58,12 +58,12 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(bindRequest.AppName)
 	}
 
-	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr
 	}
 
-	apiErr = ValidateService(ctx, cluster, logger, service)
+	apiErr = ValidateService(ctx, cluster, service)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -82,7 +82,7 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 
 	logger.Infow("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
 
-	apiErr = UnbindService(ctx, cluster, logger, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
+	apiErr = UnbindService(ctx, cluster, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -92,11 +92,12 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 }
 
 func UnbindService(
-	ctx context.Context, cluster *kubernetes.Cluster, logger *zap.SugaredLogger,
+	ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, serviceName, appName, userName string,
 	serviceConfigurations []v1.Secret,
 ) apierror.APIErrors {
-	logger.Info("unbinding service configurations", "service", serviceName, "app", appName, "count", len(serviceConfigurations))
+	logger := helpers.Logger.With("component", "ServiceUnbind")
+	logger.Infow("unbinding service configurations", "service", serviceName, "app", appName, "count", len(serviceConfigurations))
 
 	// Collect all configuration names to unbind them in a single operation
 	// This triggers only ONE Helm deployment instead of N deployments (one per configuration)
@@ -105,7 +106,7 @@ func UnbindService(
 		configurationNames = append(configurationNames, secret.Name)
 	}
 
-	logger.Info("unbinding configurations in batch", "configurations", configurationNames)
+	logger.Infow("unbinding configurations in batch", "configurations", configurationNames)
 
 	// Call DeleteBinding ONCE with all configuration names
 	// This is the key optimization: 1 helm upgrade instead of N

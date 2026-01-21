@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"github.com/epinio/epinio/internal/urlcache"
-	"go.uber.org/zap"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -27,13 +26,6 @@ import (
 func TestEpinio(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "URL Cache Suite")
-}
-
-var logger *zap.SugaredLogger
-
-func init() {
-	// Create a no-op zap logger for tests
-	logger = zap.NewNop().Sugar()
 }
 
 var _ = BeforeSuite(func() {

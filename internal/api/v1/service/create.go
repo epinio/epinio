@@ -15,14 +15,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -32,7 +31,6 @@ import (
 func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
-	logger := requestctx.Logger(ctx).With("component", "ServiceCreate")
 
 	var createRequest models.ServiceCreateRequest
 	err := c.BindJSON(&createRequest)
@@ -86,12 +84,12 @@ func Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Now we can (attempt to) create the desired service
-		err = kubeServiceClient.Create(ctx, namespace, createRequest.Name,
+	err = kubeServiceClient.Create(ctx, namespace, createRequest.Name,
 		createRequest.Wait,
 		createRequest.Settings,
 		catalogService,
 		func(ctx context.Context) error {
-			return WhenFullyDeployed(ctx, cluster, logger, namespace, createRequest.Name)
+			return WhenFullyDeployed(ctx, cluster, namespace, createRequest.Name)
 		})
 	if err != nil {
 		return apierror.InternalError(err)
@@ -103,7 +101,8 @@ func Create(c *gin.Context) apierror.APIErrors {
 
 // WhenFullyDeployed is invoked when the helm chart for a service is deployed and running. At that
 // point the secrets created by the service can be published as Epinio configurations.
-func WhenFullyDeployed(ctx context.Context, cluster *kubernetes.Cluster, logger *zap.SugaredLogger, namespace, name string) error {
+func WhenFullyDeployed(ctx context.Context, cluster *kubernetes.Cluster, namespace, name string) error {
+	logger := helpers.Logger.With("component", "serviceDeploy")
 	logger.Infow("when fully deployed entry")
 
 	// Called when the service is fully deployed. The context is provided as an argument
@@ -114,14 +113,14 @@ func WhenFullyDeployed(ctx context.Context, cluster *kubernetes.Cluster, logger 
 	// Epinio configurations.
 
 	logger.Infow("when fully deployed get service")
-	service, apiErr := GetService(ctx, cluster, logger, namespace, name)
+	service, apiErr := GetService(ctx, cluster, namespace, name)
 	if apiErr != nil {
 		x := apiErr.(apierror.APIError)
 		return fmt.Errorf("%s: %s", x.Title, x.Details)
 	}
 
 	logger.Infow("when fully deployed validate service")
-	apiErr = ValidateService(ctx, cluster, logger, service)
+	apiErr = ValidateService(ctx, cluster, service)
 	if apiErr != nil {
 		x := apiErr.(apierror.APIError)
 		return fmt.Errorf("%s: %s", x.Title, x.Details)

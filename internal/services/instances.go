@@ -24,7 +24,6 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/retry"
@@ -94,14 +93,12 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		InternalRoutes:        internalRoutes,
 	}
 
-	logger := helpers.Logger.With("component", "ServiceStatus")
-
 	var settings map[string]models.ChartSetting
 	if catalogEntry != nil {
 		settings = catalogEntry.Settings
 	}
 
-	err = setServiceStatusAndCustomValues(&service, srv, ctx, logger, s.kubeClient,
+	err = setServiceStatusAndCustomValues(&service, srv, ctx, s.kubeClient,
 		namespace, names.ServiceReleaseName(name), settings)
 
 	return &service, err
@@ -194,7 +191,6 @@ func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) erro
 	service := serviceResourceName(name)
 
 	err := helm.RemoveService(
-		helpers.Logger.With("component", "helm-remove-service"),
 		s.kubeClient,
 		models.NewAppRef(name, namespace),
 	)
@@ -244,7 +240,7 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, namespace string) error {
 		// Inlined Delete() ... Avoids back and forth conversion between service and secret names
 		service := srv.GetLabels()[ServiceNameLabelKey]
 
-		err = helm.RemoveService(helpers.Logger.With("component", "helm-remove-service"),
+		err = helm.RemoveService(
 			s.kubeClient,
 			models.NewAppRef(service, srv.Namespace))
 		if err != nil {
@@ -325,10 +321,8 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 			CatalogServiceVersion: srv.GetLabels()[CatalogServiceVersionLabelKey],
 		}
 
-		logger := helpers.Logger.With("component", "ServiceStatus")
-
 		theServiceSecret := srv
-		err = setServiceStatusAndCustomValues(&service, &theServiceSecret, ctx, logger, s.kubeClient,
+		err = setServiceStatusAndCustomValues(&service, &theServiceSecret, ctx, s.kubeClient,
 			srv.Namespace, names.ServiceReleaseName(serviceName),
 			nil, // no settings information - TODO
 		)
@@ -598,11 +592,11 @@ func getEpinioValues(serviceName, catalogServiceName string) (string, error) {
 
 func setServiceStatusAndCustomValues(service *models.Service,
 	serviceSecret *corev1.Secret,
-	ctx context.Context, logger *zap.SugaredLogger, cluster *kubernetes.Cluster,
+	ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, releaseName string,
 	settings map[string]models.ChartSetting,
 ) error {
-	serviceRelease, err := helm.Release(ctx, logger, cluster, namespace, releaseName)
+	serviceRelease, err := helm.Release(ctx, cluster, namespace, releaseName)
 
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
@@ -614,7 +608,7 @@ func setServiceStatusAndCustomValues(service *models.Service,
 
 	service.Status = models.ServiceStatusUnknown
 
-	serviceStatus, err := helm.Status(ctx, logger, cluster, serviceRelease)
+	serviceStatus, err := helm.Status(ctx, cluster, serviceRelease)
 	if err != nil {
 		return errors.Wrap(err, "calculating helm release status")
 	}

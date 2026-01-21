@@ -494,19 +494,19 @@ func Delete(
 	if deleteImage {
 		appCR, err := Get(ctx, cluster, appRef)
 		if err != nil {
-			log.Error(err, "Failed to get application to retrieve image URL, skipping image deletion", "app", appRef.Name)
+			log.Errorw("Failed to get application to retrieve image URL, skipping image deletion", "error", err, "app", appRef.Name)
 		} else {
 			imageURL, err = ImageURL(appCR)
 			if err != nil {
-				log.Error(err, "Failed to get image URL from application, skipping image deletion", "app", appRef.Name)
+				log.Errorw("Failed to get image URL from application, skipping image deletion", "error", err, "app", appRef.Name)
 			} else if imageURL == "" {
-				log.Info("No image URL found in application, skipping image deletion", "app", appRef.Name)
+				log.Infow("No image URL found in application, skipping image deletion", "app", appRef.Name)
 			}
 		}
 	}
 
 	// Ignore `not found` errors - App exists, without workload.
-	err = helm.Remove(cluster, log, appRef)
+	err = helm.Remove(cluster, appRef)
 	if err != nil && !strings.Contains(err.Error(), "release: not found") {
 		return err
 	}
@@ -531,7 +531,7 @@ func Delete(
 		err = deleteContainerImage(ctx, cluster, imageURL)
 		if err != nil {
 			// Log the error but don't fail the deletion - the app is already deleted
-			log.Error(err, "Failed to delete container image from registry", "image", imageURL)
+			log.Errorw("Failed to delete container image from registry", "error", err, "image", imageURL)
 		}
 	}
 

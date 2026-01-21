@@ -95,7 +95,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"go.uber.org/zap"
 )
 
 // ImportGit handles the API endpoint /namespaces/:namespace/applications/:app/import-git.
@@ -103,7 +102,7 @@ import (
 // of the repo and puts it on S3.
 func ImportGit(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -121,7 +120,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get access to a kube client")
 	}
 
-	gitManager, err := gitbridge.NewManager(log, cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
+	gitManager, err := gitbridge.NewManager(cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
 	if err != nil {
 		return apierror.InternalError(err, "creating git configuration manager")
 	}
@@ -149,7 +148,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	}
 
 	// clone/fetch/checkout
-	ref, err := checkoutRepository(ctx, log, gitRepo, giturl, revision, gitConfig)
+	ref, err := checkoutRepository(ctx, gitRepo, giturl, revision, gitConfig)
 	if err != nil {
 		errMsg := fmt.Sprintf("cloning the git repository: %s @ %s", giturl, revision)
 		return apierror.InternalError(err, errMsg)
@@ -225,7 +224,8 @@ var (
 
 // checkoutRepository will clone the repository and it will checkout the revision
 // It will also try to find the matching branch/reference, and if found this will be returned
-func checkoutRepository(ctx context.Context, log *zap.SugaredLogger, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
+func checkoutRepository(ctx context.Context, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
+	log := helpers.Logger
 	cloneOptions := git.CloneOptions{URL: url}
 	cloneOptions = loadCloneOptions(cloneOptions, gitconfig)
 

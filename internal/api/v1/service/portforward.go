@@ -15,19 +15,20 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/proxy"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 var upgrader = websocket.Upgrader{} // use default option
 
 func PortForward(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).With("component", "PortForward")
+	logger := helpers.Logger.With("component", "PortForward")
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
 
@@ -36,7 +37,7 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr
 	}

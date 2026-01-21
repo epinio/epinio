@@ -136,10 +136,8 @@ var CmdServer = &cobra.Command{
 				return errors.Wrap(err, "initializing logger")
 			}
 		}
-		// Use centralized zap logger
-		logger := helpers.Logger.With("component", "EpinioServer")
 
-		handler, err := server.NewHandler(logger)
+		handler, err := server.NewHandler()
 		if err != nil {
 			return errors.Wrap(err, "error creating handler")
 		}

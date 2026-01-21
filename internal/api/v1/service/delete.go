@@ -21,10 +21,10 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/services"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -33,7 +33,7 @@ import (
 // It deletes the named service
 func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).With("component", "ServiceDelete")
+	logger := helpers.Logger.With("component", "ServiceDelete")
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
@@ -68,7 +68,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		// partially created services, i.e. those whose deployment was interupted after
 		// creation of the main structure, before the creation of the helm release.
 
-		service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+		service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 		if apiErr != nil {
 			return apiErr
 		}
@@ -157,7 +157,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			for serviceName, serviceConfigurations := range infoMap {
 				logger.Infow("unbinding of", "app", appName, "service", serviceName)
 
-				apiErr := UnbindService(ctx, cluster, logger, namespace, serviceName,
+				apiErr := UnbindService(ctx, cluster, namespace, serviceName,
 					appName, username, serviceConfigurations)
 				if apiErr != nil {
 					return apiErr
@@ -178,7 +178,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				return apierror.NewNotFoundError(
-					"service", 
+					"service",
 					serviceName,
 				).WithDetailsf("Not found error: %s", err.Error())
 			}

@@ -15,10 +15,12 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
+
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 func Recovery(c *gin.Context) {
@@ -27,7 +29,7 @@ func Recovery(c *gin.Context) {
 	gin.CustomRecoveryWithWriter(stackWriter, func(c *gin.Context, anyerr any) {
 		ctx := c.Request.Context()
 		reqID := requestctx.ID(ctx)
-		logger := requestctx.Logger(ctx).With("component", "RecoveryMiddleware")
+		logger := helpers.Logger.With("component", "RecoveryMiddleware")
 
 		err, ok := anyerr.(error)
 		if !ok {

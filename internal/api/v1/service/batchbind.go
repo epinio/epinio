@@ -12,11 +12,11 @@
 package service
 
 import (
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/gin-gonic/gin"
 
@@ -28,7 +28,7 @@ import (
 // It creates bindings between multiple services and the specified application in a single operation
 func BatchBind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).With("component", "ServiceBatchBind")
+	logger := helpers.Logger.With("component", "ServiceBatchBind")
 
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
@@ -65,12 +65,12 @@ func BatchBind(c *gin.Context) apierror.APIErrors {
 	for _, serviceName := range bindRequest.ServiceNames {
 		logger.Infow("validating service", "service", serviceName)
 
-		service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+		service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 		if apiErr != nil {
 			return apiErr
 		}
 
-		apiErr = ValidateService(ctx, cluster, logger, service)
+		apiErr = ValidateService(ctx, cluster, service)
 		if apiErr != nil {
 			return apiErr
 		}
@@ -118,4 +118,3 @@ func BatchBind(c *gin.Context) apierror.APIErrors {
 	response.OK(c)
 	return nil
 }
-

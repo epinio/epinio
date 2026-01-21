@@ -20,18 +20,17 @@ import (
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/gin-gonic/gin"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 // Create handles the API endpoint /gitconfigs (POST).
 // It creates a gitconfig with the specified name.
 func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx)
 	user := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -39,7 +38,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	authService := auth.NewAuthService(logger, cluster)
+	authService := auth.NewAuthService(cluster)
 
 	var request models.GitconfigCreateRequest
 	err = c.BindJSON(&request)
@@ -56,7 +55,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestErrorf("Git configurations' name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
 	}
 
-	manager, err := gitbridge.NewManager(logger, cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
+	manager, err := gitbridge.NewManager(cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
 	if err != nil {
 		return apierror.InternalError(err, "creating git configuration manager")
 	}

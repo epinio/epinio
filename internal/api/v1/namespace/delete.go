@@ -21,18 +21,16 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
+	"github.com/gin-gonic/gin"
+	ants "github.com/panjf2000/ants/v2"
+	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
-
-	ants "github.com/panjf2000/ants/v2"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Delete handles the API endpoint /namespaces/:namespace (DELETE).
@@ -40,7 +38,6 @@ import (
 // This includes all the applications and configurations in it.
 func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx)
 	namespaceName := c.Param("namespace")
 
 	var namespaceNames []string
@@ -54,7 +51,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	authService := auth.NewAuthService(logger, cluster)
+	authService := auth.NewAuthService(cluster)
 
 	for _, namespace := range namespaceNames {
 		err = deleteApps(ctx, cluster, namespace)

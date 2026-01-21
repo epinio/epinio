@@ -19,7 +19,6 @@ import (
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 func EpinioVersion(ctx *gin.Context) {
@@ -27,21 +26,19 @@ func EpinioVersion(ctx *gin.Context) {
 }
 
 // InitContext initialize the Request Context injecting the logger and the requestID
-func InitContext(baseLogger *zap.SugaredLogger) gin.HandlerFunc {
+func InitContext() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		reqCtx := ctx.Request.Context()
 
 		requestID := uuid.NewString()
-		requestLogger := baseLogger.With("requestId", requestID)
 
 		reqCtx = requestctx.WithID(reqCtx, requestID)
-		reqCtx = requestctx.WithLogger(reqCtx, requestLogger)
 		ctx.Request = ctx.Request.WithContext(reqCtx)
 	}
 }
 
 // GinLogger returns a gin middleware that logs HTTP requests using zap
-func GinLogger(logger *zap.SugaredLogger) gin.HandlerFunc {
+func GinLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
@@ -73,13 +70,7 @@ func GinLogger(logger *zap.SugaredLogger) gin.HandlerFunc {
 			logFields = append(logFields, "error", errorMessage)
 		}
 
-		// Get request logger from context if available
-		reqLogger := requestctx.Logger(c.Request.Context())
-		if reqLogger != nil {
-			reqLogger = reqLogger.With(logFields...)
-		} else {
-			reqLogger = logger.With(logFields...)
-		}
+		reqLogger := requestctx.Logger(c.Request.Context()).With(logFields...)
 
 		switch {
 		case statusCode >= 500:

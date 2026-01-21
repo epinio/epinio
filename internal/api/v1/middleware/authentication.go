@@ -16,24 +16,22 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/dex"
 	"github.com/epinio/epinio/internal/helmchart"
-	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // Authentication middleware authenticates the user either using the basic auth or the bearer token (OIDC)
 func Authentication(ctx *gin.Context) {
-	reqCtx := ctx.Request.Context()
-	logger := requestctx.Logger(reqCtx).With("component", "Authentication")
-
 	// we need this check to return a 401 instead of an error
 	authorizationHeader := ctx.Request.Header.Get("Authorization")
 	if authorizationHeader == "" {
@@ -42,7 +40,7 @@ func Authentication(ctx *gin.Context) {
 		return
 	}
 
-	authService, err := auth.NewAuthServiceFromContext(ctx, logger)
+	authService, err := auth.NewAuthServiceFromContext(ctx)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err, "couldn't create auth service from context"))
 		ctx.Abort()
@@ -53,7 +51,7 @@ func Authentication(ctx *gin.Context) {
 	var authError apierrors.APIErrors
 
 	if strings.HasPrefix(authorizationHeader, "Basic ") {
-		user, authError = basicAuthentication(ctx, logger, authService)
+		user, authError = basicAuthentication(ctx, authService)
 	} else if strings.HasPrefix(authorizationHeader, "Bearer ") {
 		user, authError = oidcAuthentication(ctx)
 	} else {
@@ -66,7 +64,7 @@ func Authentication(ctx *gin.Context) {
 		return
 	}
 
-	updatedUser, needsUpdate := auth.IsUpdateUserNeeded(logger, user)
+	updatedUser, needsUpdate := auth.IsUpdateUserNeeded(user)
 	if needsUpdate {
 		user, err = authService.UpdateUser(ctx, updatedUser)
 		if err != nil {
@@ -84,8 +82,8 @@ func Authentication(ctx *gin.Context) {
 }
 
 // basicAuthentication performs the Basic Authentication
-func basicAuthentication(ctx *gin.Context, logger *zap.SugaredLogger, authService *auth.AuthService) (auth.User, apierrors.APIErrors) {
-	logger = logger.With("component", "basicAuthentication")
+func basicAuthentication(ctx *gin.Context, authService *auth.AuthService) (auth.User, apierrors.APIErrors) {
+	logger := helpers.Logger.With("component", "basicAuthentication")
 	logger.Debugw("starting Basic Authentication")
 
 	// Bail early if the request has no proper credentials embedded into it.
@@ -122,8 +120,7 @@ func basicAuthentication(ctx *gin.Context, logger *zap.SugaredLogger, authServic
 
 // oidcAuthentication perform the OIDC authentication with dex
 func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
-	reqCtx := ctx.Request.Context()
-	logger := requestctx.Logger(reqCtx).With("component", "oidcAuthentication")
+	logger := helpers.Logger.With("component", "oidcAuthentication")
 	logger.Debugw("starting OIDC Authentication")
 
 	oidcProvider, err := getOIDCProvider(ctx)
@@ -150,9 +147,9 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 		return auth.User{}, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized)
 	}
 
-	roles := getRolesFromProviderGroups(logger, oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
+	roles := getRolesFromProviderGroups(oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
 
-	user, err := getOrCreateUserByEmail(ctx, logger, claims.Email, roles)
+	user, err := getOrCreateUserByEmail(ctx, claims.Email, roles)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err, "getting/creating user with email")
 	}
@@ -194,7 +191,8 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 }
 
 // getRolesFromProviderGroups returns the user roles, looking for it in the groups defined for the provider.
-func getRolesFromProviderGroups(logger *zap.SugaredLogger, oidcProvider *dex.OIDCProvider, providerID string, groups []string) auth.Roles {
+func getRolesFromProviderGroups(oidcProvider *dex.OIDCProvider, providerID string, groups []string) auth.Roles {
+	logger := helpers.Logger.With("component", "oidcGroupRoles")
 	roles := auth.Roles{}
 
 	pg, err := oidcProvider.GetProviderGroups(providerID)
@@ -241,11 +239,11 @@ func getRolesFromProviderGroups(logger *zap.SugaredLogger, oidcProvider *dex.OID
 // or updated with the default role. The only exception to this behavior is if the user already exists and
 // it had already some roles defined, maybe manually assigned.
 // We don't want to clear/delete existing roles if no groups were provided.
-func getOrCreateUserByEmail(ctx context.Context, logger *zap.SugaredLogger, email string, userRoles auth.Roles) (auth.User, error) {
+func getOrCreateUserByEmail(ctx context.Context, email string, userRoles auth.Roles) (auth.User, error) {
 	user := auth.User{}
 	var err error
 
-	authService, err := auth.NewAuthServiceFromContext(ctx, logger)
+	authService, err := auth.NewAuthServiceFromContext(ctx)
 	if err != nil {
 		return user, errors.Wrap(err, "couldn't create auth service from context")
 	}

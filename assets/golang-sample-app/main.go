@@ -13,9 +13,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
+
+	"go.uber.org/zap"
 )
 
 const INDEX = `<!DOCTYPE html>
@@ -34,7 +35,16 @@ func main() {
 	})
 
 	// Note: This is a standalone sample app, not part of the Epinio CLI codebase.
-	// It uses the standard log package rather than helpers.Logger since it's a
-	// simple example application that may be used independently.
-	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
+	// It uses a standalone zap logger since it runs independently.
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = logger.Sync()
+	}()
+
+	if err := http.ListenAndServe(":"+os.Getenv("PORT"), nil); err != nil {
+		logger.Fatal("server failed", zap.Error(err))
+	}
 }

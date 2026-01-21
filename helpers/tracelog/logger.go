@@ -15,12 +15,9 @@ package tracelog
 
 import (
 	"fmt"
-	"log"
-	"os"
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/go-logr/logr"
-	"github.com/go-logr/stdr"
 	"github.com/go-logr/zapr"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -77,34 +74,14 @@ func NewLogger() logr.Logger {
 	if helpers.Logger != nil {
 		return helpers.LoggerToLogr()
 	}
-	
-	// Fallback to legacy tracelog configuration
-	if TraceOutput() == "json" {
-		return NewZapLogger()
-	}
-	return NewStdrLogger()
+
+	return NewZapLogger()
 }
 
 // NewStdrLogger returns a stdr logger
 func NewStdrLogger() logr.Logger {
-	// Use centralized Zap logger if available
-	if helpers.Logger != nil {
-		return helpers.LoggerToLogr()
-	}
-	
-	// Fallback to stdr logger only if centralized logger is not available
-	destination := os.Stderr
-	traceFilePath := TraceFile()
-	if traceFilePath != "" {
-    //TODO ensure we arent logging sensitive data here
-		dst, err := os.OpenFile(traceFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //nolint:gosec
-		if err != nil {
-			panic(fmt.Sprintf("Unable to create log file %s: %v", traceFilePath, err))
-		}
-		destination = dst
-	}
-
-	return stdr.New(log.New(destination, "", log.LstdFlags)).V(1) // NOTE: Increment of level, not absolute.
+	// Zap-only logging; keep the function for compatibility.
+	return NewZapLogger()
 }
 
 // NewZapLogger creates a new zap logger with our setup. It only prints messages below
@@ -119,9 +96,9 @@ func NewZapLogger() logr.Logger {
 	if helpers.Logger != nil {
 		return helpers.LoggerToLogr()
 	}
-	
-	// Fallback to creating a new zap logger only if centralized logger is not available
-	var logger logr.Logger
+
+	// Create a zap logger only if centralized logger is not available
+	var cfg zap.Config
 
 	level := TraceLevel()
 	// Prevent wrap around in zap internals
@@ -129,21 +106,25 @@ func NewZapLogger() logr.Logger {
 		level = 128
 	}
 
-	zc := zap.NewProductionConfig()
-	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(level * -1)) //nolint:gosec
+	if TraceOutput() == "json" {
+		cfg = zap.NewProductionConfig()
+	} else {
+		cfg = zap.NewDevelopmentConfig()
+		cfg.Encoding = "console"
+	}
+
+	cfg.Level = zap.NewAtomicLevelAt(zapcore.Level(level * -1)) //nolint:gosec
 
 	traceFilePath := TraceFile()
 	if traceFilePath != "" {
-		zc.OutputPaths = []string{traceFilePath}
+		//TODO ensure we arent logging sensitive data here
+		cfg.OutputPaths = []string{traceFilePath}
 	}
 
-	z, err := zc.Build()
+	z, err := cfg.Build()
 	if err != nil {
-		logger = NewStdrLogger()
-		logger.Error(err, "error building zap config, using stdr logger as fallback")
-	} else {
-		logger = zapr.NewLogger(z)
+		return logr.Discard()
 	}
 
-	return logger
+	return zapr.NewLogger(z)
 }

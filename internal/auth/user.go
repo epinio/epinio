@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
-	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,7 +150,8 @@ func filterRolesByNamespace(roles Roles, namespace string) Roles {
 // newUserFromSecret create an Epinio User from a Secret
 // this is an internal function that should not be used from the outside.
 // It could contain internals details on how create a user from a secret.
-func newUserFromSecret(logger *zap.SugaredLogger, secret corev1.Secret) User {
+func newUserFromSecret(secret corev1.Secret) User {
+	logger := helpers.Logger.With("component", "userFromSecret")
 	user := User{
 		Username:   string(secret.Data["username"]),
 		Password:   string(secret.Data["password"]),
@@ -272,7 +273,8 @@ func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 }
 
 // IsUpdateUserNeeded returns whenever a user needs to be updated, and the user with the updated information
-func IsUpdateUserNeeded(logger *zap.SugaredLogger, user User) (User, bool) {
+func IsUpdateUserNeeded(user User) (User, bool) {
+	logger := helpers.Logger.With("component", "userUpdateCheck")
 	var updateNeeded bool
 
 	newRoles, needsUpdate := isUpdateUserRoleNeeded(user.roleIDs, user.Roles.IDs())

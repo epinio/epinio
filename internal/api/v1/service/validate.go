@@ -14,12 +14,12 @@ package service
 import (
 	"context"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -31,9 +31,10 @@ import (
 
 // GetService will find the service with the provided namespace and name
 func GetService(
-	ctx context.Context, cluster *kubernetes.Cluster, logger *zap.SugaredLogger,
+	ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, serviceName string,
 ) (*models.Service, apierror.APIErrors) {
+	logger := helpers.Logger.With("component", "serviceLookup")
 
 	logger.Infow("get service client")
 
@@ -64,13 +65,14 @@ func GetService(
 // ValidateService is used by various service endpoints to verify that the service exists,
 // as well as its helm release, before action is taken.
 func ValidateService(
-	ctx context.Context, cluster *kubernetes.Cluster, logger *zap.SugaredLogger,
+	ctx context.Context, cluster *kubernetes.Cluster,
 	service *models.Service,
 ) apierror.APIErrors {
+	logger := helpers.Logger.With("component", "serviceValidate")
 
 	logger.Infow("getting helm client")
 
-	client, err := helm.GetHelmClient(cluster.RestConfig, logger, service.Namespace())
+	client, err := helm.GetHelmClient(cluster.RestConfig, service.Namespace())
 	if err != nil {
 		return apierror.InternalError(err)
 	}

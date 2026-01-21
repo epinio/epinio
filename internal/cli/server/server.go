@@ -31,11 +31,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 // NewHandler creates and setup the gin router
-func NewHandler(logger *zap.SugaredLogger) (*gin.Engine, error) {
+func NewHandler() (*gin.Engine, error) {
 	rolesInitialized := false
 
 	// Disable gin's default logger - we use zap logger via middleware.GinLogger
@@ -94,9 +93,9 @@ func NewHandler(logger *zap.SugaredLogger) (*gin.Engine, error) {
 
 	// Add common middlewares to all the routes declared after
 	router.Use(
-		middleware.GinLogger(logger),
+		middleware.GinLogger(),
 		middleware.Recovery,
-		middleware.InitContext(logger),
+		middleware.InitContext(),
 	)
 
 	// No authentication, no session. This is epinio's version and auth information.
@@ -157,7 +156,7 @@ func NewHandler(logger *zap.SugaredLogger) (*gin.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	authservice := auth.NewAuthService(logger, cluster)
+	authservice := auth.NewAuthService(cluster)
 
 	if err := apiv1.InitAuthAndRoles(authservice); err != nil {
 		return nil, errors.Wrap(err, "initializing authentication")

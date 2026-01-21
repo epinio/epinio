@@ -18,20 +18,20 @@ import (
 	"sort"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
+	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/pkg/errors"
 )
 
 // DeployApp deploys the referenced application via helm, based on the state held by CRD and associated secrets.
@@ -47,7 +47,7 @@ func DeployAppWithRestart(ctx context.Context, cluster *kubernetes.Cluster, app 
 }
 
 func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, restart bool) ([]string, apierror.APIErrors) {
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	appObj, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
 	if err != nil {
@@ -154,7 +154,7 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		return nil, apierror.InternalError(err, "preparing ImageURL registry for use by Kubernetes", imageURL)
 	}
 
-	err = helm.Deploy(log, deployParams)
+	err = helm.Deploy(deployParams)
 	if err != nil {
 		return nil, apierror.InternalError(err)
 	}

@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -42,23 +42,21 @@ var (
 type DefinitionCount map[string]int
 
 type AuthService struct {
-	Logger *zap.SugaredLogger
 	typedcorev1.SecretInterface
 	typedcorev1.ConfigMapInterface
 }
 
-func NewAuthServiceFromContext(ctx context.Context, logger *zap.SugaredLogger) (*AuthService, error) {
+func NewAuthServiceFromContext(ctx context.Context) (*AuthService, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting kubernetes cluster")
 	}
 
-	return NewAuthService(logger, cluster), nil
+	return NewAuthService(cluster), nil
 }
 
-func NewAuthService(logger *zap.SugaredLogger, cluster *kubernetes.Cluster) *AuthService {
+func NewAuthService(cluster *kubernetes.Cluster) *AuthService {
 	return &AuthService{
-		Logger:             logger.With("component", "AuthService"),
 		SecretInterface:    cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
 		ConfigMapInterface: cluster.Kubectl.CoreV1().ConfigMaps(helmchart.Namespace()),
 	}
@@ -68,7 +66,8 @@ func NewAuthService(logger *zap.SugaredLogger, cluster *kubernetes.Cluster) *Aut
 // of definition counts enabling the caller to distinguish between `truly does not exist` versus
 // `has conflicting definitions`.
 func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, error) {
-	s.Logger.Debugw("GetUsers")
+	logger := helpers.Logger.With("component", "AuthService")
+	logger.Debugw("GetUsers")
 
 	secrets, err := s.getUsersSecrets(ctx)
 	if err != nil {
@@ -80,7 +79,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, er
 	userCount := DefinitionCount{}
 
 	for _, secret := range secrets {
-		user := newUserFromSecret(s.Logger, secret)
+		user := newUserFromSecret(secret)
 		allUsers = append(allUsers, user)
 		userCount[user.Username] = userCount[user.Username] + 1
 	}
@@ -91,7 +90,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, er
 
 	for _, user := range allUsers {
 		if userCount[user.Username] > 1 {
-			s.Logger.Debugw("skip duplicate user", "user", user.Username)
+			logger.Debugw("skip duplicate user", "user", user.Username)
 			continue
 		}
 
@@ -99,7 +98,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, er
 		users = append(users, user)
 	}
 
-	s.Logger.Debugw("found users", "count", len(users), "users", strings.Join(usernames, ","))
+	logger.Debugw("found users", "count", len(users), "users", strings.Join(usernames, ","))
 
 	// return the good users, and the map of definition counts, enablign the caller to
 	// distinguish actual missing users from users weeded out because of conflicting
@@ -109,7 +108,8 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, DefinitionCount, er
 }
 
 func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
-	s.Logger.Debugw("GetRoles")
+	logger := helpers.Logger.With("component", "AuthService")
+	logger.Debugw("GetRoles")
 
 	roleConfigs, err := s.getRolesConfigMaps(ctx)
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
 	}
 
 	roleIDs := strings.Join(epinioRoles.IDs(), ",")
-	s.Logger.Debugw("found roles", "count", len(epinioRoles), "roles", roleIDs)
+	logger.Debugw("found roles", "count", len(epinioRoles), "roles", roleIDs)
 
 	return epinioRoles, nil
 }
@@ -135,7 +135,8 @@ func (s *AuthService) GetRoles(ctx context.Context) (Roles, error) {
 // GetUserByUsername returns the user with the provided username
 // It will return a UserNotFound error if the user is not found
 func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (User, error) {
-	s.Logger.Debugw("GetUserByUsername", "username", username)
+	logger := helpers.Logger.With("component", "AuthService")
+	logger.Debugw("GetUserByUsername", "username", username)
 
 	users, counts, err := s.GetUsers(ctx)
 	if err != nil {
@@ -153,19 +154,20 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 
 	count, ok := counts[username]
 	if ok && (count > 1) {
-		s.Logger.Debugw("user defined multiple times", "user", username, "count", count)
+		logger.Debugw("user defined multiple times", "user", username, "count", count)
 
 		return User{}, ErrUsernameConflict
 	}
 
-	s.Logger.Debugw("user not found")
+	logger.Debugw("user not found")
 
 	return User{}, ErrUserNotFound
 }
 
 // SaveUser will save the user
 func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
-	s.Logger.Debugw("SaveUser", "username", user.Username)
+	logger := helpers.Logger.With("component", "AuthService")
+	logger.Debugw("SaveUser", "username", user.Username)
 
 	userSecret := newSecretFromUser(user)
 
@@ -174,14 +176,15 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 		return User{}, err
 	}
 
-	s.Logger.Debugw("user saved")
+	logger.Debugw("user saved")
 
-	return newUserFromSecret(s.Logger, *createdUserSecret), nil
+	return newUserFromSecret(*createdUserSecret), nil
 }
 
 // UpdateUser will update an existing user
 func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
-	s.Logger.Debugw("UpdateUser", "username", user.Username)
+	logger := helpers.Logger.With("component", "AuthService")
+	logger.Debugw("UpdateUser", "username", user.Username)
 
 	userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 	if err != nil {
@@ -193,16 +196,17 @@ func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
 	if err != nil {
 		return User{}, errors.Wrapf(err, "error updating user [%s]", user.Username)
 	}
-	updatedUser := newUserFromSecret(s.Logger, *updatedUserSecret)
+	updatedUser := newUserFromSecret(*updatedUserSecret)
 
-	s.Logger.Debugw("user updated")
+	logger.Debugw("user updated")
 
 	return updatedUser, nil
 }
 
 // RemoveNamespaceFromUsers will remove the specified namespace from all users
 func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace string) error {
-	s.Logger.Debugw("RemoveNamespaceFromUsers", "namespace", namespace)
+	logger := helpers.Logger.With("component", "AuthService")
+	logger.Debugw("RemoveNamespaceFromUsers", "namespace", namespace)
 
 	users, _, err := s.GetUsers(ctx)
 	if err != nil {
@@ -219,7 +223,7 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 
 		_, err = s.UpdateUser(ctx, user)
 		if err != nil {
-			s.Logger.Debugw("error removing namespace from user", "error", err, "namespace", namespace, "user", user.Username)
+			logger.Debugw("error removing namespace from user", "error", err, "namespace", namespace, "user", user.Username)
 			errorMessages = append(errorMessages, err.Error())
 		}
 	}
@@ -232,7 +236,8 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 
 // RemoveGitconfigFromUsers will remove the specified gitconfig from all users
 func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig string) error {
-	s.Logger.Debugw("RemoveGitconfigFromUsers", "gitconfig", gitconfig)
+	logger := helpers.Logger.With("component", "AuthService")
+	logger.Debugw("RemoveGitconfigFromUsers", "gitconfig", gitconfig)
 
 	users, _, err := s.GetUsers(ctx)
 	if err != nil {
@@ -249,7 +254,7 @@ func (s *AuthService) RemoveGitconfigFromUsers(ctx context.Context, gitconfig st
 
 		_, err = s.UpdateUser(ctx, user)
 		if err != nil {
-			s.Logger.Debugw("error removing gitconfig from user", "error", err, "gitconfig", gitconfig, "user", user.Username)
+			logger.Debugw("error removing gitconfig from user", "error", err, "gitconfig", gitconfig, "user", user.Username)
 			errorMessages = append(errorMessages, err.Error())
 		}
 	}

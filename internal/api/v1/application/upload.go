@@ -16,16 +16,18 @@ import (
 	"mime/multipart"
 	"os"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/s3manager"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 	"github.com/h2non/filetype"
 	"github.com/pkg/errors"
+
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 // Should match the supported types:
@@ -44,7 +46,7 @@ var validArchiveTypes = []string{
 // Then it creates the k8s resources needed for staging
 func Upload(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")

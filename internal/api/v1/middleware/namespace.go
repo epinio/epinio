@@ -12,18 +12,19 @@
 package middleware
 
 import (
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/namespaces"
-	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
+
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // NamespaceExists is a gin middleware used to check if a namespaced route is valid.
 // It checks the validity of the requested namespace, returning a 404 if it doesn't exists
 func NamespaceExists(c *gin.Context) {
-	logger := requestctx.Logger(c.Request.Context()).With("component", "NamespaceMiddleware")
+	logger := helpers.Logger.With("component", "NamespaceMiddleware")
 	ctx := c.Request.Context()
 
 	namespace := c.Param("namespace")

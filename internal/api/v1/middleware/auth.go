@@ -16,12 +16,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
+
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // RoleAuthorization middleware is used to check if the user is allowed for the incoming request
@@ -55,7 +56,7 @@ func GitconfigAuthorization(c *gin.Context) {
 }
 
 func authorization(c *gin.Context, label string, allowed []string) {
-	logger := requestctx.Logger(c.Request.Context()).With("component", "AuthorizationMiddleware")
+	logger := helpers.Logger.With("component", "AuthorizationMiddleware")
 	user := requestctx.User(c.Request.Context())
 
 	method := c.Request.Method
@@ -75,7 +76,7 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	}
 
 	// not an admin, check if path is restricted
-	if restrictedPath(logger, path) {
+	if restrictedPath(path) {
 		err := apierrors.NewAPIError("user unauthorized, path restricted", http.StatusForbidden)
 		response.Error(c, err)
 		c.Abort()
@@ -91,7 +92,7 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	}
 
 	for _, rsrc := range resourceNames {
-		authorized := authorizeUser(logger, label, rsrc, allowed)
+		authorized := authorizeUser(label, rsrc, allowed)
 
 		roleIDs := strings.Join(user.Roles.IDs(), ",")
 		logger.Infow("authorization result",
@@ -111,8 +112,8 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	}
 }
 
-func authorizeUser(logger *zap.SugaredLogger, label, resource string, allowed []string) bool {
-	logger = logger.With("component", "authorizeUser")
+func authorizeUser(label, resource string, allowed []string) bool {
+	logger := helpers.Logger.With("component", "authorizeUser")
 
 	// check if the user has permission on the requested resource
 	if resource == "" {
@@ -133,8 +134,8 @@ func authorizeUser(logger *zap.SugaredLogger, label, resource string, allowed []
 	return false
 }
 
-func restrictedPath(logger *zap.SugaredLogger, path string) bool {
-	logger = logger.With("component", "unrestrictedPath")
+func restrictedPath(path string) bool {
+	logger := helpers.Logger.With("component", "unrestrictedPath")
 
 	// check if the requested path is restricted
 	if _, found := v1.AdminRoutes[path]; found {

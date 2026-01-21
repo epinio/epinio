@@ -26,12 +26,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/bridge/git"
-	"github.com/labstack/gommon/log"
 	parser "github.com/novln/docker-parser"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -68,9 +67,9 @@ type ExportRegistry struct {
 	URL  string
 }
 
-func ExportRegistryNames(log *zap.SugaredLogger, secretLoader git.SecretLister) ([]string, error) {
+func ExportRegistryNames(secretLoader git.SecretLister) ([]string, error) {
 
-	registries, err := ExportRegistries(log, secretLoader)
+	registries, err := ExportRegistries(secretLoader)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +82,7 @@ func ExportRegistryNames(log *zap.SugaredLogger, secretLoader git.SecretLister) 
 	return names, nil
 }
 
-func ExportRegistries(log *zap.SugaredLogger, secretLoader git.SecretLister) ([]ExportRegistry, error) {
+func ExportRegistries(secretLoader git.SecretLister) ([]ExportRegistry, error) {
 
 	secretSelector := labels.Set(map[string]string{
 		kubernetes.EpinioAPIExportRegistryLabelKey: "true",
@@ -102,7 +101,7 @@ func ExportRegistries(log *zap.SugaredLogger, secretLoader git.SecretLister) ([]
 		url, err := GetRegistryUrlFromSecret(secret)
 		if err != nil {
 			// log the issue, and otherwise ignore the secret
-			log.Errorw("skipping secret", "error", err, "secret", secret.Name)
+			helpers.Logger.Errorw("skipping secret", "error", err, "secret", secret.Name)
 			continue
 		}
 
@@ -398,7 +397,7 @@ func DeleteImage(
 		tag = "latest"
 	}
 
-	log.Info("Deleting image from registry", "image", imageURL, "repository", repository, "tag", tag)
+	helpers.Logger.Infow("Deleting image from registry", "image", imageURL, "repository", repository, "tag", tag)
 
 	// Determine scheme from credentials URL (dockerconfigjson may contain http:// or https://)
 	// or fall back to heuristics based on registry URL and TLS config
@@ -460,7 +459,7 @@ func DeleteImage(
 
 	if resp.StatusCode == http.StatusNotFound {
 		// Image doesn't exist, nothing to delete
-		log.Info("Image not found in registry, skipping deletion", "image", imageURL)
+		helpers.Logger.Infow("Image not found in registry, skipping deletion", "image", imageURL)
 		return nil
 	}
 
@@ -483,22 +482,22 @@ func DeleteImage(
 		// Compute SHA256 digest of the manifest body
 		hash := sha256.Sum256(manifestBody)
 		digest = fmt.Sprintf("sha256:%s", hex.EncodeToString(hash[:]))
-		log.Info("Computed digest from manifest body", "digest", digest, "image", imageURL)
+		helpers.Logger.Infow("Computed digest from manifest body", "digest", digest, "image", imageURL)
 	}
 
 	// First, list all tags for this repository so we can delete them all
 	// This ensures complete removal of the repository from the catalog
 	allTags, err := listRepositoryTags(ctx, scheme, registryURL, repository, auth, client)
 	if err != nil {
-		log.Info("Could not list tags for repository, will delete only the specified tag",
+		helpers.Logger.Infow("Could not list tags for repository, will delete only the specified tag",
 			"repository", repository,
 			"error", err)
 		allTags = []string{tag} // Fall back to just deleting the specified tag
 	} else if len(allTags) == 0 {
-		log.Info("Repository has no tags, nothing to delete", "repository", repository)
+		helpers.Logger.Infow("Repository has no tags, nothing to delete", "repository", repository)
 		return nil
 	} else {
-		log.Info("Found tags for repository, will delete all of them",
+		helpers.Logger.Infow("Found tags for repository, will delete all of them",
 			"repository", repository,
 			"tagCount", len(allTags),
 			"tags", allTags)
@@ -509,7 +508,7 @@ func DeleteImage(
 	for _, tagToDelete := range allTags {
 		if err := deleteTagByTag(ctx, scheme, registryURL, repository, tagToDelete, auth, client); err != nil {
 			// Log error but continue with other tags
-			log.Error(err, "Failed to delete tag", "repository", repository, "tag", tagToDelete)
+			helpers.Logger.Errorw("Failed to delete tag", "repository", repository, "tag", tagToDelete, "error", err)
 			lastErr = err
 		}
 	}
@@ -518,7 +517,7 @@ func DeleteImage(
 		return errors.Wrap(lastErr, "some tags failed to delete")
 	}
 
-	log.Info("Successfully deleted all tags from repository",
+	helpers.Logger.Infow("Successfully deleted all tags from repository",
 		"repository", repository,
 		"tagCount", len(allTags))
 	return nil
@@ -597,7 +596,7 @@ func deleteTagByTag(
 
 	if resp.StatusCode == http.StatusNotFound {
 		// Tag doesn't exist, skip it
-		log.Info("Tag not found, skipping", "repository", repository, "tag", tag)
+		helpers.Logger.Infow("Tag not found, skipping", "repository", repository, "tag", tag)
 		return nil
 	}
 
@@ -644,13 +643,13 @@ func deleteTagByTag(
 	if deleteResp.StatusCode == http.StatusAccepted ||
 		deleteResp.StatusCode == http.StatusOK ||
 		deleteResp.StatusCode == http.StatusNotFound {
-		log.Info("Deleted tag from repository", "repository", repository, "tag", tag, "digest", digest)
+		helpers.Logger.Infow("Deleted tag from repository", "repository", repository, "tag", tag, "digest", digest)
 		return nil
 	}
 
 	// Check if deletion is disabled
 	if deleteResp.StatusCode == http.StatusMethodNotAllowed {
-		log.Info("Image deletion is disabled on this registry for this tag", "repository", repository, "tag", tag)
+		helpers.Logger.Infow("Image deletion is disabled on this registry for this tag", "repository", repository, "tag", tag)
 		return nil // Don't fail - registry doesn't support deletion
 	}
 

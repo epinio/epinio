@@ -26,9 +26,6 @@ type IDKey struct{}
 // UserKey is the unique key to lookup the username from the request's context
 type UserKey struct{}
 
-// LoggerKey is the unique key to lookup the logger from the request's context
-type LoggerKey struct{}
-
 // WithUser adds the User to the context
 func WithUser(ctx context.Context, val auth.User) context.Context {
 	return context.WithValue(ctx, UserKey{}, val)
@@ -57,21 +54,14 @@ func ID(ctx context.Context) string {
 	return id
 }
 
-// WithLogger returns a copy of the context with the given zap logger
-func WithLogger(ctx context.Context, log *zap.SugaredLogger) context.Context {
-	return context.WithValue(ctx, LoggerKey{}, log)
-}
-
-// Logger returns the zap logger from the context
+// Logger returns the centralized logger with request context when available.
 func Logger(ctx context.Context) *zap.SugaredLogger {
-	log, ok := ctx.Value(LoggerKey{}).(*zap.SugaredLogger)
-	if !ok {
-		// this should not happen, but let's be cautious
-		if helpers.Logger != nil {
-			return helpers.Logger.With("component", "fallback")
-		}
-		// Last resort: use a no-op logger (doesn't create a new logger instance)
+	if helpers.Logger == nil {
 		return zap.NewNop().Sugar()
 	}
-	return log
+	requestID := ID(ctx)
+	if requestID == "" {
+		return helpers.Logger
+	}
+	return helpers.Logger.With("requestId", requestID)
 }
