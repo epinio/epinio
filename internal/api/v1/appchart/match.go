@@ -29,24 +29,24 @@ import (
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
-	helpers.Logger.Info("match appcharts")
-	defer helpers.Logger.Info("return")
+	helpers.Logger.Infow("match appcharts")
+	defer helpers.Logger.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Info("list appcharts")
+	helpers.Logger.Infow("list appcharts")
 	appcharts, err := appchart.List(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Info("get appchart prefix")
+	helpers.Logger.Infow("get appchart prefix")
 	prefix := c.Param("pattern")
 
-	helpers.Logger.Info("match prefix", "pattern", prefix)
+	helpers.Logger.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, appchart := range appcharts {
 		if strings.HasPrefix(appchart.Meta.Name, prefix) {
@@ -54,7 +54,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	helpers.Logger.Info("deliver matches", "found", matches)
+	helpers.Logger.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.ChartMatchResponse{
 		Names: matches,

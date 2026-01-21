@@ -973,17 +973,13 @@ func Logs(
 		// Handle time-based filtering
 		if logParams.SinceTime != nil {
 			config.SinceTime = logParams.SinceTime
-			helpers.Logger.Info(
-				"applying since time parameter | ",
-				"since_time: ",
-				*logParams.SinceTime,
+			helpers.Logger.Infow("applying since time parameter",
+				"since_time", *logParams.SinceTime,
 			)
 		} else if logParams.Since != nil {
 			config.Since = *logParams.Since
-			helpers.Logger.Info(
-				"applied since parameter | ",
-				"since: ",
-				*logParams.Since,
+			helpers.Logger.Infow("applied since parameter",
+				"since", *logParams.Since,
 			)
 		}
 	}
@@ -995,11 +991,11 @@ func Logs(
 	}
 
 	if follow {
-		helpers.Logger.Info("stream")
+		helpers.Logger.Infow("stream")
 		return tailer.StreamLogs(ctx, logChan, wg, config, cluster)
 	}
 
-	helpers.Logger.Info("fetch")
+	helpers.Logger.Infow("fetch")
 	return tailer.FetchLogs(ctx, logChan, wg, config, cluster)
 }
 

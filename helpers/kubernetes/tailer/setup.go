@@ -72,7 +72,7 @@ func FetchLogs(
 		return errors.New("no namespace set for tailing logs")
 	}
 
-	helpers.Logger.Info("list pods")
+	helpers.Logger.Infow("list pods")
 	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
 		ctx,
 		metav1.ListOptions{LabelSelector: config.LabelSelector.String()},
@@ -130,7 +130,7 @@ func FetchLogs(
 		return true
 	}
 
-	helpers.Logger.Info("filter pods, containers")
+	helpers.Logger.Infow("filter pods, containers")
 
 	for _, pod := range podList.Items {
 		for _, c := range pod.Spec.InitContainers {
@@ -139,13 +139,10 @@ func FetchLogs(
 			}
 			tails = append(tails, newTail(pod, c))
 
-			helpers.Logger.Debug(
-				"have namespace: ",
-				pod.Namespace,
-				"| pod: ",
-				pod.Name,
-				"| container: ",
-				c.Name,
+			helpers.Logger.Debugw("have init container",
+				"namespace", pod.Namespace,
+				"pod", pod.Name,
+				"container", c.Name,
 			)
 		}
 		for _, c := range pod.Spec.Containers {
@@ -154,33 +151,27 @@ func FetchLogs(
 			}
 			tails = append(tails, newTail(pod, c))
 
-			helpers.Logger.Debug(
-				"have namespace: ",
-				pod.Namespace,
-				"| pod: ",
-				pod.Name,
-				"| container: ",
-				c.Name,
+			helpers.Logger.Debugw("have container",
+				"namespace", pod.Namespace,
+				"pod", pod.Name,
+				"container", c.Name,
 			)
 		}
 	}
 
 	if config.Ordered {
-		helpers.Logger.Debug("fetch in order")
+		helpers.Logger.Debugw("fetch in order")
 
 		for _, t := range tails {
-			helpers.Logger.Debug(
-				"tail namespace: ",
-				t.Namespace,
-				"| pod: ",
-				t.PodName,
-				"| container: ",
-				t.ContainerName,
+			helpers.Logger.Debugw("tail container",
+				"namespace", t.Namespace,
+				"pod", t.PodName,
+				"container", t.ContainerName,
 			)
 
 			err := t.Start(ctx, logChan, false)
 			if err != nil {
-				helpers.Logger.Error(err, "failed to start a Tail")
+				helpers.Logger.Errorw("failed to start a Tail", "error", err)
 			}
 		}
 
@@ -188,20 +179,17 @@ func FetchLogs(
 	}
 
 	for _, t := range tails {
-		helpers.Logger.Debug(
-			"tail namespace: ",
-			t.Namespace,
-			"| pod: ",
-			t.PodName,
-			"| container: ",
-			t.ContainerName,
+		helpers.Logger.Debugw("tail container",
+			"namespace", t.Namespace,
+			"pod", t.PodName,
+			"container", t.ContainerName,
 		)
 
 		wg.Add(1)
 		go func(tail *Tail) {
 			err := tail.Start(ctx, logChan, false)
 			if err != nil {
-				helpers.Logger.Error(err, "failed to start a Tail")
+				helpers.Logger.Errorw("failed to start a Tail", "error", err)
 			}
 			wg.Done()
 		}(t)

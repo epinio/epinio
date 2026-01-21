@@ -148,17 +148,15 @@ var CmdServer = &cobra.Command{
 			return errors.Wrap(err, "error creating listener")
 		}
 
-		helpers.Logger.Info("Epinio version: " + version.Version)
+		helpers.Logger.Infow("Epinio version", "version", version.Version)
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-		helpers.Logger.Info("listening on localhost on port " + listeningPort)
+		helpers.Logger.Infow("listening on localhost", "port", listeningPort)
 
 		trackingDisabled := viper.GetBool("disable-tracking")
 		upgradeResponderAddress := viper.GetString("upgrade-responder-address")
-		helpers.Logger.Info(
-			"Checking upgrade-responder tracking disabled=",
-			trackingDisabled,
-			" upgradeResponderAddress=",
-			upgradeResponderAddress,
+		helpers.Logger.Infow("checking upgrade-responder",
+			"tracking_disabled", trackingDisabled,
+			"upgrade_responder_address", upgradeResponderAddress,
 		)
 
 		if !trackingDisabled {
@@ -171,7 +169,7 @@ var CmdServer = &cobra.Command{
 			)
 
 			if err != nil {
-				helpers.Logger.Error(err.Error() + " | error creating listener")
+				helpers.Logger.Errorw("error creating listener", "error", err)
 				return err
 			}
 

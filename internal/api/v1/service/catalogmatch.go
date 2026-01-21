@@ -29,15 +29,15 @@ import (
 func CatalogMatch(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
-	helpers.Logger.Info("match catalog services")
-	defer helpers.Logger.Info("return")
+	helpers.Logger.Infow("match catalog services")
+	defer helpers.Logger.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Info("list catalog services")
+	helpers.Logger.Infow("list catalog services")
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -48,10 +48,10 @@ func CatalogMatch(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Info("get service prefix")
+	helpers.Logger.Infow("get service prefix")
 	prefix := c.Param("pattern")
 
-	helpers.Logger.Info("match prefix", "pattern", prefix)
+	helpers.Logger.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, service := range serviceList {
 		if strings.HasPrefix(service.Meta.Name, prefix) {
@@ -59,7 +59,7 @@ func CatalogMatch(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	helpers.Logger.Info("deliver matches", "found", matches)
+	helpers.Logger.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.CatalogMatchResponse{
 		Names: matches,

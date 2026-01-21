@@ -78,7 +78,7 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 			}
 		}
 		if gitConfig == nil {
-			helpers.Logger.Info("gitconfig not found", "id", proxyRequest.Gitconfig)
+			helpers.Logger.Infow("gitconfig not found", "id", proxyRequest.Gitconfig)
 		}
 	}
 

@@ -513,9 +513,8 @@ func StagedWebsocket(c *gin.Context) {
 
 	// initial acknowledgement so the caller knows the socket is established
 	if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-		helpers.Logger.Error(
-			err,
-			"failed to send initial staging websocket message",
+		helpers.Logger.Errorw("failed to send initial staging websocket message",
+			"error", err,
 		)
 		return
 	}
@@ -579,7 +578,7 @@ func StagedWebsocket(c *gin.Context) {
 				"waiting for staging job to finish",
 				false,
 			); err != nil {
-				helpers.Logger.Error(err, "failed to send staging heartbeat")
+				helpers.Logger.Errorw("failed to send staging heartbeat", "error", err)
 			}
 		}
 	}
