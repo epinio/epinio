@@ -222,3 +222,11 @@
     - Exportregistries
     - ExportregistriesMatch
     - ExportregistriesMatch0
+
+# Support Bundle
+# System-wide operation that collects logs from all Epinio components
+# Should be restricted to admin users
+- id: support_bundle
+  name: Support Bundle
+  routes:
+    - SupportBundle
