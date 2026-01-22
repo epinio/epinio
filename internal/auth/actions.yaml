@@ -213,3 +213,10 @@
     - Exportregistries
     - ExportregistriesMatch
     - ExportregistriesMatch0
+
+# Maintenance related actions
+- id: maintenance
+  name: Maintenance
+  routes:
+    - MaintenanceCleanupStaleCaches
+    - MaintenanceCleanupStaleCachesQuery
