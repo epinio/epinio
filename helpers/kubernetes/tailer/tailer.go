@@ -74,7 +74,7 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 		mode = "local"
 	}
 
-	helpers.Logger.Info("starting the tail for pod " + t.PodName)
+	helpers.Logger.Infow("starting the tail for pod", "pod", t.PodName)
 
 	podLogOptions := &corev1.PodLogOptions{
 		Follow:     follow,
@@ -90,15 +90,14 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 	}
 
 	// Log the options being passed to Kubernetes API
-	helpers.Logger.Info(
-		"calling Kubernetes API with options",
-		" | tail_lines: ", t.Options.TailLines,
-		" | since_seconds: ", t.Options.SinceSeconds,
-		" | follow: ", follow,
-		" | container: ", t.ContainerName,
+	helpers.Logger.Infow("calling Kubernetes API with options",
+		"tail_lines", t.Options.TailLines,
+		"since_seconds", t.Options.SinceSeconds,
+		"follow", follow,
+		"container", t.ContainerName,
 	)
 
-	helpers.Logger.Info("podLogOptions:", podLogOptions)
+	helpers.Logger.Infow("podLogOptions", "options", podLogOptions)
 	req := t.clientSet.CoreV1().Pods(t.Namespace).GetLogs(t.PodName, podLogOptions)
 
 	stream, err := req.Stream(ctx)
@@ -114,15 +113,15 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 
 	reader := bufio.NewReader(stream)
 
-	helpers.Logger.Info(fmt.Sprintf("now tracking %s %s", mode, ident))
+	helpers.Logger.Infow("now tracking", "mode", mode, "ident", ident)
 OUTER:
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
-				helpers.Logger.Info("tailer reached end of logs", "container", ident)
+				helpers.Logger.Infow("tailer reached end of logs", "container", ident)
 			} else {
-				helpers.Logger.Error(err, "reading failed")
+				helpers.Logger.Errorw("reading failed", "error", err)
 			}
 			return nil
 		}
@@ -167,7 +166,7 @@ OUTER:
 			}
 		}
 
-		helpers.Logger.Debug("passing", "container", ident, "", message)
+		helpers.Logger.Debugw("passing", "container", ident, "message", message)
 		logChan <- ContainerLogLine{
 			Message:       message,
 			ContainerName: t.ContainerName,

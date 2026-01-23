@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/go-logr/logr"
+	"github.com/epinio/epinio/helpers"
 	"github.com/pkg/errors"
 )
 
@@ -37,10 +37,8 @@ var initMutex sync.Mutex
 
 // Get returns the local file containing the data found at the specified url.
 // It fetches the url when the local file does not exist yet.
-func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
-	logger = logger.V(1).WithName("URLCache")
-
-	logger.Info("get", "url", url)
+func Get(ctx context.Context, url string) (string, error) {
+	helpers.Logger.Debugw("get", "url", url)
 
 	// DANGER: The url cache is a global structure shared among all API requests.
 	// DANGER: It is very possible that multiple goroutines invoke `Get` for the
@@ -57,7 +55,7 @@ func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 
 	// No caching needed for local file.
 	if _, err := os.Stat(url); err == nil {
-		logger.Info("is local file")
+		helpers.Logger.Debugw("is local file")
 		return url, nil
 	}
 
@@ -70,18 +68,18 @@ func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 
 	// Check cache for url, and return if already cached
 	if _, err := os.Stat(path); err == nil {
-		logger.Info("cache HIT", "path", path)
+		helpers.Logger.Debugw("cache HIT", "path", path)
 		return path, nil
 	}
 
 	// Initialize cache
-	err := initCache(logger)
+	err := initCache()
 	if err != nil {
 		return "", errors.Wrap(err, "unable to setup url cache")
 	}
 
 	// Extend cache
-	err = fetchFile(logger, url, path)
+	err = fetchFile(url, path)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to fetch url")
 	}
@@ -90,7 +88,7 @@ func Get(ctx context.Context, logger logr.Logger, url string) (string, error) {
 	return path, nil
 }
 
-func initCache(logger logr.Logger) error {
+func initCache() error {
 	// DANGER: The initialization of the cache directory requires serialization as well, so that
 	// DANGER: only access performs the initialization, while everything else sees the
 	// DANGER: initialized directory. This is url-independent and not ensures by the main map,
@@ -100,7 +98,7 @@ func initCache(logger logr.Logger) error {
 	defer initMutex.Unlock()
 
 	if _, err := os.Stat(BasePath); err != nil {
-		logger.Info("initialize cache", "directory", BasePath)
+		helpers.Logger.Debugw("initialize cache", "directory", BasePath)
 		// Not yet initialized
 		err := os.MkdirAll(BasePath, 0700)
 		if err != nil {
@@ -111,21 +109,27 @@ func initCache(logger logr.Logger) error {
 	return nil
 }
 
-func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
-	logger.Info("cache MISS, fetch", "url", originURL, "path", destinationPath)
+func fetchFile(originURL, destinationPath string) error {
+	helpers.Logger.Debugw(
+		"cache MISS, fetch",
+		"url",
+		originURL,
+		"path",
+		destinationPath,
+	)
 
 	response, err := http.Get(originURL) // nolint:gosec // app chart repo ref
 	if err != nil {
 		return err
 	}
 	if response.StatusCode >= http.StatusBadRequest {
-		logger.Info("fail http", "status", response.StatusCode)
+		helpers.Logger.Debugw("fail http", "status", response.StatusCode)
 		return fmt.Errorf("failed with status %d", response.StatusCode)
 	}
-	
+
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			logger.Error(err, "failed to close response body")
+			helpers.Logger.Errorw("failed to close response body", "error", err)
 		}
 	}()
 
@@ -138,7 +142,7 @@ func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
 	if err != nil {
 		dstFileError := dstFile.Close()
 		if dstFileError != nil {
-			return dstFileError 
+			return dstFileError
 		}
 
 		fileRemoveError := os.Remove(dstFile.Name())
@@ -147,7 +151,7 @@ func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
 		}
 		return err
 	}
-	
+
 	dstFileError := dstFile.Close()
 	if dstFileError != nil {
 		return dstFileError
@@ -159,6 +163,12 @@ func fetchFile(logger logr.Logger, originURL, destinationPath string) error {
 		return err
 	}
 
-	logger.Info("now cached", "path", destinationPath, "size", stat.Size())
+	helpers.Logger.Debugw(
+		"now cached",
+		"path",
+		destinationPath,
+		"size",
+		stat.Size(),
+	)
 	return nil
 }

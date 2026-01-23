@@ -20,11 +20,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
@@ -33,7 +33,6 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
@@ -50,13 +49,11 @@ import (
 // ExportToRegistry handles the API endpoint GET /namespaces/:namespace/applications/:app/export
 // It exports the named application to the export registry (also specified by name)
 func ExportToRegistry(c *gin.Context) apierror.APIErrors {
-	// //////////////////////////////////////////////////////////////////////////////
 	/// Validate request, and fill in defaults where needed
 
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
-	logger := requestctx.Logger(ctx)
 
 	req := models.AppExportRequest{}
 	if err := c.BindJSON(&req); err != nil {
@@ -84,16 +81,34 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-	logger.Info("OCI export", "destination", destination.URL, "certs@", certSecretName)
+	helpers.Logger.Infow(
+		"OCI export",
+		"destination",
+		destination.URL,
+		"certs@",
+		certSecretName,
+	)
 
 	destinationURL, err := decodeDestination(req.Destination, destination.URL)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("OCI export destination", "url scheme", destinationURL.Scheme)
-	logger.Info("OCI export destination", "url host", destinationURL.Host)
-	logger.Info("OCI export destination", "url path", destinationURL.Path)
+	helpers.Logger.Infow(
+		"OCI export destination",
+		"url scheme",
+		destinationURL.Scheme,
+	)
+	helpers.Logger.Infow(
+		"OCI export destination",
+		"url host",
+		destinationURL.Host,
+	)
+	helpers.Logger.Infow(
+		"OCI export destination",
+		"url path",
+		destinationURL.Path,
+	)
 
 	// Make the certs available as file for use by registry clients, if any.
 	certFile := ""
@@ -103,11 +118,11 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 			return apierror.InternalError(err)
 		}
 		defer func(path string) {
-			cleanupLocalPath(logger, "cert", path)
+			cleanupLocalPath("cert", path)
 		}(certFile)
 	}
 
-	logger.Info("OCI export transport", "cert file", certFile)
+	helpers.Logger.Infow("OCI export transport", "cert file", certFile)
 
 	applyDefaults(&req, namespace, appName, theApp.StageID)
 
@@ -130,9 +145,9 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 	imageLocalFile := base + "-image.tar"
 	imageRemoteFile := trimmedDestination + "/" + req.ImageName + ":" + req.ImageTag
 
-	logger.Info("OCI export local chart", "path", chartLocalFile)
-	logger.Info("OCI export local image", "path", imageLocalFile)
-	logger.Info("OCI export remote image", "path", imageRemoteFile)
+	helpers.Logger.Infow("OCI export local chart", "path", chartLocalFile)
+	helpers.Logger.Infow("OCI export local image", "path", imageLocalFile)
+	helpers.Logger.Infow("OCI export remote image", "path", imageRemoteFile)
 
 	// //////////////////////////////////////////////////////////////////////////////
 	/// Retrieve the app data and save it to local files.
@@ -144,23 +159,23 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 	// ATTENTION: The image upload job sees the file at a different base path, as per the volume
 	//           and mount declarations.
 
-	logger.Info("OCI export fetch chart archive", "path", chartLocalFile)
-	apierr := fetchAppChartFile(ctx, logger, cluster, theApp, chartLocalFile)
+	helpers.Logger.Infow("OCI export fetch chart archive", "path", chartLocalFile)
+	apierr := fetchAppChartFile(ctx, cluster, theApp, chartLocalFile)
 	if apierr != nil {
 		return apierr
 	}
 	defer func(path string) {
-		cleanupLocalPath(logger, "chart", path)
+		cleanupLocalPath("chart", path)
 	}(imageExportVolume + chartLocalFile)
 	// Note: By passing the string as argument instead of through the closure we can change
 	// chartLocalFile without affecting what file is removed by the deferal.
 
-	client, err := helm.GetHelmClient(cluster.RestConfig, logger, namespace)
+	client, err := helm.GetHelmClient(cluster.RestConfig, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("OCI export fetch values")
+	helpers.Logger.Infow("OCI export fetch values")
 
 	values, err := client.GetReleaseValues(names.ReleaseName(theApp.Meta.Name), false)
 	if err != nil {
@@ -169,9 +184,14 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 
 	// And fetch image ...
 
-	logger.Info("OCI export fetch image", "path", imageLocalFile,
-		"origin", "docker://"+theApp.ImageURL)
-	imageFile, err := fetchAppImageFile(ctx, logger, cluster, theApp, imageLocalFile)
+	helpers.Logger.Infow(
+		"OCI export fetch image",
+		"path",
+		imageLocalFile,
+		"origin",
+		"docker://"+theApp.ImageURL,
+	)
+	imageFile, err := fetchAppImageFile(ctx, cluster, theApp, imageLocalFile)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -182,7 +202,7 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 	}
 
 	defer func(path string) {
-		cleanupLocalPath(logger, "image", path)
+		cleanupLocalPath("image", path)
 	}(imageExportVolume + imageLocalFile)
 
 	// //////////////////////////////////////////////////////////////////////////////
@@ -193,20 +213,23 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 
 	values["epinio"].(map[string]interface{})["imageURL"] = imageRemoteFile
 
-	tmp, chartLocalFile, err := rewriteChart(logger,
+	tmp, chartLocalFile, err := rewriteChart(
 		imageExportVolume+chartLocalFile,
-		req.ChartName, req.ChartVersion, values)
+		req.ChartName,
+		req.ChartVersion,
+		values,
+	)
 	if tmp != "" {
 		// This removes the tarball as well, as it resides in tmp.
 		defer func(path string) {
-			cleanupLocalPath(logger, "chart repack dir", path)
+			cleanupLocalPath("chart repack dir", path)
 		}(tmp)
 	}
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("OCI export rewritten chart", "chart", chartLocalFile)
+	helpers.Logger.Infow("OCI export rewritten chart", "chart", chartLocalFile)
 
 	// //////////////////////////////////////////////////////////////////////////////
 	/// Upload the parts to the chosen destination
@@ -215,15 +238,20 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 
 	destinationHost := destinationURL.Host
 
-	logger.Info("OCI export login", "host'", destinationHost)
+	helpers.Logger.Infow("OCI export login", "host", destinationHost)
 
 	rOpts := []action.RegistryLoginOpt{}
 	if certFile != "" {
-		logger.Info("OCI export login", "+certs", certFile)
+		helpers.Logger.Infow("OCI export login", "+certs", certFile)
 		rOpts = append(rOpts, action.WithCAFile(certFile))
 	}
 
-	err = client.RegistryLogin(destinationHost, destination.Username, destination.Password, rOpts...)
+	err = client.RegistryLogin(
+		destinationHost,
+		destination.Username,
+		destination.Password,
+		rOpts...,
+	)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -233,31 +261,39 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 		ociRegistry = "oci://" + trimmedDestination
 	}
 
-	logger.Info("OCI export push", "registry", ociRegistry, "from", chartLocalFile)
+	helpers.Logger.Infow(
+		"OCI export push",
+		"registry",
+		ociRegistry,
+		"from",
+		chartLocalFile,
+	)
 
 	pOpts := []action.PushOpt{}
 	if certFile != "" {
-		logger.Info("OCI export push", "+certs", certFile)
+		helpers.Logger.Infow("OCI export push", "+certs", certFile)
 		pOpts = append(pOpts, action.WithTLSClientConfig("", "", certFile))
 	}
 	_, err = client.Push(chartLocalFile, ociRegistry, pOpts...)
 	// NOTE: Neither chart name nor version are specified here!
 	// See `rewriteChart` above for the place where this information is inserted.
 
-	logger.Info("OCI export upload chart error", "err", err)
+	helpers.Logger.Infow("OCI export upload chart error", "err", err)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	// image ...
 
-	imageJob := createCopyJob(logger,
+	imageJob := createCopyJob(
 		"docker-archive:/workspace/"+imageLocalFile,
 		// NOTE: `/workspace` is the `imageExportVolume` as seen from the job.
 		"docker://"+imageRemoteFile,
-		req.Destination, certSecretName)
+		req.Destination,
+		certSecretName,
+	)
 
-	err = runJob("image push", ctx, cluster, logger, imageJob)
+	err = runJob("image push", ctx, cluster, imageJob)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -267,8 +303,13 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func rewriteChart(logger logr.Logger, path, name, version string, params map[string]interface{}) (string, string, error) {
-	logger.Info("OCI export load chart", "chart", path)
+func rewriteChart(
+	path,
+	name,
+	version string,
+	params map[string]interface{},
+) (string, string, error) {
+	helpers.Logger.Infow("OCI export load chart", "chart", path)
 
 	tmpDir, err := os.MkdirTemp("", "oci-export")
 	if err != nil {
@@ -280,11 +321,11 @@ func rewriteChart(logger logr.Logger, path, name, version string, params map[str
 		return tmpDir, "", err
 	}
 
-	logger.Info("OCI export chart meta", "chart", appChart.Metadata)
-	logger.Info("OCI export chart values", "chart", appChart.Values)
+	helpers.Logger.Infow("OCI export chart meta", "chart", appChart.Metadata)
+	helpers.Logger.Infow("OCI export chart values", "chart", appChart.Values)
 
-	logger.Info("OCI export rewrite chart", "name", name, "version", version)
-	logger.Info("OCI export rewrite chart", "values", params)
+	helpers.Logger.Infow("OCI export rewrite chart", "name", name, "version", version)
+	helpers.Logger.Infow("OCI export rewrite chart", "values", params)
 
 	appChart.Metadata.Name = name
 	appChart.Metadata.Version = version
@@ -318,16 +359,24 @@ func rewriteChart(logger logr.Logger, path, name, version string, params map[str
 		})
 	}
 
-	logger.Info("OCI export rewritten chart meta", "chart", appChart.Metadata)
-	logger.Info("OCI export rewritten chart values", "YAML", string(yaml))
+	helpers.Logger.Infow(
+		"OCI export rewritten chart meta",
+		"chart",
+		appChart.Metadata,
+	)
+	helpers.Logger.Infow(
+		"OCI export rewritten chart values",
+		"YAML",
+		string(yaml),
+	)
 
-	logger.Info("OCI export validate chart")
+	helpers.Logger.Infow("OCI export validate chart")
 	err = appChart.Validate()
 	if err != nil {
 		return tmpDir, "", err
 	}
 
-	logger.Info("OCI export save chart", "tmp", tmpDir)
+	helpers.Logger.Infow("OCI export save chart", "tmp", tmpDir)
 	tarball, err := chartutil.Save(appChart, tmpDir)
 	return tmpDir, tarball, err
 }
@@ -388,19 +437,23 @@ func checkDestination(ctx context.Context, cluster *kubernetes.Cluster,
 
 // cleanupLocalPath is invoked in deferals to remove the temporary files and directories used by an
 // export after they are not required any longer.
-func cleanupLocalPath(logger logr.Logger, label, path string) {
-	logger.Info("OCI export cleanup local "+label, "path", path)
+func cleanupLocalPath(label, path string) {
+	helpers.Logger.Infow("OCI export cleanup local "+label, "path", path)
 	err := os.RemoveAll(path)
 	if err != nil {
-		logger.Error(fmt.Errorf("error cleaning up local %s", label),
+		helpers.Logger.Errorw("error cleaning up local "+label,
 			"path", path,
-			"error", err.Error())
+			"error", err)
 	}
 }
 
 // ATTENTION TODO Compare `fetchAppChart` (see `part.go`), DRY them.
-func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
-	theApp *models.App, destinationPath string) apierror.APIErrors {
+func fetchAppChartFile(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	theApp *models.App,
+	destinationPath string,
+) apierror.APIErrors {
 	// Get the application's app chart
 	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
 	if err != nil {
@@ -410,19 +463,19 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
 	}
 
-	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig, logger)
+	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "chart-url", chartArchive)
+	helpers.Logger.Infow("input", "chart-url", chartArchive)
 
-	chartArchive, err = urlcache.Get(ctx, logger, chartArchive)
+	chartArchive, err = urlcache.Get(ctx, chartArchive)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("input", "chart-file", chartArchive)
+	helpers.Logger.Infow("input", "chart-file", chartArchive)
 
 	// Here the archive is surely a local file
 
@@ -433,11 +486,11 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 
 	defer func() {
 		if err := file.Close(); err != nil {
-			logger.Error(err, "error closing chart archive file: ")
+			helpers.Logger.Errorw("error closing chart archive file", "error", err)
 		}
 	}()
 
-	logger.Info("input is file")
+	helpers.Logger.Infow("input is file")
 
 	dstFile, err := os.Create(imageExportVolume + destinationPath)
 	if err != nil {
@@ -446,12 +499,12 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 
 	defer func() {
 		if err := dstFile.Close(); err != nil {
-			logger.Error(err, "error closing dst file: ")
+			helpers.Logger.Errorw("error closing dst file", "error", err)
 		}
 	}()
 
 	// copy file ...
-	logger.Info("input, copy to", "destination", dstFile.Name())
+	helpers.Logger.Infow("input, copy to", "destination", dstFile.Name())
 
 	_, err = io.Copy(dstFile, file)
 	if err != nil {
@@ -461,7 +514,12 @@ func fetchAppChartFile(ctx context.Context, logger logr.Logger, cluster *kuberne
 	return nil
 }
 
-func createCopyJob(logger logr.Logger, localPath, destinationPath, authSecret, certSecret string) *batchv1.Job {
+func createCopyJob(
+	localPath,
+	destinationPath,
+	authSecret,
+	certSecret string,
+) *batchv1.Job {
 	// See also part.go, runDownloadImageJob - Look into DRY'ing
 
 	nano := fmt.Sprintf("%d", time.Now().UnixNano())
@@ -528,7 +586,7 @@ func createCopyJob(logger logr.Logger, localPath, destinationPath, authSecret, c
 		destinationPath,
 	}
 
-	logger.Info("OCI export image copy command", "skopeo", args)
+	helpers.Logger.Infow("OCI export image copy command", "skopeo", args)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -588,40 +646,45 @@ func createCopyJob(logger logr.Logger, localPath, destinationPath, authSecret, c
 // (**) In local testing 4 minutes were seen for job completion.
 //
 // See also part.go, getFileImageAndJobCleanup - Look into DRY'ing
-func runJob(label string, ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger, job *batchv1.Job) error {
-	logger.Info(fmt.Sprintf("run %s job", label))
+func runJob(
+	label string,
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	job *batchv1.Job,
+) error {
+	helpers.Logger.Infow("run job", "label", label)
 
 	err := cluster.CreateJob(ctx, helmchart.Namespace(), job)
 	if err != nil {
-		logger.Error(err, "job create", job.Name)
+		helpers.Logger.Errorw("job create", "error", err, "job", job.Name)
 		return errors.Wrapf(err, "unable to create %s job %s", label, job.Name)
 	}
 
-	logger.Info(fmt.Sprintf("wait for completion of %s job", label))
+	helpers.Logger.Infow("wait for completion of job", "label", label)
 
 	err = cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.Name, time.Minute*12)
 	if err != nil {
-		logger.Error(err, "job wait", job.Name)
+		helpers.Logger.Errorw("job wait", "error", err, "job", job.Name)
 		return errors.Wrapf(err, "error waiting for completion of %s job %s", label, job.Name)
 	}
 
 	failed, err := cluster.IsJobFailed(ctx, job.Name, helmchart.Namespace())
 	if err != nil {
-		logger.Error(err, "job", job.Name)
+		helpers.Logger.Errorw("job status check", "error", err, "job", job.Name)
 		return errors.Wrapf(err, "error checking status of %s job %s", label, job.Name)
 	}
 
 	if failed {
-		logger.Info("job failed", "job", job.Name)
+		helpers.Logger.Infow("job failed", "job", job.Name)
 		return errors.New(label + " job " + job.Name + " failed")
 	} else {
 		// Attention: Job is deleted if and only if it succeeded in time. A failed or timed
 		// out job is kept for inspection by the user and/or operator.
 
-		logger.Info(fmt.Sprintf("delete completed %s job %s", label, job.Name))
+		helpers.Logger.Infow("delete completed job", "label", label, "job", job.Name)
 		err = cluster.DeleteJob(ctx, helmchart.Namespace(), job.Name)
 		if err != nil {
-			logger.Error(err, "job", job.Name)
+			helpers.Logger.Errorw("job delete", "error", err, "job", job.Name)
 			return errors.Wrapf(err, "error deleting %s job %s", label, job.Name)
 		}
 	}
@@ -629,7 +692,11 @@ func runJob(label string, ctx context.Context, cluster *kubernetes.Cluster, logg
 	return nil
 }
 
-func loadCerts(ctx context.Context, cluster *kubernetes.Cluster, secretName string) (string, error) {
+func loadCerts(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	secretName string,
+) (string, error) {
 	cert, err := cluster.GetSecret(ctx, helmchart.Namespace(), secretName)
 	if err != nil {
 		return "", err
@@ -658,8 +725,8 @@ func trimSchemes(url string) string {
 }
 
 func decodeDestination(name, destination string) (*url.URL, error) {
-	// `destination` is an url coming out of the host reference field of a docker config.json file.
-	// It has to contain at least a hostname.
+	// `destination` is an url coming out of the host reference field of a docker
+	// config.json file. It has to contain at least a hostname.
 	//
 	// Examples:
 	// (1) https://index.docker.io/v1/

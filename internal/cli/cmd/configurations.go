@@ -13,11 +13,11 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -29,7 +29,7 @@ type ConfigurationService interface {
 	CreateConfiguration(configuration string, kvAssigments []string) error
 	DeleteConfiguration(configurations []string, unbind bool, all bool) error
 	ConfigurationMatching(tocomplete string) []string
-	UpdateConfiguration(configuration string, removedKeys []string, assignments map[string]string) error
+	UpdateConfiguration(configuration string, removedKeys []string, assignments map[string]string, noRestart bool) error
 	BindConfiguration(configuration, application string) error
 	UnbindConfiguration(configuration, application string) error
 
@@ -217,6 +217,7 @@ func NewConfigurationDeleteCmd(client ConfigurationService) *cobra.Command {
 // NewConfigurationUpdateCmd returns a new 'epinio configuration update' command
 func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 	cfg := ChangeConfig{}
+	var noRestart bool
 
 	cmd := &cobra.Command{
 		Use:   "update NAME [flags]",
@@ -236,7 +237,7 @@ func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 				assignments[pieces[0]] = pieces[1]
 			}
 
-			err := client.UpdateConfiguration(args[0], cfg.removed, assignments)
+			err := client.UpdateConfiguration(args[0], cfg.removed, assignments, noRestart)
 			if err != nil {
 				return errors.Wrap(err, "error creating configuration")
 			}
@@ -247,6 +248,7 @@ func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 	}
 
 	changeOptions(cmd, &cfg)
+	cmd.Flags().BoolVar(&noRestart, "no-restart", false, "Prevent restarting bound applications after update")
 
 	return cmd
 }
@@ -308,7 +310,11 @@ func changeOptions(cmd *cobra.Command, cfg *ChangeConfig) {
 	cmd.Flags().StringSliceVarP(&cfg.removed, "remove", "r", []string{}, "(deprecated) configuration keys to remove")
 	err := cmd.Flags().MarkDeprecated("remove", "please use --unset instead")
 	if err != nil {
-		log.Fatal(err)
+		if helpers.Logger != nil {
+			helpers.Logger.Fatalw("failed to mark flag as deprecated", "flag", "remove", "error", err)
+		}
+		// Programming/configuration error; abort early.
+		panic(err)
 	}
 
 	// Note: No completion functionality. This would require asking the configuration for

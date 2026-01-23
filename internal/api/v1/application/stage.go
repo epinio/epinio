@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -37,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
@@ -160,7 +160,7 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, config StagingS
 // It creates a Job resource to stage the app
 func Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -213,20 +213,20 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	// Find staging script spec based on the builder image and what images are supported by each spec
 	// This also resolves a `base` reference, if present.
 
-	config, err := DetermineStagingScripts(ctx, log, cluster, helmchart.Namespace(), builderImage)
+	config, err := DetermineStagingScripts(ctx, cluster, helmchart.Namespace(), builderImage)
 	if err != nil {
 		return apierror.InternalError(err, "failed to retrieve staging configuration")
 	}
 
-	log.Info("staging app", "scripts", config.Name)
-	log.Info("staging app", "builder", builderImage)
-	log.Info("staging app", "download", config.DownloadImage)
-	log.Info("staging app", "unpack", config.UnpackImage)
-	log.Info("staging app", "userid", config.UserID)
-	log.Info("staging app", "groupid", config.GroupID)
-	log.Info("staging app", "build env", config.Env)
-	log.Info("staging app", "Staging Values", config.HelmValues)
-	log.Info("staging app", "namespace", namespace, "app", req)
+	log.Infow("staging app", "scripts", config.Name)
+	log.Infow("staging app", "builder", builderImage)
+	log.Infow("staging app", "download", config.DownloadImage)
+	log.Infow("staging app", "unpack", config.UnpackImage)
+	log.Infow("staging app", "userid", config.UserID)
+	log.Infow("staging app", "groupid", config.GroupID)
+	log.Infow("staging app", "build env", config.Env)
+	log.Infow("staging app", "Staging Values", config.HelmValues)
+	log.Infow("staging app", "namespace", namespace, "app", req)
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
@@ -345,7 +345,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 
 	imageURL := params.ImageURL(params.RegistryURL)
 
-	log.Info("staged app", "namespace", helmchart.Namespace(), "app", params.AppRef, "uid", uid, "image", imageURL)
+	log.Infow("staged app", "namespace", helmchart.Namespace(), "app", params.AppRef, "uid", uid, "image", imageURL)
 
 	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
@@ -466,7 +466,7 @@ func Staged(c *gin.Context) apierror.APIErrors {
 // It streams a small status payload when the staging job finishes (success or failure) and then closes the socket.
 func StagedWebsocket(c *gin.Context) {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	namespace := c.Param("namespace")
 	stageID := c.Param("stage_id")
@@ -513,7 +513,9 @@ func StagedWebsocket(c *gin.Context) {
 
 	// initial acknowledgement so the caller knows the socket is established
 	if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-		log.V(1).Error(err, "failed to send initial staging websocket message")
+		helpers.Logger.Errorw("failed to send initial staging websocket message",
+			"error", err,
+		)
 		return
 	}
 
@@ -556,7 +558,7 @@ func StagedWebsocket(c *gin.Context) {
 			return
 		case res := <-resultCh:
 			if res.err != nil {
-				log.Error(res.err, "staging completion watcher failed")
+				log.Errorw("staging completion watcher failed", "error", res.err)
 				_ = sendUpdate(models.StageStatusError, res.err.Error(), true)
 				return
 			}
@@ -564,17 +566,30 @@ func StagedWebsocket(c *gin.Context) {
 				_ = sendUpdate(models.StageStatusSucceeded, "", true)
 				return
 			}
-			_ = sendUpdate(models.StageStatusFailed, fmt.Sprintf("stage-id = %s failed to complete", stageID), true)
+			_ = sendUpdate(
+				models.StageStatusFailed,
+				fmt.Sprintf("stage-id = %s failed to complete", stageID),
+				true,
+			)
 			return
 		case <-heartbeat.C:
-			if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-				log.V(1).Error(err, "failed to send staging heartbeat")
+			if err := sendUpdate(
+				models.StageStatusWaiting,
+				"waiting for staging job to finish",
+				false,
+			); err != nil {
+				helpers.Logger.Errorw("failed to send staging heartbeat", "error", err)
 			}
 		}
 	}
 }
 
-func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3ConnectionDetails s3manager.ConnectionDetails) apierror.APIErrors {
+func validateBlob(
+	ctx context.Context,
+	blobUID string,
+	app models.AppRef,
+	s3ConnectionDetails s3manager.ConnectionDetails,
+) apierror.APIErrors {
 
 	manager, err := s3manager.New(s3ConnectionDetails)
 	if err != nil {
@@ -1075,12 +1090,12 @@ type StagingScriptConfig struct {
 }
 
 func DetermineStagingScripts(ctx context.Context,
-	logger logr.Logger,
 	cluster *kubernetes.Cluster,
 	namespace, builder string) (*StagingScriptConfig, error) {
+	logger := helpers.Logger.With("component", "staging-scripts")
 
-	logger.Info("locate staging scripts", "namespace", namespace)
-	logger.Info("locate staging scripts", "builder", builder)
+	logger.Infow("locate staging scripts", "namespace", namespace)
+	logger.Infow("locate staging scripts", "builder", builder)
 
 	configmapSelector := labels.Set(map[string]string{
 		"app.kubernetes.io/component": "epinio-staging",
@@ -1094,13 +1109,13 @@ func DetermineStagingScripts(ctx context.Context,
 		return nil, err
 	}
 
-	logger.Info("locate staging scripts", "possibles", len(configmapList.Items))
+	logger.Infow("locate staging scripts", "possibles", len(configmapList.Items))
 
 	var candidates []*StagingScriptConfig
 	for _, configmap := range configmapList.Items {
 		config, err := NewStagingScriptConfig(configmap)
 		if err != nil {
-			logger.Info("Error loading config item", fmt.Sprintf("%+v", err))
+			logger.Infow("Error loading config item", "error", fmt.Sprintf("%+v", err))
 			return nil, err
 		}
 		candidates = append(candidates, config)
@@ -1121,19 +1136,19 @@ func DetermineStagingScripts(ctx context.Context,
 			fallback = config
 			continue
 		}
-		logger.Info("locate staging scripts - found",
+		logger.Infow("locate staging scripts - found",
 			"name", config.Name, "match", pattern)
 		matchable = append(matchable, config)
 	}
 	if fallback != nil {
-		logger.Info("locate staging scripts - fallback",
+		logger.Infow("locate staging scripts - fallback",
 			"name", fallback.Name, "match", fallback.Builder)
 	}
 
 	// match by pattern
 	for _, config := range matchable {
 		pattern := config.Builder
-		logger.Info("locate staging scripts - checking",
+		logger.Infow("locate staging scripts - checking",
 			"name", config.Name, "match", pattern)
 
 		matched, err := filepath.Match(pattern, builder)
@@ -1141,10 +1156,10 @@ func DetermineStagingScripts(ctx context.Context,
 			return nil, err
 		}
 		if matched {
-			logger.Info("locate staging scripts - match",
+			logger.Infow("locate staging scripts - match",
 				"name", config.Name, "match", pattern, "builder", builder)
 
-			err := StagingScriptConfigResolve(ctx, logger, cluster, config)
+			err := StagingScriptConfigResolve(ctx, cluster, config)
 			if err != nil {
 				return nil, err
 			}
@@ -1154,8 +1169,8 @@ func DetermineStagingScripts(ctx context.Context,
 	}
 
 	if fallback != nil {
-		logger.Info("locate staging scripts - using fallback", "name", fallback.Name)
-		err := StagingScriptConfigResolve(ctx, logger, cluster, fallback)
+		logger.Infow("locate staging scripts - using fallback", "name", fallback.Name)
+		err := StagingScriptConfigResolve(ctx, cluster, fallback)
 		if err != nil {
 			return nil, err
 		}
@@ -1165,13 +1180,14 @@ func DetermineStagingScripts(ctx context.Context,
 	return nil, fmt.Errorf("no matches, no fallback")
 }
 
-func StagingScriptConfigResolve(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, config *StagingScriptConfig) error {
+func StagingScriptConfigResolve(ctx context.Context, cluster *kubernetes.Cluster, config *StagingScriptConfig) error {
 	if config.Base == "" {
 		// nothing to do without a base
 		return nil
 	}
 
-	logger.Info("locate staging scripts - inherit", "base", config.Base)
+	logger := helpers.Logger.With("component", "staging-scripts")
+	logger.Infow("locate staging scripts - inherit", "base", config.Base)
 
 	base, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), config.Base)
 	if err != nil {

@@ -123,12 +123,13 @@ type FakeConfigurationService struct {
 	unbindConfigurationReturnsOnCall map[int]struct {
 		result1 error
 	}
-	UpdateConfigurationStub        func(string, []string, map[string]string) error
+	UpdateConfigurationStub        func(string, []string, map[string]string, bool) error
 	updateConfigurationMutex       sync.RWMutex
 	updateConfigurationArgsForCall []struct {
 		arg1 string
 		arg2 []string
 		arg3 map[string]string
+		arg4 bool
 	}
 	updateConfigurationReturns struct {
 		result1 error
@@ -696,7 +697,7 @@ func (fake *FakeConfigurationService) UnbindConfigurationReturnsOnCall(i int, re
 	}{result1}
 }
 
-func (fake *FakeConfigurationService) UpdateConfiguration(arg1 string, arg2 []string, arg3 map[string]string) error {
+func (fake *FakeConfigurationService) UpdateConfiguration(arg1 string, arg2 []string, arg3 map[string]string, arg4 bool) error {
 	var arg2Copy []string
 	if arg2 != nil {
 		arg2Copy = make([]string, len(arg2))
@@ -708,13 +709,14 @@ func (fake *FakeConfigurationService) UpdateConfiguration(arg1 string, arg2 []st
 		arg1 string
 		arg2 []string
 		arg3 map[string]string
-	}{arg1, arg2Copy, arg3})
+		arg4 bool
+	}{arg1, arg2Copy, arg3, arg4})
 	stub := fake.UpdateConfigurationStub
 	fakeReturns := fake.updateConfigurationReturns
-	fake.recordInvocation("UpdateConfiguration", []interface{}{arg1, arg2Copy, arg3})
+	fake.recordInvocation("UpdateConfiguration", []interface{}{arg1, arg2Copy, arg3, arg4})
 	fake.updateConfigurationMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
@@ -728,17 +730,17 @@ func (fake *FakeConfigurationService) UpdateConfigurationCallCount() int {
 	return len(fake.updateConfigurationArgsForCall)
 }
 
-func (fake *FakeConfigurationService) UpdateConfigurationCalls(stub func(string, []string, map[string]string) error) {
+func (fake *FakeConfigurationService) UpdateConfigurationCalls(stub func(string, []string, map[string]string, bool) error) {
 	fake.updateConfigurationMutex.Lock()
 	defer fake.updateConfigurationMutex.Unlock()
 	fake.UpdateConfigurationStub = stub
 }
 
-func (fake *FakeConfigurationService) UpdateConfigurationArgsForCall(i int) (string, []string, map[string]string) {
+func (fake *FakeConfigurationService) UpdateConfigurationArgsForCall(i int) (string, []string, map[string]string, bool) {
 	fake.updateConfigurationMutex.RLock()
 	defer fake.updateConfigurationMutex.RUnlock()
 	argsForCall := fake.updateConfigurationArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeConfigurationService) UpdateConfigurationReturns(result1 error) {
@@ -767,26 +769,6 @@ func (fake *FakeConfigurationService) UpdateConfigurationReturnsOnCall(i int, re
 func (fake *FakeConfigurationService) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.appsMatchingMutex.RLock()
-	defer fake.appsMatchingMutex.RUnlock()
-	fake.bindConfigurationMutex.RLock()
-	defer fake.bindConfigurationMutex.RUnlock()
-	fake.configurationDetailsMutex.RLock()
-	defer fake.configurationDetailsMutex.RUnlock()
-	fake.configurationMatchingMutex.RLock()
-	defer fake.configurationMatchingMutex.RUnlock()
-	fake.configurationsMutex.RLock()
-	defer fake.configurationsMutex.RUnlock()
-	fake.createConfigurationMutex.RLock()
-	defer fake.createConfigurationMutex.RUnlock()
-	fake.deleteConfigurationMutex.RLock()
-	defer fake.deleteConfigurationMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
-	fake.unbindConfigurationMutex.RLock()
-	defer fake.unbindConfigurationMutex.RUnlock()
-	fake.updateConfigurationMutex.RLock()
-	defer fake.updateConfigurationMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

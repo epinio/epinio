@@ -21,10 +21,10 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/services"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -33,7 +33,7 @@ import (
 // It deletes the named service
 func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).WithName("ServiceDelete")
+	logger := helpers.Logger.With("component", "ServiceDelete")
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
@@ -68,7 +68,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		// partially created services, i.e. those whose deployment was interupted after
 		// creation of the main structure, before the creation of the helm release.
 
-		service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+		service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 		if apiErr != nil {
 			return apiErr
 		}
@@ -76,7 +76,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		theServices = append(theServices, service)
 	}
 
-	logger.Info("services to delete", "services", serviceNames)
+	logger.Infow("services to delete", "services", serviceNames)
 
 	// Collect the configurations per service, and record per bound app the service/config
 	// information
@@ -102,10 +102,10 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			return apierror.InternalError(err)
 		}
 
-		logger.Info("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
+		logger.Infow("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
 
 		for _, secret := range serviceConfigurations {
-			logger.Info("configuration secret", "service", service.Meta.Name, "secret", secret.Name)
+			logger.Infow("configuration secret", "service", service.Meta.Name, "secret", secret.Name)
 
 			bound, err := application.BoundAppsNamesFor(ctx, cluster, namespace, secret.Name)
 			if err != nil {
@@ -128,7 +128,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 	boundAppNames = helpers.UniqueStrings(boundAppNames)
 
-	logger.Info("bound to", "apps", boundAppNames, "count", len(boundAppNames), "unbind", deleteRequest.Unbind)
+	logger.Infow("bound to", "apps", boundAppNames, "count", len(boundAppNames), "unbind", deleteRequest.Unbind)
 
 	// Verify that the services are unbound. IOW not bound to any application.  If they are, and
 	// automatic unbind was requested, do that.  Without automatic unbind such applications are
@@ -140,12 +140,12 @@ func Delete(c *gin.Context) apierror.APIErrors {
 				WithDetails(strings.Join(boundAppNames, ","))
 		}
 
-		logger.Info("app/configuration linkage", "map", appConfigurationsMap)
+		logger.Infow("app/configuration linkage", "map", appConfigurationsMap)
 
 		// Unbind all the services' configurations from the found applications.  Using the
 		// inverted map holding the service/config information per app
 		for appName, infos := range appConfigurationsMap {
-			logger.Info("unbind from", "app name", appName)
+			logger.Infow("unbind from", "app name", appName)
 
 			// Note: Merge the configs per service
 			infoMap := make(map[string][]v1.Secret)
@@ -155,9 +155,9 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 			// ... And run the unbind per app and service.
 			for serviceName, serviceConfigurations := range infoMap {
-				logger.Info("unbinding of", "app", appName, "service", serviceName)
+				logger.Infow("unbinding of", "app", appName, "service", serviceName)
 
-				apiErr := UnbindService(ctx, cluster, logger, namespace, serviceName,
+				apiErr := UnbindService(ctx, cluster, namespace, serviceName,
 					appName, username, serviceConfigurations)
 				if apiErr != nil {
 					return apiErr
@@ -178,7 +178,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
 				return apierror.NewNotFoundError(
-					"service", 
+					"service",
 					serviceName,
 				).WithDetailsf("Not found error: %s", err.Error())
 			}

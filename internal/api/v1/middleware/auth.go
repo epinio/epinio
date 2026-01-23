@@ -16,12 +16,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
+
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // RoleAuthorization middleware is used to check if the user is allowed for the incoming request
@@ -55,25 +56,27 @@ func GitconfigAuthorization(c *gin.Context) {
 }
 
 func authorization(c *gin.Context, label string, allowed []string) {
-	logger := requestctx.Logger(c.Request.Context()).WithName("AuthorizationMiddleware")
+	logger := helpers.Logger.With("component", "AuthorizationMiddleware")
 	user := requestctx.User(c.Request.Context())
 
 	method := c.Request.Method
 	path := c.Request.URL.Path
 
 	roleIDs := strings.Join(user.Roles.IDs(), ",")
-	logger.Info(fmt.Sprintf(
-		"authorization request from user [%s] with roles [%s] for [%s - %s]",
-		user.Username, roleIDs, method, path,
-	))
+	logger.Infow("authorization request",
+		"user", user.Username,
+		"roles", roleIDs,
+		"method", method,
+		"path", path,
+	)
 
 	if user.IsAdmin() {
-		logger.V(1).WithName("authorizeAdmin").Info("user [admin] is authorized")
+		logger.Debugw("user [admin] is authorized", "component", "authorizeAdmin")
 		return
 	}
 
 	// not an admin, check if path is restricted
-	if restrictedPath(logger, path) {
+	if restrictedPath(path) {
 		err := apierrors.NewAPIError("user unauthorized, path restricted", http.StatusForbidden)
 		response.Error(c, err)
 		c.Abort()
@@ -89,13 +92,16 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	}
 
 	for _, rsrc := range resourceNames {
-		authorized := authorizeUser(logger, label, rsrc, allowed)
+		authorized := authorizeUser(label, rsrc, allowed)
 
 		roleIDs := strings.Join(user.Roles.IDs(), ",")
-		logger.Info(fmt.Sprintf(
-			"user [%s] with roles [%s] authorized [%t] for %s [%s]",
-			user.Username, roleIDs, authorized, label, rsrc,
-		))
+		logger.Infow("authorization result",
+			"user", user.Username,
+			"roles", roleIDs,
+			"authorized", authorized,
+			"resource_type", label,
+			"resource", rsrc,
+		)
 
 		if !authorized {
 			err := apierrors.NewAPIError(fmt.Sprintf("user unauthorized for %s %s", label, rsrc), http.StatusForbidden)
@@ -106,8 +112,8 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	}
 }
 
-func authorizeUser(logger logr.Logger, label, resource string, allowed []string) bool {
-	logger = logger.V(1).WithName("authorizeUser")
+func authorizeUser(label, resource string, allowed []string) bool {
+	logger := helpers.Logger.With("component", "authorizeUser")
 
 	// check if the user has permission on the requested resource
 	if resource == "" {
@@ -121,17 +127,19 @@ func authorizeUser(logger logr.Logger, label, resource string, allowed []string)
 		}
 	}
 
-	logger.Info(fmt.Sprintf("%s [%s] is not in user %ss [%s]",
-		label, resource, label, strings.Join(allowed, ", ")))
+	logger.Infow("resource not in allowed list",
+		"resource_type", label,
+		"resource", resource,
+		"allowed", strings.Join(allowed, ", "))
 	return false
 }
 
-func restrictedPath(logger logr.Logger, path string) bool {
-	logger = logger.V(1).WithName("unrestrictedPath")
+func restrictedPath(path string) bool {
+	logger := helpers.Logger.With("component", "unrestrictedPath")
 
 	// check if the requested path is restricted
 	if _, found := v1.AdminRoutes[path]; found {
-		logger.Info(fmt.Sprintf("path [%s] is an admin route, user unauthorized", path))
+		logger.Infow("path is an admin route, user unauthorized", "path", path)
 		return true
 	}
 

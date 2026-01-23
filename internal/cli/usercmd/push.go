@@ -14,7 +14,6 @@ package usercmd
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"sort"
@@ -283,7 +282,9 @@ func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, sour
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				slog.Error("failed to remove temporary directory", "error", err)
+				if helpers.Logger != nil {
+					helpers.Logger.Errorw("failed to remove temporary directory", "error", err)
+				}
 			}
 		}()
 
@@ -305,7 +306,9 @@ func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, sour
 
 	defer func() {
 		if err := file.Close(); err != nil {
-			slog.Error("failed to close file", "error", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close file", "error", err)
+			}
 		}
 	}()
 

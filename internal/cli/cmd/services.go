@@ -34,7 +34,7 @@ type ServicesService interface {
 	ServicePortForward(ctx context.Context, serviceName string, address, ports []string) error
 	ServiceShow(serviceName string) error
 	ServiceUnbind(serviceName, appName string) error
-	ServiceUpdate(serviceName string, wait bool, removed []string, assignments map[string]string) error
+	ServiceUpdate(serviceName string, wait bool, removed []string, assignments map[string]string, noRestart bool) error
 
 	ServiceMatcher
 	ServiceChartValueMatcher
@@ -145,8 +145,9 @@ func NewServiceCreateCmd(client ServicesService) *cobra.Command {
 }
 
 type ServiceUpdateConfig struct {
-	wait   bool
-	change ChangeConfig // See configurations.go for definition
+	wait      bool
+	noRestart bool
+	change    ChangeConfig // See configurations.go for definition
 }
 
 func NewServiceUpdateCmd(client ServicesService) *cobra.Command {
@@ -168,7 +169,7 @@ func NewServiceUpdateCmd(client ServicesService) *cobra.Command {
 				assignments[pieces[0]] = pieces[1]
 			}
 
-			err := client.ServiceUpdate(args[0], cfg.wait, cfg.change.removed, assignments)
+			err := client.ServiceUpdate(args[0], cfg.wait, cfg.change.removed, assignments, cfg.noRestart)
 			if err != nil {
 				return errors.Wrap(err, "error creating service")
 			}
@@ -179,6 +180,7 @@ func NewServiceUpdateCmd(client ServicesService) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&cfg.wait, "wait", false, "Wait for deployment to complete")
+	cmd.Flags().BoolVar(&cfg.noRestart, "no-restart", false, "Prevent restarting bound applications after update")
 	changeOptions(cmd, &cfg.change)
 
 	return cmd
