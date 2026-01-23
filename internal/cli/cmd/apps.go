@@ -469,7 +469,7 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().String("container-image-url", "", "Container image url for the app workload image")
 	cmd.Flags().StringP("name", "n", "", "Application name. (mandatory if no manifest is provided)")
 	cmd.Flags().StringP("path", "p", "", "Path to application sources.")
-	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
+	cmd.Flags().String("builder-image", "", "Cloud Native Buildpacks builder image to use for staging")
 
 	gitProviderOption(cmd)
 	routeOption(cmd)

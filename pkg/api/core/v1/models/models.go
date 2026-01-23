@@ -134,7 +134,7 @@ type ApplicationManifest struct {
 
 // ApplicationStage is the part of the manifest holding information
 // relevant to staging the application's sources. This is, currently,
-// only the reference to the Paketo builder image to use.
+// only the reference to the Cloud Native Buildpacks builder image to use.
 type ApplicationStage struct {
 	Builder string `yaml:"builder,omitempty" json:"builder,omitempty"`
 }
