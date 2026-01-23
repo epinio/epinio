@@ -52,11 +52,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		if helpers.Logger == nil {
 			return
 		}
-		loggerError := helpers.Logger.Sync()
-		if loggerError != nil {
-			// Best-effort: logger sync failed; write to stderr.
-			_, _ = fmt.Fprintf(os.Stderr, "ZAP FALLBACK: Error flushing logs: %v\n", loggerError)
-		}
+		_ = helpers.Logger.Sync()
 	})
 
 	rootCmd := &cobra.Command{
