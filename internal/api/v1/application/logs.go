@@ -415,13 +415,24 @@ func streamPodLogs(
 					update.Params,
 				)
 
+				// Send marker directly to WebSocket to tell frontend to clear logs
+				// We do this BEFORE cancelling to ensure it arrives before any buffered messages
+				startMarker := tailer.ContainerLogLine{
+					Message:       "___FILTER_START___",
+					ContainerName: "",
+					PodName:       "",
+					Namespace:     "",
+					Timestamp:     "",
+				}
+				if msg, err := json.Marshal(startMarker); err == nil {
+					if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+						helpers.Logger.Error(err, "failed to send filter start marker")
+					}
+				}
+
 				// Cancel current log streaming
 				logCancelFunc()
 				logWg.Wait()
-
-				if len(logChan) > 0 {
-					<-logChan
-				}
 
 				// Start new streaming with updated parameters
 				logCtx, logCancelFunc = context.WithCancel(ctx)
@@ -442,8 +453,8 @@ func streamPodLogs(
 					continue
 				}
 
-				// Set follow to false for updates, as these are one-off requests
-				update.Params.Follow = false
+				// Use the follow parameter from the client
+				parsedParams.Follow = update.Params.Follow
 
 				logWg.Add(1)
 				go startLogStreaming(
