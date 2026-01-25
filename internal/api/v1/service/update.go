@@ -15,15 +15,16 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/services"
+	"github.com/gin-gonic/gin"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/gin-gonic/gin"
 )
 
 // Update handles the API endpoint PATCH /namespaces/:namespace/services/:service
@@ -31,14 +32,14 @@ func Update(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
-	logger := requestctx.Logger(ctx)
+	logger := helpers.Logger
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -51,7 +52,7 @@ func Update(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError(err.Error())
 	}
 
-	logger.Info("updating service", "namespace", namespace, "service", serviceName, "request", updateRequest)
+	logger.Infow("updating service", "namespace", namespace, "service", serviceName, "request", updateRequest)
 
 	// Save changes to resource
 
@@ -60,9 +61,13 @@ func Update(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = kubeServiceClient.UpdateService(ctx, cluster, service, updateRequest,
-		func(ctx context.Context) error {
-			err := WhenFullyDeployed(ctx, cluster, logger, namespace, serviceName)
+	// backward compatibility: if no flag provided then restart the app
+	restart := updateRequest.Restart == nil || *updateRequest.Restart
+
+	var restartCallback func(context.Context) error
+	if restart {
+		restartCallback = func(ctx context.Context) error {
+			err := WhenFullyDeployed(ctx, cluster, namespace, serviceName)
 			if err != nil {
 				return err
 			}
@@ -82,7 +87,14 @@ func Update(c *gin.Context) apierror.APIErrors {
 			}
 
 			return nil
-		})
+		}
+	} else {
+		restartCallback = func(ctx context.Context) error {
+			return WhenFullyDeployed(ctx, cluster, namespace, serviceName)
+		}
+	}
+
+	err = kubeServiceClient.UpdateService(ctx, cluster, service, updateRequest, restartCallback)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

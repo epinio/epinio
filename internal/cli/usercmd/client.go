@@ -19,8 +19,8 @@ import (
 	"net/http"
 	"runtime"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/selfupdater"
@@ -143,8 +143,6 @@ type APIClient interface {
 }
 
 func New() (*EpinioClient, error) {
-	logger := tracelog.NewLogger().WithName("EpinioClient").V(3)
-
 	updater, err := getUpdater(runtime.GOOS)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting updater")
@@ -152,12 +150,16 @@ func New() (*EpinioClient, error) {
 
 	return &EpinioClient{
 		ui:      termui.NewUI(),
-		Log:     logger,
+		Log:     logr.Discard(),
 		Updater: updater,
 	}, nil
 }
 
 func (c *EpinioClient) Init(ctx context.Context) error {
+	// Logger is initialized in the CLI root persistent pre-run (after flags/env are loaded).
+	// Re-bind here so we don't capture a discarded logger during early CLI construction.
+	c.Log = helpers.LoggerToLogr().WithName("EpinioClient").V(3)
+
 	cfg, err := settings.Load()
 	if err != nil {
 		return errors.Wrap(err, "error loading settings")

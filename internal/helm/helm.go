@@ -24,16 +24,15 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/appchart"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
 	"github.com/epinio/epinio/internal/urlcache"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/go-logr/logr"
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
@@ -83,10 +82,13 @@ type ChartParameters struct {
 	Settings       models.ChartValueSettings
 }
 
-func Values(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) ([]byte, error) {
+func Values(
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+) ([]byte, error) {
 	none := []byte{}
 
-	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
+	client, err := GetHelmClient(cluster.RestConfig, app.Namespace)
 	if err != nil {
 		return none, err
 	}
@@ -104,8 +106,11 @@ func Values(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) 
 	return yaml, nil
 }
 
-func Remove(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) error {
-	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
+func Remove(
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+) error {
+	client, err := GetHelmClient(cluster.RestConfig, app.Namespace)
 	if err != nil {
 		return err
 	}
@@ -113,8 +118,11 @@ func Remove(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) 
 	return client.UninstallReleaseByName(names.ReleaseName(app.Name))
 }
 
-func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) error {
-	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
+func RemoveService(
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+) error {
+	client, err := GetHelmClient(cluster.RestConfig, app.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "create a helm client")
 	}
@@ -124,17 +132,20 @@ func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.A
 }
 
 func DeployService(ctx context.Context, parameters ServiceParameters) error {
-	logger := requestctx.Logger(ctx)
-	logger.Info("service helm setup", "parameters", parameters)
+	logger := helpers.Logger.With("component", "helm-service")
+	logger.Infow("service helm setup", "parameters", parameters)
 
-	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
+	client, err := GetHelmClient(
+		parameters.Cluster.RestConfig,
+		parameters.Namespace,
+	)
 	if err != nil {
 		return errors.Wrap(err, "create a helm client")
 	}
 
 	// cleanup old release
 	releaseName := names.ServiceReleaseName(parameters.Name)
-	err = cleanupReleaseIfNeeded(logger, client, releaseName)
+	err = cleanupReleaseIfNeeded(client, releaseName)
 	if err != nil {
 		return errors.Wrap(err, "cleaning up release")
 	}
@@ -165,9 +176,9 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		// is linked to the request. We will get a `context canceled` error. To avoid this a
 		// background context is used instead.
 		go func() {
-			err = installOrUpgradeChartWithRetry(context.Background(), logger, client, &chartSpec)
+			err = installOrUpgradeChartWithRetry(context.Background(), client, &chartSpec)
 			if err != nil {
-				logger.Error(err, "installing or upgrading service ASYNC")
+				logger.Errorw("installing or upgrading service ASYNC", "error", err)
 				return
 			}
 
@@ -176,18 +187,18 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 				// So far, local, things were fast enough to not need it for labeling
 				err := parameters.PostDeployHook(context.Background())
 				if err != nil {
-					logger.Error(err, "service post deployment ASYNC")
+					logger.Errorw("service post deployment ASYNC", "error", err)
 					return
 				}
 			}
 
-			logger.Info("completed service deployment ASYNC")
+			logger.Infow("completed service deployment ASYNC")
 		}()
 		return nil
 	}
 
 	// Note: Steps 1: Retry only once!
-	err = installOrUpgradeChartWithRetry(ctx, logger, client, &chartSpec)
+	err = installOrUpgradeChartWithRetry(ctx, client, &chartSpec)
 	if err != nil {
 		return errors.Wrap(err, "installing or upgrading service SYNC")
 	}
@@ -195,11 +206,11 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	// wait for the release to be in a ready state
 	timeout := duration.ToDeployment()
 	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-		release, err := Release(ctx, logger, parameters.Cluster, parameters.Namespace, releaseName)
+		release, err := Release(ctx, parameters.Cluster, parameters.Namespace, releaseName)
 		if err != nil {
 			return false, err
 		}
-		releaseStatus, err := Status(ctx, logger, parameters.Cluster, release)
+		releaseStatus, err := Status(ctx, parameters.Cluster, release)
 		if releaseStatus == StatusUnknown || err != nil {
 			return false, err
 		}
@@ -215,12 +226,12 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	if parameters.PostDeployHook != nil {
 		err := parameters.PostDeployHook(ctx)
 		if err != nil {
-			logger.Error(err, "service post deployment SYNC")
+			logger.Errorw("service post deployment SYNC", "error", err)
 			return errors.Wrap(err, "post deployment action")
 		}
 	}
 
-	logger.Info("completed service deployment SYNC")
+	logger.Infow("completed service deployment SYNC")
 	return nil
 }
 
@@ -333,8 +344,9 @@ type ChartParam struct {
 	User   map[string]interface{} `yaml:"userConfig,omitempty"`
 }
 
-func Deploy(logger logr.Logger, parameters ChartParameters) error {
-	logger.Info("deploy app", "parameters", parameters)
+func Deploy(parameters ChartParameters) error {
+	logger := helpers.Logger.With("component", "helm-deploy")
+	logger.Infow("deploy app", "parameters", parameters)
 
 	// Find the app chart to use for the deployment.
 	appChart, err := appchart.Lookup(parameters.Context, parameters.Cluster, parameters.Chart)
@@ -345,28 +357,31 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		return fmt.Errorf("unable to deploy, chart %s not found", parameters.Chart)
 	}
 
-	logger.Info("deploy app", "appchart", appChart)
+	logger.Infow("deploy app", "appchart", appChart)
 
 	// Fill values.yaml structure
 
-	params, err := getValuesYAML(logger, appChart, parameters)
+	params, err := getValuesYAML(appChart, parameters)
 	if err != nil {
 		return err
 	}
 
-	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
+	client, err := GetHelmClient(
+		parameters.Cluster.RestConfig,
+		parameters.Namespace,
+	)
 	if err != nil {
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	helmChart, helmVersion, err := getChartReference(parameters.Context, logger, client, appChart)
+	helmChart, helmVersion, err := getChartReference(parameters.Context, client, appChart)
 	if err != nil {
 		return errors.Wrap(err, "retrieving chart reference")
 	}
 
 	releaseName := names.ReleaseName(parameters.Name)
 
-	err = cleanupReleaseIfNeeded(logger, client, releaseName)
+	err = cleanupReleaseIfNeeded(client, releaseName)
 	if err != nil {
 		return errors.Wrap(err, "cleaning up release")
 	}
@@ -402,10 +417,10 @@ const (
 
 // Release returns the named Helm release, including the associated resources. This is the internal
 // equivalent of the `helm status` command.
-func Release(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
+func Release(ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, releaseName string) (*helmrelease.Release, error) {
 
-	helmClient, err := GetHelmClient(cluster.RestConfig, logger, namespace)
+	helmClient, err := GetHelmClient(cluster.RestConfig, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -422,15 +437,24 @@ func Release(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluste
 // the Helm release status (https://github.com/helm/helm/blob/main/pkg/release/status.go).
 // Helm is not checking for the actual status of the release and even if the resources are still
 // in deployment they will be marked as "deployed"
-func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster,
+func Status(ctx context.Context, cluster *kubernetes.Cluster,
 	release *helmrelease.Release) (ReleaseStatus, error) {
+	logger := helpers.Logger.With("component", "helm-status")
 	resourceList := getResourceListFromRelease(release)
-	logger.V(1).Info(fmt.Sprintf(
-		"found '%d' resources for release '%s' in namespace '%s'\n",
-		len(resourceList), release.Name, release.Namespace),
+	logger.Debugw("found resources for release",
+		"count", len(resourceList),
+		"release", release.Name,
+		"namespace", release.Namespace,
 	)
 
-	checker := kube.NewReadyChecker(cluster.Kubectl, logger.Info, kube.PausedAsReady(true))
+	// Convert zap logger to logr for kube.NewReadyChecker which expects logr.Info function
+	logrInfo := func(msg string, keysAndValues ...interface{}) {
+		// Convert key-value pairs to zap fields
+		fields := make([]interface{}, 0, len(keysAndValues))
+		fields = append(fields, keysAndValues...)
+		logger.Infow(msg, fields...)
+	}
+	checker := kube.NewReadyChecker(cluster.Kubectl, logrInfo, kube.PausedAsReady(true))
 	for _, v := range resourceList {
 		// IsReady checks if v is ready. It supports checking readiness for pods,
 		// deployments, persistent volume claims, services, daemon sets, custom
@@ -438,7 +462,7 @@ func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster
 		// sets. All other resource kinds are always considered ready.
 		ready, err := checker.IsReady(ctx, v)
 
-		logger.V(1).Info(fmt.Sprintf("resource '%s' ready: '%t'\n", v.Name, ready))
+		logger.Debugw("resource ready status", "resource", v.Name, "ready", ready)
 
 		if err != nil {
 			return StatusUnknown, errors.Wrapf(err,
@@ -483,7 +507,10 @@ type SynchronizedClient struct {
 	helmClient hc.Client
 }
 
-func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string) (*SynchronizedClient, error) {
+func GetHelmClient(
+	restConfig *rest.Config,
+	namespace string,
+) (*SynchronizedClient, error) {
 	options := &hc.RestConfClientOptions{
 		RestConfig: restConfig,
 		Options: &hc.Options{
@@ -493,7 +520,7 @@ func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string
 			Linting:          true,
 			Debug:            true,
 			DebugLog: func(format string, v ...interface{}) {
-				logger.Info("helm", "report", fmt.Sprintf(format, v...))
+				helpers.Logger.Infow("helm", "report", fmt.Sprintf(format, v...))
 			},
 		},
 	}
@@ -526,7 +553,8 @@ func GetNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client) 
 // that is in pending-install state. This would be the case, when the app container
 // is failing for whatever reason. The user may try to fix the problem by pushing
 // the application again and we want to allow that.
-func cleanupReleaseIfNeeded(l logr.Logger, c hc.Client, name string) error {
+func cleanupReleaseIfNeeded(c hc.Client, name string) error {
+	logger := helpers.Logger.With("component", "helm-cleanup")
 	r, err := c.GetRelease(name)
 	if err != nil {
 		if err == helmdriver.ErrReleaseNotFound {
@@ -539,14 +567,14 @@ func cleanupReleaseIfNeeded(l logr.Logger, c hc.Client, name string) error {
 		return nil
 	}
 
-	l.Info("Will remove existing release with status: " + string(r.Info.Status))
+	logger.Infow("Will remove existing release with status", "status", string(r.Info.Status))
 	err = c.UninstallRelease(&hc.ChartSpec{
 		ReleaseName: name,
 		Wait:        true,
 	})
 
 	if err != nil {
-		l.Error(err, fmt.Sprintf("uninstalling the release with status: %s", r.Info.Status))
+		logger.Errorw("uninstalling the release", "error", err, "status", r.Info.Status)
 
 		// Sometimes we get an error but the release was uninstalled anyway.
 		// Check again if the release exists.
@@ -624,8 +652,9 @@ func validateRange(v float64, key, value, min, max string) error {
 	return nil
 }
 
-func installOrUpgradeChartWithRetry(ctx context.Context, logger logr.Logger, client hc.Client,
+func installOrUpgradeChartWithRetry(ctx context.Context, client hc.Client,
 	chartSpec *hc.ChartSpec) error {
+	logger := helpers.Logger.With("component", "helm-install")
 
 	// This, the retry, should fix issue https://github.com/epinio/epinio/issues/2385
 
@@ -641,29 +670,30 @@ func installOrUpgradeChartWithRetry(ctx context.Context, logger logr.Logger, cli
 	return retry.OnError(backoff, alwaysRetry, func() error {
 		_, err := client.InstallOrUpgradeChart(ctx, chartSpec, nil)
 		if err != nil {
-			logger.Error(err, "installing or upgrading service, retry")
+			logger.Errorw("installing or upgrading service, retry", "error", err)
 		}
 		return err
 	})
 }
 
-func getChartReference(ctx context.Context, logger logr.Logger, client hc.Client, appChart *models.AppChartFull) (string, string, error) {
+func getChartReference(ctx context.Context, client hc.Client, appChart *models.AppChartFull) (string, string, error) {
+	logger := helpers.Logger.With("component", "helm-chart-ref")
 	// chart, version, error
 	// See also part.go, fetchAppChart
 
-	logger.Info("deploy app", "raw-appchart", appChart.HelmChart, "helm-repo", appChart.HelmRepo)
+	logger.Infow("deploy app", "raw-appchart", appChart.HelmChart, "helm-repo", appChart.HelmRepo)
 
 	if appChart.HelmRepo == "" {
 		// The helm chart is either a local file, or a direct url to the chart location.
 
-		logger.Info("deploy app", "appchart-url", appChart.HelmChart)
+		logger.Infow("deploy app", "appchart-url", appChart.HelmChart)
 
-		helmChart, err := urlcache.Get(ctx, logger, appChart.HelmChart)
+		helmChart, err := urlcache.Get(ctx, appChart.HelmChart)
 		if err != nil {
 			return "", "", err
 		}
 
-		logger.Info("deploy app", "appchart-file", helmChart)
+		logger.Infow("deploy app", "appchart-file", helmChart)
 		return helmChart, "", nil
 	}
 
@@ -693,13 +723,14 @@ func getChartReference(ctx context.Context, logger logr.Logger, client hc.Client
 
 	helmChart = fmt.Sprintf("%s/%s", repositoryName, helmChart)
 
-	logger.Info("deploy app", "appchart", helmChart, "version", helmVersion)
+	logger.Infow("deploy app", "appchart", helmChart, "version", helmVersion)
 
 	return helmChart, helmVersion, nil
 }
 
-func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters ChartParameters) (string, error) {
-	logger.Info("deploy app, get values.yaml")
+func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (string, error) {
+	logger := helpers.Logger.With("component", "helm-values")
+	logger.Infow("deploy app, get values.yaml")
 
 	// ATTENTION: The configurations slice may contain multiple mount points for the same
 	// configuration, for backward compatibility. We dedup this so that there is only one volume
@@ -734,14 +765,14 @@ func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters
 	name := viper.GetString("ingress-class-name")
 	if name != "" {
 		params.Epinio.Ingress = name
-		logger.Info("deploy app", "ingress-class", name)
+		logger.Infow("deploy app", "ingress-class", name)
 	}
 	if parameters.Start != nil {
 		params.Epinio.Start = fmt.Sprintf(`%d`, *parameters.Start)
-		logger.Info("deploy app", "start", params.Epinio.Start)
+		logger.Infow("deploy app", "start", params.Epinio.Start)
 	}
 	if len(parameters.Routes) > 0 {
-		logger.Info("deploy app, routes and domains")
+		logger.Infow("deploy app, routes and domains")
 
 		for _, desired := range parameters.Routes {
 			r := routes.FromString(desired)
@@ -755,7 +786,7 @@ func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters
 
 			domainSecret, err := domain.MatchDo(r.Domain, parameters.Domains)
 
-			logger.Info("deploy app, domain match", "domain", r.Domain,
+			logger.Infow("deploy app, domain match", "domain", r.Domain,
 				"secret", domainSecret, "err", err)
 
 			// Should we treat a match error as something to stop for?
@@ -782,7 +813,7 @@ func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters
 	// user A deployed, and landing in the window.
 
 	if len(parameters.Settings) > 0 {
-		logger.Info("deploy app, settings")
+		logger.Infow("deploy app, settings")
 
 		params.User = make(map[string]interface{})
 
@@ -802,7 +833,7 @@ func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters
 			}
 			params.User[field] = v
 
-			logger.Info("deploy app, settings", "field", field, "value", v)
+			logger.Infow("deploy app, settings", "field", field, "value", v)
 		}
 	}
 
@@ -810,7 +841,7 @@ func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters
 
 	// At last generate the properly quoted values.yaml string
 
-	logger.Info("deploy app", "helm values.raw", params)
+	logger.Infow("deploy app", "helm values.raw", params)
 
 	yamlParameters, err := yaml.Marshal(params)
 	if err != nil {
@@ -819,7 +850,7 @@ func getValuesYAML(logger logr.Logger, appChart *models.AppChartFull, parameters
 
 	yamlString := string(yamlParameters)
 
-	logger.Info("deploy app", "helm values.yaml", yamlString)
-	logger.Info("deploy app, return values.yaml")
+	logger.Infow("deploy app", "helm values.yaml", yamlString)
+	logger.Infow("deploy app, return values.yaml")
 	return yamlString, nil
 }

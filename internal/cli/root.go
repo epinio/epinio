@@ -15,20 +15,17 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes/config"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/cmd"
 	settings "github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
-	"github.com/go-logr/stdr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -51,6 +48,13 @@ func NewRootCmd() (*cobra.Command, error) {
 		return nil, errors.Wrap(err, "initializing cli")
 	}
 
+	cobra.OnFinalize(func() {
+		if helpers.Logger == nil {
+			return
+		}
+		_ = helpers.Logger.Sync()
+	})
+
 	rootCmd := &cobra.Command{
 		Args:          cobra.MaximumNArgs(0),
 		Use:           "epinio",
@@ -59,7 +63,12 @@ func NewRootCmd() (*cobra.Command, error) {
 		Version:       version.Version,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			stdr.SetVerbosity(tracelog.TraceLevel())
+			if helpers.Logger == nil {
+				if err := helpers.InitLogger(); err != nil {
+					// Fallback if logger initialization failed - use standard log
+					return errors.Wrap(err, "failed to initialize logger")
+				}
+			}
 
 			err := client.Init(cmd.Context())
 			if err != nil {
@@ -106,7 +115,6 @@ func NewRootCmd() (*cobra.Command, error) {
 	argToEnv["settings-file"] = "EPINIO_SETTINGS"
 
 	config.KubeConfigFlags(pf, argToEnv)
-	tracelog.LoggerFlags(pf, argToEnv)
 	duration.Flags(pf, argToEnv)
 
 	pf.Int("verbosity", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
@@ -164,16 +172,6 @@ func NewRootCmd() (*cobra.Command, error) {
 	// Hidden command providing developer tools
 	rootCmd.AddCommand(CmdDebug)
 
-	if err := helpers.InitLogger(); err != nil {
-		panic(err)
-	}
-	defer func() {
-		loggerError := helpers.Logger.Sync()
-		if loggerError != nil {
-			log.Printf("ZAP FALLBACK: Error flushing logs: %v", loggerError)
-		}
-	}()
-
 	return rootCmd, nil
 }
 
@@ -194,6 +192,11 @@ func Execute() {
 
 func checkErr(err error) {
 	if err != nil {
-		log.Fatal(err)
+		if helpers.Logger != nil {
+			helpers.Logger.Fatalw("fatal error", "error", err)
+		}
+		// Fallback if logger is not available - write to stderr and exit.
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }

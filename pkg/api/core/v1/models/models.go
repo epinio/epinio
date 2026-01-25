@@ -87,13 +87,17 @@ type ConfigurationCreateRequest struct {
 // ConfigurationUpdateRequest represents and contains the data needed to
 // update a configuration instance (add/change, and remove keys)
 type ConfigurationUpdateRequest struct {
-	Remove []string          `json:"remove,omitempty"`
-	Set    map[string]string `json:"edit,omitempty"`
+	Remove  []string          `json:"remove,omitempty"`
+	Set     map[string]string `json:"edit,omitempty"`
+	Restart *bool             `json:"restart,omitempty"`
 }
 
 // ConfigurationReplaceRequest represents and contains the data needed to
 // replace a configuration instance
-type ConfigurationReplaceRequest map[string]string
+type ConfigurationReplaceRequest struct {
+	Data    map[string]string `json:"data"`
+	Restart *bool             `json:"restart,omitempty"`
+}
 
 // ConfigurationDeleteRequest represents and contains the data needed to delete a configuration
 type ConfigurationDeleteRequest struct {
@@ -140,6 +144,7 @@ type ApplicationConfiguration struct {
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	ReplaceEnv     *bool              `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
 	Services       []string           `json:"services,omitempty" yaml:"services,omitempty"`
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
@@ -217,6 +222,7 @@ type ApplicationUpdateRequest struct {
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	ReplaceEnv     *bool              `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
@@ -228,6 +234,7 @@ func NewApplicationUpdateRequest(manifest ApplicationManifest) ApplicationUpdate
 		Instances:      manifestConfig.Instances,
 		Configurations: manifestConfig.Configurations,
 		Environment:    manifestConfig.Environment,
+		ReplaceEnv:     manifestConfig.ReplaceEnv,
 		Routes:         manifestConfig.Routes,
 		AppChart:       manifestConfig.AppChart,
 		Settings:       manifestConfig.Settings,

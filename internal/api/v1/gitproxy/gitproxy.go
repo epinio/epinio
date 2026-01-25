@@ -20,13 +20,13 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/helpers/kubernetes"
+	gitbridge "github.com/epinio/epinio/internal/bridge/git"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 
-	"github.com/epinio/epinio/helpers/kubernetes"
-	gitbridge "github.com/epinio/epinio/internal/bridge/git"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/helmchart"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -34,14 +34,13 @@ import (
 // ProxyHandler is the gin.Handler for the Proxy func
 func ProxyHandler(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	gitManager, err := gitbridge.NewManager(logger, cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
+	gitManager, err := gitbridge.NewManager(cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
 	if err != nil {
 		return apierror.InternalError(err, "creating git configuration manager")
 	}
@@ -53,7 +52,6 @@ func ProxyHandler(c *gin.Context) apierror.APIErrors {
 // eventually using the gitconfiguration spcified in the gitconfig.
 func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx)
 
 	proxyRequest := &models.GitProxyRequest{}
 	if err := c.BindJSON(proxyRequest); err != nil {
@@ -80,7 +78,7 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 			}
 		}
 		if gitConfig == nil {
-			logger.Info("gitconfig not found", "id", proxyRequest.Gitconfig)
+			helpers.Logger.Infow("gitconfig not found", "id", proxyRequest.Gitconfig)
 		}
 	}
 
@@ -259,24 +257,22 @@ func getProxyClient(gitConfig *gitbridge.Configuration) (*http.Client, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
 
-	if gitConfig != nil {
-		tlsConfig.InsecureSkipVerify = gitConfig.SkipSSL
+	tlsConfig.InsecureSkipVerify = gitConfig.SkipSSL
 
-		// add custom certs
-		// https://github.com/go-git/go-git/blob/0377d0627fa4e32a576634f441e72153807e395a/plumbing/transport/http/common.go#L187-L201
+	// add custom certs
+	// https://github.com/go-git/go-git/blob/0377d0627fa4e32a576634f441e72153807e395a/plumbing/transport/http/common.go#L187-L201
 
-		if len(gitConfig.Certificate) > 0 {
-			rootCAs, err := x509.SystemCertPool()
-			if err != nil {
-				return nil, errors.Wrap(err, "loading SystemCertPool")
-			}
-			if rootCAs == nil {
-				rootCAs = x509.NewCertPool()
-			}
-			rootCAs.AppendCertsFromPEM(gitConfig.Certificate)
-
-			tlsConfig.RootCAs = rootCAs
+	if len(gitConfig.Certificate) > 0 {
+		rootCAs, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, errors.Wrap(err, "loading SystemCertPool")
 		}
+		if rootCAs == nil {
+			rootCAs = x509.NewCertPool()
+		}
+		rootCAs.AppendCertsFromPEM(gitConfig.Certificate)
+
+		tlsConfig.RootCAs = rootCAs
 	}
 
 	transport.TLSClientConfig = tlsConfig

@@ -13,9 +13,12 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -530,6 +533,95 @@ var _ = Describe("Configurations", LConfiguration, func() {
 					WithRow(appName, WithDate(), "1/1", appName+".*", configurationName1, ""),
 				),
 			)
+		})
+
+		Context("with --no-restart flag", func() {
+			getPodNames := func(namespace, app string) ([]string, error) {
+				podName, err := proc.Kubectl(
+					"get",
+					"pods",
+					"-n",
+					namespace,
+					"-l",
+					fmt.Sprintf("app.kubernetes.io/name=%s", app),
+					"-o",
+					"jsonpath='{.items[*].metadata.name}'",
+				)
+				return strings.Split(strings.Trim(podName, "'"), " "), err
+			}
+
+			It("updates configuration without restarting bound apps", func() {
+				By("getting pod names before update")
+				oldPodNames, err := getPodNames(namespace, appName)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("updating configuration with --no-restart")
+				out, err := env.Epinio("", "configuration", "update", configurationName1,
+					"--no-restart",
+					"--set", "newkey=newvalue",
+				)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Configuration Changes Saved"))
+
+				By("verifying changes were applied")
+				out, err = env.Epinio("", "configuration", "show", configurationName1)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
+						WithRow("newkey", "newvalue", ".*"),
+					),
+				)
+
+				By("verifying pods DID NOT restart")
+				Consistently(func() []string {
+					names, err := getPodNames(namespace, appName)
+					Expect(err).ToNot(HaveOccurred())
+					return names
+				}, "15s", "2s").Should(ContainElements(oldPodNames))
+
+				By("verifying app is still healthy")
+				out, err = env.Epinio("", "app", "show", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "1/1"),
+					),
+				)
+			})
+
+			It("updates configuration and restarts bound apps by default (without --no-restart)", func() {
+				By("getting pod names before update")
+				oldPodNames, err := getPodNames(namespace, appName)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("updating configuration WITHOUT --no-restart (default behavior)")
+				out, err := env.Epinio("", "configuration", "update", configurationName1,
+					"--set", "anotherkey=anothervalue",
+				)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Configuration Changes Saved"))
+
+				By("verifying pods DID restart (default behavior)")
+				Eventually(func() []string {
+					names, err := getPodNames(namespace, appName)
+					Expect(err).ToNot(HaveOccurred())
+					return names
+				}, "2m", "2s").ShouldNot(ContainElements(oldPodNames))
+
+				By("verifying app is healthy after restart")
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "list")
+					Expect(err).ToNot(HaveOccurred(), out)
+					return out
+				}, "2m").Should(
+					HaveATable(
+						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+						WithRow(appName, WithDate(), "1/1", appName+".*", configurationName1, ""),
+					),
+				)
+			})
 		})
 	})
 

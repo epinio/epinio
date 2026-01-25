@@ -12,9 +12,9 @@
 package cmd
 
 import (
-	"log"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -22,14 +22,22 @@ import (
 func bindFlag(cmd *cobra.Command, key string) {
 	err := viper.BindPFlag(key, cmd.Flags().Lookup(key))
 	if err != nil {
-		log.Fatal(err)
+		if helpers.Logger != nil {
+			helpers.Logger.Fatalw("failed to bind flag", "flag", key, "error", err)
+		}
+		// Programming/configuration error; abort early.
+		panic(err)
 	}
 }
 
 func bindFlagCompletionFunc(cmd *cobra.Command, key string, fn FlagCompletionFunc) {
 	err := cmd.RegisterFlagCompletionFunc(key, fn)
 	if err != nil {
-		log.Fatal(err)
+		if helpers.Logger != nil {
+			helpers.Logger.Fatalw("failed to register flag completion", "flag", key, "error", err)
+		}
+		// Programming/configuration error; abort early.
+		panic(err)
 	}
 }
 

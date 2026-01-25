@@ -18,20 +18,20 @@ import (
 	"sort"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
+	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/pkg/errors"
 )
 
 // DeployApp deploys the referenced application via helm, based on the state held by CRD and associated secrets.
@@ -47,7 +47,7 @@ func DeployAppWithRestart(ctx context.Context, cluster *kubernetes.Cluster, app 
 }
 
 func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, restart bool) ([]string, apierror.APIErrors) {
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	appObj, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
 	if err != nil {
@@ -117,12 +117,12 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	chartName := appObj.Configuration.AppChart
 	domains := domain.MatchMapLoad(ctx, app.Namespace)
 
-	maplog := log.V(1)
-	maplog.Info("domain map begin")
+	maplog := log.With("component", "domain-map")
+	maplog.Debugw("domain map begin")
 	for k, v := range domains {
-		maplog.Info("domain map", k, v)
+		maplog.Debugw("domain map", k, v)
 	}
-	maplog.Info("domain map end")
+	maplog.Debugw("domain map end")
 
 	var start *int64
 	if restart {
@@ -147,21 +147,21 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		Settings:       appObj.Configuration.Settings,
 	}
 
-	log.Info("deploying app", "namespace", app.Namespace, "app", app.Name)
+	log.Infow("deploying app", "namespace", app.Namespace, "app", app.Name)
 
 	deployParams.ImageURL, err = replaceInternalRegistry(ctx, cluster, imageURL)
 	if err != nil {
 		return nil, apierror.InternalError(err, "preparing ImageURL registry for use by Kubernetes", imageURL)
 	}
 
-	err = helm.Deploy(log, deployParams)
+	err = helm.Deploy(deployParams)
 	if err != nil {
 		return nil, apierror.InternalError(err)
 	}
 
 	// Delete previous staging jobs except for the current one
 	if stageID != "" {
-		log.Info("app staging drop", "namespace", app.Namespace, "app", app.Name, "stage id", stageID)
+		log.Infow("app staging drop", "namespace", app.Namespace, "app", app.Name, "stage id", stageID)
 
 		if err := application.Unstage(ctx, cluster, app, stageID); err != nil {
 			return nil, apierror.InternalError(err)

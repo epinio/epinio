@@ -23,9 +23,7 @@ import (
 
 	"github.com/epinio/epinio/internal/api/v1/gitproxy"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -40,7 +38,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 
 		w = httptest.NewRecorder()
 		c, _ = gin.CreateTestContext(w)
-		ctx = requestctx.WithLogger(context.Background(), logr.Discard())
+		ctx = context.Background()
 	})
 
 	setupRequestBody := func(body string) {

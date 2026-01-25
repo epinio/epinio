@@ -19,18 +19,17 @@ import (
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/namespaces"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/gin-gonic/gin"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 // Create handles the API endpoint /namespaces (POST).
 // It creates a namespace with the specified name.
 func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx)
 	user := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -38,7 +37,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	authService := auth.NewAuthService(logger, cluster)
+	authService := auth.NewAuthService(cluster)
 
 	var request models.NamespaceCreateRequest
 	err = c.BindJSON(&request)

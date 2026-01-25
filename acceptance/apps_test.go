@@ -1529,6 +1529,124 @@ configuration:
 				)
 			})
 		})
+
+		Context("with --no-restart flag", func() {
+			getPodNames := func(namespace, app string) ([]string, error) {
+				podName, err := proc.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+				return strings.Split(strings.Trim(podName, "'"), " "), err
+			}
+
+			It("updates instances without restarting the app", func() {
+				env.MakeContainerImageApp(appName, 1, containerImageURL)
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "show", appName)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "1/1"),
+					),
+				)
+
+				// Get pod names before update
+				oldPodNames, err := getPodNames(namespace, appName)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Update with --no-restart flag
+				out, err := env.Epinio("", "app", "update", appName, "-i", "2", "--no-restart")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Successfully updated application"))
+
+				// Verify instances changed
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "show", appName)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "2/2"),
+					),
+				)
+
+				// Verify pods DID NOT restart (pod names should be the same)
+				Consistently(func() []string {
+					names, err := getPodNames(namespace, appName)
+					Expect(err).ToNot(HaveOccurred())
+					return names
+				}, "10s", "2s").Should(ContainElements(oldPodNames))
+			})
+
+			It("updates environment without restarting the app", func() {
+				env.MakeContainerImageApp(appName, 1, containerImageURL)
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "show", appName)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "1/1"),
+					),
+				)
+
+				// Get pod names before update
+				oldPodNames, err := getPodNames(namespace, appName)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Update with --no-restart flag
+				out, err := env.Epinio("", "app", "update", appName, "--env", "TEST_VAR=test_value", "--no-restart")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Successfully updated application"))
+
+				// Verify environment variable was added
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "env", "list", appName)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "30s").Should(ContainSubstring("TEST_VAR"))
+
+				// Verify pods DID NOT restart
+				Consistently(func() []string {
+					names, err := getPodNames(namespace, appName)
+					Expect(err).ToNot(HaveOccurred())
+					return names
+				}, "10s", "2s").Should(ContainElements(oldPodNames))
+			})
+
+			It("restarts the app by default when --no-restart is not provided", func() {
+				env.MakeContainerImageApp(appName, 1, containerImageURL)
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "show", appName)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "1/1"),
+					),
+				)
+
+				// Get pod names before update
+				oldPodNames, err := getPodNames(namespace, appName)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Update WITHOUT --no-restart (should restart by default)
+				out, err := env.Epinio("", "app", "update", appName, "-i", "2")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				// Verify restart occurred (pod names changed)
+				Eventually(func() []string {
+					names, err := getPodNames(namespace, appName)
+					Expect(err).ToNot(HaveOccurred())
+					return names
+				}, "1m", "2s").ShouldNot(ContainElements(oldPodNames))
+			})
+		})
 	})
 
 	Describe("list, show, and export", func() {
