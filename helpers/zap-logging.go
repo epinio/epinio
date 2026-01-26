@@ -6,6 +6,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -112,4 +113,13 @@ func InitLogger() error {
 
 	Logger = z.Sugar()
 	return nil
+}
+
+func init() {
+	if Logger == nil {
+		if err := InitLogger(); err != nil {
+			// Fallback if logger initialization failed - use standard log
+			_ = errors.Wrap(err, "failed to initialize logger")
+		}
+	}
 }
