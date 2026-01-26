@@ -58,25 +58,11 @@ func coloredLevelEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(lvl)
 }
 
-func InitLogger() error {
-	// Define flags
-	//pflag.String("log-level", "info", "debug, info, warn, error, fatal")
-	//pflag.Bool("color", false, "enable colored log levels")
-	//pflag.Parse()
-
-	// Bind flags into Viper
-	//viper.BindPFlags(pflag.CommandLine)
-
-	// Environment overrides
-	//viper.SetEnvPrefix("APP")
-	//viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	//viper.AutomaticEnv()
-
+func InitLogger(logLevel string) error {
 	// Parse log level
-	logLevel := viper.GetString("log-level")
-	if logLevel == "" {
-		logLevel = "info" // Default to info level if not specified
-	}
+	//if logLevel == "" {
+	logLevel = "info" // Default to info level if not specified
+	//}
 	var lvl zapcore.Level
 	if err := lvl.UnmarshalText([]byte(logLevel)); err != nil {
 		return fmt.Errorf("invalid log level '%s'", logLevel)
@@ -96,6 +82,8 @@ func InitLogger() error {
 	cfg.EncoderConfig.ConsoleSeparator = " | "
 
 	cfg.Level = zap.NewAtomicLevelAt(lvl)
+
+	fmt.Println(cfg.Level.String())
 
 	// Optional level coloring
 	if viper.GetBool("no-colors") {

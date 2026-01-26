@@ -64,12 +64,11 @@ func NewRootCmd() (*cobra.Command, error) {
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if helpers.Logger == nil {
-				if err := helpers.InitLogger(); err != nil {
+				if err := helpers.InitLogger(viper.GetString("log-level")); err != nil {
 					// Fallback if logger initialization failed - use standard log
 					return errors.Wrap(err, "failed to initialize logger")
 				}
 			}
-
 			err := client.Init(cmd.Context())
 			if err != nil {
 				return errors.Wrap(err, "initializing client")
