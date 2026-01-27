@@ -220,7 +220,7 @@ var _ = Describe("Application Log API Endpoint unit tests", func() {
 				_, err := application.ParseLogParameters("99999999", "", "")
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("exceeds maximum"))
-				Expect(err.Error()).To(ContainSubstring("10000"))
+				Expect(err.Error()).To(ContainSubstring("100000"))
 			})
 
 			It("accepts tail at maximum boundary (100000)", func() {
@@ -307,7 +307,7 @@ var _ = Describe("Application Log API Endpoint unit tests", func() {
 			})
 
 			It("handles tail at int64 max value", func() {
-				// int64 max is 9223372036854775807, but our max is 10000
+				// int64 max is 9223372036854775807, but our max is 100000
 				// This tests that we handle very large int64 values correctly
 				maxInt64Str := "9223372036854775807"
 				_, err := application.ParseLogParameters(maxInt64Str, "", "")
@@ -456,10 +456,10 @@ var _ = Describe("Application Log API Endpoint unit tests", func() {
 
 		Context("boundary value combinations", func() {
 			It("handles maximum tail with minimum since", func() {
-				params, err := application.ParseLogParameters("10000", "1ns", "")
+				params, err := application.ParseLogParameters("100000", "1ns", "")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(params).ToNot(BeNil())
-				Expect(*params.Tail).To(Equal(int64(10000)))
+				Expect(*params.Tail).To(Equal(int64(100000)))
 				Expect(*params.Since).To(Equal(1 * time.Nanosecond))
 			})
 
@@ -527,11 +527,11 @@ var _ = Describe("Application Log API Endpoint unit tests", func() {
 		})
 
 		Context("mathematical edge cases", func() {
-			It("handles tail at boundary of 10000", func() {
+			It("handles tail at boundary of 100000", func() {
 				// Test exact boundary
-				params, err := application.ParseLogParameters("10000", "", "")
+				params, err := application.ParseLogParameters("100000", "", "")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(*params.Tail).To(Equal(int64(10000)))
+				Expect(*params.Tail).To(Equal(int64(100000)))
 			})
 
 			It("rejects tail at 100 001 (just over limit)", func() {
@@ -628,6 +628,114 @@ var _ = Describe("Application Log API Endpoint unit tests", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("invalid since_time parameter"))
 				Expect(err.Error()).To(ContainSubstring("RFC3339"))
+			})
+		})
+
+		Context("container filtering parameters", func() {
+			It("parses valid include_containers parameter", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "app-container,worker-container", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.IncludeContainers).To(HaveLen(2))
+				Expect(params.IncludeContainers).To(ContainElements("app-container", "worker-container"))
+			})
+
+			It("parses valid exclude_containers parameter", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "", "istio-proxy,linkerd-proxy")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.ExcludeContainers).To(HaveLen(2))
+				Expect(params.ExcludeContainers).To(ContainElements("istio-proxy", "linkerd-proxy"))
+			})
+
+			It("parses both include and exclude containers", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "app-container", "istio-proxy")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.IncludeContainers).To(HaveLen(1))
+				Expect(params.IncludeContainers).To(ContainElement("app-container"))
+				Expect(params.ExcludeContainers).To(HaveLen(1))
+				Expect(params.ExcludeContainers).To(ContainElement("istio-proxy"))
+			})
+
+			It("filters out empty strings in include_containers", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "app-container,,worker-container,", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.IncludeContainers).To(HaveLen(2))
+				Expect(params.IncludeContainers).To(ContainElements("app-container", "worker-container"))
+			})
+
+			It("filters out empty strings in exclude_containers", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "", "istio-proxy,,linkerd-proxy,")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.ExcludeContainers).To(HaveLen(2))
+				Expect(params.ExcludeContainers).To(ContainElements("istio-proxy", "linkerd-proxy"))
+			})
+
+			It("trims whitespace from container names", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", " app-container , worker-container ", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.IncludeContainers).To(HaveLen(2))
+				Expect(params.IncludeContainers).To(ContainElements("app-container", "worker-container"))
+			})
+
+			It("handles single container name", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "app-container", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.IncludeContainers).To(HaveLen(1))
+				Expect(params.IncludeContainers).To(ContainElement("app-container"))
+			})
+
+			It("handles all empty strings in include_containers", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", ",,", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.IncludeContainers).To(BeEmpty())
+			})
+
+			It("handles all empty strings in exclude_containers", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "", ",,")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.ExcludeContainers).To(BeEmpty())
+			})
+
+			It("handles regex patterns in include_containers", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "app-.*,worker-.*", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.IncludeContainers).To(HaveLen(2))
+				Expect(params.IncludeContainers).To(ContainElements("app-.*", "worker-.*"))
+			})
+
+			It("handles regex patterns in exclude_containers", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "", "istio-.*,linkerd-.*")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.ExcludeContainers).To(HaveLen(2))
+				Expect(params.ExcludeContainers).To(ContainElements("istio-.*", "linkerd-.*"))
+			})
+
+			It("handles container names with special characters", func() {
+				params, err := application.ParseLogParametersForTest("", "", "", "app-container-v1.2.3,worker_container", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(params.IncludeContainers).To(HaveLen(2))
+				Expect(params.IncludeContainers).To(ContainElements("app-container-v1.2.3", "worker_container"))
+			})
+
+			It("combines container filters with other parameters", func() {
+				params, err := application.ParseLogParametersForTest("100", "1h", "", "app-container", "istio-proxy")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(params).ToNot(BeNil())
+				Expect(*params.Tail).To(Equal(int64(100)))
+				Expect(*params.Since).To(Equal(1 * time.Hour))
+				Expect(params.IncludeContainers).To(HaveLen(1))
+				Expect(params.ExcludeContainers).To(HaveLen(1))
 			})
 		})
 	})

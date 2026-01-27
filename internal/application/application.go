@@ -895,10 +895,133 @@ are returned. If it is set, LogParameters represents the log filtering
 parameters.
 */
 type LogParameters struct {
-	Tail      *int64
-	Since     *time.Duration
-	SinceTime *time.Time
-	Follow    bool
+	Tail              *int64
+	Since             *time.Duration
+	SinceTime         *time.Time
+	Follow            bool
+	IncludeContainers []string // List of container names/patterns to include (regex patterns)
+	ExcludeContainers []string // List of container names/patterns to exclude (regex patterns)
+}
+
+// buildContainerIncludePattern builds the regex pattern for including containers.
+// Returns the pattern and whether the user specified an include filter.
+func buildContainerIncludePattern(logParams *LogParameters) (string, bool, error) {
+	containerQueryPattern := ".*"
+	hasUserIncludeFilter := false
+
+	if logParams == nil || len(logParams.IncludeContainers) == 0 {
+		return containerQueryPattern, hasUserIncludeFilter, nil
+	}
+
+	// Filter out any empty strings that might have slipped through
+	validIncludes := make([]string, 0, len(logParams.IncludeContainers))
+	for _, container := range logParams.IncludeContainers {
+		if trimmed := strings.TrimSpace(container); trimmed != "" {
+			validIncludes = append(validIncludes, trimmed)
+		}
+	}
+
+	if len(validIncludes) == 0 {
+		return "", false, fmt.Errorf("include_containers parameter contains no valid container names")
+	}
+
+	hasUserIncludeFilter = true
+
+	// Escape special regex characters and join with |
+	escapedIncludes := make([]string, len(validIncludes))
+	for i, container := range validIncludes {
+		// If the pattern already looks like a regex (contains special chars), use as-is
+		// Otherwise, treat as literal container name
+		if strings.ContainsAny(container, ".*+?^$|[]{}()\\") {
+			escapedIncludes[i] = container
+		} else {
+			// Escape as literal container name
+			escapedIncludes[i] = regexp.QuoteMeta(container)
+		}
+	}
+	containerQueryPattern = strings.Join(escapedIncludes, "|")
+
+	return containerQueryPattern, hasUserIncludeFilter, nil
+}
+
+// buildContainerExcludePattern builds the regex pattern for excluding containers.
+func buildContainerExcludePattern(logParams *LogParameters, hasUserIncludeFilter bool) (*regexp.Regexp, error) {
+	var excludeContainerPatterns []string
+
+	// Only apply default linkerd exclusion if user hasn't specified include_containers
+	// This allows users to explicitly include linkerd containers when needed
+	if !hasUserIncludeFilter {
+		excludeContainerPatterns = []string{"linkerd-(proxy|init)"}
+	}
+
+	// Add user-specified exclusions
+	if logParams != nil && len(logParams.ExcludeContainers) > 0 {
+		// Initialize if not already set (shouldn't happen, but be safe)
+		if excludeContainerPatterns == nil {
+			excludeContainerPatterns = []string{}
+		}
+		for _, container := range logParams.ExcludeContainers {
+			// Filter out empty strings
+			trimmed := strings.TrimSpace(container)
+			if trimmed == "" {
+				continue
+			}
+			// If the pattern already looks like a regex, use as-is
+			// Otherwise, treat as literal container name
+			if strings.ContainsAny(trimmed, ".*+?^$|[]{}()\\") {
+				excludeContainerPatterns = append(excludeContainerPatterns, trimmed)
+			} else {
+				// Escape as literal container name
+				excludeContainerPatterns = append(excludeContainerPatterns, regexp.QuoteMeta(trimmed))
+			}
+		}
+	}
+
+	// Build the final exclude pattern by combining all exclusions
+	if len(excludeContainerPatterns) > 0 {
+		// Combine all exclusion patterns with |
+		combinedExcludePattern := strings.Join(excludeContainerPatterns, "|")
+		excludeContainerQuery, err := regexp.Compile(combinedExcludePattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid exclude_containers pattern: %w", err)
+		}
+		return excludeContainerQuery, nil
+	}
+
+	// No exclusions (shouldn't happen with default, but handle gracefully)
+	return nil, nil
+}
+
+// applyLogParameters applies log filtering parameters to the tailer config.
+func applyLogParameters(config *tailer.Config, logParams *LogParameters, logger logr.Logger) {
+	if logParams == nil {
+		return
+	}
+
+	logger.Info("applying log parameters", "params", logParams)
+
+	// Handle line limiting
+	if logParams.Tail != nil {
+		config.TailLines = logParams.Tail
+		logger.Info("applied tail parameter", "tail", *logParams.Tail)
+	}
+
+	// Handle time-based filtering
+	if logParams.SinceTime != nil {
+		config.SinceTime = logParams.SinceTime
+		helpers.Logger.Info(
+			"applying since time parameter | ",
+			"since_time: ",
+			*logParams.SinceTime,
+		)
+	} else if logParams.Since != nil {
+		config.Since = *logParams.Since
+		helpers.Logger.Info(
+			"applied since parameter | ",
+			"since: ",
+			*logParams.Since,
+		)
+	}
 }
 
 // then only logs from that staging process are returned.
@@ -929,11 +1052,11 @@ func Logs(
 		}
 	}
 
-	for _, req := range selectors {
+	for _, selectorPair := range selectors {
 		req, err := labels.NewRequirement(
-			req[0],
+			selectorPair[0],
 			selection.Equals,
-			[]string{req[1]},
+			[]string{selectorPair[1]},
 		)
 		if err != nil {
 			return err
@@ -941,9 +1064,26 @@ func Logs(
 		selector = selector.Add(*req)
 	}
 
+	// Build container filtering regex patterns
+	containerQueryPattern, hasUserIncludeFilter, err := buildContainerIncludePattern(logParams)
+	if err != nil {
+		return err
+	}
+
+	excludeContainerQuery, err := buildContainerExcludePattern(logParams, hasUserIncludeFilter)
+	if err != nil {
+		return err
+	}
+
+	// Compile the include pattern with error handling
+	containerQueryRegex, err := regexp.Compile(containerQueryPattern)
+	if err != nil {
+		return fmt.Errorf("invalid include_containers pattern: %w", err)
+	}
+
 	config := &tailer.Config{
-		ContainerQuery:        regexp.MustCompile(".*"),
-		ExcludeContainerQuery: regexp.MustCompile("linkerd-(proxy|init)"),
+		ContainerQuery:        containerQueryRegex,
+		ExcludeContainerQuery: excludeContainerQuery,
 		Exclude:               nil,
 		Include:               nil,
 		Timestamps:            true,
@@ -961,6 +1101,7 @@ func Logs(
 	}
 
 	// Apply log parameters if provided
+	applyLogParameters(config, logParams, logger)
 	if logParams != nil {
 		helpers.Logger.Infow("applying log parameters", "params", logParams)
 

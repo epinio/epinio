@@ -122,6 +122,17 @@ type AppPartResponse struct {
 
 // swagger:route GET /namespaces/{Namespace}/applications/{App}/logs application AppLogs
 // Return logs of the named `App` in the `Namespace` streamed over a websocket.
+// Query parameters:
+//   - follow: Stream logs in real-time (true/false)
+//   - tail: Limit to last N lines from the end (integer)
+//   - since: Show logs from duration ago (e.g., "1h", "30m")
+//   - since_time: Show logs since RFC3339 timestamp
+//   - include_containers: Comma-separated list of container names/patterns to include.
+//     Literal container names are automatically escaped. To use regex patterns, include
+//     regex special characters (e.g., "app-.*" to match containers starting with "app-").
+//   - exclude_containers: Comma-separated list of container names/patterns to exclude.
+//     Literal container names are automatically escaped. To use regex patterns, include
+//     regex special characters (e.g., "istio-.*" to match containers starting with "istio-").
 // responses:
 //   200: AppLogsResponse
 
@@ -131,6 +142,18 @@ type AppLogsParam struct {
 	Namespace string
 	// in: path
 	App string
+	// in: query
+	Follow string `json:"follow"`
+	// in: query
+	Tail string `json:"tail"`
+	// in: query
+	Since string `json:"since"`
+	// in: query
+	SinceTime string `json:"since_time"`
+	// in: query
+	IncludeContainers string `json:"include_containers"`
+	// in: query
+	ExcludeContainers string `json:"exclude_containers"`
 }
 
 // swagger:response AppLogsResponse
@@ -174,6 +197,17 @@ type AppPortForwardResponse struct{}
 
 // swagger:route GET /namespaces/{Namespace}/staging/{StageID}/logs application StagingLogs
 // Return logs of the named `StageID` in the `Namespace` streamed over a websocket.
+// Query parameters:
+//   - follow: Stream logs in real-time (true/false)
+//   - tail: Limit to last N lines from the end (integer)
+//   - since: Show logs from duration ago (e.g., "1h", "30m")
+//   - since_time: Show logs since RFC3339 timestamp
+//   - include_containers: Comma-separated list of container names/patterns to include.
+//     Literal container names are automatically escaped. To use regex patterns, include
+//     regex special characters (e.g., "app-.*" to match containers starting with "app-").
+//   - exclude_containers: Comma-separated list of container names/patterns to exclude.
+//     Literal container names are automatically escaped. To use regex patterns, include
+//     regex special characters (e.g., "istio-.*" to match containers starting with "istio-").
 // responses:
 //   200: StagingLogsResponse
 
@@ -183,6 +217,18 @@ type StagingLogsParam struct {
 	Namespace string
 	// in: path
 	StageID string
+	// in: query
+	Follow string `json:"follow"`
+	// in: query
+	Tail string `json:"tail"`
+	// in: query
+	Since string `json:"since"`
+	// in: query
+	SinceTime string `json:"since_time"`
+	// in: query
+	IncludeContainers string `json:"include_containers"`
+	// in: query
+	ExcludeContainers string `json:"exclude_containers"`
 }
 
 // swagger:response StagingLogsResponse
