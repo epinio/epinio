@@ -59,22 +59,8 @@ func coloredLevelEncoder(l zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(lvl)
 }
 
-func InitLogger() error {
-	// Define flags
-	//pflag.String("log-level", "info", "debug, info, warn, error, fatal")
-	//pflag.Bool("color", false, "enable colored log levels")
-	//pflag.Parse()
-
-	// Bind flags into Viper
-	//viper.BindPFlags(pflag.CommandLine)
-
-	// Environment overrides
-	//viper.SetEnvPrefix("APP")
-	//viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	//viper.AutomaticEnv()
-
+func InitLogger(logLevel string) error {
 	// Parse log level
-	logLevel := viper.GetString("log-level")
 	if logLevel == "" {
 		logLevel = "info" // Default to info level if not specified
 	}
@@ -117,7 +103,7 @@ func InitLogger() error {
 
 func init() {
 	if Logger == nil {
-		if err := InitLogger(); err != nil {
+		if err := InitLogger("error"); err != nil {
 			// Fallback if logger initialization failed - use standard log
 			_ = errors.Wrap(err, "failed to initialize logger")
 		}

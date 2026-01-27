@@ -993,17 +993,17 @@ func buildContainerExcludePattern(logParams *LogParameters, hasUserIncludeFilter
 }
 
 // applyLogParameters applies log filtering parameters to the tailer config.
-func applyLogParameters(config *tailer.Config, logParams *LogParameters, logger logr.Logger) {
+func applyLogParameters(config *tailer.Config, logParams *LogParameters) {
 	if logParams == nil {
 		return
 	}
 
-	logger.Info("applying log parameters", "params", logParams)
+	helpers.Logger.Info("applying log parameters", "params", logParams)
 
 	// Handle line limiting
 	if logParams.Tail != nil {
 		config.TailLines = logParams.Tail
-		logger.Info("applied tail parameter", "tail", *logParams.Tail)
+		helpers.Logger.Info("applied tail parameter", "tail", *logParams.Tail)
 	}
 
 	// Handle time-based filtering
@@ -1101,7 +1101,7 @@ func Logs(
 	}
 
 	// Apply log parameters if provided
-	applyLogParameters(config, logParams, logger)
+	applyLogParameters(config, logParams)
 	if logParams != nil {
 		helpers.Logger.Infow("applying log parameters", "params", logParams)
 
