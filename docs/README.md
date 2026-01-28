@@ -13,6 +13,7 @@ https://documentation.divio.com/structure.
 
 - [Architecture](explanations/architecture.md)
 - [Future plans](explanations/futureplans.md)
+- [Storage recommendations](explanations/storage-recommendations.md)
 
 ## [HowTos](howtos/)
 
