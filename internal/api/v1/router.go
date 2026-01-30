@@ -32,6 +32,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/gitconfig"
 	"github.com/epinio/epinio/internal/api/v1/gitproxy"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
+	"github.com/epinio/epinio/internal/api/v1/report"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
 	"github.com/epinio/epinio/internal/api/v1/supportbundle"
@@ -105,10 +106,13 @@ func put(path string, h gin.HandlerFunc) routes.Route {
 // The key is the full path as it appears in the request URL (e.g., "/api/v1/support-bundle")
 var AdminRoutes map[string]struct{} = map[string]struct{}{
 	"/api/v1/support-bundle": {},
+	"/api/v1/report/nodes":   {},
 }
 
 var Routes = routes.NamedRoutes{
 	"AuthToken": get("/authtoken", errorHandler(AuthToken)),
+
+	"NodeReport": get("/report/nodes", errorHandler(report.Nodes)),
 
 	// app controller files see application/*.go
 

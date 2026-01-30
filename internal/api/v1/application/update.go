@@ -152,7 +152,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		desired = *updateRequest.Instances
 		log.Infow("updating app", "instances", desired)
 
-		err := application.ScalingSet(ctx, cluster, appRef, desired)
+		err := application.ScalingSetWithEvent(ctx, cluster, appRef, desired, username)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
