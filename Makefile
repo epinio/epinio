@@ -95,6 +95,18 @@ test:
 tag:
 	@git describe --tags --abbrev=0
 
+validate-version-parity:
+	@chmod +x scripts/validate-version-parity.sh
+	@./scripts/validate-version-parity.sh check
+
+validate-version-parity-strict:
+	@chmod +x scripts/validate-version-parity.sh
+	@./scripts/validate-version-parity.sh strict
+
+test-version-validation:
+	@chmod +x scripts/test-validate-version-parity.sh
+	@./scripts/test-validate-version-parity.sh
+
 ########################################################################
 # Acceptance tests
 

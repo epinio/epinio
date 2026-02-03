@@ -80,6 +80,27 @@ jobs:
           echo LATEST_TAG: $LATEST_TAG
           echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
 
+      - name: Validate version parity
+        id: validate_version
+        run: |
+          chmod +x scripts/validate-version-parity.sh
+          export EPINIO_VERSION=${{ steps.get_latest_tag.outputs.LATEST_TAG }}
+          
+          # Run validation in strict mode to block releases on version mismatch
+          # This prevents the issue reported in #2774 where binaries don't match chart version
+          echo "Validating that release tag ${{ steps.get_latest_tag.outputs.LATEST_TAG }} matches helm chart version..."
+          ./scripts/validate-version-parity.sh strict
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Version parity validated successfully"
+          else
+            echo "❌ Version mismatch detected - blocking release"
+            echo "::error::Cannot release: Epinio version ${{ steps.get_latest_tag.outputs.LATEST_TAG }} does not match helm chart version"
+            echo "::error::Please ensure the helm-charts submodule is updated to match this release tag"
+            exit 1
+          fi
+        continue-on-error: false
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
