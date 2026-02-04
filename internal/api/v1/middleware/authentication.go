@@ -137,19 +137,48 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 	}
 
 	var claims struct {
-		Email           string   `json:"email"`
-		Groups          []string `json:"groups"`
-		FederatedClaims struct {
+		Email             string   `json:"email"`
+		PreferredUsername string   `json:"preferred_username"`
+		Name              string   `json:"name"`
+		Sub               string   `json:"sub"`
+		Username          string   `json:"username"`
+		Groups            []string `json:"groups"`
+		FederatedClaims   struct {
 			ConnectorID string `json:"connector_id"`
+			UserID      string `json:"user_id"`
 		} `json:"federated_claims"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		return auth.User{}, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized)
 	}
 
+	// Use email as username when present; fall back to preferred_username, name, sub, username, or federated user_id (e.g. Rancher OIDC may not return email)
+	username := claims.Email
+	if username == "" {
+		username = claims.PreferredUsername
+	}
+	if username == "" {
+		username = claims.Name
+	}
+	if username == "" {
+		username = claims.Sub
+	}
+	if username == "" {
+		username = claims.Username
+	}
+	if username == "" {
+		username = claims.FederatedClaims.UserID
+	}
+	if username == "" {
+		logger.Infow("OIDC token missing user identifier",
+			"email", claims.Email, "preferred_username", claims.PreferredUsername,
+			"name", claims.Name, "sub", claims.Sub, "connector_id", claims.FederatedClaims.ConnectorID)
+		return auth.User{}, apierrors.NewAPIError("OIDC token missing email, preferred_username, name, sub, and federated user_id", http.StatusUnauthorized)
+	}
+
 	roles := getRolesFromProviderGroups(oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
 
-	user, err := getOrCreateUserByEmail(ctx, claims.Email, roles)
+	user, err := getOrCreateUserByEmail(ctx, username, roles)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err, "getting/creating user with email")
 	}

@@ -73,6 +73,17 @@ func NewConfigFromSecretData(clientID string, secretData map[string][]byte) (Con
 		config.Endpoint = endpointURL
 	}
 
+	// Backwards-compatible default: if no explicit endpoint was provided, use the issuer URL.
+	// Some deployments only store "issuer" in the dex-config secret, and leaving Endpoint nil
+	// will cause nil pointer dereferences when constructing the OIDC provider.
+	if config.Endpoint == nil && config.Issuer != "" {
+		endpointURL, err := url.Parse(config.Issuer)
+		if err != nil {
+			return config, errors.Wrap(err, "parsing the issuer URL")
+		}
+		config.Endpoint = endpointURL
+	}
+
 	rolesMapping, found := secretData["rolesMapping"]
 	if found {
 		providersGroups := []ProviderGroups{}
