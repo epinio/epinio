@@ -157,23 +157,27 @@ These actions enable operations on Namespace commands and resources.
 
 These actions enable operations on App commands and resources. They also enable commands related to  AppCharts (`epinio app chart`) and application environment variables.
 
-| Action ID       | Description 
-|-----------------|-------------
-| `app_read`        | Read permissions (app list and show, env list and show)
-| `app_logs`        | Read application logs
-| `app_restart`     | Restart permission (without write permissions) <br/>Depends on: `app_read`
-| `app_create`      | Create and upload/import applications<br/>Depends on: `app_read`, `app_logs`
-| `app_update`      | Update application settings/spec
-| `app_update_env`  | Update application environment variables (set and unset)
-| `app_update_configs` | Manage application configuration bindings (create and delete)
-| `app_stage`       | Stage an application<br/>Depends on: `app_read`, `app_logs`
-| `app_deploy`      | Deploy an application<br/>Depends on: `app_read`, `app_logs`
-| `app_export`      | Export an application image and metadata
-| `app_delete`      | Delete applications
-| `app_write`       | Backward-compatible umbrella for app create/update/delete/export/stage/deploy and app configuration/env updates
-| `app_exec`        | Perform an exec into a running application
-| `app_portforward` | Open a tunnel with the `port-forward` command
-| `app`             | All app permissions (including granular app actions, logs, exec and port-forward)
+| Action ID             | Description 
+|-----------------------|-------------
+| `app_read`            | Read permissions (app list and show, env list and show)
+| `app_logs`            | Read application logs
+| `app_restart`         | Restart permission (without write permissions) <br/>Depends on: `app_read`
+| `app_create`          | Create and upload/import applications<br/>Depends on: `app_read`, `app_logs`
+| `app_update`          | Generic application update (patch) covering routes, chart values, instances and settings
+| `app_scale`           | Scale applications by changing the desired number of instances (implemented via the `AppUpdate` endpoint)
+| `app_update_env`      | Update application environment variables (set and unset)
+| `app_update_configs`  | Manage application configuration bindings (create and delete)
+| `app_update_routes`   | Update application routes/domains (implemented via the `AppUpdate` endpoint)
+| `app_update_settings` | Update application settings (chart values) stored on the App resource (implemented via the `AppUpdate` endpoint)
+| `app_update_chart`    | Update application chart selection and values (implemented via the `AppUpdate` endpoint)
+| `app_stage`           | Stage an application<br/>Depends on: `app_read`, `app_logs`
+| `app_deploy`          | Deploy an application<br/>Depends on: `app_read`, `app_logs`
+| `app_export`          | Export an application image and metadata
+| `app_delete`          | Delete applications
+| `app_write`           | Backward-compatible umbrella for app create/update/delete/export/stage/deploy and all application update operations (including scale, routes, settings, chart and env/config updates)
+| `app_exec`            | Perform an exec into a running application
+| `app_portforward`     | Open a tunnel with the `port-forward` command
+| `app`                 | All app permissions (including granular app actions, logs, exec and port-forward)
 
 ##### Configuration
 
