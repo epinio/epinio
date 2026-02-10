@@ -27,6 +27,43 @@ var _ = Describe("Auth actions", func() {
 			Expect(actions).ToNot(BeEmpty())
 		})
 
+		It("defines granular application actions with the expected routes", func() {
+			_, err := auth.InitActions()
+			Expect(err).ToNot(HaveOccurred())
+
+			appCreate, found := auth.ActionsMap["app_create"]
+			Expect(found).To(BeTrue())
+			Expect(appCreate.Routes).To(ContainElement("AppCreate"))
+			Expect(appCreate.Routes).To(ContainElement("AppImportGit"))
+			Expect(appCreate.Routes).To(ContainElement("AppUpload"))
+
+			appUpdateEnv, found := auth.ActionsMap["app_update_env"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateEnv.Routes).To(ContainElement("EnvSet"))
+			Expect(appUpdateEnv.Routes).To(ContainElement("EnvUnset"))
+
+			appUpdateConfigs, found := auth.ActionsMap["app_update_configs"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateConfigs.Routes).To(ContainElement("ConfigurationBindingCreate"))
+			Expect(appUpdateConfigs.Routes).To(ContainElement("ConfigurationBindingDelete"))
+
+			appScale, found := auth.ActionsMap["app_scale"]
+			Expect(found).To(BeTrue())
+			Expect(appScale.Routes).To(ContainElement("AppUpdate"))
+
+			appUpdateRoutes, found := auth.ActionsMap["app_update_routes"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateRoutes.Routes).To(ContainElement("AppUpdate"))
+
+			appUpdateSettings, found := auth.ActionsMap["app_update_settings"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateSettings.Routes).To(ContainElement("AppUpdate"))
+
+			appUpdateChart, found := auth.ActionsMap["app_update_chart"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateChart.Routes).To(ContainElement("AppUpdate"))
+		})
+
 		It("keeps app_write as compatibility action", func() {
 			_, err := auth.InitActions()
 			Expect(err).ToNot(HaveOccurred())
