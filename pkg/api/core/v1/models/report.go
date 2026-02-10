@@ -27,7 +27,8 @@ type NodeReport struct {
 	Etcd                    bool   `json:"etcd"`
 	ControlPlane            bool   `json:"controlPlane"`
 	Worker                  bool   `json:"worker"`
-	CPU                     string `json:"cpu"`
+	CPU                     string `json:"cpu"`   // Node capacity (physical/guest cores as reported by kubelet)
+	VCPU                    string `json:"vCPU"`  // Virtual CPUs: from cloud instance type when known, else same as cpu
 	RAM                     string `json:"ram"`
 	OS                      string `json:"os"`
 	ContainerRuntimeVersion string `json:"containerRuntimeVersion"`

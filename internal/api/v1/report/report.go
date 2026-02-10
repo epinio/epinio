@@ -209,6 +209,7 @@ func buildNodeReports(nodes []corev1.Node) []models.NodeReport {
 			ControlPlane:            controlPlane,
 			Worker:                  worker,
 			CPU:                     node.Status.Capacity.Cpu().String(),
+			VCPU:                    nodeVCPU(node),
 			RAM:                     node.Status.Capacity.Memory().String(),
 			OS:                      node.Status.NodeInfo.OSImage,
 			ContainerRuntimeVersion: node.Status.NodeInfo.ContainerRuntimeVersion,
@@ -330,7 +331,7 @@ func renderTextReport(report models.ReportResponse) string {
 	for _, cluster := range report.Clusters {
 		fmt.Fprintln(&b, "--------------------------------------------------------------------------------")
 		fmt.Fprintf(&b, "Cluster: %s (%s)\n", cluster.Name, cluster.ID)
-		fmt.Fprintln(&b, "Node Id         Address                                                                  etcd    Control Plane   Worker   CPU   RAM         OS                             Container Runtime Version   Created")
+		fmt.Fprintln(&b, "Node Id         Address                                                                  etcd    Control Plane   Worker   vCPU  RAM         OS                             Container Runtime Version   Created")
 		for _, node := range cluster.Nodes {
 			fmt.Fprintf(&b, "%-14s %-71s %-7t %-15t %-8t %-5s %-11s %-30s %-27s %s\n",
 				node.ID,
@@ -338,7 +339,7 @@ func renderTextReport(report models.ReportResponse) string {
 				node.Etcd,
 				node.ControlPlane,
 				node.Worker,
-				node.CPU,
+				node.VCPU,
 				node.RAM,
 				node.OS,
 				node.ContainerRuntimeVersion,
