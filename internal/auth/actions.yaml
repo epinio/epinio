@@ -28,8 +28,12 @@
     - app_create
     - app_delete
     - app_update
+    - app_scale
     - app_update_env
+    - app_update_routes
     - app_update_configs
+    - app_update_settings
+    - app_update_chart
     - app_stage
     - app_deploy
     - app_export
@@ -81,8 +85,12 @@
     - app_create
     - app_delete
     - app_update
+    - app_scale
     - app_update_env
+    - app_update_routes
     - app_update_configs
+    - app_update_settings
+    - app_update_chart
     - app_stage
     - app_deploy
     - app_export
@@ -116,6 +124,14 @@
   routes:
     - AppUpdate
 
+# App Scale
+- id: app_scale
+  name: App Scale
+  dependsOn:
+    - app_read
+  routes:
+    - AppUpdate
+
 # App Update Environment
 - id: app_update_env
   name: App Update Environment
@@ -133,6 +149,30 @@
   routes:
     - ConfigurationBindingCreate
     - ConfigurationBindingDelete
+
+# App Update Routes
+- id: app_update_routes
+  name: App Update Routes
+  dependsOn:
+    - app_read
+  routes:
+    - AppUpdate
+
+# App Update Settings
+- id: app_update_settings
+  name: App Update Settings
+  dependsOn:
+    - app_read
+  routes:
+    - AppUpdate
+
+# App Update Chart
+- id: app_update_chart
+  name: App Update Chart
+  dependsOn:
+    - app_read
+  routes:
+    - AppUpdate
 
 # App Stage
 - id: app_stage
