@@ -139,7 +139,7 @@ data:
 
 #### Actions
 
-The actions are **hardcoded** as an embedded yaml file. This simplifies their management, and also enhances flexibility. An action can have some "dependencies", i.e.: the `app` action is a union of the `app_read`, `app_write`, `app_logs`, `app_exec`, and `app_portforward`.
+The actions are **hardcoded** as an embedded yaml file. This simplifies their management, and also enhances flexibility. An action can have some "dependencies", i.e.: the `app` action is a union of granular app actions plus `app_logs`, `app_exec`, and `app_portforward`.
 
 Every action lists the set of endpoints it allows. Note that some Epinio operations are formed from multiple endpoints, i.e. the `app push` consists of a Create, Update and others.
 
@@ -161,10 +161,19 @@ These actions enable operations on App commands and resources. They also enable 
 |-----------------|-------------
 | `app_read`        | Read permissions (app list and show, env list and show)
 | `app_logs`        | Read application logs
-| `app_write`       | Write permissions (app create, delete, push, export, stage, env set and unset)<br/>Depends on: `app_read`, `app_logs`
+| `app_restart`     | Restart permission (without write permissions) <br/>Depends on: `app_read`
+| `app_create`      | Create and upload/import applications<br/>Depends on: `app_read`, `app_logs`
+| `app_update`      | Update application settings/spec
+| `app_update_env`  | Update application environment variables (set and unset)
+| `app_update_configs` | Manage application configuration bindings (create and delete)
+| `app_stage`       | Stage an application<br/>Depends on: `app_read`, `app_logs`
+| `app_deploy`      | Deploy an application<br/>Depends on: `app_read`, `app_logs`
+| `app_export`      | Export an application image and metadata
+| `app_delete`      | Delete applications
+| `app_write`       | Backward-compatible umbrella for app create/update/delete/export/stage/deploy and app configuration/env updates
 | `app_exec`        | Perform an exec into a running application
 | `app_portforward` | Open a tunnel with the `port-forward` command
-| `app`             | All the above<br/>Depends on: `app_read`, `app_logs`, `app_write`, `app_exec`, `app_portforward`
+| `app`             | All app permissions (including granular app actions, logs, exec and port-forward)
 
 ##### Configuration
 
@@ -205,6 +214,17 @@ This action enables operations on Export Registries commands and resources. Only
 | Action ID                 | Description 
 |---------------------------|-------------
 | `export_registries_read`  | Read permissions
+
+#### Built-in Role Examples
+
+The following role IDs are shipped as ConfigMaps and can be assigned to users:
+
+| Role ID | Intended scope |
+|---------|----------------|
+| `view_only` | Read-only access to application, configuration, service, gitconfig and export-registry resources |
+| `application_developer` | Create/update applications without application delete and without non-application write permissions |
+| `application_manager` | Full application CRUD and runtime operations, without non-application write permissions |
+| `system_manager` | No-delete role: application create/update/runtime operations plus read-only access on other resource types |
 
 
 #### Pros

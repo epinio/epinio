@@ -26,5 +26,25 @@ var _ = Describe("Auth actions", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actions).ToNot(BeEmpty())
 		})
+
+		It("keeps app_write as compatibility action", func() {
+			_, err := auth.InitActions()
+			Expect(err).ToNot(HaveOccurred())
+
+			appWrite, found := auth.ActionsMap["app_write"]
+			Expect(found).To(BeTrue())
+
+			// app_write is now a composite action and should still cover existing write paths.
+			Expect(appWrite.Routes).To(ContainElement("AppCreate"))
+			Expect(appWrite.Routes).To(ContainElement("AppDelete"))
+			Expect(appWrite.Routes).To(ContainElement("AppDeploy"))
+			Expect(appWrite.Routes).To(ContainElement("AppStage"))
+			Expect(appWrite.Routes).To(ContainElement("AppUpdate"))
+			Expect(appWrite.Routes).To(ContainElement("EnvSet"))
+			Expect(appWrite.Routes).To(ContainElement("ConfigurationBindingCreate"))
+			// Keep legacy dependency behavior too.
+			Expect(appWrite.Routes).To(ContainElement("AppShow"))
+			Expect(appWrite.WsRoutes).To(ContainElement("AppLogs"))
+		})
 	})
 })

@@ -25,6 +25,14 @@
   name: App
   dependsOn:
     - app_read
+    - app_create
+    - app_delete
+    - app_update
+    - app_update_env
+    - app_update_configs
+    - app_stage
+    - app_deploy
+    - app_export
     - app_write
     - app_logs
     - app_exec
@@ -70,24 +78,88 @@
   dependsOn:
     - app_read
     - app_logs
+    - app_create
+    - app_delete
+    - app_update
+    - app_update_env
+    - app_update_configs
+    - app_stage
+    - app_deploy
+    - app_export
+    - app_restart
+
+# App Create
+- id: app_create
+  name: App Create
+  dependsOn:
+    - app_read
+    - app_logs
   routes:
     - AppCreate
+    - AppImportGit
+    - AppUpload
+
+# App Delete
+- id: app_delete
+  name: App Delete
+  dependsOn:
+    - app_read
+  routes:
     - AppDelete
     - AppBatchDelete
-    - AppDeploy
-    - AppImportGit
-    - AppRestart
-    - AppStage
+
+# App Update
+- id: app_update
+  name: App Update
+  dependsOn:
+    - app_read
+  routes:
     - AppUpdate
-    - AppUpload
-    - AppPart # export part
-    - AppExport # export to registry
-    # app env
+
+# App Update Environment
+- id: app_update_env
+  name: App Update Environment
+  dependsOn:
+    - app_read
+  routes:
     - EnvSet
     - EnvUnset
-    # configuration bindings
+
+# App Update Configurations
+- id: app_update_configs
+  name: App Update Configurations
+  dependsOn:
+    - app_read
+  routes:
     - ConfigurationBindingCreate
     - ConfigurationBindingDelete
+
+# App Stage
+- id: app_stage
+  name: App Stage
+  dependsOn:
+    - app_read
+    - app_logs
+  routes:
+    - AppStage
+
+# App Deploy
+- id: app_deploy
+  name: App Deploy
+  dependsOn:
+    - app_read
+    - app_logs
+  routes:
+    - AppDeploy
+
+# App Export
+- id: app_export
+  name: App Export
+  dependsOn:
+    - app_read
+  routes:
+    - AppPart # export part
+    - AppExport # export to registry
 
 # App Logs
 - id: app_logs
