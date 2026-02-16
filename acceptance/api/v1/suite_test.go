@@ -105,8 +105,15 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	serverURL = "https://" + out + ":8443"
-	websocketURL = "wss://" + out + ":8443"
+	// Allow overriding the API port for local testing via EPINIO_ACCEPTANCE_PORT.
+	// Defaults to 8443 to preserve existing CI behaviour.
+	port := os.Getenv("EPINIO_ACCEPTANCE_PORT")
+	if port == "" {
+		port = "8443"
+	}
+
+	serverURL = fmt.Sprintf("https://%s:%s", out, port)
+	websocketURL = fmt.Sprintf("wss://%s:%s", out, port)
 })
 
 var _ = AfterSuite(func() {
