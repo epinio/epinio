@@ -1335,6 +1335,25 @@ func aggregate(ctx context.Context,
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
+func loadEnvironmentData(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app *models.App,
+) (models.EnvVariableMap, models.EnvVariableGroupedResponse, error) {
+	environment, err := Environment(ctx, cluster, app.Meta)
+	if err != nil {
+		return nil, models.EnvVariableGroupedResponse{}, errors.Wrap(err, "finding env")
+	}
+
+	groupedEnv, err := GroupedEnvironment(ctx, cluster, app.Meta)
+	if err != nil {
+		return nil, models.EnvVariableGroupedResponse{}, errors.Wrap(err, "finding grouped env")
+	}
+
+	return environment, groupedEnv, nil
+}
+
+// fetch is a helper for Lookup. It fetches all information about an application from the cluster.
 func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
 	// Consider delayed loading, i.e. on first access, or for transfer (API response).
 	// Consider objects for the information which hide the defered loading.  These
@@ -1372,9 +1391,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	environment, err := Environment(ctx, cluster, app.Meta)
+	environment, groupedEnv, err := loadEnvironmentData(ctx, cluster, app)
 	if err != nil {
-		err = errors.Wrap(err, "finding env")
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
 		return err
@@ -1449,6 +1467,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Instances = &instances
 	app.Configuration.Configurations = configurations
 	app.Configuration.Environment = environment
+	app.Configuration.EnvironmentGrouped = &groupedEnv
 	app.Configuration.Services = services
 	app.Configuration.Routes = desiredRoutes
 	app.Configuration.AppChart = chartName
