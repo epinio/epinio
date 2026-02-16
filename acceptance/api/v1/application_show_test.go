@@ -140,4 +140,53 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 	})
+
+	It("exposes grouped environment including service variables when a service is bound", func() {
+		// Create an application
+		app := catalog.NewAppName()
+		env.MakeContainerImageApp(app, 1, containerImageURL)
+		defer env.DeleteApp(app)
+
+		// Create a catalog service and a concrete service instance which produces secrets,
+		// similar to the setup in the ServiceBind acceptance tests.
+		catalogService := models.CatalogService{
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
+			HelmChart: "mysql",
+			HelmRepo: models.HelmRepo{
+				Name: "",
+				URL:  "https://charts.bitnami.com/bitnami",
+			},
+			Values: "",
+		}
+
+		catalog.CreateCatalogService(catalogService)
+		defer catalog.DeleteCatalogService(catalogService.Meta.Name)
+
+		serviceName := catalog.NewServiceName()
+		catalog.CreateService(serviceName, namespace, catalogService)
+		defer catalog.DeleteService(serviceName, namespace)
+
+		// Bind the service to the app via the ServiceBind API
+		bindEndpoint := makeEndpoint(v1.Routes.Path("ServiceBind", namespace, serviceName))
+		bindBody := toJSON(models.ServiceBindRequest{AppName: app})
+		bindBodyBytes, bindStatus := curl(http.MethodPost, bindEndpoint, bindBody)
+		ExpectResponseToBeOK(bindBodyBytes, bindStatus)
+
+		// Fetch grouped environment from the dedicated environment endpoint
+		envEndpoint := makeEndpoint(v1.Routes.Path("EnvList", namespace, app) + "?grouped=true")
+		envBodyBytes, envStatus := curl(http.MethodGet, envEndpoint, nil)
+		Expect(envStatus).To(Equal(http.StatusOK), string(envBodyBytes))
+
+		groupedFromEnv := fromJSON[models.EnvVariableGroupedResponse](envBodyBytes)
+		// Ensure we actually have service-provided variables
+		Expect(len(groupedFromEnv.Service)).To(BeNumerically(">", 0))
+
+		// Fetch the application via AppShow and verify the grouped environment matches
+		appObj := appShow(namespace, app)
+		Expect(appObj.Configuration.EnvironmentGrouped).ToNot(BeNil())
+		Expect(appObj.Configuration.EnvironmentGrouped.User).To(Equal(groupedFromEnv.User))
+		Expect(appObj.Configuration.EnvironmentGrouped.Service).To(Equal(groupedFromEnv.Service))
+	})
 })
