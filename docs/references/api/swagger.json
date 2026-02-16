@@ -2290,7 +2290,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "ApplicationStage": {
-      "description": "ApplicationStage is the part of the manifest holding information\nrelevant to staging the application's sources. This is, currently,\nonly the reference to the Paketo builder image to use.",
+      "description": "ApplicationStage is the part of the manifest holding information\nrelevant to staging the application's sources. This is, currently,\nonly the reference to the Cloud Native Buildpacks builder image to use.",
       "type": "object",
       "properties": {
         "builder": {

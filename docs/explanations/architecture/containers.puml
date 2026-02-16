@@ -36,7 +36,7 @@ System_Boundary(kubernetes, "kubernetes cluster"){
     Container(epinioAPI, "Epinio API Server", "Golang", $tags="webApp")
     Container(appHelm, "App helm release", "Ingress: myapp.mydomain.com", $tags="helmrelease")
     Container(serviceHelm, "Service helm release", "", $tags="helmrelease")
-    Container(stagingJob, "Staging Job", "paketo")
+    Container(stagingJob, "Staging Job", "CNB")
 }
 
 ContainerDb(s3, "S3 compatible storage", "", $tags="s3")
