@@ -117,9 +117,9 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 		log.Errorw("failed to collect staging job logs", "error", err)
 	}
 
-	log.Infow("collecting Minio logs")
-	if err := collector.CollectMinioLogs(ctx); err != nil {
-		log.Errorw("failed to collect Minio logs", "error", err)
+	log.Infow("collecting SeaweedFS logs")
+	if err := collector.CollectSeaweedFSLogs(ctx); err != nil {
+		log.Errorw("failed to collect SeaweedFS logs", "error", err)
 	}
 
 	log.Infow("collecting container registry logs")

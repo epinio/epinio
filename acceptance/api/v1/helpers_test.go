@@ -32,7 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const minioHelperPod = "miniocli"
+const s3HelperPod = "s3cli"
 
 func uploadRequest(url, path string) (*http.Request, error) {
 	file, err := os.Open(path)
@@ -120,50 +120,47 @@ func waitForStaging(jobName string) {
 	}, "5m").Should(Equal("True"))
 }
 
-// Create the S3 helper pod if it doesn't exist yet
+// Create the S3 helper pod if it doesn't exist yet (uses mc CLI, works with any S3-compatible backend e.g. SeaweedFS)
 func createS3HelperPod() {
-	out, err := proc.Kubectl("get", "pod", "-o", "name", minioHelperPod)
+	out, err := proc.Kubectl("get", "pod", "-o", "name", s3HelperPod)
 	if err != nil {
 		// Only fail if the error isn't about the pod missing
 		Expect(out).To(MatchRegexp("not found"))
 	}
-	if strings.TrimSpace(out) == "pod/"+minioHelperPod { // already exists
+	if strings.TrimSpace(out) == "pod/"+s3HelperPod { // already exists
 		return
 	}
 
 	out, err = proc.Kubectl("get", "secret",
 		"-n", "epinio",
-		"minio-creds", "-o", "jsonpath={.data.accesskey}")
+		"seaweedfs-creds", "-o", "jsonpath={.data.accesskey}")
 	Expect(err).ToNot(HaveOccurred(), out)
 	accessKey, err := base64.StdEncoding.DecodeString(string(out))
 	Expect(err).ToNot(HaveOccurred(), string(out))
 
 	out, err = proc.Kubectl("get", "secret",
 		"-n", "epinio",
-		"minio-creds", "-o", "jsonpath={.data.secretkey}")
+		"seaweedfs-creds", "-o", "jsonpath={.data.secretkey}")
 	Expect(err).ToNot(HaveOccurred(), out)
 	secretKey, err := base64.StdEncoding.DecodeString(string(out))
 	Expect(err).ToNot(HaveOccurred(), string(out))
 
-	// Start the pod
-	// FIX: pinning the minio CLI while waiting for this fix https://github.com/minio/mc/issues/4024
-	out, err = proc.Kubectl("run", minioHelperPod, "--image=minio/mc:RELEASE.2022-03-13T22-34-00Z", "--command", "--", "/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait")
+	// mc (MinIO Client) works with any S3-compatible API (SeaweedFS, etc)
+	out, err = proc.Kubectl("run", s3HelperPod, "--image=minio/mc:RELEASE.2022-03-13T22-34-00Z", "--command", "--", "/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	// Wait until the pod is ready
-	out, err = proc.Kubectl("wait", "--for=condition=ready", "pod", minioHelperPod)
+	out, err = proc.Kubectl("wait", "--for=condition=ready", "pod", s3HelperPod)
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	// Setup "mc" to talk to our minio endpoint (the "mc alias" command)
-	out, err = proc.Kubectl("exec", minioHelperPod, "--", "mc", "--insecure", "alias", "set", "minio",
-		"https://minio.epinio.svc.cluster.local:9000", string(accessKey), string(secretKey))
+	// SeaweedFS S3 endpoint (service name and port from helm values)
+	out, err = proc.Kubectl("exec", s3HelperPod, "--", "mc", "--insecure", "alias", "set", "s3",
+		"https://seaweedfs-s3.epinio.svc.cluster.local:8333", string(accessKey), string(secretKey))
 	Expect(err).ToNot(HaveOccurred(), out)
 }
 
 // returns all the objects currently stored on the S3 storage
 func listS3Blobs() []string {
-	// list all objects in the bucket (the "mc --quiet ls" command)
-	out, err := proc.Kubectl("exec", minioHelperPod, "--", "mc", "--insecure", "--quiet", "ls", "minio/epinio")
+	out, err := proc.Kubectl("exec", s3HelperPod, "--", "mc", "--insecure", "--quiet", "ls", "s3/epinio")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return strings.Split(string(out), "\n")
