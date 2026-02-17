@@ -322,6 +322,9 @@ type RouteParam struct {
 	Id     string `yaml:"id"`
 	Domain string `yaml:"domain"`
 	Path   string `yaml:"path"`
+	// Secret is the name of a Kubernetes secret containing route credentials.
+	// It is a reference, not the secret content itself.
+	// #nosec G117 - field name matches secret pattern but only holds a reference
 	Secret string `yaml:"secret,omitempty"`
 }
 type EpinioParam struct {

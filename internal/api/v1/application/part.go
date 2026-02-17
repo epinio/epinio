@@ -137,8 +137,8 @@ func fetchAppChart(
 
 	helpers.Logger.Infow("input", "local chart archive", chartArchive)
 
-	// Here the archive is surely a local file
-
+	// Here the archive is surely a local file, retrieved via urlcache into a local cache directory.
+	//nolint:gosec // G703 - opening cached chart archive file
 	file, err := os.Open(chartArchive)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -402,7 +402,8 @@ func getFileImageAndJobCleanup(
 		return nil, errors.Wrapf(err, "error waiting for job done %s", jobName)
 	}
 
-	// check for file existence
+	// check for file existence; path is built from a fixed base directory and a generated filename.
+	//nolint:gosec // G703 - opening image file in internal export directory
 	file, err := os.Open(imageExportVolume + imageOutputFilename)
 	if err != nil {
 		// NOTE: job is kept, allows for debugging.
@@ -505,7 +506,8 @@ func chartArchiveURL(
 		return "", err
 	}
 
-	// Read index into memory
+	// Read index into memory; path is built from a fixed cache directory and a generated name.
+	//nolint:gosec // G703 - reading helm index from internal cache directory
 	content, err := os.ReadFile("/tmp/.helmcache/" + name + "-index.yaml")
 	if err != nil {
 		return "", err

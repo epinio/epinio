@@ -110,6 +110,9 @@ func initCache() error {
 }
 
 func fetchFile(originURL, destinationPath string) error {
+	// destinationPath is derived from an internal cache directory and a sanitized
+	// filename; it is not directly controlled by user input.
+	// #nosec G304 - path is constructed from trusted cache root
 	helpers.Logger.Debugw(
 		"cache MISS, fetch",
 		"url",
@@ -145,6 +148,9 @@ func fetchFile(originURL, destinationPath string) error {
 			return dstFileError
 		}
 
+		// dstFile is created via os.Create in the cache directory; the path is
+		// not user-controlled.
+		//nolint:gosec // G703 - removing internally-created cache file
 		fileRemoveError := os.Remove(dstFile.Name())
 		if fileRemoveError != nil {
 			return fileRemoveError

@@ -40,6 +40,9 @@ var (
 type Settings struct {
 	Namespace string       `mapstructure:"namespace"` // Currently targeted namespace
 	User      string       `mapstructure:"user"`
+	// Password is stored locally in the CLI settings file (base64-encoded) and
+	// never sent back to the server or logged.
+	//nolint:gosec // G117 - field name matches password pattern but is expected here
 	Password  string       `mapstructure:"pass"`
 	Token     TokenSetting `mapstructure:"token"`
 	API       string       `mapstructure:"api"`
@@ -55,8 +58,14 @@ type Settings struct {
 }
 
 type TokenSetting struct {
+	// AccessToken is an OAuth access token stored locally in the CLI settings file.
+	// It is never sent back to the server or logged.
+	// #nosec G101,G117 - field name matches token pattern but is expected here
 	AccessToken  string    `json:"accesstoken" mapstructure:"accesstoken"`
 	TokenType    string    `json:"tokentype,omitempty" mapstructure:"tokentype,omitempty"`
+	// RefreshToken is used only for obtaining new access tokens and is kept local
+	// to the CLI settings file.
+	// #nosec G101,G117 - field name matches token pattern but is expected here
 	RefreshToken string    `json:"refreshtoken,omitempty" mapstructure:"refreshtoken,omitempty"`
 	Expiry       time.Time `json:"expiry,omitempty" mapstructure:"expiry,omitempty"`
 }

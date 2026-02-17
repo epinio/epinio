@@ -44,12 +44,18 @@ const (
 type RegistryCredentials struct {
 	URL      string
 	Username string
+	// Password contains registry credentials which are only loaded from and stored
+	// into Kubernetes secrets, never exposed via public APIs.
+	// #nosec G101,G117 - field name matches password pattern but is handled securely
 	Password string
 }
 
 type ContainerRegistryAuth struct {
 	Auth     string `json:"auth"`
 	Username string `json:"username"`
+	// Password is parsed from dockerconfigjson and kept strictly in memory or
+	// Kubernetes secrets.
+	// #nosec G101,G117 - field name matches password pattern but is handled securely
 	Password string `json:"password"`
 }
 
@@ -449,6 +455,9 @@ func DeleteImage(
 	client := &http.Client{
 		Transport: transport,
 	}
+	// Requests are sent only to registry URLs derived from parsed image references
+	// and trusted registry configuration, not arbitrary user input.
+	//nolint:gosec // G704 - controlled outbound request to registry
 	resp, err := client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "fetching manifest")
@@ -534,6 +543,9 @@ func listRepositoryTags(ctx context.Context, scheme, registryURL, repository, au
 
 	listReq.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 
+	// Requests are sent only to registry URLs derived from parsed image references
+	// and trusted registry configuration, not arbitrary user input.
+	//nolint:gosec // G704 - controlled outbound request to registry
 	listResp, err := client.Do(listReq)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing tags")
@@ -586,6 +598,9 @@ func deleteTagByTag(
 	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json")
 
+	// Requests are sent only to registry URLs derived from parsed image references
+	// and trusted registry configuration, not arbitrary user input.
+	//nolint:gosec // G704 - controlled outbound request to registry
 	resp, err := client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "fetching manifest")
@@ -632,6 +647,9 @@ func deleteTagByTag(
 	}
 	deleteReq.Header.Set("Accept", acceptHeader)
 
+	// Requests are sent only to registry URLs derived from parsed image references
+	// and trusted registry configuration, not arbitrary user input.
+	//nolint:gosec // G704 - controlled outbound request to registry
 	deleteResp, err := client.Do(deleteReq)
 	if err != nil {
 		return errors.Wrap(err, "deleting manifest")

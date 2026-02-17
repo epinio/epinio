@@ -108,6 +108,9 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		if osFile, ok := tempFile.(*os.File); ok {
 			tempPath := osFile.Name()
 			log.Infow("Deleting multipart temp file", "path", tempPath)
+			// tempPath comes from the server's multipart file handling and always points
+			// to a file created in the server's temporary upload directory.
+			//nolint:gosec // G703 - removing internally-created multipart temp file
 			fileRemoveError := os.Remove(tempPath)
 
 			if fileRemoveError != nil {

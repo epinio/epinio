@@ -439,6 +439,8 @@ func checkDestination(ctx context.Context, cluster *kubernetes.Cluster,
 // export after they are not required any longer.
 func cleanupLocalPath(label, path string) {
 	helpers.Logger.Infow("OCI export cleanup local "+label, "path", path)
+	// Path values here are constructed from internal base directories and filenames.
+	//nolint:gosec // G703 - removing internally-managed temporary export paths
 	err := os.RemoveAll(path)
 	if err != nil {
 		helpers.Logger.Errorw("error cleaning up local "+label,
@@ -477,8 +479,8 @@ func fetchAppChartFile(
 
 	helpers.Logger.Infow("input", "chart-file", chartArchive)
 
-	// Here the archive is surely a local file
-
+	// Here the archive is surely a local file, retrieved via urlcache into a local cache directory.
+	//nolint:gosec // G703 - opening cached chart archive file
 	file, err := os.Open(chartArchive)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -709,6 +711,8 @@ func loadCerts(
 
 	certFile := fmt.Sprintf("%soci-cert-%d.pem", imageExportVolume, time.Now().UnixNano())
 
+	// certFile path is built from the internal imageExportVolume directory and a timestamped filename.
+	//nolint:gosec // G703 - writing certificate file into internal export directory
 	err = os.WriteFile(certFile, pemData, 0600)
 	if err != nil {
 		return "", err

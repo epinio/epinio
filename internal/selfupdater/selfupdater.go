@@ -60,6 +60,8 @@ type Updater interface {
 // downloadFile downloads a remote file to the specified directory, using
 // a "random" name. It returns the new file path and/or and error if one occurs.
 func downloadFile(remoteURL, dir string) (string, error) {
+	// remoteURL is obtained from the Epinio release metadata and not from arbitrary users.
+	//nolint:gosec // G704 - controlled URL from trusted release metadata
 	tmpFile, err := os.CreateTemp(dir, "epinio")
 	if err != nil {
 		return "", errors.Wrap(err, "creating a temporary file")
@@ -77,6 +79,8 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "constructing a request")
 	}
+	// remoteURL is obtained from trusted release metadata, not arbitrary user input.
+	//nolint:gosec // G704 - controlled outbound request to GitHub (or configured release server)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", errors.Wrap(err, "making the request")

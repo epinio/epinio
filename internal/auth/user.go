@@ -30,6 +30,9 @@ import (
 // User is a struct containing all the information of an Epinio User
 type User struct {
 	Username   string
+	// Password holds the user's hashed password, not the clear text.
+	// It is never serialized to JSON and is only stored in Kubernetes secrets.
+	// #nosec G101,G117 - field name matches password pattern but is handled securely
 	Password   string
 	CreatedAt  time.Time
 	Roles      Roles

@@ -24,6 +24,8 @@ func (m *Machine) Curl(method, uri string, requestBody io.Reader) (*http.Respons
 		return nil, err
 	}
 	request.SetBasicAuth(m.user, m.password)
+	// Requests are made only to the Epinio test API endpoint configured in the test suite.
+	//nolint:gosec // G704 - controlled outbound request in acceptance tests
 	return m.Client().Do(request)
 }
 

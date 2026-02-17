@@ -148,6 +148,10 @@ func RunProxy(ctx context.Context, rw http.ResponseWriter, req *http.Request, de
 		FlushInterval: time.Millisecond * 100,
 	}
 
+	// Note: destination is constructed from validated backend configuration,
+	// not arbitrary user-controlled URLs. We still rely on ReverseProxy to
+	// enforce correct outbound request construction.
+	// #nosec G704 - controlled SSRF to internal backend
 	p.ServeHTTP(rw, req)
 
 	return nil

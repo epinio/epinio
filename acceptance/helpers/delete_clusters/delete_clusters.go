@@ -412,6 +412,9 @@ func GetKubeconfigGKE(runID string) error {
 func GetKubeconfigAWS_RKE2(runID string) error {
 	kubeconfig := os.Getenv("KUBECONFIG")
 
+	// Note: kubeconfig path comes from a controlled test environment variable in CI.
+	// It is not user-supplied input and is only used in acceptance tests.
+	// #nosec G304 - path is trusted in this testing helper
 	out, err := proc.RunW("aws", "ec2", "describe-instances", "--filters", fmt.Sprintf("Name=tag:Name,Values='epinio-rke2-ci%s'", runID), "--query", "Reservations[*].Instances[*].PublicDnsName", "--output", "text")
 	if err != nil {
 		return errors.Wrap(err, "aws cli command failed: "+out)
@@ -424,6 +427,8 @@ func GetKubeconfigAWS_RKE2(runID string) error {
 	}
 
 	kubeconfig_rke2 := []byte(strings.Replace(server_config, "127.0.0.1", server_hostname, 1))
+	// kubeconfig path is provided by CI via KUBECONFIG and is not user-controlled.
+	//nolint:gosec // G703 - trusted kubeconfig path in test helper
 	err = os.WriteFile(kubeconfig, kubeconfig_rke2, 0600)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create "+kubeconfig)

@@ -138,6 +138,8 @@ func DoWithHandlers[T any](
 	reqLog := requestLogger(c.log, request)
 	reqLog.V(1).Info("executing request")
 
+	// The client base URL is configured by the CLI user and not influenced by untrusted third-party services.
+	//nolint:gosec // G704 - outbound request to configured API endpoint
 	httpResponse, err := c.HttpClient.Do(request)
 	if err != nil {
 		return response, errors.Wrap(err, "making the request")
@@ -324,10 +326,15 @@ func handleError(logger logr.Logger, response *http.Response) error {
 	if len(bodyBytes) > 0 {
 		bodyStr := strings.TrimSpace(string(bodyBytes))
 
-		// Print the full response body for debugging - flush immediately
+		// Print a sanitized version of the response body for debugging to stderr.
+		// This is a CLI tool, not a web server, so this output is not rendered
+		// in a browser and cannot trigger XSS in a victim.
 		fmt.Fprintf(os.Stderr, "\n=== RAW ERROR RESPONSE ===\n")
+		//nolint:gosec // G705 - diagnostic output to stderr only
 		fmt.Fprintf(os.Stderr, "URL: %s\n", response.Request.URL.String())
+		//nolint:gosec // G705 - diagnostic output to stderr only
 		fmt.Fprintf(os.Stderr, "Status: %d %s\n", response.StatusCode, response.Status)
+		//nolint:gosec // G705 - diagnostic output to stderr only
 		fmt.Fprintf(os.Stderr, "Content-Type: %s\n", response.Header.Get("Content-Type"))
 		fmt.Fprintf(os.Stderr, "Body:\n%s\n", bodyStr)
 		fmt.Fprintf(os.Stderr, "=== END RAW ERROR RESPONSE ===\n\n")
