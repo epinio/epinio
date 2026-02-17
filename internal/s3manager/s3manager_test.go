@@ -20,6 +20,7 @@ import (
 var _ = Describe("ConnectionDetails", func() {
 	Describe("Validate", func() {
 		var details s3manager.ConnectionDetails
+
 		When("mandatory settings are partly set", func() {
 			BeforeEach(func() {
 				details = s3manager.ConnectionDetails{
@@ -33,6 +34,7 @@ var _ = Describe("ConnectionDetails", func() {
 				Expect(details.Validate()).To(MatchError("when specifying an external s3 server, you must set all mandatory S3 options"))
 			})
 		})
+
 		When("mandatory settings are empty but there are optional set", func() {
 			BeforeEach(func() {
 				details = s3manager.ConnectionDetails{
@@ -47,6 +49,7 @@ var _ = Describe("ConnectionDetails", func() {
 				Expect(details.Validate()).To(MatchError("do not specify options if using the internal S3 storage"))
 			})
 		})
+
 		When("all settings are empty", func() {
 			BeforeEach(func() {
 				details = s3manager.ConnectionDetails{}
@@ -55,6 +58,7 @@ var _ = Describe("ConnectionDetails", func() {
 				Expect(details.Validate()).ToNot(HaveOccurred())
 			})
 		})
+
 		When("mandatory settings are full and some optional are set", func() {
 			BeforeEach(func() {
 				details = s3manager.ConnectionDetails{
@@ -69,6 +73,7 @@ var _ = Describe("ConnectionDetails", func() {
 				Expect(details.Validate()).ToNot(HaveOccurred())
 			})
 		})
+
 		When("mandatory settings are full and no optional are set", func() {
 			BeforeEach(func() {
 				details = s3manager.ConnectionDetails{
@@ -81,6 +86,38 @@ var _ = Describe("ConnectionDetails", func() {
 			})
 			It("returns no error", func() {
 				Expect(details.Validate()).ToNot(HaveOccurred())
+			})
+		})
+	})
+
+	Describe("New", func() {
+		When("given valid basic connection details", func() {
+			It("creates a manager without error", func() {
+				m, err := s3manager.New(s3manager.ConnectionDetails{
+					Endpoint:        "example.com:9000",
+					UseSSL:          false,
+					AccessKeyID:     "key",
+					SecretAccessKey: "secret",
+					Bucket:          "bucket",
+					Location:        "us-east-1",
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(m).ToNot(BeNil())
+			})
+		})
+
+		When("given an invalid CA bundle", func() {
+			It("fails with a clear error", func() {
+				_, err := s3manager.New(s3manager.ConnectionDetails{
+					Endpoint:        "example.com:9000",
+					UseSSL:          true,
+					AccessKeyID:     "key",
+					SecretAccessKey: "secret",
+					Bucket:          "bucket",
+					Location:        "us-east-1",
+					CA:              []byte("not-a-valid-pem"),
+				})
+				Expect(err).To(MatchError("cannot append S3 CA from connection details to client"))
 			})
 		})
 	})
