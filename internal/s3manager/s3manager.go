@@ -86,7 +86,10 @@ func New(connectionDetails ConnectionDetails) (*Manager, error) {
 			return nil, errors.New("cannot append S3 CA from connection details to client")
 		}
 		transport := http.DefaultTransport.(*http.Transport).Clone()
-		transport.TLSClientConfig = &tls.Config{RootCAs: rootCAs}
+		transport.TLSClientConfig = &tls.Config{
+			RootCAs:    rootCAs,
+			MinVersion: tls.VersionTLS12,
+		}
 		httpClient = &http.Client{Transport: transport}
 	}
 
@@ -240,7 +243,9 @@ func (m *Manager) Upload(ctx context.Context, filepath string, metadata map[stri
 	if err != nil {
 		return "", errors.Wrap(err, "opening file for upload")
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	info, err := file.Stat()
 	if err != nil {
