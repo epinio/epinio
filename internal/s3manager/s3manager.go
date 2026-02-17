@@ -183,7 +183,7 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 func (m *Manager) Meta(ctx context.Context, blobUID string) (map[string]string, error) {
 	out, err := m.s3Client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(m.connectionDetails.Bucket),
-		Key:   aws.String(blobUID),
+		Key:    aws.String(blobUID),
 	})
 	if err != nil {
 		return map[string]string{}, errors.Wrap(err, "reading the object meta data")
@@ -263,13 +263,25 @@ func (m *Manager) EnsureBucket(ctx context.Context) error {
 	if !errors.As(err, &notFound) {
 		return errors.Wrapf(err, "checking bucket %s exists", m.connectionDetails.Bucket)
 	}
-	_, createErr := m.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
+	createInput := &s3.CreateBucketInput{
 		Bucket: aws.String(m.connectionDetails.Bucket),
-	})
+	}
+	if isAWSEndpoint(m.connectionDetails.Endpoint) &&
+		m.connectionDetails.Location != "" &&
+		m.connectionDetails.Location != "us-east-1" {
+		createInput.CreateBucketConfiguration = &types.CreateBucketConfiguration{
+			LocationConstraint: types.BucketLocationConstraint(m.connectionDetails.Location),
+		}
+	}
+	_, createErr := m.s3Client.CreateBucket(ctx, createInput)
 	if createErr != nil {
 		return errors.Wrapf(createErr, "creating bucket %s", m.connectionDetails.Bucket)
 	}
 	return nil
+}
+
+func isAWSEndpoint(endpoint string) bool {
+	return strings.Contains(endpoint, "amazonaws.com")
 }
 
 // DeleteObject deletes the specified object from the storage
