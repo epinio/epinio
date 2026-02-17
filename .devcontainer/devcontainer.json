@@ -17,6 +17,7 @@
     80,
     8443
   ],
+  "appPort": ["443:443", "80:80", "8443:8443"],
   "postCreateCommand": "bash .devcontainer/setup.sh",
   // "postStartCommand": "bash .devcontainer/start.sh",
   "remoteEnv": {
