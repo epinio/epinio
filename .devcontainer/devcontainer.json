@@ -1,5 +1,5 @@
 {
-  "name": "K3d Dev Environment",
+  "name": "Epinio Development Environment",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
@@ -17,19 +17,30 @@
     80,
     8443
   ],
-  "appPort": ["443:443", "80:80", "8443:8443"],
+  // "appPort": ["443:443", "80:80", "8443:8443"], // nixos/linux only .. vscode on macos crashes with this
   "postCreateCommand": "bash .devcontainer/setup.sh",
-  // "postStartCommand": "bash .devcontainer/start.sh",
+  "postStartCommand": "bash .devcontainer/start.sh",
   "remoteEnv": {
     "KUBECONFIG": "/home/vscode/.kube/config"
   },
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-kubernetes-tools.vscode-kubernetes-tools",
-        "golang.go"
-      ]
+"customizations": {
+  "vscode": {
+    "extensions": [
+      "ms-kubernetes-tools.vscode-kubernetes-tools",
+      "golang.go",
+      "emeraldwalk.RunOnSave"
+    ],
+    "settings": {
+      "emeraldwalk.runonsave": {
+        "commands": [
+          {
+            "match": "\\.go$",
+            "cmd": "bash .devcontainer/dev-reload.sh 2>&1 | tee /tmp/dev-reload-output.log"
+          }
+        ]
+      }
     }
-  },
+  }
+},
   "remoteUser": "vscode"
 }

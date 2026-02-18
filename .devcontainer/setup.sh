@@ -10,11 +10,17 @@ while ! docker info > /dev/null 2>&1; do
   sleep 1
 done
 
-# Create cluster (skip if it already exists)
-k3d cluster list | grep -q epinio || k3d cluster create epinio --wait \
+# Delete existing cluster for a clean start
+k3d cluster delete epinio 2>/dev/null || true
+k3d cluster create epinio --wait \
     -p "80:80@loadbalancer" \
     -p "443:443@loadbalancer" \
     --k3s-arg "--disable=traefik@server:*"
+
+# k3d cluster list | grep -q epinio || k3d cluster create epinio --wait \
+#     -p "80:80@loadbalancer" \
+#     -p "443:443@loadbalancer" \
+#     --k3s-arg "--disable=traefik@server:*"
 
 # Write and export kubeconfig
 export KUBECONFIG="$HOME/.kube/config"
@@ -60,5 +66,13 @@ helm upgrade --install epinio epinio/epinio --namespace epinio --create-namespac
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
     --wait
 
-echo "Setup complete! Access Epinio at https://epinio.127.0.0.1.sslip.io:8443"
+echo "============================================"
+echo "Setup complete!"
+echo ""
+echo "To access Epinio from your host browser, ensure these entries are in your host machine's /etc/hosts:"
+echo ""
+echo "  127.0.0.1  epinio.127.0.0.1.sslip.io auth.127.0.0.1.sslip.io"
+echo ""
+echo "Then visit: https://epinio.127.0.0.1.sslip.io:8443"
+echo "============================================"
 kubectl get all -n epinio
