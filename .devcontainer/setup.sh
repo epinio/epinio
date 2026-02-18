@@ -11,16 +11,16 @@ while ! docker info > /dev/null 2>&1; do
 done
 
 # Delete existing cluster for a clean start
-k3d cluster delete epinio 2>/dev/null || true
-k3d cluster create epinio --wait \
-    -p "80:80@loadbalancer" \
-    -p "443:443@loadbalancer" \
-    --k3s-arg "--disable=traefik@server:*"
-
-# k3d cluster list | grep -q epinio || k3d cluster create epinio --wait \
+# k3d cluster delete epinio 2>/dev/null || true
+# k3d cluster create epinio --wait \
 #     -p "80:80@loadbalancer" \
 #     -p "443:443@loadbalancer" \
 #     --k3s-arg "--disable=traefik@server:*"
+
+k3d cluster list | grep -q epinio || k3d cluster create epinio --wait \
+    -p "80:80@loadbalancer" \
+    -p "443:443@loadbalancer" \
+    --k3s-arg "--disable=traefik@server:*"
 
 # Write and export kubeconfig
 export KUBECONFIG="$HOME/.kube/config"
