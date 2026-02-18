@@ -145,7 +145,7 @@ func fetchFile(originURL, destinationPath string) error {
 			return dstFileError
 		}
 
-		fileRemoveError := os.Remove(dstFile.Name())
+		fileRemoveError := os.Remove(dstFile.Name()) // #nosec G703 -- path from our own create
 		if fileRemoveError != nil {
 			return fileRemoveError
 		}

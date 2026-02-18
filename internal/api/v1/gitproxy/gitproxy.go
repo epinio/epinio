@@ -283,7 +283,7 @@ func getProxyClient(gitConfig *gitbridge.Configuration) (*http.Client, error) {
 
 // doRequest will execute the proxied request copying the response and the headers in the ResponseWriter
 func doRequest(client *http.Client, req *http.Request, writer http.ResponseWriter) error {
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704 -- URL from validated Git proxy request
 	if err != nil {
 		return errors.Wrap(err, "executing proxied request")
 	}

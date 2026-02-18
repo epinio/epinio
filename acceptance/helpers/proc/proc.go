@@ -29,7 +29,7 @@ func Get(dir, command string, arg ...string) (*exec.Cmd, error) {
 		}
 	}
 
-	p := exec.Command(command, arg...)
+	p := exec.Command(command, arg...) // #nosec G204 -- command and args are from caller
 	p.Dir = dir
 
 	return p, nil
@@ -41,7 +41,7 @@ func RunW(cmd string, args ...string) (string, error) {
 }
 
 func Run(dir string, toStdout bool, command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...)
+	cmd := exec.Command(command, args...) // #nosec G204 -- command and args are from caller
 
 	var b bytes.Buffer
 	if toStdout {

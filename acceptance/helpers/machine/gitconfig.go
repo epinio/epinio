@@ -45,7 +45,7 @@ func (m *Machine) MakeGitconfigWithoutCleanup(gitConfigName string) {
 	Expect(err).ToNot(HaveOccurred())
 
 	tmpTokenFile := path.Join(tmpTokenDir, "token")
-	err = os.WriteFile(tmpTokenFile, []byte(os.Getenv("PRIVATE_REPO_IMPORT_PAT")), 0600)
+	err = os.WriteFile(tmpTokenFile, []byte(os.Getenv("PRIVATE_REPO_IMPORT_PAT")), 0600) // #nosec G703 -- path from MkdirTemp under our control
 	Expect(err).ToNot(HaveOccurred())
 
 	DeferCleanup(func() {

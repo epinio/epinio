@@ -113,7 +113,7 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		if osFile, ok := tempFile.(*os.File); ok {
 			tempPath := osFile.Name()
 			log.Infow("Deleting multipart temp file", "path", tempPath)
-			fileRemoveError := os.Remove(tempPath)
+			fileRemoveError := os.Remove(tempPath) // #nosec G703 -- path from our multipart temp file
 
 			if fileRemoveError != nil {
 				log.Errorw("Multipart failed to remove", "error", fileRemoveError)

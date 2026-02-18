@@ -77,7 +77,7 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "constructing a request")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // #nosec G704 -- remoteURL from release metadata
 	if err != nil {
 		return "", errors.Wrap(err, "making the request")
 	}
