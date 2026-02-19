@@ -25,6 +25,7 @@ import (
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/internal/api/v1/appchart"
 	"github.com/epinio/epinio/internal/api/v1/application"
+	"github.com/epinio/epinio/internal/api/v1/buildpack"
 	"github.com/epinio/epinio/internal/api/v1/configuration"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/env"
@@ -129,7 +130,9 @@ var Routes = routes.NamedRoutes{
 	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
 	"AppValidateCV":       get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
 	"ValidateBuilderImage": get("/validate-builder-image", errorHandler(application.ValidateBuilderImageHandler)),
-	"AppExport":           post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
+	"BuildpackSearch":      get("/buildpacks/search", errorHandler(buildpack.Search)),
+	"BuildpackVerify":      get("/buildpacks/verify", errorHandler(buildpack.Verify)),
+	"AppExport":            post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
 
 	"AppMatch":  get("/namespaces/:namespace/appsmatches/:pattern", errorHandler(application.Match)),
 	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Match)),

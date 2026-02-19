@@ -12,12 +12,14 @@
 package application
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	parser "github.com/novln/docker-parser"
 
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/registry"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
@@ -31,13 +33,18 @@ type ValidateBuilderImageResult struct {
 }
 
 // ValidateBuilderImage checks that the builder image is a valid container image
-// reference. Invalid references (e.g. wildcards like "paketobuildpacks/builder:*")
-// cause staging to fail later with InvalidImageName; this allows callers to fail
-// fast with a clear error and suggestion.
+// reference and, when ctx is non-nil, that the image exists in the container
+// registry (Docker Hub, GHCR, etc.). The buildpacks registry-index
+// (https://github.com/buildpacks/registry-index) indexes buildpacks, not builder
+// images; existence is checked via the Registry API v2.
 // See: https://github.com/epinio/epinio/issues/2711
-// Optional: validation against buildpacks.io registry-index can be added to
-// ensure the image is a known supported builder.
 func ValidateBuilderImage(builderImage string) ValidateBuilderImageResult {
+	return ValidateBuilderImageWithContext(context.Background(), builderImage, false)
+}
+
+// ValidateBuilderImageWithContext performs format validation and, when checkRegistry
+// is true, checks that the image exists in the container registry using ctx.
+func ValidateBuilderImageWithContext(ctx context.Context, builderImage string, checkRegistry bool) ValidateBuilderImageResult {
 	if builderImage == "" {
 		return ValidateBuilderImageResult{
 			Valid:      false,
@@ -66,7 +73,22 @@ func ValidateBuilderImage(builderImage string) ValidateBuilderImageResult {
 		}
 	}
 
-	// Tag may be empty (implies "latest"); that's valid.
+	// Optionally check that the image exists in the container registry.
+	if checkRegistry {
+		exists, regErr := registry.ImageExistsInRegistry(ctx, builderImage)
+		if regErr != nil {
+			// Timeout or 5xx: don't block staging; treat as format-valid only
+			return ValidateBuilderImageResult{Valid: true}
+		}
+		if !exists {
+			return ValidateBuilderImageResult{
+				Valid:      false,
+				Message:    "image not found in registry",
+				Suggestion: "Check the image name and tag, or use a known builder e.g. paketobuildpacks/builder:full",
+			}
+		}
+	}
+
 	return ValidateBuilderImageResult{Valid: true}
 }
 
@@ -75,7 +97,8 @@ func ValidateBuilderImage(builderImage string) ValidateBuilderImageResult {
 // See: https://github.com/epinio/epinio/issues/2711
 func ValidateBuilderImageHandler(c *gin.Context) apierror.APIErrors {
 	image := c.Query("image")
-	result := ValidateBuilderImage(image)
+	// Use request context and enable registry existence check
+	result := ValidateBuilderImageWithContext(c.Request.Context(), image, true)
 	response.OKReturn(c, result)
 	return nil
 }
