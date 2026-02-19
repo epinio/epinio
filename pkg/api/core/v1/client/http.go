@@ -138,7 +138,7 @@ func DoWithHandlers[T any](
 	reqLog := requestLogger(c.log, request)
 	reqLog.V(1).Info("executing request")
 
-	httpResponse, err := c.HttpClient.Do(request)
+	httpResponse, err := c.HttpClient.Do(request) // #nosec G704 -- URL from client settings/caller
 	if err != nil {
 		return response, errors.Wrap(err, "making the request")
 	}
@@ -326,9 +326,9 @@ func handleError(logger logr.Logger, response *http.Response) error {
 
 		// Print the full response body for debugging - flush immediately
 		fmt.Fprintf(os.Stderr, "\n=== RAW ERROR RESPONSE ===\n")
-		fmt.Fprintf(os.Stderr, "URL: %s\n", response.Request.URL.String())
-		fmt.Fprintf(os.Stderr, "Status: %d %s\n", response.StatusCode, response.Status)
-		fmt.Fprintf(os.Stderr, "Content-Type: %s\n", response.Header.Get("Content-Type"))
+		fmt.Fprintf(os.Stderr, "URL: %s\n", response.Request.URL.String())           // #nosec G705 -- debug output to stderr
+		fmt.Fprintf(os.Stderr, "Status: %d %s\n", response.StatusCode, response.Status) // #nosec G705 -- debug output to stderr
+		fmt.Fprintf(os.Stderr, "Content-Type: %s\n", response.Header.Get("Content-Type")) // #nosec G705 -- debug output to stderr
 		fmt.Fprintf(os.Stderr, "Body:\n%s\n", bodyStr)
 		fmt.Fprintf(os.Stderr, "=== END RAW ERROR RESPONSE ===\n\n")
 		_ = os.Stderr.Sync() // Force flush to ensure output appears

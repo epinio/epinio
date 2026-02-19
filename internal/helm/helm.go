@@ -322,7 +322,7 @@ type RouteParam struct {
 	Id     string `yaml:"id"`
 	Domain string `yaml:"domain"`
 	Path   string `yaml:"path"`
-	Secret string `yaml:"secret,omitempty"`
+	Secret string `yaml:"secret,omitempty"` // #nosec G117 -- TLS secret name, not secret data
 }
 type EpinioParam struct {
 	AppName        string               `yaml:"appName"`

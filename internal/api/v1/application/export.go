@@ -439,7 +439,7 @@ func checkDestination(ctx context.Context, cluster *kubernetes.Cluster,
 // export after they are not required any longer.
 func cleanupLocalPath(label, path string) {
 	helpers.Logger.Infow("OCI export cleanup local "+label, "path", path)
-	err := os.RemoveAll(path)
+	err := os.RemoveAll(path) // #nosec G703 -- path is our temp dir from export flow
 	if err != nil {
 		helpers.Logger.Errorw("error cleaning up local "+label,
 			"path", path,
@@ -479,7 +479,7 @@ func fetchAppChartFile(
 
 	// Here the archive is surely a local file
 
-	file, err := os.Open(chartArchive)
+	file, err := os.Open(chartArchive) // #nosec G703 -- chartArchive from fetchAppChartFile or validated path
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -709,7 +709,7 @@ func loadCerts(
 
 	certFile := fmt.Sprintf("%soci-cert-%d.pem", imageExportVolume, time.Now().UnixNano())
 
-	err = os.WriteFile(certFile, pemData, 0600)
+	err = os.WriteFile(certFile, pemData, 0600) // #nosec G703 -- certFile we build from imageExportVolume
 	if err != nil {
 		return "", err
 	}

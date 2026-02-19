@@ -25,6 +25,7 @@ import (
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/internal/api/v1/appchart"
 	"github.com/epinio/epinio/internal/api/v1/application"
+	"github.com/epinio/epinio/internal/api/v1/buildpack"
 	"github.com/epinio/epinio/internal/api/v1/configuration"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/env"
@@ -112,23 +113,26 @@ var Routes = routes.NamedRoutes{
 
 	// app controller files see application/*.go
 
-	"AllApps":         get("/applications", errorHandler(application.FullIndex)),
-	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Index)),
-	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Create)),
-	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),
-	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Staged)), // See stage.go
-	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Delete)),
-	"AppBatchDelete":  delete("/namespaces/:namespace/applications", errorHandler(application.Delete)),
-	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Deploy)),
-	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.ImportGit)),
-	"AppPart":         get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.GetPart)),
-	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),
-	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Running)),
-	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)), // See stage.go
-	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
-	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
-	"AppValidateCV":   get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
-	"AppExport":       post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
+	"AllApps":              get("/applications", errorHandler(application.FullIndex)),
+	"Apps":                 get("/namespaces/:namespace/applications", errorHandler(application.Index)),
+	"AppCreate":            post("/namespaces/:namespace/applications", errorHandler(application.Create)),
+	"AppShow":              get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),
+	"StagingComplete":      get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Staged)), // See stage.go
+	"AppDelete":            delete("/namespaces/:namespace/applications/:app", errorHandler(application.Delete)),
+	"AppBatchDelete":       delete("/namespaces/:namespace/applications", errorHandler(application.Delete)),
+	"AppDeploy":            post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Deploy)),
+	"AppImportGit":         post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.ImportGit)),
+	"AppPart":              get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.GetPart)),
+	"AppRestart":           post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),
+	"AppRunning":           get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Running)),
+	"AppStage":             post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)), // See stage.go
+	"AppUpdate":            patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
+	"AppUpload":            post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
+	"AppValidateCV":        get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
+	"ValidateBuilderImage": get("/validate-builder-image", errorHandler(application.ValidateBuilderImageHandler)),
+	"BuildpackSearch":      get("/buildpacks/search", errorHandler(buildpack.Search)),
+	"BuildpackVerify":      get("/buildpacks/verify", errorHandler(buildpack.Verify)),
+	"AppExport":            post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
 
 	"AppMatch":  get("/namespaces/:namespace/appsmatches/:pattern", errorHandler(application.Match)),
 	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Match)),

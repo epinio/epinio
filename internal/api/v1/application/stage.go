@@ -156,49 +156,58 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, config StagingS
 	return err
 }
 
+// stageLoadAndValidate parses the request, loads cluster and app, and validates that staging can proceed.
+func stageLoadAndValidate(c *gin.Context) (models.StageRequest, *kubernetes.Cluster, *unstructured.Unstructured, apierror.APIErrors) {
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	name := c.Param("app")
+
+	req := models.StageRequest{}
+	if err := c.BindJSON(&req); err != nil {
+		return req, nil, nil, apierror.NewBadRequestError(err.Error()).WithDetails("failed to unmarshal app stage request")
+	}
+	if name != req.App.Name {
+		return req, nil, nil, apierror.NewBadRequestError("name parameter from URL does not match name param in body")
+	}
+	if namespace != req.App.Namespace {
+		return req, nil, nil, apierror.NewBadRequestError("namespace parameter from URL does not match namespace param in body")
+	}
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return req, nil, nil, apierror.InternalError(err, "failed to get access to a kube client")
+	}
+
+	app, err := application.Get(ctx, cluster, req.App)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return req, nil, nil, apierror.AppIsNotKnown("cannot stage app, application resource is missing")
+		}
+		return req, nil, nil, apierror.InternalError(err, "failed to get the application resource")
+	}
+
+	staging, err := application.IsCurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
+	if err != nil {
+		return req, nil, nil, apierror.InternalError(err)
+	}
+	if staging {
+		return req, nil, nil, apierror.NewBadRequestError("staging job for image ID still running")
+	}
+
+	return req, cluster, app, nil
+}
+
 // Stage handles the API endpoint /namespaces/:namespace/applications/:app/stage
 // It creates a Job resource to stage the app
 func Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := helpers.Logger
 
-	namespace := c.Param("namespace")
-	name := c.Param("app")
+	req, cluster, app, apiErr := stageLoadAndValidate(c)
+	if apiErr != nil {
+		return apiErr
+	}
 	username := requestctx.User(ctx).Username
-
-	req := models.StageRequest{}
-	if err := c.BindJSON(&req); err != nil {
-		return apierror.NewBadRequestError(err.Error()).WithDetails("failed to unmarshal app stage request")
-	}
-	if name != req.App.Name {
-		return apierror.NewBadRequestError("name parameter from URL does not match name param in body")
-	}
-	if namespace != req.App.Namespace {
-		return apierror.NewBadRequestError("namespace parameter from URL does not match namespace param in body")
-	}
-
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err, "failed to get access to a kube client")
-	}
-
-	// check application resource
-	app, err := application.Get(ctx, cluster, req.App)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return apierror.AppIsNotKnown("cannot stage app, application resource is missing")
-		}
-		return apierror.InternalError(err, "failed to get the application resource")
-	}
-
-	// quickly reject conflict with (still) active staging
-	staging, err := application.IsCurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if staging {
-		return apierror.NewBadRequestError("staging job for image ID still running")
-	}
 
 	// get builder image from either request, application, or default as final fallback
 
@@ -208,6 +217,12 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	}
 	if builderImage == "" {
 		builderImage = viper.GetString("default-builder-image")
+	}
+
+	// Validate builder image before staging so users get a clear error instead of
+	// InvalidImageName later (e.g. for "paketobuildpacks/builder:*").
+	if v := ValidateBuilderImageWithContext(ctx, builderImage, true); !v.Valid {
+		return apierror.NewBadRequestError(v.Message).WithDetails(v.Suggestion)
 	}
 
 	// Find staging script spec based on the builder image and what images are supported by each spec
@@ -226,7 +241,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	log.Infow("staging app", "groupid", config.GroupID)
 	log.Infow("staging app", "build env", config.Env)
 	log.Infow("staging app", "Staging Values", config.HelmValues)
-	log.Infow("staging app", "namespace", namespace, "app", req)
+	log.Infow("staging app", "namespace", req.App.Namespace, "app", req)
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)

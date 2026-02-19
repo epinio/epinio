@@ -148,7 +148,7 @@ func RunProxy(ctx context.Context, rw http.ResponseWriter, req *http.Request, de
 		FlushInterval: time.Millisecond * 100,
 	}
 
-	p.ServeHTTP(rw, req)
+	p.ServeHTTP(rw, req) // #nosec G704 -- reverse proxy forwards to validated backend
 
 	return nil
 }

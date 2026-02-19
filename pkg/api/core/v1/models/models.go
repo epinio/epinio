@@ -446,3 +446,22 @@ type AppExportRequest struct {
 	ImageTag     string `json:"image-tag,omitempty"`
 	ChartVersion string `json:"chart-version,omitempty"`
 }
+
+// BuildpackEntry represents a single buildpack from the CNB registry (id, versions, latest).
+type BuildpackEntry struct {
+	ID       string   `json:"id"`
+	Versions []string `json:"versions,omitempty"`
+	Latest   string   `json:"latest,omitempty"`
+}
+
+// BuildpackSearchResponse is the response for GET /api/v1/buildpacks/search.
+type BuildpackSearchResponse struct {
+	Buildpacks []BuildpackEntry `json:"buildpacks,omitempty"`
+}
+
+// BuildpackVerifyResponse is the response for GET /api/v1/buildpacks/verify.
+type BuildpackVerifyResponse struct {
+	Valid          bool   `json:"valid"`
+	Message        string `json:"message,omitempty"`
+	NormalizedName string `json:"normalized_name,omitempty"`
+}

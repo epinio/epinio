@@ -28,12 +28,14 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
@@ -928,7 +930,7 @@ func Unstage(
 	}
 
 	// Cleanup s3 objects
-	result.FailedBlobCleanups, err = CleanupS3Blobs(ctx, log, s3m, jobs.Items, currentJob, appRef)
+	result.FailedBlobCleanups, err = CleanupS3Blobs(ctx, helpers.SugaredLoggerToLogr(log), s3m, jobs.Items, currentJob, appRef)
 	if err != nil {
 		return nil, err
 	}

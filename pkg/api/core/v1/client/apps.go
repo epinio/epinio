@@ -34,7 +34,6 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	wsstream "k8s.io/client-go/transport/websocket"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"

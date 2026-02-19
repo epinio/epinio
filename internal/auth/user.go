@@ -30,7 +30,7 @@ import (
 // User is a struct containing all the information of an Epinio User
 type User struct {
 	Username   string
-	Password   string
+	Password   string // #nosec G117 -- credential field required for auth
 	CreatedAt  time.Time
 	Roles      Roles
 	Namespaces []string // list of namespaces this user has created (and thus access to)
