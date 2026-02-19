@@ -12,15 +12,19 @@
 package buildpack
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/registry"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
+
+var repositoryExistsInRegistryFn = registry.RepositoryExistsInRegistry
 
 // Verify handles GET /api/v1/buildpacks/verify?name=<buildpack_name>
 // It verifies the buildpack name exists on Docker Hub. CNB registry uses dashes in org (e.g. paketo-buildpacks)
@@ -44,24 +48,35 @@ func Verify(c *gin.Context) apierror.APIErrors {
 	}
 	ns, repoName := parts[0], parts[1]
 	normalizedNs := strings.ReplaceAll(ns, "-", "")
-	candidates := []string{
-		"docker.io/" + normalizedNs + "/" + repoName + ":latest",
-		"docker.io/" + ns + "/" + repoName + ":latest",
+	candidates := []string{normalizedNs}
+	if ns != normalizedNs {
+		candidates = append(candidates, ns)
 	}
+
 	ctx := c.Request.Context()
-	for _, imageRef := range candidates {
-		exists, err := registry.ImageExistsInRegistry(ctx, imageRef)
+	var lastErr error
+	for _, candidateNs := range candidates {
+		repository := candidateNs + "/" + repoName
+		exists, err := repositoryExistsInRegistryFn(ctx, "docker.io", repository)
 		if err != nil {
+			lastErr = err
 			continue
 		}
 		if exists {
 			response.OKReturn(c, models.BuildpackVerifyResponse{
 				Valid:          true,
-				NormalizedName: normalizedNs + "/" + repoName,
+				NormalizedName: repository,
 			})
 			return nil
 		}
 	}
+
+	if lastErr != nil {
+		helpers.Logger.Errorw("buildpack verification failed", "name", name, "error", lastErr)
+		return apierror.NewAPIError("unable to verify buildpack on Docker Hub", http.StatusServiceUnavailable).
+			WithDetails(lastErr.Error())
+	}
+
 	response.OKReturn(c, models.BuildpackVerifyResponse{
 		Valid:   false,
 		Message: "buildpack image not found on Docker Hub (tried " + normalizedNs + "/" + repoName + " and " + ns + "/" + repoName + ")",

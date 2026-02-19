@@ -19,18 +19,25 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 const (
-	registryIndexRepo     = "buildpacks/registry-index"
-	registryIndexBranch   = "main"
-	githubTreeURL         = "https://api.github.com/repos/%s/git/trees/%s?recursive=1"
-	rawContentURL         = "https://raw.githubusercontent.com/%s/%s/%s"
+	registryIndexRepo   = "buildpacks/registry-index"
+	registryIndexBranch = "main"
+	githubTreeURL       = "https://api.github.com/repos/%s/git/trees/%s?recursive=1"
+	rawContentURL       = "https://raw.githubusercontent.com/%s/%s/%s"
 	maxBlobsToFetch     = 25
 	maxBuildpackEntries = 50
+	treeCacheTTL        = 5 * time.Minute
+	blobCacheTTL        = 5 * time.Minute
 )
+
+var cnbRegistryHTTPClient = &http.Client{Timeout: 8 * time.Second}
 
 type githubTree struct {
 	Tree []struct {
@@ -46,6 +53,22 @@ type ndjsonLine struct {
 	Yanked  bool   `json:"yanked"`
 }
 
+type treeCacheState struct {
+	expiresAt time.Time
+	tree      githubTree
+}
+
+type blobCacheState struct {
+	expiresAt time.Time
+	lines     []ndjsonLine
+}
+
+var (
+	cacheMu           sync.RWMutex
+	cachedTree        treeCacheState
+	cachedBlobContent = map[string]blobCacheState{}
+)
+
 // SearchCNBRegistry searches the CNB registry index (GitHub buildpacks/registry-index)
 // by term and returns up to maxBuildpackEntries buildpack entries with versions and latest.
 func SearchCNBRegistry(ctx context.Context, searchTerm string) (*models.BuildpackSearchResponse, error) {
@@ -54,25 +77,8 @@ func SearchCNBRegistry(ctx context.Context, searchTerm string) (*models.Buildpac
 		return &models.BuildpackSearchResponse{Buildpacks: []models.BuildpackEntry{}}, nil
 	}
 
-	treeURL := fmt.Sprintf(githubTreeURL, registryIndexRepo, registryIndexBranch)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, treeURL, nil)
+	tree, err := loadRegistryTree(ctx)
 	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("github tree API returned %d", resp.StatusCode)
-	}
-
-	var tree githubTree
-	if err := json.NewDecoder(resp.Body).Decode(&tree); err != nil {
 		return nil, err
 	}
 
@@ -131,13 +137,61 @@ func SearchCNBRegistry(ctx context.Context, searchTerm string) (*models.Buildpac
 	return &models.BuildpackSearchResponse{Buildpacks: result}, nil
 }
 
+func loadRegistryTree(ctx context.Context) (githubTree, error) {
+	cacheMu.RLock()
+	if time.Now().Before(cachedTree.expiresAt) {
+		tree := cachedTree.tree
+		cacheMu.RUnlock()
+		return tree, nil
+	}
+	cacheMu.RUnlock()
+
+	treeURL := fmt.Sprintf(githubTreeURL, registryIndexRepo, registryIndexBranch)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, treeURL, nil)
+	if err != nil {
+		return githubTree{}, err
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := cnbRegistryHTTPClient.Do(req)
+	if err != nil {
+		return githubTree{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return githubTree{}, fmt.Errorf("github tree API returned %d", resp.StatusCode)
+	}
+
+	var tree githubTree
+	if err := json.NewDecoder(resp.Body).Decode(&tree); err != nil {
+		return githubTree{}, err
+	}
+
+	cacheMu.Lock()
+	cachedTree = treeCacheState{
+		tree:      tree,
+		expiresAt: time.Now().Add(treeCacheTTL),
+	}
+	cacheMu.Unlock()
+
+	return tree, nil
+}
+
 func fetchAndParseNDJSON(ctx context.Context, path string) ([]ndjsonLine, error) {
+	cacheMu.RLock()
+	if cachedBlob, ok := cachedBlobContent[path]; ok && time.Now().Before(cachedBlob.expiresAt) {
+		lines := cachedBlob.lines
+		cacheMu.RUnlock()
+		return lines, nil
+	}
+	cacheMu.RUnlock()
+
 	rawURL := fmt.Sprintf(rawContentURL, registryIndexRepo, registryIndexBranch, path)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := cnbRegistryHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +213,18 @@ func fetchAndParseNDJSON(ctx context.Context, path string) ([]ndjsonLine, error)
 		}
 		lines = append(lines, l)
 	}
-	return lines, sc.Err()
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+
+	cacheMu.Lock()
+	cachedBlobContent[path] = blobCacheState{
+		lines:     lines,
+		expiresAt: time.Now().Add(blobCacheTTL),
+	}
+	cacheMu.Unlock()
+
+	return lines, nil
 }
 
 func uniqueSortedVersions(versions []string) []string {
@@ -177,6 +242,16 @@ func uniqueSortedVersions(versions []string) []string {
 }
 
 func versionLess(a, b string) bool {
-	// Simple string comparison; can be replaced with semver if needed
+	aSemver, errA := semver.NewVersion(strings.TrimPrefix(a, "v"))
+	bSemver, errB := semver.NewVersion(strings.TrimPrefix(b, "v"))
+	if errA == nil && errB == nil {
+		return aSemver.LessThan(bSemver)
+	}
+	if errA == nil && errB != nil {
+		return false
+	}
+	if errA != nil && errB == nil {
+		return true
+	}
 	return a < b
 }

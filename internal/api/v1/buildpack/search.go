@@ -12,22 +12,26 @@
 package buildpack
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
+
+var searchCNBRegistryFn = SearchCNBRegistry
 
 // Search handles GET /api/v1/buildpacks/search?q=<term>
 // It searches the CNB registry index and returns matching buildpack entries.
 func Search(c *gin.Context) apierror.APIErrors {
 	q := c.Query("q")
-	result, err := SearchCNBRegistry(c.Request.Context(), q)
+	result, err := searchCNBRegistryFn(c.Request.Context(), q)
 	if err != nil {
-		// Return empty result on error so UI doesn't break
-		response.OKReturn(c, models.BuildpackSearchResponse{Buildpacks: []models.BuildpackEntry{}})
-		return nil
+		helpers.Logger.Errorw("cnb registry search failed", "query", q, "error", err)
+		return apierror.NewAPIError("unable to search CNB registry", http.StatusServiceUnavailable).
+			WithDetails(err.Error())
 	}
 	response.OKReturn(c, *result)
 	return nil

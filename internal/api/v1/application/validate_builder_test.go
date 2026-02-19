@@ -12,6 +12,8 @@
 package application
 
 import (
+	"context"
+	"errors"
 	"testing"
 )
 
@@ -40,6 +42,53 @@ func TestValidateBuilderImage(t *testing.T) {
 			}
 			if !tt.valid && got.Valid && got.Message != "" {
 				t.Errorf("ValidateBuilderImage(%q) valid but has Message: %s", tt.image, got.Message)
+			}
+		})
+	}
+}
+
+func TestValidateBuilderImageWithContextRegistryChecks(t *testing.T) {
+	previous := imageExistsInRegistryFn
+	t.Cleanup(func() { imageExistsInRegistryFn = previous })
+
+	tests := []struct {
+		name       string
+		exists     bool
+		err        error
+		wantValid  bool
+		wantSubstr string
+	}{
+		{
+			name:      "registry reports image exists",
+			exists:    true,
+			wantValid: true,
+		},
+		{
+			name:       "registry reports image missing",
+			exists:     false,
+			wantValid:  false,
+			wantSubstr: "image not found in registry",
+		},
+		{
+			name:       "registry check fails",
+			err:        errors.New("timeout"),
+			wantValid:  false,
+			wantSubstr: "unable to verify image in registry",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			imageExistsInRegistryFn = func(context.Context, string) (bool, error) {
+				return tt.exists, tt.err
+			}
+
+			got := ValidateBuilderImageWithContext(context.Background(), "paketobuildpacks/builder:full", true)
+			if got.Valid != tt.wantValid {
+				t.Fatalf("ValidateBuilderImageWithContext().Valid = %v, want %v", got.Valid, tt.wantValid)
+			}
+			if tt.wantSubstr != "" && got.Message != tt.wantSubstr {
+				t.Fatalf("ValidateBuilderImageWithContext().Message = %q, want %q", got.Message, tt.wantSubstr)
 			}
 		})
 	}

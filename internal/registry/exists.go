@@ -30,9 +30,12 @@ import (
 
 const (
 	manifestCheckTimeout = 10 * time.Second
-	dockerHubAuthURL     = "https://auth.docker.io/token"
-	dockerHubRegistry    = "registry-1.docker.io"
 	acceptManifest       = "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json"
+)
+
+var (
+	dockerHubAuthURL  = "https://auth.docker.io/token"
+	dockerHubRegistry = "registry-1.docker.io"
 )
 
 // dockerTokenResponse is the response from auth.docker.io/token
@@ -50,20 +53,12 @@ func ImageExistsInRegistry(ctx context.Context, imageRef string) (exists bool, e
 	if err != nil {
 		return false, err
 	}
-	registryHost := ref.Registry()
+	registryAPIHost := normalizeRegistryAPIHost(ref.Registry())
 	repository := ref.ShortName()
 	tag := ref.Tag()
 	if tag == "" {
 		tag = "latest"
 	}
-
-	// Normalize Docker Hub registry host
-	registryAPIHost := registryHost
-	if registryHost == "" || registryHost == "docker.io" || registryHost == "index.docker.io" {
-		registryAPIHost = dockerHubRegistry
-	}
-	registryAPIHost = strings.TrimPrefix(registryAPIHost, "https://")
-	registryAPIHost = strings.TrimPrefix(registryAPIHost, "http://")
 	baseURL := "https://" + registryAPIHost
 	manifestURL := fmt.Sprintf("%s/v2/%s/manifests/%s", baseURL, repository, tag)
 
@@ -99,6 +94,42 @@ func ImageExistsInRegistry(ctx context.Context, imageRef string) (exists bool, e
 	}
 }
 
+// RepositoryExistsInRegistry checks whether a repository exists in a registry.
+// This avoids false negatives caused by checking only a specific tag (e.g. latest).
+func RepositoryExistsInRegistry(ctx context.Context, registryHost, repository string) (bool, error) {
+	registryAPIHost := normalizeRegistryAPIHost(registryHost)
+	baseURL := "https://" + registryAPIHost
+	tagsURL := fmt.Sprintf("%s/v2/%s/tags/list?n=1", baseURL, repository)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, tagsURL, nil)
+	if err != nil {
+		return false, err
+	}
+	if registryAPIHost == dockerHubRegistry {
+		token, tokenErr := getDockerHubToken(ctx, repository)
+		if tokenErr != nil {
+			return false, tokenErr
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	client := &http.Client{Timeout: manifestCheckTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	default:
+		return false, fmt.Errorf("registry returned %d for repository %s", resp.StatusCode, repository)
+	}
+}
+
 func getDockerHubToken(ctx context.Context, repository string) (string, error) {
 	scope := "repository:" + repository + ":pull"
 	authURL := dockerHubAuthURL + "?service=registry.docker.io&scope=" + url.QueryEscape(scope)
@@ -123,4 +154,13 @@ func getDockerHubToken(ctx context.Context, repository string) (string, error) {
 		return "", fmt.Errorf("no token in auth response")
 	}
 	return out.Token, nil
+}
+
+func normalizeRegistryAPIHost(registryHost string) string {
+	if registryHost == "" || registryHost == "docker.io" || registryHost == "index.docker.io" {
+		return dockerHubRegistry
+	}
+	registryAPIHost := strings.TrimPrefix(registryHost, "https://")
+	registryAPIHost = strings.TrimPrefix(registryAPIHost, "http://")
+	return registryAPIHost
 }

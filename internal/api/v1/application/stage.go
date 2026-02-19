@@ -221,7 +221,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 
 	// Validate builder image before staging so users get a clear error instead of
 	// InvalidImageName later (e.g. for "paketobuildpacks/builder:*").
-	if v := ValidateBuilderImage(builderImage); !v.Valid {
+	if v := ValidateBuilderImageWithContext(ctx, builderImage, true); !v.Valid {
 		return apierror.NewBadRequestError(v.Message).WithDetails(v.Suggestion)
 	}
 
