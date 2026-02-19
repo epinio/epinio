@@ -161,6 +161,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	}()
 
 	// Get file info for content length
+	// #nosec G703 -- archivePath is from our own CreateTemp + constant suffix
 	fileInfo, err := os.Stat(archivePath)
 	if err != nil {
 		return apierror.InternalError(errors.Wrap(err, "failed to get archive file info"))
@@ -181,6 +182,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	filename := fmt.Sprintf("epinio-support-bundle-%s.tar.gz", time.Now().Format("20060102-150405"))
 
 	// Open the file for streaming
+	// #nosec G703 -- archivePath is from our own CreateTemp + constant suffix
 	file, err := os.Open(archivePath)
 	if err != nil {
 		return apierror.InternalError(errors.Wrap(err, "failed to open archive file"))

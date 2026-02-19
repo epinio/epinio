@@ -644,6 +644,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	files := make(map[string]string)
 
 	// Walk the bundle directory and collect all log files
+	// #nosec G703 -- bundleDir is from our own CreateTemp/MkdirTemp for support bundle
 	err := filepath.Walk(c.bundleDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return errors.Wrapf(err, "error accessing path %s", path)
@@ -681,6 +682,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	}
 
 	// Create the archive file
+	// #nosec G703 -- archivePath is from our own CreateTemp/MkdirTemp for support bundle
 	outFile, err := os.Create(archivePath)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create archive file")
@@ -701,6 +703,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	}
 
 	// Verify archive was created successfully
+	// #nosec G703 -- archivePath is from our own CreateTemp for support bundle
 	archiveInfo, err := os.Stat(archivePath)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to verify archive was created")

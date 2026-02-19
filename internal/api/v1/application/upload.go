@@ -113,6 +113,7 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		if osFile, ok := tempFile.(*os.File); ok {
 			tempPath := osFile.Name()
 			log.Infow("Deleting multipart temp file", "path", tempPath)
+			// #nosec G703 -- tempPath is from multipart form temp file (os.File.Name()), not user input
 			fileRemoveError := os.Remove(tempPath)
 
 			if fileRemoveError != nil {

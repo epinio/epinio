@@ -138,6 +138,7 @@ func DoWithHandlers[T any](
 	reqLog := requestLogger(c.log, request)
 	reqLog.V(1).Info("executing request")
 
+	// #nosec G704 -- request URL is from client settings / user's API target, not arbitrary SSRF
 	httpResponse, err := c.HttpClient.Do(request)
 	if err != nil {
 		return response, errors.Wrap(err, "making the request")
@@ -326,8 +327,11 @@ func handleError(logger logr.Logger, response *http.Response) error {
 
 		// Print the full response body for debugging - flush immediately
 		fmt.Fprintf(os.Stderr, "\n=== RAW ERROR RESPONSE ===\n")
+		// #nosec G705 -- writing to stderr for debug, not HTML output
 		fmt.Fprintf(os.Stderr, "URL: %s\n", response.Request.URL.String())
+		// #nosec G705 -- writing to stderr for debug, not HTML output
 		fmt.Fprintf(os.Stderr, "Status: %d %s\n", response.StatusCode, response.Status)
+		// #nosec G705 -- writing to stderr for debug, not HTML output
 		fmt.Fprintf(os.Stderr, "Content-Type: %s\n", response.Header.Get("Content-Type"))
 		fmt.Fprintf(os.Stderr, "Body:\n%s\n", bodyStr)
 		fmt.Fprintf(os.Stderr, "=== END RAW ERROR RESPONSE ===\n\n")

@@ -152,6 +152,7 @@ func fetchAppChart(
 
 	// Here the archive is surely a local file
 
+	// #nosec G703 -- chartArchive is from our chart fetch temp path, not user input
 	file, err := os.Open(chartArchive)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -259,6 +260,7 @@ func fetchAppArchive(
 	if err != nil {
 		return apierror.InternalError(err)
 	}
+	// #nosec G703 -- chartArchive is from urlcache (our cache path) or chart fetch, not user input
 	chartFile, err := os.Open(chartArchive)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -535,6 +537,7 @@ func getFileImageAndJobCleanup(
 	}
 
 	// check for file existence
+	// #nosec G703 -- path is export temp dir + our generated filename, not user input
 	file, err := os.Open(imageExportVolume + imageOutputFilename)
 	if err != nil {
 		// NOTE: job is kept, allows for debugging.
@@ -638,6 +641,7 @@ func chartArchiveURL(
 	}
 
 	// Read index into memory
+	// #nosec G703 -- path is fixed prefix + chart name + constant suffix (helm cache layout)
 	content, err := os.ReadFile("/tmp/.helmcache/" + name + "-index.yaml")
 	if err != nil {
 		return "", err

@@ -48,6 +48,7 @@ func generateCmdDoc(cmd *cobra.Command, dir string) error {
 	}
 
 	// create the directory if it doesn't exist
+	// #nosec G703 -- dir is from doc generator output path (cobra command names), not user input
 	err := os.MkdirAll(dir, 0700)
 	if err != nil {
 		return errors.Wrapf(err, "error creating directory [%s]", dir)
@@ -102,6 +103,7 @@ func createMarkdownFile(cmd *cobra.Command, dir string) error {
 	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
 	filename := filepath.Join(dir, basename)
 
+	// #nosec G703 -- filename is from doc generator (dir + command path), not user input
 	f, err := os.Create(filename)
 	if err != nil {
 		return errors.Wrap(err, "error creating file")
@@ -124,6 +126,7 @@ func createMarkdownFile(cmd *cobra.Command, dir string) error {
 
 // createCategoryJSONFile creates the '_category_.json' in the given directory
 func createCategoryJSONFile(label, dir string) error {
+	// #nosec G703 -- dir is from doc generator output path, not user input
 	f, err := os.Create(filepath.Join(dir, "_category_.json"))
 	if err != nil {
 		return errors.Wrap(err, "error creating file")

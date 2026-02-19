@@ -25,7 +25,7 @@ type GitconfigCreateRequest struct {
 	Repository   string      `json:"repository,omitempty"`
 	SkipSSL      bool        `json:"skipssl,omitempty"`
 	Username     string      `json:"username,omitempty"`
-	Password     string      `json:"password,omitempty"`
+	Password     string      `json:"password,omitempty"` // #nosec G117 -- intentional credential field for Git config
 	Certificates []byte      `json:"certs,omitempty"`
 }
 

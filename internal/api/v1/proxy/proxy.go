@@ -148,6 +148,7 @@ func RunProxy(ctx context.Context, rw http.ResponseWriter, req *http.Request, de
 		FlushInterval: time.Millisecond * 100,
 	}
 
+	// #nosec G704 -- proxy target is from trusted API route config, not user-controlled URL
 	p.ServeHTTP(rw, req)
 
 	return nil

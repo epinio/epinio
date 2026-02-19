@@ -145,6 +145,7 @@ func fetchFile(originURL, destinationPath string) error {
 			return dstFileError
 		}
 
+		// #nosec G703 -- dstFile is from os.CreateTemp, path is our temp file
 		fileRemoveError := os.Remove(dstFile.Name())
 		if fileRemoveError != nil {
 			return fileRemoveError

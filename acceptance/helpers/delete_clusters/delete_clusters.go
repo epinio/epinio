@@ -424,6 +424,7 @@ func GetKubeconfigAWS_RKE2(runID string) error {
 	}
 
 	kubeconfig_rke2 := []byte(strings.Replace(server_config, "127.0.0.1", server_hostname, 1))
+	// #nosec G703 -- kubeconfig path is from test env/config, not user input
 	err = os.WriteFile(kubeconfig, kubeconfig_rke2, 0600)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create "+kubeconfig)

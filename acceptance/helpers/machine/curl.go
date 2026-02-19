@@ -24,6 +24,7 @@ func (m *Machine) Curl(method, uri string, requestBody io.Reader) (*http.Respons
 		return nil, err
 	}
 	request.SetBasicAuth(m.user, m.password)
+	// #nosec G704 -- URI is from acceptance test harness, not arbitrary user input
 	return m.Client().Do(request)
 }
 

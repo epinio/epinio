@@ -29,6 +29,7 @@ func Get(dir, command string, arg ...string) (*exec.Cmd, error) {
 		}
 	}
 
+	// #nosec G204 -- command and args are from test/caller, not unsanitized user input
 	p := exec.Command(command, arg...)
 	p.Dir = dir
 
@@ -41,6 +42,7 @@ func RunW(cmd string, args ...string) (string, error) {
 }
 
 func Run(dir string, toStdout bool, command string, args ...string) (string, error) {
+	// #nosec G204 -- command and args are from test/caller, not unsanitized user input
 	cmd := exec.Command(command, args...)
 
 	var b bytes.Buffer
