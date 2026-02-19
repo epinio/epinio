@@ -41,7 +41,6 @@
     - StagingComplete
     - AppRunning
     - AppValidateCV
-    - ValidateBuilderImage
     - BuildpackSearch
     - BuildpackVerify
     # app autocomplete

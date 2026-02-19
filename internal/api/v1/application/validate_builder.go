@@ -15,12 +15,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	parser "github.com/novln/docker-parser"
 
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/registry"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // ValidateBuilderImageResult holds the result of validating a builder image name.
@@ -90,15 +87,4 @@ func ValidateBuilderImageWithContext(ctx context.Context, builderImage string, c
 	}
 
 	return ValidateBuilderImageResult{Valid: true}
-}
-
-// ValidateBuilderImageHandler handles GET /api/v1/validate-builder-image?image=<builder-image>
-// It returns whether the builder image name is valid before attempting to stage.
-// See: https://github.com/epinio/epinio/issues/2711
-func ValidateBuilderImageHandler(c *gin.Context) apierror.APIErrors {
-	image := c.Query("image")
-	// Use request context and enable registry existence check
-	result := ValidateBuilderImageWithContext(c.Request.Context(), image, true)
-	response.OKReturn(c, result)
-	return nil
 }

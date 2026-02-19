@@ -128,11 +128,10 @@ var Routes = routes.NamedRoutes{
 	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)), // See stage.go
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
 	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
-	"AppValidateCV":       get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
-	"ValidateBuilderImage": get("/validate-builder-image", errorHandler(application.ValidateBuilderImageHandler)),
-	"BuildpackSearch":      get("/buildpacks/search", errorHandler(buildpack.Search)),
-	"BuildpackVerify":      get("/buildpacks/verify", errorHandler(buildpack.Verify)),
-	"AppExport":            post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
+	"AppValidateCV":   get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
+	"BuildpackSearch": get("/buildpacks/search", errorHandler(buildpack.Search)),
+	"BuildpackVerify": get("/buildpacks/verify", errorHandler(buildpack.Verify)),
+	"AppExport":       post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
 
 	"AppMatch":  get("/namespaces/:namespace/appsmatches/:pattern", errorHandler(application.Match)),
 	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Match)),
