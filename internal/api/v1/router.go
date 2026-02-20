@@ -19,9 +19,7 @@ import (
 	"runtime"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/internal/api/v1/appchart"
 	"github.com/epinio/epinio/internal/api/v1/application"
@@ -65,13 +63,7 @@ func funcName(i interface{}) string {
 func errorHandler(action APIActionFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if errors := action(c); errors != nil {
-			helpers.Logger.Infow("responding with json error response")
-			requestID := requestctx.ID(c.Request.Context())
-			base := helpers.Logger
-			if base == nil {
-				base = zap.NewNop().Sugar()
-			}
-			log := base.With("requestId", requestID, "component", "api-router")
+			log := requestctx.Logger(c.Request.Context()).With("component", "api-router")
 			log.Infow("responding with json error response",
 				"action", funcName(action),
 				"errors", errors,

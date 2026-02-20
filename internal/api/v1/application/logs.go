@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -239,12 +239,13 @@ func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string, includeCo
 // since, and since_time fields to update the log filtering parameters.
 func Logs(c *gin.Context) {
 	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	stageID := c.Param("stage_id")
 
-	helpers.Logger.Debugw("get cluster client")
+	log.Debugw("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		response.Error(c, apierror.InternalError(err))
@@ -252,7 +253,7 @@ func Logs(c *gin.Context) {
 	}
 
 	if appName != "" {
-		helpers.Logger.Debugw("retrieve application", "name", appName, "namespace", namespace)
+		log.Debugw("retrieve application", "name", appName, "namespace", namespace)
 
 		app, err := application.Lookup(ctx, cluster, namespace, appName)
 		if err != nil {
@@ -286,7 +287,7 @@ func Logs(c *gin.Context) {
 		return
 	}
 
-	helpers.Logger.Debugw("process query")
+	log.Debugw("process query")
 
 	// Extract query parameters
 	followStr := c.Query("follow")
@@ -315,7 +316,7 @@ func Logs(c *gin.Context) {
 	}
 
 	// Log the parsed parameters for debugging
-	helpers.Logger.Debug(
+	log.Debug(
 		"parsed log parameters | ",
 		"tail: ", logParams.Tail,
 		"since: ", logParams.Since,
@@ -325,7 +326,7 @@ func Logs(c *gin.Context) {
 		"include_containers: ", logParams.IncludeContainers,
 		"exclude_containers: ", logParams.ExcludeContainers)
 
-	helpers.Logger.Debugw("upgrade to web socket")
+	log.Debugw("upgrade to web socket")
 
 	var upgrader = newUpgrader()
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -334,8 +335,8 @@ func Logs(c *gin.Context) {
 		return
 	}
 
-	helpers.Logger.Debugw("streaming mode", "follow", logParams.Follow)
-	helpers.Logger.Debugw("streaming begin")
+	log.Debugw("streaming mode", "follow", logParams.Follow)
+	log.Debugw("streaming begin")
 
 	// Start streaming logs, if there is an error, return after logging it
 	err = streamPodLogs(
@@ -348,14 +349,14 @@ func Logs(c *gin.Context) {
 		logParams,
 	)
 	if err != nil {
-		helpers.Logger.Errorw(
+		log.Errorw(
 			"error occurred after upgrading the websockets connection",
 			"error", err,
 		)
 		return
 	}
 
-	helpers.Logger.Debugw("streaming completed")
+	log.Debugw("streaming completed")
 }
 
 /*
@@ -379,6 +380,7 @@ func streamPodLogs(
 	cluster *kubernetes.Cluster,
 	logParams *application.LogParameters,
 ) error {
+	log := requestctx.Logger(ctx)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
 	logChan := make(chan tailer.ContainerLogLine)
 	var wg sync.WaitGroup
@@ -395,9 +397,9 @@ func streamPodLogs(
 					websocket.CloseNormalClosure,
 					websocket.CloseGoingAway,
 				) {
-					helpers.Logger.Debugw("websocket closed normally")
+					log.Debugw("websocket closed normally")
 				} else {
-					helpers.Logger.Errorw("error reading websocket message", "error", err)
+					log.Errorw("error reading websocket message", "error", err)
 				}
 				logCancelFunc() // Stop log streaming
 				return
@@ -405,12 +407,12 @@ func streamPodLogs(
 
 			var update LogParameterUpdate
 			if err := json.Unmarshal(message, &update); err != nil {
-				helpers.Logger.Errorw("failed to unmarshal parameter update", "error", err)
+				log.Errorw("failed to unmarshal parameter update", "error", err)
 				continue
 			}
 
 			if update.Type == "filter_params" {
-				helpers.Logger.Debugw("received parameter update",
+				log.Debugw("received parameter update",
 					"params", update.Params,
 				)
 
@@ -425,7 +427,7 @@ func streamPodLogs(
 				}
 				if msg, err := json.Marshal(startMarker); err == nil {
 					if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-						helpers.Logger.Error(err, "failed to send filter start marker")
+						log.Error(err, "failed to send filter start marker")
 					}
 				}
 
@@ -445,7 +447,7 @@ func streamPodLogs(
 				)
 
 				if parsedParamsError != nil {
-					helpers.Logger.Errorw("failed to parse updated log parameters",
+					log.Errorw("failed to parse updated log parameters",
 						"error", parsedParamsError,
 					)
 					continue
@@ -489,10 +491,10 @@ func streamPodLogs(
 		close(logChan)
 	}()
 
-	helpers.Logger.Debugw("stream copying begin")
+	log.Debugw("stream copying begin")
 
 	for logLine := range logChan {
-		helpers.Logger.Debugw("streaming", "log line", logLine)
+		log.Debugw("streaming", "log line", logLine)
 
 		msg, err := json.Marshal(logLine)
 		if err != nil {
@@ -501,7 +503,7 @@ func streamPodLogs(
 
 		err = conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
-			helpers.Logger.Errorw("failed to write to websockets", "error", err)
+			log.Errorw("failed to write to websockets", "error", err)
 
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				return conn.Close()
@@ -513,7 +515,7 @@ func streamPodLogs(
 					return connectionCloseError
 				}
 
-				helpers.Logger.Errorw(
+				log.Errorw(
 					"websockets connection unexpectedly closed",
 					"error",
 					err,
@@ -535,7 +537,7 @@ func streamPodLogs(
 			abnormalCloseErr := conn.Close()
 			if abnormalCloseErr != nil {
 				err = errors.Wrap(err, abnormalCloseErr.Error())
-				helpers.Logger.Errorw("websockets connection unexpectedly closed", "error", err)
+				log.Errorw("websockets connection unexpectedly closed", "error", err)
 				return conn.Close()
 			}
 
@@ -543,8 +545,8 @@ func streamPodLogs(
 		}
 	}
 
-	helpers.Logger.Debugw("stream copying done")
-	helpers.Logger.Debugw("websocket teardown")
+	log.Debugw("stream copying done")
+	log.Debugw("websocket teardown")
 
 	if err := conn.WriteControl(
 		websocket.CloseMessage,
@@ -569,9 +571,10 @@ func startLogStreaming(
 	namespaceName string,
 	logParams *application.LogParameters,
 ) {
+	log := requestctx.Logger(ctx)
 
 	defer func() {
-		helpers.Logger.Infow("backend ends")
+		log.Infow("backend ends")
 
 		// Indicate end of log stream if not following
 		if !logParams.Follow {
@@ -587,7 +590,7 @@ func startLogStreaming(
 		wg.Done()
 	}()
 
-	helpers.Logger.Debugw("create backend",
+	log.Debugw("create backend",
 		"follow", logParams.Follow,
 		"app", appName,
 		"stage", stageID,
@@ -606,10 +609,10 @@ func startLogStreaming(
 		logParams,
 	)
 	if err != nil {
-		helpers.Logger.Errorw("setting up log routines failed", "error", err)
+		log.Errorw("setting up log routines failed", "error", err)
 	}
 
-	helpers.Logger.Debugw("wait for backend completion")
+	log.Debugw("wait for backend completion")
 	tailWg.Wait()
 }
 

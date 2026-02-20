@@ -36,7 +36,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
@@ -160,7 +159,7 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, config StagingS
 // It creates a Job resource to stage the app
 func Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := helpers.Logger
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -466,7 +465,7 @@ func Staged(c *gin.Context) apierror.APIErrors {
 // It streams a small status payload when the staging job finishes (success or failure) and then closes the socket.
 func StagedWebsocket(c *gin.Context) {
 	ctx := c.Request.Context()
-	log := helpers.Logger
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	stageID := c.Param("stage_id")
@@ -513,7 +512,7 @@ func StagedWebsocket(c *gin.Context) {
 
 	// initial acknowledgement so the caller knows the socket is established
 	if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-		helpers.Logger.Errorw("failed to send initial staging websocket message",
+		log.Errorw("failed to send initial staging websocket message",
 			"error", err,
 		)
 		return
@@ -578,7 +577,7 @@ func StagedWebsocket(c *gin.Context) {
 				"waiting for staging job to finish",
 				false,
 			); err != nil {
-				helpers.Logger.Errorw("failed to send staging heartbeat", "error", err)
+				log.Errorw("failed to send staging heartbeat", "error", err)
 			}
 		}
 	}
@@ -1092,7 +1091,7 @@ type StagingScriptConfig struct {
 func DetermineStagingScripts(ctx context.Context,
 	cluster *kubernetes.Cluster,
 	namespace, builder string) (*StagingScriptConfig, error) {
-	logger := helpers.Logger.With("component", "staging-scripts")
+	logger := requestctx.Logger(ctx).With("component", "staging-scripts")
 
 	logger.Infow("locate staging scripts", "namespace", namespace)
 	logger.Infow("locate staging scripts", "builder", builder)
@@ -1186,7 +1185,7 @@ func StagingScriptConfigResolve(ctx context.Context, cluster *kubernetes.Cluster
 		return nil
 	}
 
-	logger := helpers.Logger.With("component", "staging-scripts")
+	logger := requestctx.Logger(ctx).With("component", "staging-scripts")
 	logger.Infow("locate staging scripts - inherit", "base", config.Base)
 
 	base, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), config.Base)

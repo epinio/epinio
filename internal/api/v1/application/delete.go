@@ -47,6 +47,8 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	boundConfigurations := []string{}
+	var warnings []string
+
 	for _, appName := range applicationNames {
 		appRef := models.NewAppRef(appName, namespace)
 
@@ -64,14 +66,18 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		}
 		boundConfigurations = append(boundConfigurations, configurations...)
 
-		err = application.Delete(ctx, cluster, appRef, deleteRequest.DeleteImage)
+		deleteResult, err := application.Delete(ctx, cluster, appRef, deleteRequest.DeleteImage)
 		if err != nil {
 			return apierror.InternalError(err)
+		}
+		if deleteResult != nil {
+			warnings = append(warnings, deleteResult.Warnings...)
 		}
 	}
 
 	resp := models.ApplicationDeleteResponse{
 		UnboundConfigurations: boundConfigurations,
+		Warnings:              warnings,
 	}
 
 	response.OKReturn(c, resp)

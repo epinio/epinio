@@ -28,12 +28,14 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
@@ -470,21 +472,33 @@ func List(
 	return result, nil
 }
 
+// DeleteResult contains the result of a delete operation, including
+// any warnings about incomplete cleanup.
+type DeleteResult struct {
+	// Warnings contains non-fatal warning messages about the delete operation.
+	// For example, if blob cleanup failed due to storage quota issues.
+	Warnings []string
+}
+
 /*
 Delete removes the named application, its workload (if active), bindings
 (if any), the stored application sources, and any staging jobs from when the
 application was staged (if active). Waits for the application's deployment's
 pods to disappear (if active).
+
+Returns a DeleteResult containing any warnings (e.g., incomplete blob cleanup).
 */
 func Delete(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
 	deleteImage bool,
-) error {
+) (*DeleteResult, error) {
+	result := &DeleteResult{}
+
 	client, err := cluster.ClientApp()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log := helpers.Logger.With("component", "ApplicationDelete")
@@ -508,7 +522,7 @@ func Delete(
 	// Ignore `not found` errors - App exists, without workload.
 	err = helm.Remove(cluster, appRef)
 	if err != nil && !strings.Contains(err.Error(), "release: not found") {
-		return err
+		return nil, err
 	}
 
 	// Keep existing code to remove the CRD and everything it owns. Only the
@@ -523,7 +537,7 @@ func Delete(
 		metav1.DeleteOptions{},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Delete container image from registry if requested
@@ -536,20 +550,26 @@ func Delete(
 	}
 
 	// delete old staging resources in namespace (helmchart.Namespace())
-	err = Unstage(ctx, cluster, appRef, "")
+	unstageResult, err := Unstage(ctx, cluster, appRef, "")
 	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+		return nil, err
+	}
+	if unstageResult != nil && unstageResult.HasIncompleteCleanup() {
+		warning := fmt.Sprintf("blob cleanup incomplete for app %s/%s: %d blob(s) could not be deleted due to storage quota issues, storage pressure may persist",
+			appRef.Namespace, appRef.Name, len(unstageResult.FailedBlobCleanups))
+		result.Warnings = append(result.Warnings, warning)
+		log.Info("warning: "+warning, "failedBlobs", unstageResult.FailedBlobCleanups)
 	}
 
 	// delete staging PVC (the one that holds the "source" and "cache" workspaces)
 	err = deleteCacheStagePVC(ctx, cluster, appRef)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+		return nil, err
 	}
 
 	err = deleteSourceBlobsStagePVC(ctx, cluster, appRef)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+		return nil, err
 	}
 
 	err = cluster.WaitForPodBySelectorMissing(ctx,
@@ -557,10 +577,10 @@ func Delete(
 		fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name),
 		duration.ToDeployment())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return result, nil
 }
 
 // deleteContainerImage deletes the container image from the registry
@@ -819,28 +839,65 @@ func BuilderURL(app *unstructured.Unstructured) (string, error) {
 	return builderURL, nil
 }
 
+// ErrBlobCleanupIncomplete is returned when blob cleanup could not complete
+// due to storage quota issues. The unstaging operation succeeded for jobs and
+// secrets, but some blobs remain in S3 storage. This is a non-fatal warning
+// that indicates storage pressure may persist.
+var ErrBlobCleanupIncomplete = errors.New("blob cleanup incomplete due to storage quota errors")
+
+// UnstageResult contains the result of an unstage operation, including
+// any warnings about incomplete cleanup.
+type UnstageResult struct {
+	// FailedBlobCleanups contains the blob UIDs that could not be deleted
+	// due to storage quota errors. Empty if all cleanups succeeded.
+	FailedBlobCleanups []string
+}
+
+// HasIncompleteCleanup returns true if some blobs could not be deleted
+// due to storage quota errors.
+func (r *UnstageResult) HasIncompleteCleanup() bool {
+	return len(r.FailedBlobCleanups) > 0
+}
+
+// CleanupWarning returns a descriptive error if cleanup was incomplete,
+// or nil if all blobs were successfully deleted.
+func (r *UnstageResult) CleanupWarning() error {
+	if !r.HasIncompleteCleanup() {
+		return nil
+	}
+	return fmt.Errorf("%w: %d blob(s) could not be deleted: %v",
+		ErrBlobCleanupIncomplete, len(r.FailedBlobCleanups), r.FailedBlobCleanups)
+}
+
 /*
 Unstage removes staging resources. It deletes either all Jobs of the named
 application, or all but stageIDCurrent. It also deletes the staged objects
-from the S3 storage	except for the current one.
+from the S3 storage except for the current one.
+
+Returns an UnstageResult that may contain warnings about incomplete blob cleanup
+due to storage quota errors. Callers should check result.HasIncompleteCleanup()
+and handle accordingly (e.g., log a warning to operators).
 */
 func Unstage(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
 	stageIDCurrent string,
-) error {
+) (*UnstageResult, error) {
+	log := helpers.SugaredLoggerToLogr(requestctx.Logger(ctx))
+	result := &UnstageResult{}
+
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
-		return errors.Wrap(
+		return nil, errors.Wrap(
 			err,
 			"fetching the S3 connection details from the Kubernetes secret",
 		)
 	}
 	s3m, err := s3manager.New(s3ConnectionDetails)
 	if err != nil {
-		return errors.Wrap(err, "creating an S3 manager")
+		return nil, errors.Wrap(err, "creating an S3 manager")
 	}
 
 	jobs, err := cluster.ListJobs(ctx, helmchart.Namespace(),
@@ -848,7 +905,7 @@ func Unstage(
 			appRef.Name, appRef.Namespace))
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var currentJob *apibatchv1.Job
@@ -862,29 +919,65 @@ func Unstage(
 
 		err := cluster.DeleteJob(ctx, job.Namespace, job.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// And the associated secret holding the job environment
 		err = cluster.DeleteSecret(ctx, job.Namespace, job.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Cleanup s3 objects
-	for _, job := range jobs.Items {
-		// skip prs with the same blob as the current one (including the current one)
+	result.FailedBlobCleanups, err = CleanupS3Blobs(ctx, log, s3m, jobs.Items, currentJob, appRef)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// CleanupS3Blobs deletes blobs from S3 storage for the given jobs, skipping the current job's blob.
+// Returns a list of blob UIDs that failed to delete due to quota errors (non-fatal).
+// Returns an error for other types of failures (fatal).
+// This function is exported to allow testing with mocked S3 clients.
+func CleanupS3Blobs(
+	ctx context.Context,
+	log logr.Logger,
+	s3m s3manager.S3Manager,
+	jobs []apibatchv1.Job,
+	currentJob *apibatchv1.Job,
+	appRef models.AppRef,
+) ([]string, error) {
+	var failedBlobCleanups []string
+
+	for _, job := range jobs {
+		// skip blobs with the same UID as the current one (including the current one)
 		if currentJob != nil && job.Labels[models.EpinioStageBlobUIDLabel] == currentJob.Labels[models.EpinioStageBlobUIDLabel] {
 			continue
 		}
 
-		if err = s3m.DeleteObject(ctx, job.Labels[models.EpinioStageBlobUIDLabel]); err != nil {
-			return err
+		blobUID := job.Labels[models.EpinioStageBlobUIDLabel]
+		if err := s3m.DeleteObject(ctx, blobUID); err != nil {
+			// If deletion fails due to quota errors, log a warning but continue
+			// with other deletions to allow partial cleanup. This prevents the
+			// entire unstaging operation from failing when quota is exhausted.
+			if s3manager.IsQuotaExceededError(err) {
+				log.Info("warning: failed to delete blob due to storage quota error, continuing cleanup",
+					"blobUID", blobUID,
+					"app", appRef.Name,
+					"namespace", appRef.Namespace,
+					"error", err.Error())
+				failedBlobCleanups = append(failedBlobCleanups, blobUID)
+				continue
+			}
+			// For non-quota errors, fail the operation
+			return nil, errors.Wrapf(err, "deleting blob %s", blobUID)
 		}
 	}
 
-	return nil
+	return failedBlobCleanups, nil
 }
 
 /*

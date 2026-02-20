@@ -24,7 +24,7 @@ func (m *Machine) Curl(method, uri string, requestBody io.Reader) (*http.Respons
 		return nil, err
 	}
 	request.SetBasicAuth(m.user, m.password)
-	return m.Client().Do(request)
+	return m.Client().Do(request) // nolint:gosec // acceptance test helper, URI from test
 }
 
 func (m *Machine) Client() *http.Client {
