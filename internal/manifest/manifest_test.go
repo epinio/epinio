@@ -19,6 +19,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/cobra"
 )
 
 var _ = Describe("Manifest", func() {
@@ -143,6 +144,41 @@ configuration:
 					},
 				}))
 
+			})
+		})
+	})
+
+	Describe("UpdateSources", func() {
+		When("--git is set with an invalid --git-provider", func() {
+			It("returns an error with message Bad --git-provider `...`", func() {
+				c := &cobra.Command{}
+				c.Flags().String("path", "", "")
+				c.Flags().String("git", "", "")
+				c.Flags().String("git-provider", "", "")
+				c.Flags().String("container-image-url", "", "")
+				Expect(c.Flags().Set("git", "https://github.com/org/repo")).To(Succeed())
+				Expect(c.Flags().Set("git-provider", "bogus")).To(Succeed())
+
+				_, err := manifest.UpdateSources(models.ApplicationManifest{}, c)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("Bad --git-provider `bogus`"))
+			})
+		})
+
+		When("--git is set with a valid --git-provider", func() {
+			It("succeeds and sets the provider on the manifest origin", func() {
+				c := &cobra.Command{}
+				c.Flags().String("path", "", "")
+				c.Flags().String("git", "", "")
+				c.Flags().String("git-provider", "", "")
+				c.Flags().String("container-image-url", "", "")
+				Expect(c.Flags().Set("git", "https://github.com/org/repo")).To(Succeed())
+				Expect(c.Flags().Set("git-provider", "github")).To(Succeed())
+
+				m, err := manifest.UpdateSources(models.ApplicationManifest{}, c)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(m.Origin.Git).ToNot(BeNil())
+				Expect(m.Origin.Git.Provider).To(Equal(models.ProviderGithub))
 			})
 		})
 	})
