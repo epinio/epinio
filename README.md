@@ -101,7 +101,7 @@ The [developer documentation](./docs) explains how to build and run Epinio from 
 
 - Rails: https://github.com/epinio/example-rails
 - Java: https://github.com/spring-projects/spring-petclinic/
-- Paketo Buildpack example apps: https://github.com/paketo-buildpacks/samples
+- Buildpack example apps (e.g. Paketo samples): https://github.com/paketo-buildpacks/samples. Epinio supports any Cloud Native Buildpack builder; see [buildpack customization](https://docs.epinio.io/references/customization/staging/#using-non-paketo-buildpacks).
 
 ## License
 
