@@ -55,6 +55,7 @@ type stageParam struct {
 	models.AppRef
 	BlobUID             string
 	BuilderImage        string
+	BuildContainerImage string // when set (e.g. Pack), build container uses this image and BUILDER_IMAGE env holds the builder image
 	DownloadImage       string
 	UnpackImage         string
 	Environment         models.EnvVariableList
@@ -79,6 +80,7 @@ type HelmValuesMap struct {
 	Affinity                corev1.Affinity             `json:"affinity,omitempty"`
 	Resources               corev1.ResourceRequirements `json:"resources,omitempty"`
 	TTLSecondsAfterFinished int32                       `json:"ttlSecondsAfterFinished,omitempty"`
+	DockerSocketPath        string                      `json:"dockerSocketPath,omitempty"` // when set with Pack build image, mount for container runtime access
 	Storage                 struct {
 		SourceBlobs StagingStorageValues `json:"sourceBlobs,omitempty"`
 		Cache       StagingStorageValues `json:"cache,omitempty"`
@@ -293,6 +295,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
+		BuildContainerImage: config.BuildImage,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
 		BlobUID:             blobUID,
@@ -764,6 +767,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	volumes, volumeMounts = mountS3Certs(volumes, volumeMounts)
 	volumes, volumeMounts = mountRegistryCerts(app, volumes, volumeMounts)
+	volumes, volumeMounts, buildOnlyMounts := mountDockerSocket(app, volumes, volumeMounts)
 
 	// Create job environment as a copy of the app environment
 	env := make(map[string][]byte)
@@ -854,15 +858,12 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					},
 					Containers: []corev1.Container{
 						{
-							Name:    "buildpack",
-							Image:   app.BuilderImage,
-							Command: []string{"/bin/bash"},
-							Args: []string{
-								"-c",
-								buildpackScript,
-							},
+							Name:         "buildpack",
+							Image:        buildContainerImage(app),
+							Command:      []string{"/bin/bash"},
+							Args:         []string{"-c", buildpackScript},
 							Env:          stageEnv,
-							VolumeMounts: volumeMounts,
+							VolumeMounts: buildOnlyMounts,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser:  ptr.To[int64](app.UserID),
 								RunAsGroup: ptr.To[int64](app.GroupID),
@@ -899,6 +900,9 @@ func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
 	stageEnv = appendEnvVar(stageEnv, "APPIMAGE", app.ImageURL(app.RegistryURL))
 	stageEnv = appendEnvVar(stageEnv, "USERID", strconv.FormatInt(app.UserID, 10))
 	stageEnv = appendEnvVar(stageEnv, "GROUPID", strconv.FormatInt(app.GroupID, 10))
+	if app.BuildContainerImage != "" {
+		stageEnv = appendEnvVar(stageEnv, "BUILDER_IMAGE", app.BuilderImage)
+	}
 
 	return stageEnv
 }
@@ -1071,8 +1075,44 @@ func mountRegistryCerts(app stageParam, volumes []corev1.Volume, volumeMounts []
 	return volumes, volumeMounts
 }
 
+// mountDockerSocket adds the Docker socket volume when using Pack build image and
+// dockerSocketPath is set. Returns (volumes, shared volumeMounts, buildContainerVolumeMounts).
+// The socket is mounted only in the build container, not in init containers.
+func mountDockerSocket(app stageParam, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) ([]corev1.Volume, []corev1.VolumeMount, []corev1.VolumeMount) {
+	buildMounts := volumeMounts
+	if app.BuildContainerImage == "" || app.HelmValues.DockerSocketPath == "" {
+		return volumes, volumeMounts, buildMounts
+	}
+	socketPath := app.HelmValues.DockerSocketPath
+	volumes = append(volumes, corev1.Volume{
+		Name: "docker-socket",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: socketPath,
+				Type: ptr.To(corev1.HostPathSocket),
+			},
+		},
+	})
+	buildMounts = append([]corev1.VolumeMount{}, volumeMounts...)
+	buildMounts = append(buildMounts, corev1.VolumeMount{
+		Name:      "docker-socket",
+		MountPath: socketPath,
+		ReadOnly:  true,
+	})
+	return volumes, volumeMounts, buildMounts
+}
+
 func appendEnvVar(envs []corev1.EnvVar, name, value string) []corev1.EnvVar {
 	return append(envs, corev1.EnvVar{Name: name, Value: value})
+}
+
+// buildContainerImage returns the image for the build container. When Pack is used,
+// BuildContainerImage is set (Pack image) and the builder image is passed via BUILDER_IMAGE env.
+func buildContainerImage(app stageParam) string {
+	if app.BuildContainerImage != "" {
+		return app.BuildContainerImage
+	}
+	return app.BuilderImage
 }
 
 // StagingScriptConfig holds all the information for using a (set of) buildpack(s)
@@ -1082,6 +1122,7 @@ type StagingScriptConfig struct {
 	UserID        int64                 // user id to run the build phase with (`cnb` user)
 	GroupID       int64                 // group id to run the build hase with
 	Base          string                // optional, name of resource to pull the other parts from
+	BuildImage    string                // optional; when set (e.g. Pack), build container uses this image and BUILDER_IMAGE env holds the builder
 	DownloadImage string                // image to run the download phase with
 	UnpackImage   string                // image to run the unpack phase with
 	Env           models.EnvVariableMap // environment settings
@@ -1196,10 +1237,14 @@ func StagingScriptConfigResolve(ctx context.Context, cluster *kubernetes.Cluster
 	// Fill config from the base.
 	// BEWARE: Keep user/group data of the incoming config.
 	// BEWARE: Keep environment data of the incoming config.
+	// Derived config can override by setting its own value; empty means inherit from base.
 
 	config.Name = base.Name
 	config.DownloadImage = base.Data["downloadImage"]
 	config.UnpackImage = base.Data["unpackImage"]
+	if config.BuildImage == "" && base.Data["buildImage"] != "" {
+		config.BuildImage = base.Data["buildImage"]
+	}
 
 	return nil
 }
@@ -1209,6 +1254,7 @@ func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, erro
 		Name:          config.Name,
 		Builder:       config.Data["builder"],
 		Base:          config.Data["base"],
+		BuildImage:    config.Data["buildImage"],
 		DownloadImage: config.Data["downloadImage"],
 		UnpackImage:   config.Data["unpackImage"],
 		// env, user, group id, Helm Values, see below.
