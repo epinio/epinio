@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -496,6 +497,7 @@ func getFileImageAndJobCleanup(
 	jobName,
 	imageOutputFilename string,
 ) (*os.File, error) {
+	log := requestctx.Logger(ctx)
 	// Allow 15m for slow CI (image pull/skopeo copy can be slow on shared runners)
 	err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), jobName, time.Minute*15)
 	if err != nil {
