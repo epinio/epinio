@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
