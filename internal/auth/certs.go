@@ -51,8 +51,7 @@ func ExtendLocalTrust(certs string) {
 
 // ExtendLocalTrustFromFile will load a cert from the specified file and will extend the local trust
 func ExtendLocalTrustFromFile(path string) error {
-  //TODO prevent potential file inclusion via variable
-	content, err := os.ReadFile(path) //nolint:gosec
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
