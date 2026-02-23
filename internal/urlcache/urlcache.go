@@ -145,7 +145,7 @@ func fetchFile(originURL, destinationPath string) error {
 			return dstFileError
 		}
 
-		fileRemoveError := os.Remove(dstFile.Name())
+		fileRemoveError := os.Remove(dstFile.Name()) // nolint:gosec // path from os.Create in same flow
 		if fileRemoveError != nil {
 			return fileRemoveError
 		}

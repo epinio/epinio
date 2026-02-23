@@ -23,6 +23,7 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/testenv"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -133,12 +134,15 @@ var _ = Describe("Wordpress", func() {
 		appURL, err := wordpress.AppURL()
 		Expect(err).ToNot(HaveOccurred())
 
-		request, err := http.NewRequest("GET", appURL + ":8443", nil)
+		request, err := http.NewRequest("GET", testenv.AppRouteWithPort(appURL), nil)
 		Expect(err).ToNot(HaveOccurred())
 		client := env.Client()
 		Eventually(func() int {
 			resp, err := client.Do(request)
-			ExpectWithOffset(1, err).ToNot(HaveOccurred())
+			if err != nil {
+				fmt.Fprintf(GinkgoWriter, "[wordpress] transient route check failure for %s: %v\n", request.URL.String(), err)
+				return 0
+			}
 			resp.Body.Close() // https://golang.org/pkg/net/http/#Client.Do
 
 			return resp.StatusCode

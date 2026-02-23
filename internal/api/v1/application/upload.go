@@ -16,7 +16,6 @@ import (
 	"mime/multipart"
 	"os"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -46,7 +45,7 @@ var validArchiveTypes = []string{
 // Then it creates the k8s resources needed for staging
 func Upload(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := helpers.Logger
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -96,6 +95,11 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {
+		// Check if the error is due to quota exhaustion
+		if s3manager.IsQuotaExceededError(err) {
+			return apierror.NewQuotaExceededError("",
+				"uploading the application sources blob: "+err.Error())
+		}
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 
@@ -108,7 +112,7 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		if osFile, ok := tempFile.(*os.File); ok {
 			tempPath := osFile.Name()
 			log.Infow("Deleting multipart temp file", "path", tempPath)
-			fileRemoveError := os.Remove(tempPath)
+			fileRemoveError := os.Remove(tempPath) // nolint:gosec // path from multipart form temp file
 
 			if fileRemoveError != nil {
 				log.Errorw("Multipart failed to remove", "error", fileRemoveError)

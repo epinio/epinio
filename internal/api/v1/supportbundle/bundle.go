@@ -21,13 +21,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 const (
@@ -50,12 +48,7 @@ const (
 // It collects logs from all Epinio components and returns them as a tar archive
 func Bundle(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	requestID := requestctx.ID(ctx)
-	base := helpers.Logger
-	if base == nil {
-		base = zap.NewNop().Sugar()
-	}
-	log := base.With("requestId", requestID, "component", "support-bundle")
+	log := requestctx.Logger(ctx).With("component", "support-bundle")
 
 	log.Infow("starting support bundle collection")
 
@@ -161,7 +154,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	}()
 
 	// Get file info for content length
-	fileInfo, err := os.Stat(archivePath)
+	fileInfo, err := os.Stat(archivePath) // nolint:gosec // archivePath from os.MkdirTemp in same function
 	if err != nil {
 		return apierror.InternalError(errors.Wrap(err, "failed to get archive file info"))
 	}
@@ -181,7 +174,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	filename := fmt.Sprintf("epinio-support-bundle-%s.tar.gz", time.Now().Format("20060102-150405"))
 
 	// Open the file for streaming
-	file, err := os.Open(archivePath)
+	file, err := os.Open(archivePath) // nolint:gosec // archivePath from os.MkdirTemp in same function
 	if err != nil {
 		return apierror.InternalError(errors.Wrap(err, "failed to open archive file"))
 	}

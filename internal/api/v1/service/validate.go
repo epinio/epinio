@@ -14,8 +14,8 @@ package service
 import (
 	"context"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
@@ -34,7 +34,7 @@ func GetService(
 	ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, serviceName string,
 ) (*models.Service, apierror.APIErrors) {
-	logger := helpers.Logger.With("component", "serviceLookup")
+	logger := requestctx.Logger(ctx).With("component", "serviceLookup")
 
 	logger.Infow("get service client")
 
@@ -68,7 +68,7 @@ func ValidateService(
 	ctx context.Context, cluster *kubernetes.Cluster,
 	service *models.Service,
 ) apierror.APIErrors {
-	logger := helpers.Logger.With("component", "serviceValidate")
+	logger := requestctx.Logger(ctx).With("component", "serviceValidate")
 
 	logger.Infow("getting helm client")
 
