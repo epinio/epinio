@@ -66,6 +66,23 @@ func TestBuildContainerImage(t *testing.T) {
 	})
 }
 
+func TestBuildContainerShell(t *testing.T) {
+	t.Run("returns /bin/bash when BuildContainerImage is empty", func(t *testing.T) {
+		app := stageParam{BuildContainerImage: ""}
+		got := buildContainerShell(app)
+		if got != "/bin/bash" {
+			t.Fatalf("expected /bin/bash, got %q", got)
+		}
+	})
+	t.Run("returns /bin/sh when BuildContainerImage is set (Pack image has no bash)", func(t *testing.T) {
+		app := stageParam{BuildContainerImage: "buildpacksio/pack:0.36"}
+		got := buildContainerShell(app)
+		if got != "/bin/sh" {
+			t.Fatalf("expected /bin/sh, got %q", got)
+		}
+	})
+}
+
 func TestAssembleStageEnvBUILDER_IMAGE(t *testing.T) {
 	base := stageParam{
 		AppRef:              models.NewAppRef("app", "ns"),

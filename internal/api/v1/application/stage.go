@@ -366,7 +366,7 @@ func stageJobs(ctx context.Context, cluster *kubernetes.Cluster, namespace, stag
 		return nil, apierror.InternalError(err)
 	}
 	if len(jobList.Items) == 0 {
-		return nil, apierror.InternalError(fmt.Errorf("no jobs in %s with selector %s", namespace, selector))
+		return nil, apierror.InternalError(fmt.Errorf("no jobs in %s with selector %s (app namespace: %s)", helmchart.Namespace(), selector, namespace))
 	}
 
 	return jobList.Items, nil
@@ -860,7 +860,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 						{
 							Name:         "buildpack",
 							Image:        buildContainerImage(app),
-							Command:      []string{"/bin/bash"},
+							Command:      []string{buildContainerShell(app)},
 							Args:         []string{"-c", buildpackScript},
 							Env:          stageEnv,
 							VolumeMounts: buildOnlyMounts,
@@ -1113,6 +1113,16 @@ func buildContainerImage(app stageParam) string {
 		return app.BuildContainerImage
 	}
 	return app.BuilderImage
+}
+
+// buildContainerShell returns the shell path for the build container. Pack images
+// (e.g. buildpacksio/pack) typically have /bin/sh but not /bin/bash; lifecycle builder
+// images have both. Use /bin/sh when using the Pack build image.
+func buildContainerShell(app stageParam) string {
+	if app.BuildContainerImage != "" {
+		return "/bin/sh"
+	}
+	return "/bin/bash"
 }
 
 // StagingScriptConfig holds all the information for using a (set of) buildpack(s)
