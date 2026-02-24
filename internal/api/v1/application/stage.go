@@ -56,6 +56,8 @@ type stageParam struct {
 	models.AppRef
 	BlobUID             string
 	BuilderImage        string
+	BuildImage          string
+	BuildEngine         string
 	DownloadImage       string
 	UnpackImage         string
 	Environment         models.EnvVariableList
@@ -220,6 +222,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 
 	log.Infow("staging app", "scripts", config.Name)
 	log.Infow("staging app", "builder", builderImage)
+	log.Infow("staging app", "build image", config.BuildImage)
+	log.Infow("staging app", "build engine", config.BuildEngine)
 	log.Infow("staging app", "download", config.DownloadImage)
 	log.Infow("staging app", "unpack", config.UnpackImage)
 	log.Infow("staging app", "userid", config.UserID)
@@ -294,6 +298,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
+		BuildImage:          config.BuildImage,
+		BuildEngine:         config.BuildEngine,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
 		BlobUID:             blobUID,
@@ -310,6 +316,10 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		GroupID:             config.GroupID,
 		Scripts:             config.Name,
 		HelmValues:          config.HelmValues,
+	}
+
+	if params.BuildImage == "" {
+		params.BuildImage = params.BuilderImage
 	}
 
 	if !params.HelmValues.Storage.Cache.EmptyDir {
@@ -642,7 +652,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	// runtime: BashImage
 	unpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageUnpack)
 
-	// runtime: app.BuilderImage
+	// runtime: app.BuildImage
 	buildpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageBuild)
 
 	// build configuration
@@ -856,7 +866,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					Containers: []corev1.Container{
 						{
 							Name:    "buildpack",
-							Image:   app.BuilderImage,
+							Image:   app.BuildImage,
 							Command: []string{"/bin/bash"},
 							Args: []string{
 								"-c",
@@ -898,6 +908,8 @@ func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
 	stageEnv = appendEnvVar(stageEnv, "BLOBID", app.BlobUID)
 	stageEnv = appendEnvVar(stageEnv, "PREIMAGE", previous.ImageURL(previous.RegistryURL))
 	stageEnv = appendEnvVar(stageEnv, "APPIMAGE", app.ImageURL(app.RegistryURL))
+	stageEnv = appendEnvVar(stageEnv, "BUILDERIMAGE", app.BuilderImage)
+	stageEnv = appendEnvVar(stageEnv, "BUILDENGINE", app.BuildEngine)
 	stageEnv = appendEnvVar(stageEnv, "USERID", strconv.FormatInt(app.UserID, 10))
 	stageEnv = appendEnvVar(stageEnv, "GROUPID", strconv.FormatInt(app.GroupID, 10))
 
@@ -1080,6 +1092,8 @@ func appendEnvVar(envs []corev1.EnvVar, name, value string) []corev1.EnvVar {
 type StagingScriptConfig struct {
 	Name          string                // config name. Needed to mount the resource in the pod
 	Builder       string                // glob pattern for builders supported by this resource
+	BuildImage    string                // image to run the build phase with
+	BuildEngine   string                // build command family, e.g. pack or lifecycle
 	UserID        int64                 // user id to run the build phase with (`cnb` user)
 	GroupID       int64                 // group id to run the build hase with
 	Base          string                // optional, name of resource to pull the other parts from
@@ -1199,8 +1213,18 @@ func StagingScriptConfigResolve(ctx context.Context, cluster *kubernetes.Cluster
 	// BEWARE: Keep environment data of the incoming config.
 
 	config.Name = base.Name
-	config.DownloadImage = base.Data["downloadImage"]
-	config.UnpackImage = base.Data["unpackImage"]
+	if config.BuildImage == "" {
+		config.BuildImage = base.Data["buildImage"]
+	}
+	if config.BuildEngine == "" {
+		config.BuildEngine = base.Data["buildEngine"]
+	}
+	if config.DownloadImage == "" {
+		config.DownloadImage = base.Data["downloadImage"]
+	}
+	if config.UnpackImage == "" {
+		config.UnpackImage = base.Data["unpackImage"]
+	}
 
 	return nil
 }
@@ -1209,10 +1233,19 @@ func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, erro
 	stagingScript := &StagingScriptConfig{
 		Name:          config.Name,
 		Builder:       config.Data["builder"],
+		BuildImage:    config.Data["buildImage"],
+		BuildEngine:   config.Data["buildEngine"],
 		Base:          config.Data["base"],
 		DownloadImage: config.Data["downloadImage"],
 		UnpackImage:   config.Data["unpackImage"],
 		// env, user, group id, Helm Values, see below.
+	}
+
+	if stagingScript.BuildEngine == "" {
+		stagingScript.BuildEngine = "lifecycle"
+	}
+	if stagingScript.BuildImage == "" {
+		stagingScript.BuildImage = config.Data["builderImage"] // backward compatible key
 	}
 
 	userID, err := strconv.ParseInt(config.Data["userID"], 10, 64)
