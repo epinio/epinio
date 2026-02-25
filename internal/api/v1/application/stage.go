@@ -1093,7 +1093,7 @@ type StagingScriptConfig struct {
 	Name          string                // config name. Needed to mount the resource in the pod
 	Builder       string                // glob pattern for builders supported by this resource
 	BuildImage    string                // image to run the build phase with
-	BuildEngine   string                // build command family, e.g. pack or lifecycle
+	BuildEngine   string                // build command family, normalized to pack
 	UserID        int64                 // user id to run the build phase with (`cnb` user)
 	GroupID       int64                 // group id to run the build hase with
 	Base          string                // optional, name of resource to pull the other parts from
@@ -1241,9 +1241,8 @@ func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, erro
 		// env, user, group id, Helm Values, see below.
 	}
 
-	if stagingScript.BuildEngine == "" {
-		stagingScript.BuildEngine = "lifecycle"
-	}
+	// Engine is normalized to pack for all profiles.
+	stagingScript.BuildEngine = "pack"
 	if stagingScript.BuildImage == "" {
 		stagingScript.BuildImage = config.Data["builderImage"] // backward compatible key
 	}

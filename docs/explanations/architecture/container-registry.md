@@ -5,7 +5,7 @@ specified everything needed to work with an external registry.
 
 The current setup of this registry evolved under the following constraints:
 
-  1. The build tooling used by staging (pack/lifecycle, depending on profile) accesses the
+  1. The build tooling used by staging (pack) accesses the
   registry using a TLS-secured channel.
 
      It cannot be configured to use an unsecured channel.
