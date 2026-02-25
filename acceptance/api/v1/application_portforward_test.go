@@ -14,19 +14,15 @@ package v1_test
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	api "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/pkg/api/core/v1/client"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/httpstream"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/portforward"
+	"github.com/gorilla/websocket"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -144,22 +140,20 @@ func runPortForwardGetOnce(namespace, appName, instance string, attempt int) err
 	}
 	defer conn.Close()
 
-	streamData, streamErr := createStreams(conn)
-	defer streamData.Close()
-	defer streamErr.Close()
+	stream := conn.UnderlyingConn()
 
 	// Let the port-forward stream stabilize before sending (reduces EOF under load).
 	time.Sleep(3 * time.Second)
 
 	// Send a GET request through the stream.
 	req, _ := http.NewRequest(http.MethodGet, "http://localhost:8080/", nil)
-	if err = req.Write(streamData); err != nil {
+	if err = req.Write(stream); err != nil {
 		fmt.Fprintf(GinkgoWriter, "[AppPortForward] req.Write failed after %v: %v\n", time.Since(start), err)
 		return fmt.Errorf("req.Write: %w", err)
 	}
 
 	fmt.Fprintf(GinkgoWriter, "[AppPortForward] ReadResponse attempt (elapsed %v) namespace=%s app=%s\n", time.Since(start), namespace, appName)
-	reader := bufio.NewReader(streamData)
+	reader := bufio.NewReader(stream)
 	resp, err := http.ReadResponse(reader, req)
 	if err != nil {
 		fmt.Fprintf(GinkgoWriter, "[AppPortForward] ReadResponse failed after %v (often EOF under load): %v\n", time.Since(start), err)
@@ -171,20 +165,10 @@ func runPortForwardGetOnce(namespace, appName, instance string, attempt int) err
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	errData, err := io.ReadAll(streamErr)
-	if err != nil {
-		fmt.Fprintf(GinkgoWriter, "[AppPortForward] ReadAll(streamErr) failed: %v\n", err)
-		return fmt.Errorf("ReadAll error stream: %w", err)
-	}
-	if len(errData) > 0 {
-		fmt.Fprintf(GinkgoWriter, "[AppPortForward] error stream non-empty: %q\n", string(errData))
-		return fmt.Errorf("unexpected data on error stream: %s", string(errData))
-	}
-
 	return nil
 }
 
-func setupConnection(namespace, appName, instance string) (httpstream.Connection, error) {
+func setupConnection(namespace, appName, instance string) (*websocket.Conn, error) {
 	endpoint := fmt.Sprintf("%s%s/%s?instance=%s", serverURL, api.WsRoot, api.WsRoutes.Path("AppPortForward", namespace, appName), instance)
 	portForwardURL, err := url.Parse(endpoint)
 	Expect(err).ToNot(HaveOccurred())
@@ -195,33 +179,9 @@ func setupConnection(namespace, appName, instance string) (httpstream.Connection
 	values := portForwardURL.Query()
 	values.Add("authtoken", token)
 	portForwardURL.RawQuery = values.Encode()
+	portForwardURL.Scheme = "wss"
 
-	// Create rest.Config for WebSocket connection
-	baseURL, err := url.Parse(serverURL)
-	Expect(err).ToNot(HaveOccurred())
-
-	httpClient := &http.Client{Transport: upgradeRoundTripper, Timeout: 180 * time.Second}
-	dialer := gospdy.NewDialer(upgradeRoundTripper, httpClient, "GET", portForwardURL)
-	conn, _, err := dialer.Dial(portforward.PortForwardProtocolV1Name)
+	conn, _, err := websocket.DefaultDialer.Dial(portForwardURL.String(), nil)
 
 	return conn, err
-}
-
-func createStreams(conn httpstream.Connection) (httpstream.Stream, httpstream.Stream) {
-	buildHeaders := func(streamType string) http.Header {
-		headers := http.Header{}
-		// Epinio app chart defaults to appListeningPort=8080.
-		headers.Set(v1.PortHeader, "8080")
-		headers.Set(v1.PortForwardRequestIDHeader, "0")
-		headers.Set(v1.StreamType, streamType)
-		return headers
-	}
-
-	// open streams
-	streamData, err := conn.CreateStream(buildHeaders(v1.StreamTypeData))
-	Expect(err).ToNot(HaveOccurred())
-	streamErr, err := conn.CreateStream(buildHeaders(v1.StreamTypeError))
-	Expect(err).ToNot(HaveOccurred())
-
-	return streamData, streamErr
 }

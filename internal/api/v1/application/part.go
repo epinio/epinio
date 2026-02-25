@@ -20,15 +20,16 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
@@ -205,9 +206,13 @@ func fetchAppImage(
 	if err != nil {
 		return apierror.NewInternalError("failed to retrieve image", err.Error())
 	}
+	imageOutputPath, err := imageExportFilePath(imageOutputFilename)
+	if err != nil {
+		return apierror.NewInternalError("failed to resolve image output path", err.Error())
+	}
 
 	defer func() {
-		err := os.Remove(imageExportVolume + imageOutputFilename)
+		err := os.Remove(imageOutputPath)
 		if err != nil {
 			log.Infow(
 				"error cleaning up image file",
@@ -284,9 +289,13 @@ func fetchAppArchive(
 	if err != nil {
 		return apierror.NewInternalError("failed to retrieve image", err.Error())
 	}
+	imageOutputPath, err := imageExportFilePath(imageOutputFilename)
+	if err != nil {
+		return apierror.NewInternalError("failed to resolve image output path", err.Error())
+	}
 	defer func() {
 		_ = imageFile.Close()
-		_ = os.Remove(imageExportVolume + imageOutputFilename)
+		_ = os.Remove(imageOutputPath)
 	}()
 	imageInfo, err := imageFile.Stat()
 	if err != nil {
@@ -354,12 +363,18 @@ func fetchAppImageFile(
 	theApp *models.App,
 	imageOutputFilename string,
 ) (*os.File, error) {
+	log := requestctx.Logger(ctx)
+	imageOutputPath, err := imageExportFilePath(imageOutputFilename)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid image output filename")
+	}
 	// Try with source auth first, then retry without source auth in case the auth file
 	// does not contain credentials for external registries.
 	var lastErr error
 	for _, useSourceAuth := range []bool{true, false} {
-		if removeErr := os.Remove(imageExportVolume + imageOutputFilename); removeErr != nil && !os.IsNotExist(removeErr) {
-			helpers.Logger.Infow("unable to remove stale image export tar before retry", "error", removeErr, "file", imageOutputFilename)
+		//nolint:gosec // imageOutputPath is constrained by imageExportFilePath to imageExportVolume.
+		if removeErr := os.Remove(imageOutputPath); removeErr != nil && !os.IsNotExist(removeErr) {
+			log.Infow("unable to remove stale image export tar before retry", "error", removeErr, "file", imageOutputFilename)
 		}
 
 		nano := strconv.Itoa(time.Now().Nanosecond())
@@ -394,7 +409,7 @@ func fetchAppImageFile(
 			return file, nil
 		}
 
-		helpers.Logger.Infow(
+		log.Infow(
 			"image export attempt failed",
 			"job",
 			jobName,
@@ -422,6 +437,7 @@ func runDownloadImageJob(
 	imageOutputFilename string,
 	useSourceAuth bool,
 ) error {
+	log := requestctx.Logger(ctx)
 	appImageExporter := viper.GetString("app-image-exporter")
 
 	labels := map[string]string{
@@ -485,7 +501,7 @@ func runDownloadImageJob(
 
 	job := newSkopeoJob(jobName, labels, appImageExporter, "skopeo", args, mounts, volumes)
 
-	helpers.Logger.Infow("image export job command", "job", jobName, "args", args)
+	log.Infow("image export job command", "job", jobName, "args", args)
 
 	return cluster.CreateJob(ctx, helmchart.Namespace(), job)
 }
@@ -496,6 +512,7 @@ func getFileImageAndJobCleanup(
 	jobName,
 	imageOutputFilename string,
 ) (*os.File, error) {
+	log := requestctx.Logger(ctx)
 	// Allow 15m for slow CI (image pull/skopeo copy can be slow on shared runners)
 	err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), jobName, time.Minute*15)
 	if err != nil {
@@ -520,8 +537,7 @@ func getFileImageAndJobCleanup(
 	}
 
 	// Check for file existence (retry because PVC visibility may lag the job completion signal).
-	filePath := imageExportVolume + imageOutputFilename
-	file, fileErr := openExportImageFileWithRetries(filePath, 10, 2*time.Second)
+	file, fileErr := openExportImageFileWithRetries(imageOutputFilename, 10, 2*time.Second)
 	if fileErr == nil {
 		fileInfo, statErr := file.Stat()
 		if statErr != nil {
@@ -538,25 +554,25 @@ func getFileImageAndJobCleanup(
 	failed, err := cluster.IsJobFailed(ctx, jobName, helmchart.Namespace())
 	if err != nil {
 		if file != nil {
-			helpers.Logger.Infow("unable to check image export job status, but tar file was created", "job", jobName, "error", err)
+			log.Infow("unable to check image export job status, but tar file was created", "job", jobName, "error", err)
 		} else {
 			return nil, errors.Wrapf(err, "error checking job status %s", jobName)
 		}
 	}
 	if failed && file == nil {
 		diag := imageExportJobDiagnostics(ctx, cluster, jobName)
-		helpers.Logger.Infow("image export job failed", "job", jobName, "diagnostics", diag)
+		log.Infow("image export job failed", "job", jobName, "diagnostics", diag)
 		_ = cluster.DeleteJob(ctx, helmchart.Namespace(), jobName)
 		return nil, errors.Errorf("image export job failed (skopeo copy did not produce the tar file): %s", diag)
 	}
 	if file == nil {
 		diag := imageExportJobDiagnostics(ctx, cluster, jobName)
-		helpers.Logger.Infow("image export tar missing after completed job", "job", jobName, "diagnostics", diag)
+		log.Infow("image export tar missing after completed job", "job", jobName, "diagnostics", diag)
 		_ = cluster.DeleteJob(ctx, helmchart.Namespace(), jobName)
 		return nil, errors.Wrapf(fileErr, "failed to open tar file (%s)", diag)
 	}
 	if failed {
-		helpers.Logger.Infow("image export job reported failure but tar file exists; continuing with tar artifact", "job", jobName)
+		log.Infow("image export job reported failure but tar file exists; continuing with tar artifact", "job", jobName)
 	}
 
 	log.Infow("delete job, done", "job", jobName)
@@ -572,10 +588,15 @@ func openExportImageFileWithRetries(path string, attempts int, delay time.Durati
 	if attempts < 1 {
 		attempts = 1
 	}
+	filePath, err := imageExportFilePath(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid image export filename")
+	}
 
 	var lastErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
-		file, err := os.Open(path)
+		//nolint:gosec // filePath is constrained by imageExportFilePath to imageExportVolume.
+		file, err := os.Open(filePath)
 		if err == nil {
 			return file, nil
 		}
@@ -586,6 +607,27 @@ func openExportImageFileWithRetries(path string, attempts int, delay time.Durati
 	}
 
 	return nil, lastErr
+}
+
+func imageExportFilePath(filename string) (string, error) {
+	if filename == "" {
+		return "", errors.New("image export filename is empty")
+	}
+	if filepath.Base(filename) != filename || strings.Contains(filename, "..") {
+		return "", errors.Errorf("invalid image export filename %q", filename)
+	}
+
+	volumePath := filepath.Clean(imageExportVolume)
+	fullPath := filepath.Join(volumePath, filename)
+	rel, err := filepath.Rel(volumePath, fullPath)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return "", errors.Errorf("image export path escapes export volume: %q", filename)
+	}
+
+	return fullPath, nil
 }
 
 func imageExportJobDiagnostics(ctx context.Context, cluster *kubernetes.Cluster, jobName string) string {

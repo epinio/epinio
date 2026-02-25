@@ -507,7 +507,7 @@ func streamPodLogs(
 			break
 		}
 
-		helpers.Logger.Debugw("streaming", "log line", logLine)
+		log.Debugw("streaming", "log line", logLine)
 
 		msg, err := json.Marshal(logLine)
 		if err != nil {
