@@ -17,7 +17,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -40,7 +39,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	username := requestctx.User(ctx).Username
-	log := helpers.Logger
+	log := requestctx.Logger(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {

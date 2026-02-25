@@ -14,7 +14,6 @@ package configurationbinding
 import (
 	"context"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -89,7 +88,7 @@ func CreateConfigurationBinding(
 	app models.App,
 	configurationNames []string,
 ) ([]string, apierror.APIErrors) {
-	logger := helpers.Logger.With("component", "CreateConfigurationBinding")
+	logger := requestctx.Logger(ctx).With("component", "CreateConfigurationBinding")
 
 	// Collect errors and warnings per configuration, to report as much
 	// as possible while also applying as much as possible. IOW

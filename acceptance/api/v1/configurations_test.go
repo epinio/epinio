@@ -206,9 +206,11 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 
 			var data models.ConfigurationResponse
 			err = json.Unmarshal(bodyBytes, &data)
-			configuration := data.Configuration.Details
 			Expect(err).ToNot(HaveOccurred())
-			Expect(configuration["username"]).To(Equal("epinio-user"))
+			configuration := data.Configuration.Details
+			// API masks secret values; assert key exists and value is masked
+			Expect(configuration).To(HaveKey("username"))
+			Expect(configuration["username"]).To(Equal("****"))
 		})
 
 		It("returns a 404 when the namespace does not exist", func() {
@@ -290,11 +292,13 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 
 			var data models.ConfigurationResponse
 			err = json.Unmarshal(bodyBytesGet, &data)
-			configuration := data.Configuration.Details
-
 			Expect(err).ToNot(HaveOccurred())
-			Expect(configuration["user"]).To(Equal("ci/cd"))
-			Expect(configuration["host"]).To(Equal("up"))
+			configuration := data.Configuration.Details
+			// API masks secret values; assert keys exist with masked values, removed key is gone
+			Expect(configuration).To(HaveKey("user"))
+			Expect(configuration["user"]).To(Equal("****"))
+			Expect(configuration).To(HaveKey("host"))
+			Expect(configuration["host"]).To(Equal("****"))
 			Expect(configuration).ToNot(HaveKey("username"))
 		})
 
@@ -326,7 +330,8 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 	Describe("PUT /api/v1/namespaces/:namespace/configurations/:configuration", func() {
 		var changeRequest string
 		BeforeEach(func() {
-			changeRequest = `{ "put_key1" : "put_value" }`
+			// API expects ConfigurationReplaceRequest with "data" key
+			changeRequest = `{"data": {"put_key1": "put_value"}}`
 		})
 
 		It("replace the configuration", func() {
@@ -359,10 +364,11 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 
 			var data models.ConfigurationResponse
 			err = json.Unmarshal(bodyBytesGet, &data)
-			configuration := data.Configuration.Details
-
 			Expect(err).ToNot(HaveOccurred())
-			Expect(configuration["put_key1"]).To(Equal("put_value"))
+			configuration := data.Configuration.Details
+			// API masks secret values; assert put_key1 exists with masked value, old keys are gone
+			Expect(configuration).To(HaveKey("put_key1"))
+			Expect(configuration["put_key1"]).To(Equal("****"))
 			Expect(configuration).ToNot(HaveKey("username"))
 		})
 

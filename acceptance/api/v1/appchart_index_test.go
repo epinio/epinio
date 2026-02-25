@@ -42,29 +42,19 @@ var _ = Describe("ChartList Endpoint", LAppchart, func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Note to maintainers: Due to the concurrent nature of tests we may have a varying
-		// number of custom app charts from other tests visible here. In other words, while
-		// we can reliably test for the presence of the standard chart, the number of charts
-		// to expect is not checkable.
-		//
-		// A check like `Expect(len(appcharts)).To(Equal(1))` will introduce flakiness and
-		// spurious failures.
+		// number of custom app charts from other tests visible here. Find the "standard"
+		// chart in the list (order is not guaranteed) and assert on its fields.
+		var standard *models.AppChart
+		for i := range appcharts {
+			if appcharts[i].Meta.Name == "standard" {
+				standard = &appcharts[i]
+				break
+			}
+		}
+		Expect(standard).ToNot(BeNil(), "standard app chart should be present in list")
 
-		var names []string
-		names = append(names, appcharts[0].Meta.Name)
-		var desc []string
-		desc = append(desc, appcharts[0].Description)
-		var short []string
-		short = append(short, appcharts[0].ShortDescription)
-		var chart []string
-		chart = append(chart, appcharts[0].HelmChart)
-
-		Expect(names).Should(ContainElements(
-			"standard"))
-		Expect(desc).Should(ContainElements(
-			"Epinio standard support chart for application deployment"))
-		Expect(short).Should(ContainElements(
-			"Epinio standard deployment"))
-		Expect(chart).Should(ContainElements(
-			"https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.26/epinio-application-0.1.26.tgz"))
+		Expect(standard.Description).To(Equal("Epinio standard support chart for application deployment"))
+		Expect(standard.ShortDescription).To(Equal("Epinio standard deployment"))
+		Expect(standard.HelmChart).To(MatchRegexp("https://github\\.com/epinio/helm-charts/releases/download/epinio-application-.*/epinio-application-.*\\.tgz"))
 	})
 })

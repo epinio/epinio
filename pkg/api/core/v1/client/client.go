@@ -14,8 +14,10 @@ package client
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/auth"
@@ -70,10 +72,42 @@ func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 		auth.ExtendLocalTrust(settings.Certs)
 	}
 
+	// Create HTTP client with extended timeouts for long-running operations
+	httpClient := oauth2.NewClient(ctx, tokenSource)
+	if httpClient.Transport == nil {
+		httpClient.Transport = http.DefaultTransport
+	}
+
+	// Wrap the transport to add timeout settings
+	if transport, ok := httpClient.Transport.(*http.Transport); ok {
+		transport.ResponseHeaderTimeout = 15 * time.Minute
+		transport.IdleConnTimeout = 15 * time.Minute
+		transport.DialContext = (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext
+	} else if oauth2Transport, ok := httpClient.Transport.(*oauth2.Transport); ok {
+		// For oauth2 transport, we need to modify the base transport
+		if oauth2Transport.Base == nil {
+			oauth2Transport.Base = http.DefaultTransport
+		}
+		if baseTransport, ok := oauth2Transport.Base.(*http.Transport); ok {
+			baseTransport.ResponseHeaderTimeout = 15 * time.Minute
+			baseTransport.IdleConnTimeout = 15 * time.Minute
+			baseTransport.DialContext = (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext
+		}
+	}
+
+	// Set overall client timeout (0 = no timeout, we rely on context cancellation)
+	httpClient.Timeout = 0
+
 	return &Client{
 		log:           log,
 		Settings:      settings,
-		HttpClient:    oauth2.NewClient(ctx, tokenSource),
+		HttpClient:    httpClient,
 		customHeaders: http.Header{},
 	}
 }
