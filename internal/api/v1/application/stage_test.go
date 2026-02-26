@@ -10,6 +10,43 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
+func TestOverrideRegistryHost(t *testing.T) {
+	tests := []struct {
+		name         string
+		registryURL  string
+		hostOverride string
+		expected     string
+	}{
+		{
+			name:         "replace host keep namespace path",
+			registryURL:  "registry.epinio.svc.cluster.local:5000/apps",
+			hostOverride: "192.168.49.2:30500",
+			expected:     "192.168.49.2:30500/apps",
+		},
+		{
+			name:         "trim trailing slashes",
+			registryURL:  "registry.epinio.svc.cluster.local:5000/apps",
+			hostOverride: "192.168.49.2:30500/",
+			expected:     "192.168.49.2:30500/apps",
+		},
+		{
+			name:         "empty override keeps original",
+			registryURL:  "registry.epinio.svc.cluster.local:5000/apps",
+			hostOverride: "",
+			expected:     "registry.epinio.svc.cluster.local:5000/apps",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := overrideRegistryHost(tc.registryURL, tc.hostOverride)
+			if got != tc.expected {
+				t.Fatalf("expected %q, got %q", tc.expected, got)
+			}
+		})
+	}
+}
+
 func TestJobDoneStateSuccess(t *testing.T) {
 	job := batchv1.Job{
 		Status: batchv1.JobStatus{
@@ -69,6 +106,30 @@ func TestNewStagingScriptConfigPackFields(t *testing.T) {
 	}
 	if cfg.BuildImage != "buildpacksio/pack:0.38.2" {
 		t.Fatalf("expected build image buildpacksio/pack:0.38.2, got %q", cfg.BuildImage)
+	}
+}
+
+func TestNewStagingScriptConfigReadsRegistryHostOverride(t *testing.T) {
+	cfg, err := NewStagingScriptConfig(corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "epinio-stage-scripts"},
+		Data: map[string]string{
+			"builder":   "*",
+			"userID":    "1001",
+			"groupID":   "1000",
+			"env":       "CNB_PLATFORM_API: \"0.11\"",
+			"buildImage": "paketobuildpacks/builder-jammy-full:latest",
+			"staging-values.json": `{
+				"serviceAccountName": "epinio-server",
+				"dockerSocketPath": "/var/run/docker.sock",
+				"registryHostOverride": "192.168.49.2:30500"
+			}`,
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.HelmValues.RegistryHostOverride != "192.168.49.2:30500" {
+		t.Fatalf("expected registryHostOverride to be parsed, got %q", cfg.HelmValues.RegistryHostOverride)
 	}
 }
 

@@ -82,6 +82,8 @@ type HelmValuesMap struct {
 	Affinity                corev1.Affinity             `json:"affinity,omitempty"`
 	Resources               corev1.ResourceRequirements `json:"resources,omitempty"`
 	TTLSecondsAfterFinished int32                       `json:"ttlSecondsAfterFinished,omitempty"`
+	DockerSocketPath        string                      `json:"dockerSocketPath,omitempty"` // e.g. /var/run/docker.sock for pack build (minikube)
+	RegistryHostOverride    string                      `json:"registryHostOverride,omitempty"`
 	Storage                 struct {
 		SourceBlobs StagingStorageValues `json:"sourceBlobs,omitempty"`
 		Cache       StagingStorageValues `json:"cache,omitempty"`
@@ -317,8 +319,16 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		Scripts:             config.Name,
 		HelmValues:          config.HelmValues,
 	}
+	if params.HelmValues.DockerSocketPath != "" && params.HelmValues.RegistryHostOverride != "" {
+		params.RegistryURL = overrideRegistryHost(params.RegistryURL, params.HelmValues.RegistryHostOverride)
+	}
 
 	if params.BuildImage == "" {
+		params.BuildImage = params.BuilderImage
+	}
+	// buildpacksio/pack is distroless (no /bin/sh or /bin/bash); the build script needs a shell
+	// and /cnb/lifecycle/creator, which live in the builder image. Use builder for the build container.
+	if strings.Contains(params.BuildImage, "buildpacksio/pack") {
 		params.BuildImage = params.BuilderImage
 	}
 
@@ -652,8 +662,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	// runtime: BashImage
 	unpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageUnpack)
 
-	// runtime: app.BuildImage
-	buildpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageBuild)
+	// runtime: app.BuildImage (use . for POSIX sh; many build images have only /bin/sh)
+	buildpackScript := fmt.Sprintf(". /stage-support/%s", helmchart.EpinioStageBuild)
 
 	// build configuration
 	// - shared between all the phases, even if each phase uses only part of the set
@@ -775,6 +785,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	volumes, volumeMounts = mountS3Certs(volumes, volumeMounts)
 	volumes, volumeMounts = mountRegistryCerts(app, volumes, volumeMounts)
+	volumes, volumeMounts = mountDockerSocket(app, volumes, volumeMounts)
 
 	// Create job environment as a copy of the app environment
 	env := make(map[string][]byte)
@@ -867,17 +878,14 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 						{
 							Name:    "buildpack",
 							Image:   app.BuildImage,
-							Command: []string{"/bin/bash"},
+							Command: []string{"/bin/sh"},
 							Args: []string{
 								"-c",
 								buildpackScript,
 							},
 							Env:          stageEnv,
 							VolumeMounts: volumeMounts,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:  ptr.To[int64](app.UserID),
-								RunAsGroup: ptr.To[int64](app.GroupID),
-							},
+							SecurityContext: buildpackSecurityContext(app),
 							Resources: app.HelmValues.Resources,
 						},
 					},
@@ -1084,8 +1092,55 @@ func mountRegistryCerts(app stageParam, volumes []corev1.Volume, volumeMounts []
 	return volumes, volumeMounts
 }
 
+// buildpackSecurityContext returns SecurityContext for the buildpack container.
+// When Docker socket is mounted, run as root so the container can access the host Docker daemon.
+func buildpackSecurityContext(app stageParam) *corev1.SecurityContext {
+	userID, groupID := app.UserID, app.GroupID
+	if app.HelmValues.DockerSocketPath != "" {
+		userID, groupID = 0, 0
+	}
+	return &corev1.SecurityContext{
+		RunAsUser:  ptr.To[int64](userID),
+		RunAsGroup: ptr.To[int64](groupID),
+	}
+}
+
+func mountDockerSocket(app stageParam, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) ([]corev1.Volume, []corev1.VolumeMount) {
+	if app.HelmValues.DockerSocketPath == "" {
+		return volumes, volumeMounts
+	}
+	volumes = append(volumes, corev1.Volume{
+		Name: "docker-socket",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: app.HelmValues.DockerSocketPath,
+				Type: ptr.To(corev1.HostPathSocket),
+			},
+		},
+	})
+	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		Name:      "docker-socket",
+		MountPath: "/var/run/docker.sock",
+		ReadOnly:  false,
+	})
+	return volumes, volumeMounts
+}
+
 func appendEnvVar(envs []corev1.EnvVar, name, value string) []corev1.EnvVar {
 	return append(envs, corev1.EnvVar{Name: name, Value: value})
+}
+
+func overrideRegistryHost(registryURL, hostOverride string) string {
+	hostOverride = strings.Trim(hostOverride, "/")
+	if hostOverride == "" {
+		return registryURL
+	}
+
+	parts := strings.SplitN(strings.Trim(registryURL, "/"), "/", 2)
+	if len(parts) == 1 {
+		return hostOverride
+	}
+	return fmt.Sprintf("%s/%s", hostOverride, parts[1])
 }
 
 // StagingScriptConfig holds all the information for using a (set of) buildpack(s)
