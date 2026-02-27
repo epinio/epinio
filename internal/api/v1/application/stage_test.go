@@ -6,6 +6,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -166,5 +167,42 @@ func TestNewJobRunUsesBuildImageAndBuilderEnv(t *testing.T) {
 	}
 	if !foundBuilderImage {
 		t.Fatalf("expected BUILDERIMAGE to be passed to build container env")
+	}
+}
+
+func TestSetAppStagingFieldsSetsImageURL(t *testing.T) {
+	app := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name":      "my-app",
+				"namespace": "workspace",
+			},
+			"spec": map[string]interface{}{},
+		},
+	}
+
+	params := stageParam{
+		AppRef:       models.NewAppRef("my-app", "workspace"),
+		BlobUID:      "blob-1",
+		BuilderImage: "paketobuildpacks/builder-jammy-full:0.3.495",
+		RegistryURL:  "192.168.49.2:30500/apps",
+		Stage:        models.NewStage("c244aea3d59859ad"),
+	}
+
+	if err := setAppStagingFields(app, params); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	imageURL, found, err := unstructured.NestedString(app.Object, "spec", "imageurl")
+	if err != nil {
+		t.Fatalf("unexpected error reading imageurl: %v", err)
+	}
+	if !found {
+		t.Fatalf("expected spec.imageurl to be set")
+	}
+
+	expected := "192.168.49.2:30500/apps/workspace-my-app:c244aea3d59859ad"
+	if imageURL != expected {
+		t.Fatalf("expected imageurl %q, got %q", expected, imageURL)
 	}
 }

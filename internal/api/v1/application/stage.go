@@ -1016,16 +1016,7 @@ func findPreviousBlobUID(app *unstructured.Unstructured) (string, error) {
 }
 
 func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
-	if err := unstructured.SetNestedField(app.Object, params.BlobUID, "spec", "blobuid"); err != nil {
-		return err
-	}
-	if err := unstructured.SetNestedField(app.Object, params.Stage.ID, "spec", "stageid"); err != nil {
-		return err
-	}
-	if err := unstructured.SetNestedField(app.Object, params.ImageURL(params.RegistryURL), "spec", "imageurl"); err != nil {
-		return err
-	}
-	if err := unstructured.SetNestedField(app.Object, params.BuilderImage, "spec", "builderimage"); err != nil {
+	if err := setAppStagingFields(app, params); err != nil {
 		return err
 	}
 
@@ -1042,6 +1033,23 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 	_, err = client.Namespace(namespace).Update(ctx, app, metav1.UpdateOptions{})
 
 	return err
+}
+
+func setAppStagingFields(app *unstructured.Unstructured, params stageParam) error {
+	if err := unstructured.SetNestedField(app.Object, params.BlobUID, "spec", "blobuid"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(app.Object, params.Stage.ID, "spec", "stageid"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(app.Object, params.ImageURL(params.RegistryURL), "spec", "imageurl"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(app.Object, params.BuilderImage, "spec", "builderimage"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func mountS3Certs(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) ([]corev1.Volume, []corev1.VolumeMount) {
