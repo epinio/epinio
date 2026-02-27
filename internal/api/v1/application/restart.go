@@ -12,6 +12,7 @@
 package application
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -20,6 +21,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/registry"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -58,9 +61,23 @@ func Restart(c *gin.Context) apierror.APIErrors {
 		// Recompute the image url, by replacing the old image tag (= old stage id) with the
 		// new stage id.
 
-		pieces := strings.Split(app.ImageURL, ":")
-		pieces[len(pieces)-1] = app.StageID
-		newImageURL := strings.Join(pieces, ":")
+		newImageURL := app.ImageURL
+		// If there is no prior image, or it's malformed, reconstruct the full image URL.
+		if app.ImageURL == "" || !strings.Contains(app.ImageURL, ":") {
+			details, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
+			if err != nil {
+				return apierror.InternalError(err, "getting registry connection details")
+			}
+			publicURL, err := details.PublicRegistryURL()
+			if err != nil {
+				return apierror.InternalError(err, "getting public registry URL")
+			}
+			newImageURL = fmt.Sprintf("%s/%s-%s:%s", publicURL, app.Meta.Namespace, app.Meta.Name, app.StageID)
+		} else {
+			pieces := strings.Split(app.ImageURL, ":")
+			pieces[len(pieces)-1] = app.StageID
+			newImageURL = strings.Join(pieces, ":")
+		}
 
 		// .. and save it for `DeployApp` to find.
 

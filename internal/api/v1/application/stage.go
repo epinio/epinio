@@ -1022,6 +1022,9 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 	if err := unstructured.SetNestedField(app.Object, params.Stage.ID, "spec", "stageid"); err != nil {
 		return err
 	}
+	if err := unstructured.SetNestedField(app.Object, params.ImageURL(params.RegistryURL), "spec", "imageurl"); err != nil {
+		return err
+	}
 	if err := unstructured.SetNestedField(app.Object, params.BuilderImage, "spec", "builderimage"); err != nil {
 		return err
 	}
