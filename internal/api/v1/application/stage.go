@@ -326,11 +326,6 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	if params.BuildImage == "" {
 		params.BuildImage = params.BuilderImage
 	}
-	// buildpacksio/pack is distroless (no /bin/sh or /bin/bash); the build script needs a shell
-	// and /cnb/lifecycle/creator, which live in the builder image. Use builder for the build container.
-	if strings.Contains(params.BuildImage, "buildpacksio/pack") {
-		params.BuildImage = params.BuilderImage
-	}
 
 	if !params.HelmValues.Storage.Cache.EmptyDir {
 		err = ensurePVC(ctx, cluster, params.HelmValues.Storage.Cache, req.App.MakeCachePVCName())
@@ -883,10 +878,10 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 								"-c",
 								buildpackScript,
 							},
-							Env:          stageEnv,
-							VolumeMounts: volumeMounts,
+							Env:             stageEnv,
+							VolumeMounts:    volumeMounts,
 							SecurityContext: buildpackSecurityContext(app),
-							Resources: app.HelmValues.Resources,
+							Resources:       app.HelmValues.Resources,
 						},
 					},
 					RestartPolicy: corev1.RestartPolicyNever,
