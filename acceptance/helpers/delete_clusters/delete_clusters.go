@@ -427,9 +427,7 @@ func GetKubeconfigAWS_RKE2(runID string) error {
 	}
 
 	kubeconfig_rke2 := []byte(strings.Replace(server_config, "127.0.0.1", server_hostname, 1))
-	// kubeconfig path is provided by CI via KUBECONFIG and is not user-controlled.
-	//nolint:gosec // G703 - trusted kubeconfig path in test helper
-	err = os.WriteFile(kubeconfig, kubeconfig_rke2, 0600)
+	err = os.WriteFile(kubeconfig, kubeconfig_rke2, 0600) // nolint:gosec // kubeconfig path from acceptance test setup
 	if err != nil {
 		return errors.Wrap(err, "Failed to create "+kubeconfig)
 	}

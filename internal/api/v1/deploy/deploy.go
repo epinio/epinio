@@ -18,9 +18,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helm"
@@ -34,20 +34,27 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
+// DeployResult contains the result of a deploy operation
+type DeployResult struct {
+	Routes   []string
+	Warnings []string
+}
+
 // DeployApp deploys the referenced application via helm, based on the state held by CRD and associated secrets.
 // It is the backend for the API deploypoint, as well as all the mutating endpoints,
 // i.e. configuration and app changes (bindings, environment, scaling).
-func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) ([]string, apierror.APIErrors) {
+func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) (*DeployResult, apierror.APIErrors) {
 	return deployApp(ctx, cluster, app, username, expectedStageID, false)
 }
 
 // DeployAppWithRestart is the same as DeployApp but it will also force Helm to perform a restart of the deployment
-func DeployAppWithRestart(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) ([]string, apierror.APIErrors) {
+func DeployAppWithRestart(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) (*DeployResult, apierror.APIErrors) {
 	return deployApp(ctx, cluster, app, username, expectedStageID, true)
 }
 
-func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, restart bool) ([]string, apierror.APIErrors) {
-	log := helpers.Logger
+func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, restart bool) (*DeployResult, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
+	result := &DeployResult{}
 
 	appObj, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
 	if err != nil {
@@ -163,12 +170,20 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	if stageID != "" {
 		log.Infow("app staging drop", "namespace", app.Namespace, "app", app.Name, "stage id", stageID)
 
-		if err := application.Unstage(ctx, cluster, app, stageID); err != nil {
+		unstageResult, err := application.Unstage(ctx, cluster, app, stageID)
+		if err != nil {
 			return nil, apierror.InternalError(err)
+		}
+		if unstageResult != nil && unstageResult.HasIncompleteCleanup() {
+			warning := fmt.Sprintf("blob cleanup incomplete for app %s/%s: %d blob(s) could not be deleted due to storage quota issues",
+				app.Namespace, app.Name, len(unstageResult.FailedBlobCleanups))
+			result.Warnings = append(result.Warnings, warning)
+			log.Info("warning: "+warning, "failedBlobs", unstageResult.FailedBlobCleanups)
 		}
 	}
 
-	return routes, nil
+	result.Routes = routes
+	return result, nil
 }
 
 // replaceInternalRegistry replaces the registry part of ImageURL with the localhost

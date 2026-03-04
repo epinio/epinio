@@ -33,7 +33,7 @@ func Get(dir, command string, arg ...string) (*exec.Cmd, error) {
 		}
 	}
 
-	p := exec.Command(command, arg...)
+	p := exec.Command(command, arg...) // nolint:gosec // acceptance test helper, command from test code
 	p.Dir = dir
 
 	return p, nil
@@ -48,7 +48,7 @@ func RunW(cmd string, args ...string) (string, error) {
 // It is used by test helpers that pass in fixed command names and arguments.
 // #nosec G204 - command comes from trusted test code
 func Run(dir string, toStdout bool, command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...)
+	cmd := exec.Command(command, args...) // nolint:gosec // acceptance test helper, command from test code
 
 	var b bytes.Buffer
 	if toStdout {

@@ -120,7 +120,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "bogus": Not known`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "bogus": not known`)
 	})
 
 	It("fails for an unknown field type", func() {
@@ -134,7 +134,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "unknowntype": Bad spec: Unknown type "foofara"`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "unknowntype": bad spec: unknown type "foofara"`)
 	})
 
 	It("fails for an integer field with a bad minimum", func() {
@@ -148,7 +148,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "badminton": Bad spec: Bad minimum "hello"`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "badminton": bad spec: bad minimum "hello"`)
 	})
 
 	It("fails for an integer field with a bad maximum", func() {
@@ -162,7 +162,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "maxbad": Bad spec: Bad maximum "world"`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "maxbad": bad spec: bad maximum "world"`)
 	})
 
 	It("fails for a value out of range (< min)", func() {
@@ -176,7 +176,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "floof": Out of bounds, "-2" too small`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "floof": out of bounds, "-2" too small`)
 	})
 
 	It("fails for a value out of range (> max)", func() {
@@ -190,7 +190,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "fox": Out of bounds, "1000" too large`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "fox": out of bounds, "1000" too large`)
 	})
 
 	It("fails for a value out of range (not in enum)", func() {
@@ -204,7 +204,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "bar": Illegal string "fox"`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "bar": illegal string "fox"`)
 	})
 
 	It("fails for a non-integer value where integer required", func() {
@@ -218,7 +218,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "fox": Expected integer, got "hound"`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "fox": expected integer, got "hound"`)
 	})
 
 	It("fails for a non-numeric value where numeric required", func() {
@@ -232,7 +232,7 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "cat": Expected number, got "dog"`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "cat": expected number, got "dog"`)
 	})
 
 	It("fails for a non-boolean value where boolean required", func() {
@@ -246,6 +246,6 @@ var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 		ExpectResponseToBeOK(bodyBytes, statusCode)
 
 		bodyBytes, statusCode = appValidateCV(namespace, appName)
-		ExpectBadRequestError(bodyBytes, statusCode, `Setting "fake": Expected boolean, got "news"`)
+		ExpectBadRequestError(bodyBytes, statusCode, `setting "fake": expected boolean, got "news"`)
 	})
 })

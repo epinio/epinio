@@ -25,10 +25,7 @@ type GitconfigCreateRequest struct {
 	Repository   string      `json:"repository,omitempty"`
 	SkipSSL      bool        `json:"skipssl,omitempty"`
 	Username     string      `json:"username,omitempty"`
-	// Password is accepted only on creation, then stored in a Kubernetes secret
-	// and never returned by the API.
-	// #nosec G101,G117 - field name matches password pattern but is expected here
-	Password     string      `json:"password,omitempty"`
+	Password     string      `json:"password,omitempty"` // nolint:gosec // intentional auth field for git config
 	Certificates []byte      `json:"certs,omitempty"`
 }
 

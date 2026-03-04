@@ -138,9 +138,7 @@ func DoWithHandlers[T any](
 	reqLog := requestLogger(c.log, request)
 	reqLog.V(1).Info("executing request")
 
-	// The client base URL is configured by the CLI user and not influenced by untrusted third-party services.
-	//nolint:gosec // G704 - outbound request to configured API endpoint
-	httpResponse, err := c.HttpClient.Do(request)
+	httpResponse, err := c.HttpClient.Do(request) // nolint:gosec // API client, request URL from user/config
 	if err != nil {
 		return response, errors.Wrap(err, "making the request")
 	}
@@ -272,13 +270,17 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 
 		respLog.V(1).Info("response received", "status", httpResponse.StatusCode)
 
-		// Print the full response body for debugging
 		bodyStr := string(bodyBytes)
-		/*fmt.Fprintf(os.Stderr, "\n=== RAW RESPONSE (Status: %d) ===\n", httpResponse.StatusCode)
-		fmt.Fprintf(os.Stderr, "%s\n", bodyStr)
-		fmt.Fprintf(os.Stderr, "=== END RAW RESPONSE ===\n\n")
-		_ = os.Stderr.Sync() // Force flush to ensure output appears
-		*/
+
+		// Optionally print the full response body for debugging when explicitly enabled.
+		// This is controlled via the EPINIO_DEBUG_HTTP environment variable to avoid
+		// polluting normal CLI output (which breaks JSON-parsing callers and tests).
+		if debugEnv := strings.ToLower(strings.TrimSpace(os.Getenv("EPINIO_DEBUG_HTTP"))); debugEnv == "1" || debugEnv == "true" || debugEnv == "yes" {
+			fmt.Fprintf(os.Stderr, "\n=== RAW RESPONSE (Status: %d) ===\n", httpResponse.StatusCode)
+			fmt.Fprintf(os.Stderr, "%s\n", bodyStr)
+			fmt.Fprintf(os.Stderr, "=== END RAW RESPONSE ===\n\n")
+			_ = os.Stderr.Sync() // Force flush to ensure output appears
+		}
 
 		// Check if the response looks like HTML/XML (starts with '<')
 		if strings.HasPrefix(strings.TrimSpace(bodyStr), "<") {
@@ -330,12 +332,9 @@ func handleError(logger logr.Logger, response *http.Response) error {
 		// This is a CLI tool, not a web server, so this output is not rendered
 		// in a browser and cannot trigger XSS in a victim.
 		fmt.Fprintf(os.Stderr, "\n=== RAW ERROR RESPONSE ===\n")
-		//nolint:gosec // G705 - diagnostic output to stderr only
-		fmt.Fprintf(os.Stderr, "URL: %s\n", response.Request.URL.String())
-		//nolint:gosec // G705 - diagnostic output to stderr only
-		fmt.Fprintf(os.Stderr, "Status: %d %s\n", response.StatusCode, response.Status)
-		//nolint:gosec // G705 - diagnostic output to stderr only
-		fmt.Fprintf(os.Stderr, "Content-Type: %s\n", response.Header.Get("Content-Type"))
+		fmt.Fprintf(os.Stderr, "URL: %s\n", response.Request.URL.String())       // nolint:gosec // debug to stderr, not HTML
+		fmt.Fprintf(os.Stderr, "Status: %d %s\n", response.StatusCode, response.Status) // nolint:gosec // debug to stderr, not HTML
+		fmt.Fprintf(os.Stderr, "Content-Type: %s\n", response.Header.Get("Content-Type")) // nolint:gosec // debug to stderr, not HTML
 		fmt.Fprintf(os.Stderr, "Body:\n%s\n", bodyStr)
 		fmt.Fprintf(os.Stderr, "=== END RAW ERROR RESPONSE ===\n\n")
 		_ = os.Stderr.Sync() // Force flush to ensure output appears

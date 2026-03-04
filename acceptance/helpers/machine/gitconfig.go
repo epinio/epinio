@@ -45,9 +45,7 @@ func (m *Machine) MakeGitconfigWithoutCleanup(gitConfigName string) {
 	Expect(err).ToNot(HaveOccurred())
 
 	tmpTokenFile := path.Join(tmpTokenDir, "token")
-	// tmpTokenFile is derived from a temporary directory created by the test helper.
-	//nolint:gosec // G703 - writing to internally-controlled temporary file in tests
-	err = os.WriteFile(tmpTokenFile, []byte(os.Getenv("PRIVATE_REPO_IMPORT_PAT")), 0600)
+	err = os.WriteFile(tmpTokenFile, []byte(os.Getenv("PRIVATE_REPO_IMPORT_PAT")), 0600) // nolint:gosec // path from MkdirTemp in same test
 	Expect(err).ToNot(HaveOccurred())
 
 	DeferCleanup(func() {

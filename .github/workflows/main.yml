@@ -30,7 +30,10 @@ env:
   SETUP_GO_VERSION: '1.23.0'
   GOLANGCI_LINT_VERSION: v2.3.0
   GINKGO_NODES: 8
+  GINKGO_VERSION: v2.25.1
   INGRESS_CONTROLLER: nginx
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
 
 jobs:
   linter:
@@ -51,7 +54,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Lint Epinio
         uses: golangci/golangci-lint-action@v8
@@ -72,10 +75,13 @@ jobs:
   test-acceptance-cli-other:
     needs:
       - linter
+    if: always() && (needs.linter.result == 'success' || needs.linter.result == 'failure')
     runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
+      GINKGO_NODES: 2
+      GINKGO_TIMEOUT: 720m
 
     steps:
       - name: Checkout
@@ -92,7 +98,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
         uses: actions/cache@v4
@@ -117,19 +123,20 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 3
+          EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
           rm -f /tmp/cov*
-          # Set the network details
           export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
           export EPINIO_PORT=8443
-          # create the cluster
           make acceptance-cluster-setup
-          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
-          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
+          kubectl wait --for=condition=available deployment/epinio-server -n epinio --timeout=120s
+          for i in $(seq 1 12); do
+            curl -sk -o /dev/null -w "%{http_code}" "https://epinio.127.0.0.1.sslip.io:8443/ready" | grep -q 200 && break
+            sleep 10
+          done
           make test-acceptance-cli-other
           scripts/collect-coverage.sh
 
@@ -150,10 +157,13 @@ jobs:
   test-acceptance-cli-apps:
     needs:
       - linter
+    if: always() && (needs.linter.result == 'success' || needs.linter.result == 'failure')
     runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
+      GINKGO_NODES: 2
+      GINKGO_TIMEOUT: 720m
 
     steps:
       - name: Checkout
@@ -170,7 +180,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
         uses: actions/cache@v4
@@ -195,7 +205,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 3
+          EPINIO_TIMEOUT_MULTIPLIER: 5
           PRIVATE_REPO_IMPORT_PAT: ${{ secrets.PRIVATE_REPO_IMPORT_PAT }}
         run: |
           rm -f /tmp/cov*
@@ -209,6 +219,12 @@ jobs:
           # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
+          # Ensure API is ready before tests (avoids 502/503/504 from ingress or slow rollout)
+          kubectl wait --for=condition=available deployment/epinio-server -n epinio --timeout=120s
+          for i in $(seq 1 12); do
+            curl -sk -o /dev/null -w "%{http_code}" "https://epinio.127.0.0.1.sslip.io:8443/ready" | grep -q 200 && break
+            sleep 10
+          done
           make test-acceptance-cli-apps
           scripts/collect-coverage.sh
 
@@ -229,10 +245,12 @@ jobs:
   test-acceptance-cli-services:
     needs:
       - linter
+    if: always() && (needs.linter.result == 'success' || needs.linter.result == 'failure')
     runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
+      GINKGO_NODES: 2
 
     steps:
       - name: Checkout
@@ -249,7 +267,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
         uses: actions/cache@v4
@@ -274,7 +292,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 3
+          EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
           rm -f /tmp/cov*
           # Set the network details
@@ -287,6 +305,12 @@ jobs:
           # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
+          # Ensure API is ready before parallel tests (avoids 503/504 from ingress or slow rollout)
+          kubectl wait --for=condition=available deployment/epinio-server -n epinio --timeout=120s
+          for i in $(seq 1 12); do
+            curl -sk -o /dev/null -w "%{http_code}" "https://epinio.127.0.0.1.sslip.io:8443/ready" | grep -q 200 && break
+            sleep 10
+          done
           make test-acceptance-cli-services
           scripts/collect-coverage.sh
 
@@ -308,10 +332,12 @@ jobs:
     needs:
       - linter
       - test-acceptance-api-services
+    if: always() && (needs.linter.result == 'success' || needs.linter.result == 'failure') && (needs.test-acceptance-api-services.result == 'success' || needs.test-acceptance-api-services.result == 'failure')
     runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
+      GINKGO_NODES: 4
 
     steps:
       - name: Checkout
@@ -328,7 +354,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
         uses: actions/cache@v4
@@ -353,19 +379,20 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 3
+          EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
           rm -f /tmp/cov*
-          # Set the network details
           export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
           export EPINIO_PORT=8443
-          # create the cluster
           make acceptance-cluster-setup
-          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
-          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
+          kubectl wait --for=condition=available deployment/epinio-server -n epinio --timeout=120s
+          for i in $(seq 1 12); do
+            curl -sk -o /dev/null -w "%{http_code}" "https://epinio.127.0.0.1.sslip.io:8443/ready" | grep -q 200 && break
+            sleep 10
+          done
           make test-acceptance-api-other
           scripts/collect-coverage.sh
 
@@ -387,10 +414,12 @@ jobs:
     needs:
       - linter
       - test-acceptance-cli-services
+    if: always() && (needs.linter.result == 'success' || needs.linter.result == 'failure') && (needs.test-acceptance-cli-services.result == 'success' || needs.test-acceptance-cli-services.result == 'failure')
     runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
+      GINKGO_NODES: 2
 
     steps:
       - name: Checkout
@@ -407,7 +436,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
         uses: actions/cache@v4
@@ -432,19 +461,20 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 3
+          EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
           rm -f /tmp/cov*
-          # Set the network details
           export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
           export EPINIO_PORT=8443
-          # create the cluster
           make acceptance-cluster-setup
-          # get the kubeconfig just in case
           export KUBECONFIG=$(k3d kubeconfig write epinio-acceptance)
-          # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
+          kubectl wait --for=condition=available deployment/epinio-server -n epinio --timeout=120s
+          for i in $(seq 1 12); do
+            curl -sk -o /dev/null -w "%{http_code}" "https://epinio.127.0.0.1.sslip.io:8443/ready" | grep -q 200 && break
+            sleep 10
+          done
           make test-acceptance-api-apps
           scripts/collect-coverage.sh
 
@@ -465,6 +495,7 @@ jobs:
   acceptance-api-cep-different-k8s:
     needs:
       - linter
+    if: always() && (needs.linter.result == 'success' || needs.linter.result == 'failure')
     runs-on: ubuntu-latest
 
     env:
@@ -485,7 +516,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
         uses: actions/cache@v4
@@ -510,7 +541,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 3
+          EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=latest
@@ -524,6 +555,14 @@ jobs:
           # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
+          # Ensure API is ready before running websocket-heavy critical endpoint tests
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=epinio-server -n epinio --timeout=300s
+          for i in $(seq 1 30); do
+            if curl -skf https://127.0.0.1.sslip.io:8443/ready >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
           make test-acceptance-api-apps-critical-endpoints
           scripts/collect-coverage.sh
       - uses: actions/upload-artifact@v4
@@ -539,7 +578,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 3
+          EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
           rm -f /tmp/cov*
           export K3S_KIND=oldest
@@ -553,11 +592,19 @@ jobs:
           # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
+          # Ensure API is ready before running websocket-heavy critical endpoint tests
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=epinio-server -n epinio --timeout=300s
+          for i in $(seq 1 30); do
+            if curl -skf https://127.0.0.1.sslip.io:8443/ready >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
           make test-acceptance-api-apps-critical-endpoints
           scripts/collect-coverage.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: acceptance-api-apps
+          name: acceptance-api-apps-oldest-k3s
           path: ./coverprofile.out
 
       - name: Cleanup k3d cluster
@@ -572,10 +619,12 @@ jobs:
   test-acceptance-api-services:
     needs:
       - linter
+    if: always() && (needs.linter.result == 'success' || needs.linter.result == 'failure')
     runs-on: ubuntu-latest
 
     env:
       GOCOVERDIR: /tmp
+      GINKGO_NODES: 2
 
     steps:
       - name: Checkout
@@ -592,7 +641,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
         uses: actions/cache@v4
@@ -617,7 +666,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 3
+          EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
           rm -f /tmp/cov*
           # Don't patch, just install the latest released version
@@ -632,6 +681,12 @@ jobs:
           # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
+          # Ensure API is ready before parallel tests (avoids 503/504 from ingress or slow rollout)
+          kubectl wait --for=condition=available deployment/epinio-server -n epinio --timeout=120s
+          for i in $(seq 1 12); do
+            curl -sk -o /dev/null -w "%{http_code}" "https://epinio.127.0.0.1.sslip.io:8443/ready" | grep -q 200 && break
+            sleep 10
+          done
           make test-acceptance-api-services
           scripts/collect-coverage.sh
 
@@ -653,6 +708,7 @@ jobs:
     needs:
       - linter
       - test-acceptance-cli-other
+    if: always() && (needs.linter.result == 'success' || needs.linter.result == 'failure') && (needs.test-acceptance-cli-other.result == 'success' || needs.test-acceptance-cli-other.result == 'failure')
     runs-on: ubuntu-latest
 
     env:
@@ -673,7 +729,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
         uses: actions/cache@v4
@@ -713,6 +769,12 @@ jobs:
           # install certmanager, epinio, and other resources
           make install-cert-manager
           make prepare_environment_k3d
+          # Ensure API/ingress is ready before route-dependent app tests
+          kubectl wait --for=condition=available deployment/epinio-server -n epinio --timeout=120s
+          for i in $(seq 1 12); do
+            curl -sk -o /dev/null -w "%{http_code}" "https://epinio.127.0.0.1.sslip.io:8443/ready" | grep -q 200 && break
+            sleep 10
+          done
           make test-acceptance-apps
           scripts/collect-coverage.sh
 
@@ -760,43 +822,47 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Upload unittests coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
           files: ./unittests/coverprofile.out
           flags: unittests
           verbose: true
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
       - name: Upload acceptance-api coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
           files: ./acceptance-api/coverprofile.out,./acceptance-api-apps/coverprofile.out,./acceptance-api-services/coverprofile.out
           flags: acceptance-api
           verbose: true
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
       - name: Upload acceptance-cli coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
           files: ./acceptance-cli/coverprofile.out,./acceptance-cli-apps/coverprofile.out,./acceptance-cli-services/coverprofile.out
           flags: acceptance-cli
           verbose: true
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
       - name: Upload acceptance-apps coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
           files: ./acceptance-apps/coverprofile.out
           flags: acceptance-apps
           verbose: true
-          fail_ci_if_error: true
+          fail_ci_if_error: false

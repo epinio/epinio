@@ -148,10 +148,7 @@ func fetchFile(originURL, destinationPath string) error {
 			return dstFileError
 		}
 
-		// dstFile is created via os.Create in the cache directory; the path is
-		// not user-controlled.
-		//nolint:gosec // G703 - removing internally-created cache file
-		fileRemoveError := os.Remove(dstFile.Name())
+		fileRemoveError := os.Remove(dstFile.Name()) // nolint:gosec // path from os.Create in same flow
 		if fileRemoveError != nil {
 			return fileRemoveError
 		}

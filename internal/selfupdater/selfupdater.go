@@ -79,9 +79,7 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "constructing a request")
 	}
-	// remoteURL is obtained from trusted release metadata, not arbitrary user input.
-	//nolint:gosec // G704 - controlled outbound request to GitHub (or configured release server)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // nolint:gosec // remoteURL from release metadata, not user input
 	if err != nil {
 		return "", errors.Wrap(err, "making the request")
 	}

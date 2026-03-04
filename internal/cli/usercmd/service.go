@@ -40,7 +40,7 @@ func (c *EpinioClient) ServiceCatalog() error {
 	for _, service := range catalog {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
-			service.Meta.CreatedAt.String(),
+			formatCreatedAt(service.Meta.CreatedAt),
 			service.AppVersion,
 			service.ShortDescription,
 		)
@@ -68,7 +68,7 @@ func (c *EpinioClient) ServiceCatalogShow(ctx context.Context, serviceName strin
 
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", catalogService.Meta.Name).
-		WithTableRow("Created", catalogService.Meta.CreatedAt.String()).
+		WithTableRow("Created", formatCreatedAt(catalogService.Meta.CreatedAt)).
 		WithTableRow("Version", catalogService.AppVersion).
 		WithTableRow("Short Description", catalogService.ShortDescription).
 		WithTableRow("Description", catalogService.Description).
@@ -169,7 +169,7 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", service.Meta.Name).
-		WithTableRow("Created", service.Meta.CreatedAt.String()).
+		WithTableRow("Created", formatCreatedAt(service.Meta.CreatedAt)).
 		WithTableRow("Catalog Service", service.CatalogService).
 		WithTableRow("Version", service.CatalogServiceVersion).
 		WithTableRow("Status", service.Status.String()).
@@ -392,17 +392,22 @@ func (c *EpinioClient) ServiceList() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().
-		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Listing Services...")
+	jsonOutput := c.ui.JSONEnabled()
+
+	if !jsonOutput {
+		c.ui.Note().
+			WithStringValue("Namespace", c.Settings.Namespace).
+			Msg("Listing Services...")
+	}
 
 	services, err := c.API.ServiceList(c.Settings.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "service list failed")
 	}
 
-	if c.ui.JSONEnabled() {
-		sort.Sort(services)
+	sort.Sort(services)
+
+	if jsonOutput {
 		return c.ui.JSON(services)
 	}
 
@@ -411,13 +416,11 @@ func (c *EpinioClient) ServiceList() error {
 		return nil
 	}
 
-	sort.Sort(services)
-
 	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Version", "Status", "Applications")
 	for _, service := range services {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
-			service.Meta.CreatedAt.String(),
+			formatCreatedAt(service.Meta.CreatedAt),
 			service.CatalogService,
 			service.CatalogServiceVersion,
 			service.Status.String(),
@@ -435,15 +438,20 @@ func (c *EpinioClient) ServiceListAll() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().Msg("Listing all Services...")
+	jsonOutput := c.ui.JSONEnabled()
+
+	if !jsonOutput {
+		c.ui.Note().Msg("Listing all Services...")
+	}
 
 	services, err := c.API.AllServices()
 	if err != nil {
 		return errors.Wrap(err, "service list failed")
 	}
 
-	if c.ui.JSONEnabled() {
-		sort.Sort(services)
+	sort.Sort(services)
+
+	if jsonOutput {
 		return c.ui.JSON(services)
 	}
 
@@ -452,14 +460,12 @@ func (c *EpinioClient) ServiceListAll() error {
 		return nil
 	}
 
-	sort.Sort(services)
-
 	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Version", "Status", "Application")
 	for _, service := range services {
 		msg = msg.WithTableRow(
 			service.Meta.Namespace,
 			service.Meta.Name,
-			service.Meta.CreatedAt.String(),
+			formatCreatedAt(service.Meta.CreatedAt),
 			service.CatalogService,
 			service.CatalogServiceVersion,
 			service.Status.String(),

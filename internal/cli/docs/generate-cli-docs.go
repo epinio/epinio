@@ -47,10 +47,8 @@ func generateCmdDoc(cmd *cobra.Command, dir string) error {
 		return nil
 	}
 
-	// create the directory if it doesn't exist. `dir` comes from the CLI invocation
-	// used by documentation tooling, not from untrusted runtime user input.
-	//nolint:gosec // G703 - documentation generator writing to configured docs directory
-	err := os.MkdirAll(dir, 0700)
+	// create the directory if it doesn't exist
+	err := os.MkdirAll(dir, 0700) // nolint:gosec // dir from docs output path, not user input
 	if err != nil {
 		return errors.Wrapf(err, "error creating directory [%s]", dir)
 	}
@@ -104,9 +102,7 @@ func createMarkdownFile(cmd *cobra.Command, dir string) error {
 	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + ".md"
 	filename := filepath.Join(dir, basename)
 
-	// `filename` is derived from the command path and the docs base directory.
-	//nolint:gosec // G703 - documentation generator writing markdown into docs tree
-	f, err := os.Create(filename)
+	f, err := os.Create(filename) // nolint:gosec // filename from dir (docs output path) + command path
 	if err != nil {
 		return errors.Wrap(err, "error creating file")
 	}
@@ -128,9 +124,7 @@ func createMarkdownFile(cmd *cobra.Command, dir string) error {
 
 // createCategoryJSONFile creates the '_category_.json' in the given directory
 func createCategoryJSONFile(label, dir string) error {
-	// `_category_.json` lives alongside other generated docs files under the configured docs directory.
-	//nolint:gosec // G703 - documentation generator writing JSON metadata into docs tree
-	f, err := os.Create(filepath.Join(dir, "_category_.json"))
+	f, err := os.Create(filepath.Join(dir, "_category_.json")) // nolint:gosec // dir from docs output path
 	if err != nil {
 		return errors.Wrap(err, "error creating file")
 	}

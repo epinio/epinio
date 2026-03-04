@@ -34,10 +34,24 @@ import (
 	"gopkg.in/ini.v1"
 )
 
+// S3Manager defines the interface for S3 storage operations.
+// This interface allows for mocking in tests.
+type S3Manager interface {
+	Meta(ctx context.Context, blobUID string) (map[string]string, error)
+	UploadStream(ctx context.Context, file io.Reader, size int64, metadata map[string]string) (string, error)
+	Upload(ctx context.Context, filepath string, metadata map[string]string) (string, error)
+	EnsureBucket(ctx context.Context) error
+	DeleteObject(ctx context.Context, objectID string) error
+}
+
+// Manager implements the S3Manager interface using a minio client.
 type Manager struct {
 	s3Client          *s3.Client
 	connectionDetails ConnectionDetails
 }
+
+// Ensure Manager implements S3Manager interface
+var _ S3Manager = (*Manager)(nil)
 
 type ConnectionDetails struct {
 	Endpoint        string
@@ -182,6 +196,22 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 	return details, nil
 }
 
+// IsQuotaExceededError checks if an error is related to storage quota being exceeded.
+// This function detects quota errors from s3gw and other S3-compatible storage backends.
+func IsQuotaExceededError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	// Check for various quota error patterns from s3gw and other S3 backends
+	return strings.Contains(errStr, "quotaexceeded") ||
+		strings.Contains(errStr, "quota exceeded") ||
+		strings.Contains(errStr, "quota limit") ||
+		strings.Contains(errStr, "insufficient storage") ||
+		strings.Contains(errStr, "storage quota") ||
+		strings.Contains(errStr, "minimum free drive threshold") // Minio-specific error
+}
+
 // Meta retrieves the meta data for the blob specified by it blobUID.
 func (m *Manager) Meta(ctx context.Context, blobUID string) (map[string]string, error) {
 	out, err := m.s3Client.HeadObject(ctx, &s3.HeadObjectInput{
@@ -230,6 +260,9 @@ func (m *Manager) UploadStream(ctx context.Context, file io.Reader, size int64, 
 
 	_, err := m.s3Client.PutObject(ctx, putInput)
 	if err != nil {
+		if IsQuotaExceededError(err) {
+			return "", errors.Wrap(err, "storage quota exceeded while writing the new object")
+		}
 		return "", errors.Wrap(err, "writing the new object")
 	}
 
@@ -289,7 +322,9 @@ func isAWSEndpoint(endpoint string) bool {
 	return strings.Contains(endpoint, "amazonaws.com")
 }
 
-// DeleteObject deletes the specified object from the storage
+// DeleteObject deletes the specified object from the storage.
+// If deletion fails due to quota errors, it returns an error that can be checked
+// with IsQuotaExceededError to allow callers to handle quota issues gracefully.
 func (m *Manager) DeleteObject(ctx context.Context, objectID string) error {
 	_, err := m.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(m.connectionDetails.Bucket),

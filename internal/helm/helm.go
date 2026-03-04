@@ -322,10 +322,7 @@ type RouteParam struct {
 	Id     string `yaml:"id"`
 	Domain string `yaml:"domain"`
 	Path   string `yaml:"path"`
-	// Secret is the name of a Kubernetes secret containing route credentials.
-	// It is a reference, not the secret content itself.
-	// #nosec G117 - field name matches secret pattern but only holds a reference
-	Secret string `yaml:"secret,omitempty"`
+	Secret string `yaml:"secret,omitempty"` // nolint:gosec // route secret for ingress, not credentials
 }
 type EpinioParam struct {
 	AppName        string               `yaml:"appName"`
@@ -604,52 +601,52 @@ func ValidateField(key, value string, spec models.ChartSetting) (interface{}, er
 					return value, nil
 				}
 			}
-			return nil, fmt.Errorf(`setting "%s": Illegal string "%s"`, key, value)
+			return nil, fmt.Errorf(`setting "%s": illegal string "%s"`, key, value)
 		}
 		return value, nil
 	}
 	if spec.Type == "bool" {
 		flag, err := strconv.ParseBool(value)
 		if err != nil {
-			return nil, fmt.Errorf(`setting "%s": Expected boolean, got "%s"`, key, value)
+			return nil, fmt.Errorf(`setting "%s": expected boolean, got "%s"`, key, value)
 		}
 		return flag, nil
 	}
 	if spec.Type == "integer" {
 		ivalue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`setting "%s": Expected integer, got "%s"`, key, value)
+			return nil, fmt.Errorf(`setting "%s": expected integer, got "%s"`, key, value)
 		}
 		return ivalue, validateRange(float64(ivalue), key, value, spec.Minimum, spec.Maximum)
 	}
 	if spec.Type == "number" {
 		fvalue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`setting "%s": Expected number, got "%s"`, key, value)
+			return nil, fmt.Errorf(`setting "%s": expected number, got "%s"`, key, value)
 		}
 		return fvalue, validateRange(fvalue, key, value, spec.Minimum, spec.Maximum)
 	}
 
-	return nil, fmt.Errorf(`setting "%s": Bad spec: Unknown type "%s"`, key, spec.Type)
+	return nil, fmt.Errorf(`setting "%s": bad spec: unknown type "%s"`, key, spec.Type)
 }
 
 func validateRange(v float64, key, value, min, max string) error {
 	if min != "" {
 		minval, err := strconv.ParseFloat(min, 64)
 		if err != nil {
-			return fmt.Errorf(`setting "%s": Bad spec: Bad minimum "%s"`, key, min)
+			return fmt.Errorf(`setting "%s": bad spec: bad minimum "%s"`, key, min)
 		}
 		if v < minval {
-			return fmt.Errorf(`setting "%s": Out of bounds, "%s" too small`, key, value)
+			return fmt.Errorf(`setting "%s": out of bounds, "%s" too small`, key, value)
 		}
 	}
 	if max != "" {
 		maxval, err := strconv.ParseFloat(max, 64)
 		if err != nil {
-			return fmt.Errorf(`setting "%s": Bad spec: Bad maximum "%s"`, key, max)
+			return fmt.Errorf(`setting "%s": bad spec: bad maximum "%s"`, key, max)
 		}
 		if v > maxval {
-			return fmt.Errorf(`setting "%s": Out of bounds, "%s" too large`, key, value)
+			return fmt.Errorf(`setting "%s": out of bounds, "%s" too large`, key, value)
 		}
 	}
 	return nil

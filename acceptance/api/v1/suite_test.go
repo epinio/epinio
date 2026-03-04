@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/epinio/epinio/acceptance/helpers/auth"
-	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/settings"
@@ -100,13 +99,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password, message.AdminToken, message.UserToken)
 
-	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
-		"--namespace", "epinio", "epinio",
-		"-o", "jsonpath={.spec.rules[0].host}")
-	Expect(err).ToNot(HaveOccurred(), out)
-
-	serverURL = "https://" + out + ":8443"
-	websocketURL = "wss://" + out + ":8443"
+	// Use API URL from settings so the correct port is used in both local (443) and CI (e.g. 8443).
+	serverURL = strings.TrimRight(theSettings.API, "/")
+	websocketURL = "wss://" + strings.TrimPrefix(strings.TrimPrefix(serverURL, "https://"), "http://")
 })
 
 var _ = AfterSuite(func() {

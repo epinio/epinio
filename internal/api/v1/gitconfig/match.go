@@ -14,7 +14,6 @@ package gitconfig
 import (
 	"strings"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
@@ -31,10 +30,11 @@ import (
 // It returns a list of all Epinio-controlled git configurations matching the prefix pattern.
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
 	user := requestctx.User(ctx)
 
-	helpers.Logger.Infow("match gitconfigs")
-	defer helpers.Logger.Infow("return")
+	log.Infow("match gitconfigs")
+	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -50,10 +50,10 @@ func Match(c *gin.Context) apierror.APIErrors {
 
 	gitconfigList = auth.FilterGitconfigResources(user, gitconfigList)
 
-	helpers.Logger.Infow("get gitconfig prefix")
+	log.Infow("get gitconfig prefix")
 	prefix := c.Param("pattern")
 
-	helpers.Logger.Infow("match prefix", "pattern", prefix)
+	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, gitconfig := range gitconfigList {
 		if strings.HasPrefix(gitconfig.ID, prefix) {
@@ -61,7 +61,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	helpers.Logger.Infow("deliver matches", "found", matches)
+	log.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.GitconfigsMatchResponse{
 		Names: matches,

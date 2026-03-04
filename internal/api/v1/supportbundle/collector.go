@@ -416,9 +416,7 @@ func (c *Collector) collectPodLogsWithPrevious(ctx context.Context, dirName, nam
 func (c *Collector) collectPodLogsDirect(ctx context.Context, dirName string, pod corev1.Pod, applyTimeWindow bool) error {
 	// Create directory for this component
 	componentDir := filepath.Join(c.bundleDir, dirName)
-	// componentDir is derived from an internal bundleDir and a fixed dirName, not user input.
-	//nolint:gosec // G703 - creating directories within internal bundle directory
-	if err := os.MkdirAll(componentDir, 0755); err != nil {
+	if err := os.MkdirAll(componentDir, 0755); err != nil { // nolint:gosec // componentDir under bundleDir, dirName from pod/list
 		return errors.Wrap(err, "failed to create component directory")
 	}
 
@@ -475,7 +473,7 @@ func (c *Collector) collectPodLogsDirect(ctx context.Context, dirName string, po
 func (c *Collector) collectPodLogsDirectWithPrevious(ctx context.Context, dirName string, pod corev1.Pod) error {
 	// Create directory for this component
 	componentDir := filepath.Join(c.bundleDir, dirName)
-	if err := os.MkdirAll(componentDir, 0755); err != nil {
+	if err := os.MkdirAll(componentDir, 0755); err != nil { // nolint:gosec // componentDir under bundleDir, dirName from pod/list
 		return errors.Wrap(err, "failed to create component directory")
 	}
 
@@ -641,8 +639,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	files := make(map[string]string)
 
 	// Walk the bundle directory and collect all log files
-	//nolint:gosec // G703 - walking internally-controlled bundle directory
-	err := filepath.Walk(c.bundleDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(c.bundleDir, func(path string, info os.FileInfo, err error) error { // nolint:gosec // bundleDir from Bundle(), controlled
 		if err != nil {
 			return errors.Wrapf(err, "error accessing path %s", path)
 		}
@@ -679,9 +676,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	}
 
 	// Create the archive file
-	// archivePath is built from the internal bundleDir and a static filename.
-	//nolint:gosec // G703 - creating archive in internally-controlled bundle directory
-	outFile, err := os.Create(archivePath)
+	outFile, err := os.Create(archivePath) // nolint:gosec // archivePath built from bundleDir in same function
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create archive file")
 	}
@@ -701,8 +696,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	}
 
 	// Verify archive was created successfully
-	//nolint:gosec // G703 - archivePath is internally-generated
-	archiveInfo, err := os.Stat(archivePath)
+	archiveInfo, err := os.Stat(archivePath) // nolint:gosec // archivePath built from bundleDir in same function
 	if err != nil {
 		return "", errors.Wrap(err, "failed to verify archive was created")
 	}

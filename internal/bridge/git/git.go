@@ -51,10 +51,8 @@ type Configuration struct {
 	// Username and Password are used to perform a BasicAuth.
 	// For Github/Gitlab the username can be anything (see https://gitlab.com/gitlab-org/gitlab/-/issues/212953).
 	Username string
-	// The Personal Access Token used for git operations. This is stored only in
-	// Kubernetes secrets and never exposed in API responses.
-	// #nosec G101,G117 - field name matches password pattern but is handled securely
-	Password string
+	// The Personal Access Token
+	Password string // nolint:gosec // intentional auth field for git config
 	// UserOrg is used to specify the username/organization/project
 	UserOrg string
 	// Repository is used to specify the exact repository

@@ -26,6 +26,16 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// stringRef implements fmt.Stringer so failure messages can show current output.
+type stringRef struct{ s *string }
+
+func (r stringRef) String() string {
+	if r.s != nil {
+		return *r.s
+	}
+	return ""
+}
+
 var _ = Describe("ServiceUnbind Endpoint", LService, func() {
 	var namespace, containerImageURL, app, serviceName, chartName string
 	var catalogService models.CatalogService
@@ -100,7 +110,7 @@ var _ = Describe("ServiceUnbind Endpoint", LService, func() {
 			podName, err := proc.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
 			return strings.Split(strings.Trim(podName, "'"), " "), err
 		}
-		
+
 		oldPodNames, err := getPodNames(namespace, app)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -128,10 +138,12 @@ var _ = Describe("ServiceUnbind Endpoint", LService, func() {
 		}, "1m", "2s").ShouldNot(ContainElements(oldPodNames))
 
 		By("verifying app is healthy after unbind")
+		var lastAppShowOut string
 		Eventually(func() string {
 			out, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
+			lastAppShowOut = out
 			return out
-		}, "1m").Should(ContainSubstring("Status.*1/1"))
+		}, "1m").Should(MatchRegexp("Status.*1/1"), "app show output (last):\n%s", stringRef{&lastAppShowOut})
 	})
 })
