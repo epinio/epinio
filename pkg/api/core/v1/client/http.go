@@ -328,7 +328,9 @@ func handleError(logger logr.Logger, response *http.Response) error {
 	if len(bodyBytes) > 0 {
 		bodyStr := strings.TrimSpace(string(bodyBytes))
 
-		// Print the full response body for debugging - flush immediately
+		// Print a sanitized version of the response body for debugging to stderr.
+		// This is a CLI tool, not a web server, so this output is not rendered
+		// in a browser and cannot trigger XSS in a victim.
 		fmt.Fprintf(os.Stderr, "\n=== RAW ERROR RESPONSE ===\n")
 		fmt.Fprintf(os.Stderr, "URL: %s\n", response.Request.URL.String())       // nolint:gosec // debug to stderr, not HTML
 		fmt.Fprintf(os.Stderr, "Status: %d %s\n", response.StatusCode, response.Status) // nolint:gosec // debug to stderr, not HTML

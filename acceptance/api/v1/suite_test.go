@@ -57,7 +57,7 @@ type BeforeSuiteMessage struct {
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
-	fmt.Println("Creating the minio helper pod")
+	fmt.Println("Creating the S3 helper pod")
 	createS3HelperPod()
 
 	// login just once
