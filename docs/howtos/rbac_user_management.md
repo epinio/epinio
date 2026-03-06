@@ -100,7 +100,7 @@ The response `roles` array should include the assigned roles (e.g. `application_
 
 ### "User unauthorized" (403) when creating an application
 
-1. **Check the Secret annotation**: `kubectl get secret <secret-name> -n epinio -o jsonpath='{.metadata.annotations.epinio\.io/roles}'` — must include `application_manager` (or `application_developer`) so the role allows app create.
+1. **Check the Secret annotation**: `kubectl get secret <secret-name> -n epinio -o jsonpath='{.metadata.annotations.epinio.io/roles}'` — must include `application_manager` (or `application_developer`) so the role allows app create.
 2. **Global vs namespaced role**: If the annotation is **global** (e.g. `application_manager` with no `:namespace`), the user can access any namespace and no `namespaces` field is needed. If the role is **namespaced** (e.g. `application_manager:workspace`), the Secret's `namespaces` field must include the namespace(s) the user may use.
    ```bash
    kubectl get secret <secret-name> -n epinio -o jsonpath='{.data.namespaces}' | base64 -d
