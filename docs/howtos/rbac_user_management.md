@@ -31,7 +31,7 @@ Users are defined as Kubernetes Secrets in the Epinio namespace. Each user needs
 2. **Annotation**: `epinio.io/roles: "<role1>,<role2>:<namespace>,..."` — the roles to assign
 3. **Data**: `username` (plain text), `password` (bcrypt hash), optionally `namespaces` (newline-separated list)
 
-### Example: Application Manager
+### Example: Application Manager (global role — access any namespace)
 
 ```yaml
 apiVersion: v1
@@ -43,24 +43,37 @@ metadata:
   labels:
     epinio.io/api-user-credentials: "true"
   annotations:
-    epinio.io/roles: "application_manager,application_manager:my-namespace"
+    epinio.io/roles: "application_manager"
 stringData:
   username: "app-manager"
   password: "<bcrypt-hash-of-password>"
+```
+
+With a **global** role (no `:namespace` suffix), the user can access **any** namespace; the `namespaces` field is not required.
+
+### Example: Application Manager (namespace-scoped)
+
+To restrict an app-manager to specific namespaces only, use a namespaced role and list namespaces:
+
+```yaml
+  annotations:
+    epinio.io/roles: "application_manager:my-namespace"
+stringData:
+  ...
   namespaces: |
     my-namespace
-    other-namespace
 ```
 
 ### Role Annotation Format
 
-- `application_manager` — global role (applies when no namespace-scoped role matches)
-- `application_manager:my-namespace` — role scoped to `my-namespace`
+- `application_manager` — global role: user can access **all namespaces** (no `namespaces` field needed).
+- `application_manager:my-namespace` — role scoped to `my-namespace`; user can only access namespaces listed in the Secret's `namespaces` field.
 - Multiple roles: comma-separated, e.g. `application_manager,view_only:audit-ns`
 
 ### Namespaces
 
-For namespace-scoped actions (create app, list apps in namespace), the user's Secret must list allowed namespaces in the `namespaces` field (newline-separated). Users can only perform actions in namespaces listed there.
+- **Global role** (e.g. `application_manager`, `view_only`): the user may access any namespace; the `namespaces` field is optional.
+- **Namespaced roles only** (e.g. `application_manager:workspace`): the user may only perform actions in namespaces listed in the Secret's `namespaces` field (newline-separated).
 
 ## Generating Passwords
 
@@ -85,10 +98,13 @@ The response `roles` array should include the assigned roles (e.g. `application_
 
 ## Troubleshooting
 
-If a user gets "User unauthorized" when creating or deleting apps:
+### "User unauthorized" (403) when creating an application
 
-1. **Check the Secret annotation**: `kubectl get secret <secret-name> -n epinio -o jsonpath='{.metadata.annotations.epinio\.io/roles}'` — must include `application_manager` (or appropriate role), not `user`.
-2. **Check namespaces**: The `namespaces` field must include the namespace where the user is trying to create apps.
+1. **Check the Secret annotation**: `kubectl get secret <secret-name> -n epinio -o jsonpath='{.metadata.annotations.epinio\.io/roles}'` — must include `application_manager` (or `application_developer`) so the role allows app create.
+2. **Global vs namespaced role**: If the annotation is **global** (e.g. `application_manager` with no `:namespace`), the user can access any namespace and no `namespaces` field is needed. If the role is **namespaced** (e.g. `application_manager:workspace`), the Secret's `namespaces` field must include the namespace(s) the user may use.
+   ```bash
+   kubectl get secret <secret-name> -n epinio -o jsonpath='{.data.namespaces}' | base64 -d
+   ```
 3. **Check role ConfigMaps exist**: `kubectl get configmap -n epinio -l epinio.io/role=true` — should list `epinio-role-application-manager`, etc.
 4. **Restart Epinio server** if ConfigMaps were added after install: `kubectl rollout restart deployment/epinio-server -n epinio`
 
