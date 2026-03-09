@@ -175,7 +175,7 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		// Note: We are backgrounding the action. The incoming context cannot be used, as it
 		// is linked to the request. We will get a `context canceled` error. To avoid this a
 		// background context is used instead.
-		go func() {
+		go func() { //nolint:gosec // Intentional background context
 			err = installOrUpgradeChartWithRetry(context.Background(), client, &chartSpec)
 			if err != nil {
 				logger.Errorw("installing or upgrading service ASYNC", "error", err)
