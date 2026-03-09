@@ -381,7 +381,7 @@ func streamPodLogs(
 	logParams *application.LogParameters,
 ) error {
 	log := requestctx.Logger(ctx)
-	logCtx, logCancelFunc := context.WithCancel(ctx)
+	logCtx, logCancelFunc := context.WithCancel(ctx) //nolint:gosec // Cancel function is called in defer
 	logChan := make(chan tailer.ContainerLogLine)
 	var wg sync.WaitGroup
 	var logWg sync.WaitGroup
