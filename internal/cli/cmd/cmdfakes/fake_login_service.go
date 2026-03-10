@@ -20,7 +20,7 @@ import (
 )
 
 type FakeLoginService struct {
-	LoginStub        func(context.Context, string, string, string, bool) error
+	LoginStub        func(context.Context, string, string, string, bool, bool) error
 	loginMutex       sync.RWMutex
 	loginArgsForCall []struct {
 		arg1 context.Context
@@ -28,6 +28,7 @@ type FakeLoginService struct {
 		arg3 string
 		arg4 string
 		arg5 bool
+		arg6 bool
 	}
 	loginReturns struct {
 		result1 error
@@ -35,13 +36,14 @@ type FakeLoginService struct {
 	loginReturnsOnCall map[int]struct {
 		result1 error
 	}
-	LoginOIDCStub        func(context.Context, string, bool, bool) error
+	LoginOIDCStub        func(context.Context, string, bool, bool, bool) error
 	loginOIDCMutex       sync.RWMutex
 	loginOIDCArgsForCall []struct {
 		arg1 context.Context
 		arg2 string
 		arg3 bool
 		arg4 bool
+		arg5 bool
 	}
 	loginOIDCReturns struct {
 		result1 error
@@ -64,7 +66,7 @@ type FakeLoginService struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeLoginService) Login(arg1 context.Context, arg2 string, arg3 string, arg4 string, arg5 bool) error {
+func (fake *FakeLoginService) Login(arg1 context.Context, arg2 string, arg3 string, arg4 string, arg5 bool, arg6 bool) error {
 	fake.loginMutex.Lock()
 	ret, specificReturn := fake.loginReturnsOnCall[len(fake.loginArgsForCall)]
 	fake.loginArgsForCall = append(fake.loginArgsForCall, struct {
@@ -73,13 +75,14 @@ func (fake *FakeLoginService) Login(arg1 context.Context, arg2 string, arg3 stri
 		arg3 string
 		arg4 string
 		arg5 bool
-	}{arg1, arg2, arg3, arg4, arg5})
+		arg6 bool
+	}{arg1, arg2, arg3, arg4, arg5, arg6})
 	stub := fake.LoginStub
 	fakeReturns := fake.loginReturns
-	fake.recordInvocation("Login", []interface{}{arg1, arg2, arg3, arg4, arg5})
+	fake.recordInvocation("Login", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6})
 	fake.loginMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4, arg5)
+		return stub(arg1, arg2, arg3, arg4, arg5, arg6)
 	}
 	if specificReturn {
 		return ret.result1
@@ -93,17 +96,17 @@ func (fake *FakeLoginService) LoginCallCount() int {
 	return len(fake.loginArgsForCall)
 }
 
-func (fake *FakeLoginService) LoginCalls(stub func(context.Context, string, string, string, bool) error) {
+func (fake *FakeLoginService) LoginCalls(stub func(context.Context, string, string, string, bool, bool) error) {
 	fake.loginMutex.Lock()
 	defer fake.loginMutex.Unlock()
 	fake.LoginStub = stub
 }
 
-func (fake *FakeLoginService) LoginArgsForCall(i int) (context.Context, string, string, string, bool) {
+func (fake *FakeLoginService) LoginArgsForCall(i int) (context.Context, string, string, string, bool, bool) {
 	fake.loginMutex.RLock()
 	defer fake.loginMutex.RUnlock()
 	argsForCall := fake.loginArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5, argsForCall.arg6
 }
 
 func (fake *FakeLoginService) LoginReturns(result1 error) {
@@ -129,7 +132,7 @@ func (fake *FakeLoginService) LoginReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeLoginService) LoginOIDC(arg1 context.Context, arg2 string, arg3 bool, arg4 bool) error {
+func (fake *FakeLoginService) LoginOIDC(arg1 context.Context, arg2 string, arg3 bool, arg4 bool, arg5 bool) error {
 	fake.loginOIDCMutex.Lock()
 	ret, specificReturn := fake.loginOIDCReturnsOnCall[len(fake.loginOIDCArgsForCall)]
 	fake.loginOIDCArgsForCall = append(fake.loginOIDCArgsForCall, struct {
@@ -137,13 +140,14 @@ func (fake *FakeLoginService) LoginOIDC(arg1 context.Context, arg2 string, arg3 
 		arg2 string
 		arg3 bool
 		arg4 bool
-	}{arg1, arg2, arg3, arg4})
+		arg5 bool
+	}{arg1, arg2, arg3, arg4, arg5})
 	stub := fake.LoginOIDCStub
 	fakeReturns := fake.loginOIDCReturns
-	fake.recordInvocation("LoginOIDC", []interface{}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("LoginOIDC", []interface{}{arg1, arg2, arg3, arg4, arg5})
 	fake.loginOIDCMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4)
+		return stub(arg1, arg2, arg3, arg4, arg5)
 	}
 	if specificReturn {
 		return ret.result1
@@ -157,17 +161,17 @@ func (fake *FakeLoginService) LoginOIDCCallCount() int {
 	return len(fake.loginOIDCArgsForCall)
 }
 
-func (fake *FakeLoginService) LoginOIDCCalls(stub func(context.Context, string, bool, bool) error) {
+func (fake *FakeLoginService) LoginOIDCCalls(stub func(context.Context, string, bool, bool, bool) error) {
 	fake.loginOIDCMutex.Lock()
 	defer fake.loginOIDCMutex.Unlock()
 	fake.LoginOIDCStub = stub
 }
 
-func (fake *FakeLoginService) LoginOIDCArgsForCall(i int) (context.Context, string, bool, bool) {
+func (fake *FakeLoginService) LoginOIDCArgsForCall(i int) (context.Context, string, bool, bool, bool) {
 	fake.loginOIDCMutex.RLock()
 	defer fake.loginOIDCMutex.RUnlock()
 	argsForCall := fake.loginOIDCArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
 func (fake *FakeLoginService) LoginOIDCReturns(result1 error) {

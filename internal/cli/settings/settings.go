@@ -40,13 +40,19 @@ var (
 type Settings struct {
 	Namespace string       `mapstructure:"namespace"` // Currently targeted namespace
 	User      string       `mapstructure:"user"`
-	Password  string       `mapstructure:"pass"` // nolint:gosec // intentional auth field for API
-	Token     TokenSetting `mapstructure:"token"`
-	API       string       `mapstructure:"api"`
-	WSS       string       `mapstructure:"wss"`
-	Certs     string       `mapstructure:"certs"`
-	Colors    bool         `mapstructure:"colors"`
+	Password  string       `mapstructure:"pass"`    // nolint:gosec // intentional auth field for API
+	Token     TokenSetting `mapstructure:"token"`   // OIDC token information
+	API       string       `mapstructure:"api"`     // Epinio API URL
+	WSS       string       `mapstructure:"wss"`     // Epinio websocket URL
+	Certs     string       `mapstructure:"certs"`   // PEM encoded trusted certificates
+	Colors    bool         `mapstructure:"colors"`  // Enable or disable colors in output
 	AppChart  string       `mapstructure:"appchart"` // Current default app chart (name)
+
+	// Headers contains custom HTTP headers that should be sent with every
+	// request made by the epinio CLI. This is primarily used for proxy
+	// authentication scenarios (for example, Proxy-Authorization headers
+	// when running behind an IAP or similar proxy).
+	Headers http.Header `mapstructure:"headers"`
 
 	Location string // Origin of data, file which was loaded
 
@@ -192,6 +198,7 @@ func (c *Settings) Save() error {
 	c.v.Set("wss", c.WSS)
 	c.v.Set("certs", c.Certs)
 	c.v.Set("colors", c.Colors)
+	c.v.Set("headers", c.Headers)
 
 	c.log.Info("Saving", "to", c.v.ConfigFileUsed())
 

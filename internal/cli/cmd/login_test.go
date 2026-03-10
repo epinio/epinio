@@ -36,7 +36,7 @@ var _ = Describe("Command 'epinio login' and 'epinio logout'", func() {
 			loginCmd := cmd.NewLoginCmd(mockLoginService)
 
 			// https schema
-			mockLoginService.LoginStub = func(_ context.Context, _, _, addr string, _ bool) error {
+			mockLoginService.LoginStub = func(_ context.Context, _, _, addr string, _ bool, _ bool) error {
 				Expect(addr).To(Equal("https://epinio.io"))
 				return nil
 			}
@@ -49,7 +49,7 @@ var _ = Describe("Command 'epinio login' and 'epinio logout'", func() {
 			Expect(mockLoginService.LoginOIDCCallCount()).To(BeZero())
 
 			// http schema
-			mockLoginService.LoginStub = func(_ context.Context, _, _, addr string, _ bool) error {
+			mockLoginService.LoginStub = func(_ context.Context, _, _, addr string, _ bool, _ bool) error {
 				Expect(addr).To(Equal("http://epinio.io"))
 				return nil
 			}
@@ -59,7 +59,7 @@ var _ = Describe("Command 'epinio login' and 'epinio logout'", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			// no schema
-			mockLoginService.LoginStub = func(_ context.Context, _, _, addr string, _ bool) error {
+			mockLoginService.LoginStub = func(_ context.Context, _, _, addr string, _ bool, _ bool) error {
 				Expect(addr).To(Equal("https://epinio.io"))
 				return nil
 			}
@@ -74,11 +74,12 @@ var _ = Describe("Command 'epinio login' and 'epinio logout'", func() {
 
 			username, password, address := "myuser", "mypassword", "https://epinio.io"
 
-			mockLoginService.LoginStub = func(_ context.Context, user, pass, addr string, trustCA bool) error {
+			mockLoginService.LoginStub = func(_ context.Context, user, pass, addr string, trustCA, rememberHeaders bool) error {
 				Expect(user).To(Equal(username))
 				Expect(pass).To(Equal(password))
 				Expect(addr).To(Equal(address))
 				Expect(trustCA).To(BeTrue())
+				Expect(rememberHeaders).To(BeFalse())
 
 				return nil
 			}
@@ -103,10 +104,11 @@ var _ = Describe("Command 'epinio login' and 'epinio logout'", func() {
 
 			address := "https://epinio.io"
 
-			mockLoginService.LoginOIDCStub = func(_ context.Context, addr string, trustCA, prompt bool) error {
+			mockLoginService.LoginOIDCStub = func(_ context.Context, addr string, trustCA, prompt, rememberHeaders bool) error {
 				Expect(addr).To(Equal(address))
 				Expect(trustCA).To(BeTrue())
 				Expect(prompt).To(BeTrue())
+				Expect(rememberHeaders).To(BeFalse())
 
 				return nil
 			}
@@ -118,6 +120,42 @@ var _ = Describe("Command 'epinio login' and 'epinio logout'", func() {
 			Expect(mockLoginService.LoginOIDCCallCount()).To(Equal(1))
 			// Login should not have been called
 			Expect(mockLoginService.LoginCallCount()).To(BeZero())
+		})
+
+		It("passes remember-header to Login when flag is set", func() {
+			loginCmd := cmd.NewLoginCmd(mockLoginService)
+
+			address := "https://epinio.io"
+
+			mockLoginService.LoginStub = func(_ context.Context, user, pass, addr string, trustCA, rememberHeaders bool) error {
+				Expect(addr).To(Equal(address))
+				Expect(rememberHeaders).To(BeTrue())
+				return nil
+			}
+
+			args := []string{address, "--user", "myuser", "--password", "mypassword", "--remember-header"}
+			_, _, err := executeCmd(loginCmd, args, nil, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(mockLoginService.LoginCallCount()).To(Equal(1))
+		})
+
+		It("passes remember-header to LoginOIDC when flag is set", func() {
+			loginCmd := cmd.NewLoginCmd(mockLoginService)
+
+			address := "https://epinio.io"
+
+			mockLoginService.LoginOIDCStub = func(_ context.Context, addr string, trustCA, prompt, rememberHeaders bool) error {
+				Expect(addr).To(Equal(address))
+				Expect(rememberHeaders).To(BeTrue())
+				return nil
+			}
+
+			args := []string{address, "--oidc", "--remember-header"}
+			_, _, err := executeCmd(loginCmd, args, nil, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(mockLoginService.LoginOIDCCallCount()).To(Equal(1))
 		})
 
 	})

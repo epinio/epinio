@@ -104,12 +104,25 @@ func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 	// Set overall client timeout (0 = no timeout, we rely on context cancellation)
 	httpClient.Timeout = 0
 
-	return &Client{
-		log:           log,
-		Settings:      settings,
-		HttpClient:    httpClient,
+	client := &Client{
+		log:        log,
+		Settings:   settings,
+		HttpClient: httpClient,
+		// Initialize with any persisted headers from the settings file so
+		// that they are automatically applied to all requests. These can
+		// later be overridden or extended by the global --header flag.
 		customHeaders: http.Header{},
 	}
+
+	if settings != nil && settings.Headers != nil {
+		for key, values := range settings.Headers {
+			for _, value := range values {
+				client.customHeaders.Add(key, value)
+			}
+		}
+	}
+
+	return client
 }
 
 func (c *Client) SetHeader(key, value string) {

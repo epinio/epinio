@@ -21,17 +21,18 @@ import (
 
 //counterfeiter:generate -header ../../../LICENSE_HEADER . LoginService
 type LoginService interface {
-	LoginOIDC(ctx context.Context, address string, trustCA, prompt bool) error
-	Login(ctx context.Context, username, password, address string, trustCA bool) error
+	LoginOIDC(ctx context.Context, address string, trustCA, prompt, rememberHeaders bool) error
+	Login(ctx context.Context, username, password, address string, trustCA, rememberHeaders bool) error
 	Logout(ctx context.Context) error
 }
 
 type LoginConfig struct {
-	user     string
-	password string
-	trustCA  bool
-	oidc     bool
-	prompt   bool
+	user            string
+	password        string
+	trustCA         bool
+	oidc            bool
+	prompt          bool
+	rememberHeaders bool
 }
 
 // NewLoginCmd returns a new 'epinio login' command
@@ -59,9 +60,9 @@ func NewLoginCmd(client LoginService) *cobra.Command {
 			}
 
 			if cfg.oidc {
-				return client.LoginOIDC(cmd.Context(), address, cfg.trustCA, cfg.prompt)
+				return client.LoginOIDC(cmd.Context(), address, cfg.trustCA, cfg.prompt, cfg.rememberHeaders)
 			}
-			return client.Login(cmd.Context(), cfg.user, cfg.password, address, cfg.trustCA)
+			return client.Login(cmd.Context(), cfg.user, cfg.password, address, cfg.trustCA, cfg.rememberHeaders)
 		},
 	}
 
@@ -70,6 +71,7 @@ func NewLoginCmd(client LoginService) *cobra.Command {
 	loginCmd.Flags().BoolVar(&cfg.trustCA, "trust-ca", false, "automatically trust the unknown CA")
 	loginCmd.Flags().BoolVar(&cfg.oidc, "oidc", false, "perform OIDC authentication (user and password will be ignored)")
 	loginCmd.Flags().BoolVar(&cfg.prompt, "prompt", false, "enable the prompt of the authorization code and disable the local server during OIDC authentication")
+	loginCmd.Flags().BoolVar(&cfg.rememberHeaders, "remember-header", false, "persist custom headers used during login to the settings file")
 
 	return loginCmd
 }

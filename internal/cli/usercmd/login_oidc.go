@@ -31,7 +31,7 @@ import (
 
 // LoginOIDC implements the "public client" flow of dex:
 // https://dexidp.io/docs/custom-scopes-claims-clients/#public-clients
-func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, prompt bool) error {
+func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, prompt, rememberHeaders bool) error {
 	var err error
 
 	log := c.Log.WithName("Login")
@@ -84,6 +84,20 @@ func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, p
 
 	// get the custom headers of the original client
 	customHeaders := c.API.Headers()
+
+	if rememberHeaders {
+		// Persist the current custom headers into the settings so that, for
+		// example, proxy authentication headers passed via the global
+		// --header flag are reused for subsequent commands without having
+		// to repeat the flag.
+		if len(customHeaders) > 0 {
+			updatedSettings.Headers = customHeaders.Clone()
+		}
+	} else {
+		// Explicitly clear any previously stored headers when the user
+		// does not opt in to remembering headers.
+		updatedSettings.Headers = nil
+	}
 
 	// verify that settings are valid
 	err = verifyCredentials(ctx, updatedSettings, customHeaders)
