@@ -16,13 +16,13 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/mask"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -73,51 +73,71 @@ func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][
 		}
 	}
 
-	for _, configuration := range configurations {
-		configurationDetails, err := configuration.Details(ctx)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				continue // Configuration was deleted, ignore it
-			} else {
-				return models.ConfigurationResponseList{}, err
+	// Fetch details for each configuration concurrently.
+	results := make([]*models.ConfigurationResponse, len(configurations))
+	group, groupCtx := errgroup.WithContext(ctx)
+	for i, configuration := range configurations {
+		i, configuration := i, configuration
+		group.Go(func() error {
+			configurationDetails, err := configuration.Details(groupCtx)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil // leave results[i] nil, filtered below
+				}
+				return err
 			}
-		}
 
-		// SECURITY: Mask configuration details to prevent secret exposure in API responses
-		maskedDetails := mask.MaskMap(configurationDetails)
+			key := application.EncodeConfigurationKey(
+				configuration.Name,
+				configuration.Namespace(),
+			)
+			appNames := appsOf[key]
 
-		key := application.EncodeConfigurationKey(configuration.Name, configuration.Namespace())
-		appNames := appsOf[key]
+			// For service-based configuration, pull siblings out of the map
+			siblings := []string{}
+			if configuration.Origin != "" {
+				key := fmt.Sprintf(
+					"n%s/o%s",
+					configuration.Namespace(),
+					configuration.Origin,
+				)
 
-		// For service-based configuration, pull siblings out of the map. Itself excluded, of course.
-
-		siblings := []string{}
-		if configuration.Origin != "" {
-			key := fmt.Sprintf("n%s/o%s", configuration.Namespace(), configuration.Origin)
-			for _, maybeSibling := range siblingMap[key] {
-				if maybeSibling != configuration.Name {
-					siblings = append(siblings, maybeSibling)
+				for _, maybeSibling := range siblingMap[key] {
+					if maybeSibling != configuration.Name {
+						siblings = append(siblings, maybeSibling)
+					}
 				}
 			}
-		}
 
-		response = append(response, models.ConfigurationResponse{
-			Meta: models.ConfigurationRef{
-				Meta: models.Meta{
-					CreatedAt: configuration.CreatedAt,
-					Name:      configuration.Name,
-					Namespace: configuration.Namespace(),
+			results[i] = &models.ConfigurationResponse{
+				Meta: models.ConfigurationRef{
+					Meta: models.Meta{
+						CreatedAt: configuration.CreatedAt,
+						Name:      configuration.Name,
+						Namespace: configuration.Namespace(),
+					},
 				},
-			},
-			Configuration: models.ConfigurationShowResponse{
-				Username:  configuration.User(),
-				Details:   maskedDetails,
-				BoundApps: appNames,
-				Type:      configuration.Type,
-				Origin:    configuration.Origin,
-				Siblings:  siblings,
-			},
+				Configuration: models.ConfigurationShowResponse{
+					Username:  configuration.User(),
+					Details:   configurationDetails,
+					BoundApps: appNames,
+					Type:      configuration.Type,
+					Origin:    configuration.Origin,
+					Siblings:  siblings,
+				},
+			}
+			return nil
 		})
+	}
+
+	if err := group.Wait(); err != nil {
+		return models.ConfigurationResponseList{}, err
+	}
+
+	for _, r := range results {
+		if r != nil {
+			response = append(response, *r)
+		}
 	}
 
 	return response, nil
