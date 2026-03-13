@@ -320,7 +320,9 @@ type NamespacedResource interface {
 
 // FilterResources returns only the NamespacedResources where the user has permissions
 func FilterResources[T NamespacedResource](user User, resources []T) []T {
-	if user.IsAdmin() {
+	// Admins and users with at least one global role (e.g. view_only, application_manager)
+	// can see resources in all namespaces.
+	if user.IsAdmin() || user.HasGlobalRole() {
 		return resources
 	}
 
@@ -345,7 +347,9 @@ type GitconfigResource interface {
 
 // FilterResources returns only the GitconfigResources where the user has permissions
 func FilterGitconfigResources[T GitconfigResource](user User, resources []T) []T {
-	if user.IsAdmin() {
+	// Admins and users with at least one global role (e.g. view_only, application_manager)
+	// can see gitconfigs in all namespaces.
+	if user.IsAdmin() || user.HasGlobalRole() {
 		return resources
 	}
 
