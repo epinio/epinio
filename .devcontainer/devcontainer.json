@@ -12,35 +12,33 @@
       "version": "1.24"
     }
   },
-  "forwardPorts": [
-    443,
-    80,
-    8443
-  ],
+  "forwardPorts": [443, 80, 8443],
   // "appPort": ["443:443", "80:80", "8443:8443"], // nixos/linux only .. vscode on macos crashes with this
   "postCreateCommand": "bash .devcontainer/setup.sh",
   "postStartCommand": "bash .devcontainer/start.sh",
   "remoteEnv": {
-    "KUBECONFIG": "/home/vscode/.kube/config"
+    "KUBECONFIG": "/home/vscode/.kube/config",
+    "EPINIO_CHART_SOURCE": "local",
+    "EPINIO_CHART_VERSION": ""
   },
-"customizations": {
-  "vscode": {
-    "extensions": [
-      "ms-kubernetes-tools.vscode-kubernetes-tools",
-      "golang.go",
-      "emeraldwalk.RunOnSave"
-    ],
-    "settings": {
-      "emeraldwalk.runonsave": {
-        "commands": [
-          {
-            "match": "\\.go$",
-            "cmd": "bash .devcontainer/dev-reload.sh 2>&1 | tee /tmp/dev-reload-output.log"
-          }
-        ]
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "golang.go",
+        "emeraldwalk.RunOnSave"
+      ],
+      "settings": {
+        "emeraldwalk.runonsave": {
+          "commands": [
+            {
+              "match": "\\.go$",
+              "cmd": "bash .devcontainer/dev-reload.sh"
+            }
+          ]
+        }
       }
     }
-  }
-},
+  },
   "remoteUser": "vscode"
 }
