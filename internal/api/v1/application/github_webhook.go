@@ -115,7 +115,11 @@ func GitHubWebhook(c *gin.Context) apierror.APIErrors {
 	}
 
 	pushBranch := refToBranchName(payload.Ref)
-	if origin.Git.Branch != "" && pushBranch != "" && !strings.EqualFold(origin.Git.Branch, pushBranch) {
+	trackedBranch := strings.TrimSpace(origin.Git.Branch)
+	if strings.EqualFold(trackedBranch, "HEAD") {
+		trackedBranch = ""
+	}
+	if trackedBranch != "" && pushBranch != "" && !strings.EqualFold(trackedBranch, pushBranch) {
 		log.Infow("github webhook ignored: branch mismatch",
 			"app", appName, "tracked", origin.Git.Branch, "push", pushBranch)
 		c.JSON(http.StatusOK, models.ResponseOK)

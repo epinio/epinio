@@ -115,6 +115,38 @@ var _ = Describe("Manager", func() {
 			})
 		})
 
+		When("a configuration for a whole provider is matching for ssh scheme", func() {
+			It("returns the provider configuration", func() {
+				configs := []git.Configuration{
+					newConfiguration("github", "https://github.com", "", ""),
+				}
+
+				manager := &git.Manager{Configurations: configs}
+
+				config, err := manager.FindConfiguration("ssh://git@github.com/username/repo")
+				Expect(config).ToNot(BeNil())
+				Expect(err).To(BeNil())
+				Expect(config.ID).To(Equal("github"))
+			})
+		})
+
+		When("multiple configs match and one has an ssh private key", func() {
+			It("prefers the config with private key", func() {
+				withoutKey := newConfiguration("github-no-key", "https://github.com", "", "")
+				withKey := newConfiguration("github-with-key", "https://github.com", "", "")
+				withKey.PrivateKey = []byte("ssh-private-key-bytes")
+
+				// Intentionally order the config without a key first to ensure selection
+				// is not based purely on index/order.
+				manager := &git.Manager{Configurations: []git.Configuration{withoutKey, withKey}}
+
+				config, err := manager.FindConfiguration("https://github.com/username/repo")
+				Expect(err).To(BeNil())
+				Expect(config).ToNot(BeNil())
+				Expect(config.ID).To(Equal("github-with-key"))
+			})
+		})
+
 		When("a configuration for the org is matching", func() {
 			It("returns the org configuration", func() {
 				configs := []git.Configuration{

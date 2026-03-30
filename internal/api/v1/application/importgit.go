@@ -74,10 +74,13 @@ package application
 
 import (
 	"context"
+	"bytes"
 	"errors"
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
@@ -95,8 +98,9 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/skeema/knownhosts"
 )
 
 // ImportGit handles the API endpoint /namespaces/:namespace/applications/:app/import-git.
@@ -157,9 +161,19 @@ func ImportGitRun(ctx context.Context, cluster *kubernetes.Cluster, namespace, n
 	}
 
 	if gitConfig != nil {
-		log.Infow("loaded git config", "gitConfig", gitConfig.ID)
+		log.Infow("loaded git config",
+			"giturl", giturl,
+			"gitConfig", gitConfig.ID,
+			"provider", gitConfig.Provider,
+			"userOrg", gitConfig.UserOrg,
+			"repository", gitConfig.Repository,
+			"ssh_private_key_configured", len(gitConfig.PrivateKey) > 0,
+		)
 	} else {
-		log.Infow("git config not found for giturl", "giturl", giturl)
+		log.Infow("git config not found for giturl",
+			"giturl", giturl,
+			"revision", revision,
+		)
 	}
 
 	// clone/fetch/checkout
@@ -250,9 +264,14 @@ var (
 // It will also try to find the matching branch/reference, and if found this will be returned
 func checkoutRepository(ctx context.Context, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
 	log := requestctx.Logger(ctx)
-	cloneOptions, err := configureCloneOptions(git.CloneOptions{}, url, gitconfig)
+	cloneOptions, knownHostsTempDir, err := configureCloneOptions(ctx, git.CloneOptions{}, url, gitconfig)
 	if err != nil {
 		return nil, err
+	}
+	if knownHostsTempDir != "" {
+		defer func() {
+			_ = os.RemoveAll(knownHostsTempDir)
+		}()
 	}
 
 	if revision == "" {
@@ -308,22 +327,197 @@ func checkoutRepository(ctx context.Context, gitRepo, url, revision string, gitc
 	return ref, nil
 }
 
+// insecurePublicKeys is a go-git SSH AuthMethod implementation that disables host key verification
+// without requiring any known_hosts file to exist.
+//
+// go-git still tries to load known_hosts when HostKeyAlgorithms is empty, so we provide a small
+// explicit set of common algorithms.
+type insecurePublicKeys struct {
+	user   string
+	signer ssh.Signer
+}
+
+func (a *insecurePublicKeys) Name() string {
+	return "ssh-public-keys-insecure"
+}
+
+func (a *insecurePublicKeys) String() string {
+	return fmt.Sprintf("user: %s, name: %s", a.user, a.Name())
+}
+
+func (a *insecurePublicKeys) ClientConfig() (*ssh.ClientConfig, error) {
+	return &ssh.ClientConfig{
+		User: a.user,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(a.signer),
+		},
+		HostKeyCallback:   ssh.InsecureIgnoreHostKey(),
+		HostKeyAlgorithms: []string{"ssh-ed25519", "ecdsa-sha2-nistp256", "ssh-rsa"},
+	}, nil
+}
+
+// knownHostsPublicKeys is a go-git SSH AuthMethod that uses a host-key DB generated at runtime.
+// This avoids relying on any external/ambient ~/.ssh/known_hosts.
+type knownHostsPublicKeys struct {
+	user             string
+	signer          ssh.Signer
+	hostWithPort    string
+	hostKeyCallback ssh.HostKeyCallback
+	hostKeyAlgos    []string
+}
+
+func (a *knownHostsPublicKeys) Name() string {
+	return "ssh-public-keys-knownhosts"
+}
+
+func (a *knownHostsPublicKeys) String() string {
+	return fmt.Sprintf("user: %s, name: %s", a.user, a.Name())
+}
+
+func (a *knownHostsPublicKeys) ClientConfig() (*ssh.ClientConfig, error) {
+	return &ssh.ClientConfig{
+		User: a.user,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(a.signer),
+		},
+		HostKeyCallback:   a.hostKeyCallback,
+		HostKeyAlgorithms: a.hostKeyAlgos,
+	}, nil
+}
+
+func gitHostFromGitURL(gitURL string) (string, error) {
+	if strings.HasPrefix(gitURL, "git@") {
+		// git@github.com:org/repo.git
+		rest := strings.TrimPrefix(gitURL, "git@")
+		idx := strings.Index(rest, ":")
+		if idx < 0 {
+			return "", fmt.Errorf("invalid scp-style git URL [%s]", gitURL)
+		}
+		return rest[:idx], nil
+	}
+	u, err := url.Parse(gitURL)
+	if err != nil {
+		return "", err
+	}
+	if u.Hostname() == "" {
+		return "", fmt.Errorf("missing hostname in git url [%s]", gitURL)
+	}
+	return u.Hostname(), nil
+}
+
+func tryBuildKnownHostsForHost(host string) (tempDir string, hostKeyCallback ssh.HostKeyCallback, hostKeyAlgos []string, ok bool) {
+	keyscanPath, err := exec.LookPath("ssh-keyscan")
+	if err != nil {
+		return "", nil, nil, false
+	}
+
+	tmpDir, err := os.MkdirTemp("", "epinio-knownhosts-")
+	if err != nil {
+		return "", nil, nil, false
+	}
+
+	knownHostsPath := filepath.Join(tmpDir, "known_hosts")
+	// Use the key types that cover GitHub/GitLab in practice.
+	// ssh-keyscan -t supports multiple -t.
+	cmd := exec.Command(
+		keyscanPath,
+		"-t", "rsa",
+		"-t", "ed25519",
+		host,
+	)
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		_ = os.RemoveAll(tmpDir)
+		return "", nil, nil, false
+	}
+
+	if strings.TrimSpace(out.String()) == "" {
+		_ = os.RemoveAll(tmpDir)
+		return "", nil, nil, false
+	}
+
+	// Persist known_hosts for parsing.
+	if err := os.WriteFile(knownHostsPath, out.Bytes(), 0600); err != nil {
+		_ = os.RemoveAll(tmpDir)
+		return "", nil, nil, false
+	}
+
+	hkdb, err := knownhosts.NewDB(knownHostsPath)
+	if err != nil {
+		_ = os.RemoveAll(tmpDir)
+		return "", nil, nil, false
+	}
+
+	hostWithPort := fmt.Sprintf("%s:22", host)
+	algos := hkdb.HostKeyAlgorithms(hostWithPort)
+	if len(algos) == 0 {
+		_ = os.RemoveAll(tmpDir)
+		return "", nil, nil, false
+	}
+
+	return tmpDir, hkdb.HostKeyCallback(), algos, true
+}
+
 // configureCloneOptions sets URL, transport, and auth. Uses SSH when a private key is configured.
-func configureCloneOptions(opts git.CloneOptions, requestedURL string, config *gitbridge.Configuration) (git.CloneOptions, error) {
+func configureCloneOptions(ctx context.Context, opts git.CloneOptions, requestedURL string, config *gitbridge.Configuration) (git.CloneOptions, string, error) {
+	log := requestctx.Logger(ctx)
 	if config != nil && len(config.PrivateKey) > 0 {
 		opts.URL = toSSHCloneURL(requestedURL)
-		auth, err := gitssh.NewPublicKeys("git", config.PrivateKey, "")
+		signer, err := ssh.ParsePrivateKey(bytes.TrimSpace(config.PrivateKey))
 		if err != nil {
-			return opts, err
+			return opts, "", err
 		}
-		auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
-		opts.Auth = auth
-		return opts, nil
+
+		// Prefer generating a known_hosts for the host (if ssh-keyscan exists).
+		// This mirrors your working local `main.go` approach and avoids go-git needing any ambient files.
+		host, err := gitHostFromGitURL(requestedURL)
+		if err == nil && host != "" {
+			tempDir, cb, algos, ok := tryBuildKnownHostsForHost(host)
+			if ok && cb != nil && len(algos) > 0 {
+				opts.Auth = &knownHostsPublicKeys{
+					user:             "git",
+					signer:          signer,
+					hostWithPort:    fmt.Sprintf("%s:22", host),
+					hostKeyCallback: cb,
+					hostKeyAlgos:    algos,
+				}
+				log.Infow("importgit, ssh clone with private key; using runtime known_hosts via ssh-keyscan",
+					"requestedURL", requestedURL,
+					"cloneURL", opts.URL,
+					"host", host,
+				)
+				return opts, tempDir, nil
+			}
+		}
+
+		// Fallback: disable host verification but explicitly set algorithms so go-git doesn't try to load known_hosts files.
+		opts.Auth = &insecurePublicKeys{
+			user:   "git",
+			signer: signer,
+		}
+		log.Infow("importgit, ssh clone with private key; host key verification disabled (no known_hosts dependency)",
+			"requestedURL", requestedURL,
+			"cloneURL", opts.URL,
+			"ssh_private_key_configured", len(config.PrivateKey) > 0,
+		)
+		return opts, "", nil
 	}
 
 	opts.URL = requestedURL
 	if config == nil {
-		return opts, nil
+		return opts, "", nil
+	}
+
+	if len(config.PrivateKey) == 0 {
+		log.Infow("importgit, clone without ssh private key",
+			"requestedURL", requestedURL,
+			"gitConfig", config.ID,
+			"provider", config.Provider,
+		)
 	}
 
 	opts.InsecureSkipTLS = config.SkipSSL
@@ -339,7 +533,7 @@ func configureCloneOptions(opts git.CloneOptions, requestedURL string, config *g
 		opts.CABundle = config.Certificate
 	}
 
-	return opts, nil
+	return opts, "", nil
 }
 
 func toSSHCloneURL(gitURL string) string {

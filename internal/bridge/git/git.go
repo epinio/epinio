@@ -211,19 +211,39 @@ func (m *Manager) FindConfiguration(gitURL string) (*Configuration, error) {
 
 	toMatch := fmt.Sprintf("%s/%s/%s", gitInfo.URL, gitInfo.UserOrg, gitInfo.Repository)
 	if userOrgRepoConfigs, found := availableConfigurations[toMatch]; found {
-		return &userOrgRepoConfigs[0], nil
+		return pickBestConfiguration(userOrgRepoConfigs), nil
 	}
 
 	toMatch = fmt.Sprintf("%s/%s", gitInfo.URL, gitInfo.UserOrg)
 	if userOrgRepoConfigs, found := availableConfigurations[toMatch]; found {
-		return &userOrgRepoConfigs[0], nil
+		return pickBestConfiguration(userOrgRepoConfigs), nil
 	}
 
 	if userOrgRepoConfigs, found := availableConfigurations[gitInfo.URL]; found {
-		return &userOrgRepoConfigs[0], nil
+		return pickBestConfiguration(userOrgRepoConfigs), nil
 	}
 
 	return nil, nil
+}
+
+// pickBestConfiguration chooses the most suitable git configuration among matches.
+// Today, we prioritize configs that have an SSH private key over those without, because
+// the SSH clone path requires this to avoid host-key verification failures when
+// known_hosts isn't available.
+func pickBestConfiguration(configs []Configuration) *Configuration {
+	if len(configs) == 0 {
+		return nil
+	}
+
+	best := configs[0]
+	for i := 1; i < len(configs); i++ {
+		// Prefer SSH-capable configurations.
+		if len(configs[i].PrivateKey) > 0 && len(best.PrivateKey) == 0 {
+			best = configs[i]
+		}
+	}
+
+	return &best
 }
 
 type gitRepoInfo struct {
@@ -245,6 +265,11 @@ func newGitRepoInfoFromURL(gitURL string) (*gitRepoInfo, error) {
 
 	// gitRepoHost has the host of the gitURL, i.e.: https://github.com
 	gitRepoHost := fmt.Sprintf("%s://%s", url.Scheme, url.Host)
+	// Normalize ssh:// URLs so they match our stored gitconfig URLs (which are typically https://<host>).
+	// Without this, FindConfiguration won't locate a config created for https://github.com when the git URL is ssh://git@github.com/...
+	if url.Scheme == "ssh" {
+		gitRepoHost = fmt.Sprintf("https://%s", url.Hostname())
+	}
 
 	path := strings.TrimPrefix(url.Path, "/")
 	orgRepoPath := strings.Split(path, "/")
