@@ -22,6 +22,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/middleware"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
@@ -102,6 +103,12 @@ func NewHandler() (*gin.Engine, error) {
 	router.GET("/api/v1/info",
 		middleware.EpinioVersion,
 		apiv1.ErrorHandler(apiv1.Info),
+	)
+
+	// GitHub push webhooks (HMAC-signed; no Epinio API credentials).
+	router.POST(apiv1.Root+"/webhooks/github/:namespace/:app",
+		middleware.EpinioVersion,
+		apiv1.ErrorHandler(application.GitHubWebhook),
 	)
 
 	// authenticated /me endpoint returns the current user (no other checks/middlewares needed)

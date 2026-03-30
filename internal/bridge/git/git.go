@@ -53,6 +53,8 @@ type Configuration struct {
 	Username string
 	// The Personal Access Token
 	Password string // nolint:gosec // intentional auth field for git config
+	// PrivateKey is a PEM-encoded SSH private key (OpenSSH or RSA/ECDSA). When set, clones use SSH (git@host:…).
+	PrivateKey []byte // nolint:gosec // intentional secret material for git over SSH
 	// UserOrg is used to specify the username/organization/project
 	UserOrg string
 	// Repository is used to specify the exact repository
@@ -109,6 +111,7 @@ func NewConfigurationsFromSecrets(secrets []v1.Secret) []Configuration {
 			URL:         string(sec.Data["url"]),
 			Username:    string(sec.Data["username"]),
 			Password:    string(sec.Data["password"]),
+			PrivateKey:  sec.Data["privateKey"],
 			UserOrg:     string(sec.Data["userOrg"]),
 			Repository:  string(sec.Data["repo"]),
 			Certificate: sec.Data["certificate"],
@@ -144,6 +147,9 @@ func NewSecretFromConfiguration(config Configuration) v1.Secret {
 	dataMap = setValue(dataMap, "provider", string(config.Provider))
 	dataMap = setValue(dataMap, "username", string(config.Username))
 	dataMap = setValue(dataMap, "password", string(config.Password))
+	if len(config.PrivateKey) > 0 {
+		dataMap["privateKey"] = config.PrivateKey
+	}
 	dataMap = setValue(dataMap, "userOrg", string(config.UserOrg))
 	dataMap = setValue(dataMap, "repo", string(config.Repository))
 	dataMap = setValue(dataMap, "certificate", string(config.Certificate))
@@ -228,6 +234,10 @@ type gitRepoInfo struct {
 
 // newGitRepoInfoFromURL will create a gitRepoInfo from the full git URL
 func newGitRepoInfoFromURL(gitURL string) (*gitRepoInfo, error) {
+	if strings.HasPrefix(gitURL, "git@") {
+		return newGitRepoInfoFromSCP(gitURL)
+	}
+
 	url, err := url.Parse(gitURL)
 	if err != nil {
 		return nil, errors.Wrapf(err, "parsing gitURL [%s]", gitURL)
@@ -249,4 +259,30 @@ func newGitRepoInfoFromURL(gitURL string) (*gitRepoInfo, error) {
 	}
 
 	return info, nil
+}
+
+// ValidateRepoURL returns an error if gitURL is not a supported https/http or git@ SCP-style URL.
+func ValidateRepoURL(gitURL string) error {
+	_, err := newGitRepoInfoFromURL(gitURL)
+	return err
+}
+
+// newGitRepoInfoFromSCP parses SCP-style URLs: git@github.com:org/repo.git
+func newGitRepoInfoFromSCP(gitURL string) (*gitRepoInfo, error) {
+	rest := strings.TrimPrefix(gitURL, "git@")
+	idx := strings.Index(rest, ":")
+	if idx < 0 {
+		return nil, errors.Errorf("invalid scp-style git URL [%s]", gitURL)
+	}
+	host := rest[:idx]
+	path := strings.TrimSuffix(rest[idx+1:], ".git")
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return nil, errors.Errorf("invalid scp-style git URL [%s]: need org/repo", gitURL)
+	}
+	return &gitRepoInfo{
+		URL:        fmt.Sprintf("https://%s", host),
+		UserOrg:    parts[0],
+		Repository: parts[1],
+	}, nil
 }

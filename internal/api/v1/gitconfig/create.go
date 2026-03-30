@@ -73,12 +73,18 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewConflictError("gitconfig", gitconfigName)
 	}
 
+	var privateKey []byte
+	if request.PrivateKey != "" {
+		privateKey = []byte(request.PrivateKey)
+	}
+
 	secret := gitbridge.NewSecretFromConfiguration(gitbridge.Configuration{
 		ID:          request.ID,
 		URL:         request.URL,
 		Provider:    request.Provider,
 		Username:    request.Username,
 		Password:    request.Password,
+		PrivateKey:  privateKey,
 		UserOrg:     request.UserOrg,
 		Repository:  request.Repository,
 		SkipSSL:     request.SkipSSL,

@@ -301,6 +301,9 @@ type DeployRequest struct {
 type DeployResponse struct {
 	Routes   []string `json:"routes,omitempty"`
 	Warnings []string `json:"warnings,omitempty"`
+	// WebhookURL and WebhookSecret are set when the app origin is GitHub (for CI rebuild on push).
+	WebhookURL    string `json:"webhook_url,omitempty"`
+	WebhookSecret string `json:"webhook_secret,omitempty"`
 }
 
 // ApplicationDeleteRequest represents and contains the data needed to delete an application

@@ -26,6 +26,8 @@ type GitconfigCreateRequest struct {
 	SkipSSL      bool        `json:"skipssl,omitempty"`
 	Username     string      `json:"username,omitempty"`
 	Password     string      `json:"password,omitempty"` // nolint:gosec // intentional auth field for git config
+	// PrivateKey is PEM-encoded SSH private key (OpenSSH or PKCS#8). When set, Epinio clones over SSH; add the matching public key to the Git host.
+	PrivateKey   string      `json:"privatekey,omitempty"` // nolint:gosec // intentional secret for git over SSH
 	Certificates []byte      `json:"certs,omitempty"`
 }
 
@@ -40,6 +42,8 @@ type Gitconfig struct {
 	UserOrg    string      `json:"userorg,omitempty"`
 	Repository string      `json:"repository,omitempty"`
 	SkipSSL    bool        `json:"skipssl,omitempty"`
+	// SSHKeyConfigured is true when an SSH private key is stored (the key itself is never returned).
+	SSHKeyConfigured bool `json:"ssh_key_configured,omitempty"`
 	// Password    string - Private, excluded
 	// Certificate []byte - Private, excluded
 }

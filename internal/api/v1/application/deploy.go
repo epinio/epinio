@@ -108,10 +108,24 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "saving the app origin")
 	}
 
-	response.OKReturn(c, models.DeployResponse{
+	deployResp := models.DeployResponse{
 		Routes:   deployResult.Routes,
 		Warnings: deployResult.Warnings,
-	})
+	}
+	if application.IsGitHubGitOrigin(req.Origin) {
+		whSecret, err := application.EnsureGitHubWebhookSecret(ctx, cluster, req.App)
+		if err != nil {
+			return apierror.InternalError(err, "ensuring GitHub webhook secret")
+		}
+		whURL, err := application.GitHubWebhookPublicURL(ctx, req.App)
+		if err != nil {
+			return apierror.InternalError(err, "computing GitHub webhook URL")
+		}
+		deployResp.WebhookURL = whURL
+		deployResp.WebhookSecret = whSecret
+	}
+
+	response.OKReturn(c, deployResp)
 	return nil
 }
 

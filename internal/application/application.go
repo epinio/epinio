@@ -1389,6 +1389,8 @@ func aggregate(ctx context.Context,
 	app.ImageURL = imageURL
 	app.Staging.Builder = builderURL
 
+	FillGitHubWebhookInfo(ctx, app, &appCR)
+
 	// IV. Assemble the deployment structure for active applications.
 
 	podMetrics := []metricsv1beta1.PodMetrics{}
@@ -1550,6 +1552,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.StageID = stageID
 	app.ImageURL = imageURL
 	app.Staging.Builder = builderURL
+
+	FillGitHubWebhookInfo(ctx, app, applicationCR)
 
 	// Check if app is active, and if yes, fill the associated parts.  May have to
 	// straighten the workload structure a bit further.

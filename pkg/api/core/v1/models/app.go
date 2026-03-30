@@ -105,6 +105,10 @@ type App struct {
 	StatusMessage string                   `json:"statusmessage"`
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
 	ImageURL      string                   `json:"image_url"`
+	// WebhookURL is the GitHub webhook target when the app is deployed from GitHub (configure in repo settings).
+	WebhookURL string `json:"webhook_url,omitempty"`
+	// WebhookSecret is the HMAC secret to enter in GitHub alongside the webhook URL (stored on the App CRD).
+	WebhookSecret string `json:"webhook_secret,omitempty"`
 }
 
 type PodInfo struct {

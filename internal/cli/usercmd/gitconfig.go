@@ -25,7 +25,7 @@ import (
 // CreateGitconfig creates a gitconfig
 func (c *EpinioClient) CreateGitconfig(id,
 	providerString, url, user, password, userorg, repo, certfile string,
-	skipssl bool) error {
+	skipssl bool, privateKeyFile string) error {
 
 	log := c.Log.WithName("CreateGitconfig").WithValues("gitconfig", id)
 	log.Info("start")
@@ -41,6 +41,7 @@ func (c *EpinioClient) CreateGitconfig(id,
 		WithStringValue("Password", password).
 		WithBoolValue("Skip SSL", skipssl).
 		WithStringValue("Certificates from", certfile).
+		WithStringValue("SSH private key from", privateKeyFile).
 		Msg("Creating gitconfig...")
 
 	errorMsgs := validation.IsDNS1123Subdomain(id)
@@ -63,6 +64,15 @@ func (c *EpinioClient) CreateGitconfig(id,
 		certs = content
 	}
 
+	privateKey := ""
+	if privateKeyFile != "" {
+		pk, err := os.ReadFile(privateKeyFile)
+		if err != nil {
+			return errors.Wrapf(err, "read SSH private key")
+		}
+		privateKey = string(pk)
+	}
+
 	_, err = c.API.GitconfigCreate(models.GitconfigCreateRequest{
 		ID:           id,
 		Provider:     provider,
@@ -71,6 +81,7 @@ func (c *EpinioClient) CreateGitconfig(id,
 		Repository:   repo,
 		Username:     user,
 		Password:     password,
+		PrivateKey:   privateKey,
 		SkipSSL:      skipssl,
 		Certificates: certs,
 	})
@@ -118,9 +129,13 @@ func (c *EpinioClient) Gitconfigs() error {
 	}
 
 	sort.Sort(gitconfigs)
-	msg := c.ui.Success().WithTable("ID", "Provider", "URL", "User/Org", "Repository", "Skip SSL", "Username")
+	msg := c.ui.Success().WithTable("ID", "Provider", "URL", "User/Org", "Repository", "Skip SSL", "Username", "SSH key")
 
 	for _, gitconfig := range gitconfigs {
+		sshCol := "no"
+		if gitconfig.SSHKeyConfigured {
+			sshCol = "yes"
+		}
 		msg = msg.WithTableRow(
 			gitconfig.Meta.Name,
 			// gitconfig.Meta.CreatedAt.String(),
@@ -130,6 +145,7 @@ func (c *EpinioClient) Gitconfigs() error {
 			gitconfig.Repository,
 			fmt.Sprintf("%v", gitconfig.SkipSSL),
 			gitconfig.Username,
+			sshCol,
 		)
 	}
 
@@ -216,6 +232,10 @@ func (c *EpinioClient) ShowGitconfig(gcName string) error {
 		return err
 	}
 
+	sshRow := "no"
+	if gitconfig.SSHKeyConfigured {
+		sshRow = "yes"
+	}
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", gitconfig.Meta.Name).
 		// WithTableRow("Created", gitconfig.Meta.CreatedAt.String()).
@@ -225,6 +245,7 @@ func (c *EpinioClient) ShowGitconfig(gcName string) error {
 		WithTableRow("Repository", gitconfig.Repository).
 		WithTableRow("Skip SSL", fmt.Sprintf("%v", gitconfig.SkipSSL)).
 		WithTableRow("Username", gitconfig.Username).
+		WithTableRow("SSH private key configured", sshRow).
 		Msg("Details:")
 
 	return nil

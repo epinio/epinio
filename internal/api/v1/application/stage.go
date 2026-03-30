@@ -159,7 +159,6 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, config StagingS
 // It creates a Job resource to stage the app
 func Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -199,11 +198,23 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError("staging job for image ID still running")
 	}
 
+	stageResponse, apiErr := StageRun(ctx, cluster, req, username, app, namespace)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	response.OKReturn(c, *stageResponse)
+	return nil
+}
+
+// StageRun creates the staging Job and returns the stage id and image URL (before the image exists).
+func StageRun(ctx context.Context, cluster *kubernetes.Cluster, req models.StageRequest, username string, app *unstructured.Unstructured, namespace string) (*models.StageResponse, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
 	// get builder image from either request, application, or default as final fallback
 
 	builderImage, builderErr := getBuilderImage(req, app)
 	if builderErr != nil {
-		return builderErr
+		return nil, builderErr
 	}
 	if builderImage == "" {
 		builderImage = viper.GetString("default-builder-image")
@@ -214,7 +225,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 
 	config, err := DetermineStagingScripts(ctx, cluster, helmchart.Namespace(), builderImage)
 	if err != nil {
-		return apierror.InternalError(err, "failed to retrieve staging configuration")
+		return nil, apierror.InternalError(err, "failed to retrieve staging configuration")
 	}
 
 	log.Infow("staging app", "scripts", config.Name)
@@ -230,24 +241,24 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
-		return apierror.InternalError(err, "failed to fetch the S3 connection details")
+		return nil, apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
 	blobUID, blobErr := getBlobUID(ctx, s3ConnectionDetails, req, app)
 	if blobErr != nil {
-		return blobErr
+		return nil, blobErr
 	}
 
 	// Create uid identifying the staging job to be
 
 	uid, err := randstr.Hex16()
 	if err != nil {
-		return apierror.InternalError(err, "failed to generate a uid")
+		return nil, apierror.InternalError(err, "failed to generate a uid")
 	}
 
 	environment, err := application.Environment(ctx, cluster, req.App)
 	if err != nil {
-		return apierror.InternalError(err, "failed to access application runtime environment")
+		return nil, apierror.InternalError(err, "failed to access application runtime environment")
 	}
 
 	owner := metav1.OwnerReference{
@@ -261,7 +272,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	// From the view of the new build we are about to create this is the previous id.
 	previousID, err := application.StageID(app)
 	if err != nil {
-		return apierror.InternalError(err, "failed to determine application stage id")
+		return nil, apierror.InternalError(err, "failed to determine application stage id")
 	}
 	if previousID == "" {
 		previousID = uid
@@ -269,7 +280,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 
 	registryPublicURL, err := getRegistryURL(ctx, cluster)
 	if err != nil {
-		return apierror.InternalError(err, "getting the Epinio registry public URL")
+		return nil, apierror.InternalError(err, "getting the Epinio registry public URL")
 	}
 
 	registryCertificateSecret := viper.GetString("registry-certificate-secret")
@@ -277,7 +288,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	if registryCertificateSecret != "" {
 		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.Namespace(), registryCertificateSecret)
 		if err != nil {
-			return apierror.InternalError(err, "cannot calculate Certificate hash")
+			return nil, apierror.InternalError(err, "cannot calculate Certificate hash")
 		}
 	}
 
@@ -314,14 +325,14 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	if !params.HelmValues.Storage.Cache.EmptyDir {
 		err = ensurePVC(ctx, cluster, params.HelmValues.Storage.Cache, req.App.MakeCachePVCName())
 		if err != nil {
-			return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application cache")
+			return nil, apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application cache")
 		}
 	}
 
 	if !params.HelmValues.Storage.SourceBlobs.EmptyDir {
 		err = ensurePVC(ctx, cluster, params.HelmValues.Storage.SourceBlobs, req.App.MakeSourceBlobsPVCName())
 		if err != nil {
-			return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application source blobs")
+			return nil, apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application source blobs")
 		}
 	}
 
@@ -330,27 +341,26 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	// Note: The secret is deleted with the job in function `Unstage()`.
 	err = cluster.CreateSecret(ctx, helmchart.Namespace(), *jobenv)
 	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("failed to create job env: %#v", jobenv))
+		return nil, apierror.InternalError(err, fmt.Sprintf("failed to create job env: %#v", jobenv))
 	}
 
 	err = cluster.CreateJob(ctx, helmchart.Namespace(), job)
 	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("failed to create job run: %#v", job))
+		return nil, apierror.InternalError(err, fmt.Sprintf("failed to create job run: %#v", job))
 	}
 
 	if err := updateApp(ctx, cluster, app, params); err != nil {
-		return apierror.InternalError(err, "updating application CR with staging information")
+		return nil, apierror.InternalError(err, "updating application CR with staging information")
 	}
 
 	imageURL := params.ImageURL(params.RegistryURL)
 
 	log.Infow("staged app", "namespace", helmchart.Namespace(), "app", params.AppRef, "uid", uid, "image", imageURL)
 
-	response.OKReturn(c, models.StageResponse{
+	return &models.StageResponse{
 		Stage:    models.NewStage(uid),
 		ImageURL: imageURL,
-	})
-	return nil
+	}, nil
 }
 
 // stageJobs returns the jobs responsible for the staging run of the provided stageID.

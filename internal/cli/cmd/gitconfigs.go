@@ -67,13 +67,14 @@ func NewGitconfigListCmd(client *usercmd.EpinioClient) *cobra.Command {
 }
 
 type GitconfigCreateConfig struct {
-	skipSSL     bool
-	username    string
-	password    string
-	userOrg     string
-	gitProvider string
-	repository  string
-	certFile    string
+	skipSSL        bool
+	username       string
+	password       string
+	userOrg        string
+	gitProvider    string
+	repository     string
+	certFile       string
+	privateKeyFile string
 }
 
 // NewGitconfigCreateCmd returns a new 'epinio gitconfig create' command
@@ -94,6 +95,7 @@ func NewGitconfigCreateCmd(client *usercmd.EpinioClient) *cobra.Command {
 				id, cfg.gitProvider, url,
 				cfg.username, cfg.password, cfg.userOrg,
 				cfg.repository, cfg.certFile, cfg.skipSSL,
+				cfg.privateKeyFile,
 			)
 			if err != nil {
 				return errors.Wrap(err, "error creating git configuration")
@@ -109,6 +111,7 @@ func NewGitconfigCreateCmd(client *usercmd.EpinioClient) *cobra.Command {
 	gitconfigCreateCmd.Flags().StringVar(&cfg.userOrg, "user-org", "", "user/org holding repository")
 	gitconfigCreateCmd.Flags().StringVar(&cfg.repository, "repository", "", "specific repository")
 	gitconfigCreateCmd.Flags().StringVar(&cfg.certFile, "cert-file", "", "path to file holding supporting certificates")
+	gitconfigCreateCmd.Flags().StringVar(&cfg.privateKeyFile, "private-key", "", "path to PEM file with SSH private key (add matching public key to GitHub/GitLab; clone uses SSH)")
 
 	gitconfigCreateCmd.Flags().StringVar(&cfg.gitProvider, "git-provider", "git", "Git provider code [git|github|github_enterprise|gitlab|gitlab_enterprise]")
 	bindFlagCompletionFunc(gitconfigCreateCmd, "git-provider", NewStaticFlagsCompletionFunc(models.ValidProviders))

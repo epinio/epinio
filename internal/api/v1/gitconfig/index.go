@@ -52,12 +52,13 @@ func Index(c *gin.Context) apierror.APIErrors {
 				Name: gitconfig.ID,
 				// CreatedAt: -- Not tracked by gitconfig
 			},
-			URL:        gitconfig.URL,
-			Provider:   gitconfig.Provider,
-			Username:   gitconfig.Username,
-			UserOrg:    gitconfig.UserOrg,
-			Repository: gitconfig.Repository,
-			SkipSSL:    gitconfig.SkipSSL,
+			URL:              gitconfig.URL,
+			Provider:         gitconfig.Provider,
+			Username:         gitconfig.Username,
+			UserOrg:          gitconfig.UserOrg,
+			Repository:       gitconfig.Repository,
+			SkipSSL:          gitconfig.SkipSSL,
+			SSHKeyConfigured: len(gitconfig.PrivateKey) > 0,
 			// Password    string - Private, excluded
 			// Certificate []byte - Private, excluded
 		})

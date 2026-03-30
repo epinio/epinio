@@ -95,6 +95,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"golang.org/x/crypto/ssh"
 )
 
 // ImportGit handles the API endpoint /namespaces/:namespace/applications/:app/import-git.
@@ -102,7 +104,6 @@ import (
 // of the repo and puts it on S3.
 func ImportGit(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -120,14 +121,28 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get access to a kube client")
 	}
 
+	username := requestctx.User(ctx).Username
+	result, apiErr := ImportGitRun(ctx, cluster, namespace, name, giturl, revision, username)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	response.OKReturn(c, result)
+	return nil
+}
+
+// ImportGitRun clones the repository, uploads sources to blob storage, and returns blob metadata.
+func ImportGitRun(ctx context.Context, cluster *kubernetes.Cluster, namespace, name, giturl, revision, username string) (models.ImportGitResponse, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
+
 	gitManager, err := gitbridge.NewManager(cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
 	if err != nil {
-		return apierror.InternalError(err, "creating git configuration manager")
+		return models.ImportGitResponse{}, apierror.InternalError(err, "creating git configuration manager")
 	}
 
 	gitRepo, err := os.MkdirTemp("", "epinio-app")
 	if err != nil {
-		return apierror.InternalError(err, "can't create temp directory")
+		return models.ImportGitResponse{}, apierror.InternalError(err, "can't create temp directory")
 	}
 
 	defer func() {
@@ -138,7 +153,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	gitConfig, err := gitManager.FindConfiguration(giturl)
 	if err != nil {
 		errMsg := fmt.Sprintf("finding git configuration for gitURL [%s]", giturl)
-		return apierror.InternalError(err, errMsg)
+		return models.ImportGitResponse{}, apierror.InternalError(err, errMsg)
 	}
 
 	if gitConfig != nil {
@@ -151,7 +166,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	ref, err := checkoutRepository(ctx, gitRepo, giturl, revision, gitConfig)
 	if err != nil {
 		errMsg := fmt.Sprintf("cloning the git repository: %s @ %s", giturl, revision)
-		return apierror.InternalError(err, errMsg)
+		return models.ImportGitResponse{}, apierror.InternalError(err, errMsg)
 	}
 
 	var branch string
@@ -169,46 +184,50 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		}
 	}()
 	if err != nil {
-		return apierror.InternalError(err, "create a tarball from the git repository")
+		return models.ImportGitResponse{}, apierror.InternalError(err, "create a tarball from the git repository")
 	}
 
 	// Upload to S3
 	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), "epinio-s3-connection-details")
 	if err != nil {
-		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
+		return models.ImportGitResponse{}, apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
 	}
 	manager, err := s3manager.New(connectionDetails)
 	if err != nil {
-		return apierror.InternalError(err, "creating an S3 manager")
+		return models.ImportGitResponse{}, apierror.InternalError(err, "creating an S3 manager")
 	}
 
-	username := requestctx.User(ctx).Username
 	blobUID, err := manager.Upload(ctx, tarball, map[string]string{
 		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {
 		// Check if the error is due to quota exhaustion
 		if s3manager.IsQuotaExceededError(err) {
-			return apierror.NewQuotaExceededError("",
+			return models.ImportGitResponse{}, apierror.NewQuotaExceededError("",
 				"uploading the application sources blob: "+err.Error())
 		}
-		return apierror.InternalError(err, "uploading the application sources blob")
+		return models.ImportGitResponse{}, apierror.InternalError(err, "uploading the application sources blob")
 	}
 
 	log.Infow("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
-	// Return the id of the new blob
-	response.OKReturn(c, models.ImportGitResponse{
+	return models.ImportGitResponse{
 		BlobUID:  blobUID,
 		Branch:   branch,
 		Revision: revision,
-	})
-	return nil
+	}, nil
 }
 
 func validateGitURL(gitURL string) apierror.APIErrors {
 	if gitURL == "" {
 		return apierror.NewBadRequestError("missing giturl")
+	}
+
+	if strings.HasPrefix(gitURL, "git@") {
+		if err := gitbridge.ValidateRepoURL(gitURL); err != nil {
+			return apierror.NewBadRequestErrorf("invalid giturl: %s", err.Error())
+		}
+		return nil
 	}
 
 	u, err := url.Parse(gitURL)
@@ -231,8 +250,10 @@ var (
 // It will also try to find the matching branch/reference, and if found this will be returned
 func checkoutRepository(ctx context.Context, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
 	log := requestctx.Logger(ctx)
-	cloneOptions := git.CloneOptions{URL: url}
-	cloneOptions = loadCloneOptions(cloneOptions, gitconfig)
+	cloneOptions, err := configureCloneOptions(git.CloneOptions{}, url, gitconfig)
+	if err != nil {
+		return nil, err
+	}
 
 	if revision == "" {
 		// Input A: repository, no revision.
@@ -287,9 +308,22 @@ func checkoutRepository(ctx context.Context, gitRepo, url, revision string, gitc
 	return ref, nil
 }
 
-func loadCloneOptions(opts git.CloneOptions, config *gitbridge.Configuration) git.CloneOptions {
+// configureCloneOptions sets URL, transport, and auth. Uses SSH when a private key is configured.
+func configureCloneOptions(opts git.CloneOptions, requestedURL string, config *gitbridge.Configuration) (git.CloneOptions, error) {
+	if config != nil && len(config.PrivateKey) > 0 {
+		opts.URL = toSSHCloneURL(requestedURL)
+		auth, err := gitssh.NewPublicKeys("git", config.PrivateKey, "")
+		if err != nil {
+			return opts, err
+		}
+		auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		opts.Auth = auth
+		return opts, nil
+	}
+
+	opts.URL = requestedURL
 	if config == nil {
-		return opts
+		return opts, nil
 	}
 
 	opts.InsecureSkipTLS = config.SkipSSL
@@ -305,7 +339,22 @@ func loadCloneOptions(opts git.CloneOptions, config *gitbridge.Configuration) gi
 		opts.CABundle = config.Certificate
 	}
 
-	return opts
+	return opts, nil
+}
+
+func toSSHCloneURL(gitURL string) string {
+	if strings.HasPrefix(gitURL, "git@") {
+		return gitURL
+	}
+	u, err := url.Parse(gitURL)
+	if err != nil {
+		return gitURL
+	}
+	path := strings.TrimPrefix(strings.TrimSuffix(u.Path, ".git"), "/")
+	if path == "" {
+		return gitURL
+	}
+	return fmt.Sprintf("git@%s:%s", u.Host, path)
 }
 
 func shallowCheckout(ctx context.Context, gitRepo string, opts git.CloneOptions) (*plumbing.Reference, error) {
