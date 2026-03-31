@@ -52,7 +52,7 @@ type Configuration struct {
 	// For Github/Gitlab the username can be anything (see https://gitlab.com/gitlab-org/gitlab/-/issues/212953).
 	Username string
 	// The Personal Access Token
-	Password string
+	Password string // nolint:gosec // intentional auth field for git config
 	// UserOrg is used to specify the username/organization/project
 	UserOrg string
 	// Repository is used to specify the exact repository

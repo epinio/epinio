@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -62,6 +63,17 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	globalSettings, err := settings.LoadFrom(testenv.EpinioYAML())
 	Expect(err).NotTo(HaveOccurred())
 
+	// If the local settings file doesn't specify the API endpoint (common in
+	// developer setups), derive it from the ingress host.
+	if globalSettings.API == "" {
+		host, hostErr := proc.Kubectl("get", "ingress",
+			"--namespace", "epinio", "epinio",
+			"-o", "jsonpath={.spec.rules[0].host}")
+		Expect(hostErr).NotTo(HaveOccurred(), host)
+		host = strings.TrimSpace(host)
+		globalSettings.API = "https://" + host
+	}
+
 	adminToken, err := auth.GetToken(globalSettings.API, "admin@epinio.io", "password")
 	Expect(err).NotTo(HaveOccurred())
 	userToken, err := auth.GetToken(globalSettings.API, "epinio@epinio.io", "password")
@@ -104,8 +116,19 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	serverURL = "https://" + out + ":8443"
-	websocketURL = "wss://" + out + ":8443"
+	out = strings.TrimSpace(out)
+	serverURL = "https://" + out
+	websocketURL = "wss://" + out
+
+	// Ensure the settings file used by the CLI has endpoints. Do not overwrite
+	// existing values, as environments may intentionally use non-default ports.
+	if theSettings.API == "" {
+		theSettings.API = serverURL
+	}
+	if theSettings.WSS == "" {
+		theSettings.WSS = websocketURL
+	}
+	Expect(theSettings.Save()).To(Succeed())
 })
 
 var _ = AfterSuite(func() {

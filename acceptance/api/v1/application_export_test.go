@@ -92,14 +92,15 @@ var _ = Describe("AppPart Endpoint", LApplication, func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
+		// API returns YAML with 2-space indent (go-yaml default)
 		expecting := fmt.Sprintf(`name: %s
 configuration:
-    instances: 1
-    routes:
-        - %s
-    appchart: standard
+  instances: 1
+  routes:
+  - %s
+  appchart: standard
 origin:
-    container: epinio/sample-app
+  container: epinio/sample-app
 namespace: %s
 `, app, domain, namespace)
 

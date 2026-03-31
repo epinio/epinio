@@ -40,7 +40,7 @@ var (
 type Settings struct {
 	Namespace string       `mapstructure:"namespace"` // Currently targeted namespace
 	User      string       `mapstructure:"user"`
-	Password  string       `mapstructure:"pass"`
+	Password  string       `mapstructure:"pass"` // nolint:gosec // intentional auth field for API
 	Token     TokenSetting `mapstructure:"token"`
 	API       string       `mapstructure:"api"`
 	WSS       string       `mapstructure:"wss"`
@@ -55,9 +55,9 @@ type Settings struct {
 }
 
 type TokenSetting struct {
-	AccessToken  string    `json:"accesstoken" mapstructure:"accesstoken"`
+	AccessToken  string    `json:"accesstoken" mapstructure:"accesstoken"`   // nolint:gosec // intentional auth field
 	TokenType    string    `json:"tokentype,omitempty" mapstructure:"tokentype,omitempty"`
-	RefreshToken string    `json:"refreshtoken,omitempty" mapstructure:"refreshtoken,omitempty"`
+	RefreshToken string    `json:"refreshtoken,omitempty" mapstructure:"refreshtoken,omitempty"` // nolint:gosec // intentional auth field
 	Expiry       time.Time `json:"expiry,omitempty" mapstructure:"expiry,omitempty"`
 }
 

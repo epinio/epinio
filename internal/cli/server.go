@@ -132,7 +132,7 @@ var CmdServer = &cobra.Command{
 		cmd.SilenceUsage = true
 		// Ensure the centralized logger is initialized (root persistent pre-run normally does this)
 		if helpers.Logger == nil {
-			if err := helpers.InitLogger(); err != nil {
+			if err := helpers.InitLogger(viper.GetString("log-level")); err != nil {
 				return errors.Wrap(err, "initializing logger")
 			}
 		}

@@ -28,12 +28,14 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
@@ -105,7 +107,7 @@ func ValidateCV(
 			}
 
 			if !nestedmap {
-				issues = append(issues, fmt.Errorf(`setting "%s": Not known`, keybase))
+				issues = append(issues, fmt.Errorf(`setting "%s": not known`, keybase))
 			}
 			continue
 		}
@@ -470,21 +472,33 @@ func List(
 	return result, nil
 }
 
+// DeleteResult contains the result of a delete operation, including
+// any warnings about incomplete cleanup.
+type DeleteResult struct {
+	// Warnings contains non-fatal warning messages about the delete operation.
+	// For example, if blob cleanup failed due to storage quota issues.
+	Warnings []string
+}
+
 /*
 Delete removes the named application, its workload (if active), bindings
 (if any), the stored application sources, and any staging jobs from when the
 application was staged (if active). Waits for the application's deployment's
 pods to disappear (if active).
+
+Returns a DeleteResult containing any warnings (e.g., incomplete blob cleanup).
 */
 func Delete(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
 	deleteImage bool,
-) error {
+) (*DeleteResult, error) {
+	result := &DeleteResult{}
+
 	client, err := cluster.ClientApp()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log := helpers.Logger.With("component", "ApplicationDelete")
@@ -508,7 +522,7 @@ func Delete(
 	// Ignore `not found` errors - App exists, without workload.
 	err = helm.Remove(cluster, appRef)
 	if err != nil && !strings.Contains(err.Error(), "release: not found") {
-		return err
+		return nil, err
 	}
 
 	// Keep existing code to remove the CRD and everything it owns. Only the
@@ -523,7 +537,7 @@ func Delete(
 		metav1.DeleteOptions{},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Delete container image from registry if requested
@@ -536,20 +550,26 @@ func Delete(
 	}
 
 	// delete old staging resources in namespace (helmchart.Namespace())
-	err = Unstage(ctx, cluster, appRef, "")
+	unstageResult, err := Unstage(ctx, cluster, appRef, "")
 	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+		return nil, err
+	}
+	if unstageResult != nil && unstageResult.HasIncompleteCleanup() {
+		warning := fmt.Sprintf("blob cleanup incomplete for app %s/%s: %d blob(s) could not be deleted due to storage quota issues, storage pressure may persist",
+			appRef.Namespace, appRef.Name, len(unstageResult.FailedBlobCleanups))
+		result.Warnings = append(result.Warnings, warning)
+		log.Info("warning: "+warning, "failedBlobs", unstageResult.FailedBlobCleanups)
 	}
 
 	// delete staging PVC (the one that holds the "source" and "cache" workspaces)
 	err = deleteCacheStagePVC(ctx, cluster, appRef)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+		return nil, err
 	}
 
 	err = deleteSourceBlobsStagePVC(ctx, cluster, appRef)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+		return nil, err
 	}
 
 	err = cluster.WaitForPodBySelectorMissing(ctx,
@@ -557,10 +577,10 @@ func Delete(
 		fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name),
 		duration.ToDeployment())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return result, nil
 }
 
 // deleteContainerImage deletes the container image from the registry
@@ -819,28 +839,65 @@ func BuilderURL(app *unstructured.Unstructured) (string, error) {
 	return builderURL, nil
 }
 
+// ErrBlobCleanupIncomplete is returned when blob cleanup could not complete
+// due to storage quota issues. The unstaging operation succeeded for jobs and
+// secrets, but some blobs remain in S3 storage. This is a non-fatal warning
+// that indicates storage pressure may persist.
+var ErrBlobCleanupIncomplete = errors.New("blob cleanup incomplete due to storage quota errors")
+
+// UnstageResult contains the result of an unstage operation, including
+// any warnings about incomplete cleanup.
+type UnstageResult struct {
+	// FailedBlobCleanups contains the blob UIDs that could not be deleted
+	// due to storage quota errors. Empty if all cleanups succeeded.
+	FailedBlobCleanups []string
+}
+
+// HasIncompleteCleanup returns true if some blobs could not be deleted
+// due to storage quota errors.
+func (r *UnstageResult) HasIncompleteCleanup() bool {
+	return len(r.FailedBlobCleanups) > 0
+}
+
+// CleanupWarning returns a descriptive error if cleanup was incomplete,
+// or nil if all blobs were successfully deleted.
+func (r *UnstageResult) CleanupWarning() error {
+	if !r.HasIncompleteCleanup() {
+		return nil
+	}
+	return fmt.Errorf("%w: %d blob(s) could not be deleted: %v",
+		ErrBlobCleanupIncomplete, len(r.FailedBlobCleanups), r.FailedBlobCleanups)
+}
+
 /*
 Unstage removes staging resources. It deletes either all Jobs of the named
 application, or all but stageIDCurrent. It also deletes the staged objects
-from the S3 storage	except for the current one.
+from the S3 storage except for the current one.
+
+Returns an UnstageResult that may contain warnings about incomplete blob cleanup
+due to storage quota errors. Callers should check result.HasIncompleteCleanup()
+and handle accordingly (e.g., log a warning to operators).
 */
 func Unstage(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
 	stageIDCurrent string,
-) error {
+) (*UnstageResult, error) {
+	log := helpers.SugaredLoggerToLogr(requestctx.Logger(ctx))
+	result := &UnstageResult{}
+
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
-		return errors.Wrap(
+		return nil, errors.Wrap(
 			err,
 			"fetching the S3 connection details from the Kubernetes secret",
 		)
 	}
 	s3m, err := s3manager.New(s3ConnectionDetails)
 	if err != nil {
-		return errors.Wrap(err, "creating an S3 manager")
+		return nil, errors.Wrap(err, "creating an S3 manager")
 	}
 
 	jobs, err := cluster.ListJobs(ctx, helmchart.Namespace(),
@@ -848,7 +905,7 @@ func Unstage(
 			appRef.Name, appRef.Namespace))
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var currentJob *apibatchv1.Job
@@ -862,29 +919,65 @@ func Unstage(
 
 		err := cluster.DeleteJob(ctx, job.Namespace, job.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// And the associated secret holding the job environment
 		err = cluster.DeleteSecret(ctx, job.Namespace, job.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Cleanup s3 objects
-	for _, job := range jobs.Items {
-		// skip prs with the same blob as the current one (including the current one)
+	result.FailedBlobCleanups, err = CleanupS3Blobs(ctx, log, s3m, jobs.Items, currentJob, appRef)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// CleanupS3Blobs deletes blobs from S3 storage for the given jobs, skipping the current job's blob.
+// Returns a list of blob UIDs that failed to delete due to quota errors (non-fatal).
+// Returns an error for other types of failures (fatal).
+// This function is exported to allow testing with mocked S3 clients.
+func CleanupS3Blobs(
+	ctx context.Context,
+	log logr.Logger,
+	s3m s3manager.S3Manager,
+	jobs []apibatchv1.Job,
+	currentJob *apibatchv1.Job,
+	appRef models.AppRef,
+) ([]string, error) {
+	var failedBlobCleanups []string
+
+	for _, job := range jobs {
+		// skip blobs with the same UID as the current one (including the current one)
 		if currentJob != nil && job.Labels[models.EpinioStageBlobUIDLabel] == currentJob.Labels[models.EpinioStageBlobUIDLabel] {
 			continue
 		}
 
-		if err = s3m.DeleteObject(ctx, job.Labels[models.EpinioStageBlobUIDLabel]); err != nil {
-			return err
+		blobUID := job.Labels[models.EpinioStageBlobUIDLabel]
+		if err := s3m.DeleteObject(ctx, blobUID); err != nil {
+			// If deletion fails due to quota errors, log a warning but continue
+			// with other deletions to allow partial cleanup. This prevents the
+			// entire unstaging operation from failing when quota is exhausted.
+			if s3manager.IsQuotaExceededError(err) {
+				log.Info("warning: failed to delete blob due to storage quota error, continuing cleanup",
+					"blobUID", blobUID,
+					"app", appRef.Name,
+					"namespace", appRef.Namespace,
+					"error", err.Error())
+				failedBlobCleanups = append(failedBlobCleanups, blobUID)
+				continue
+			}
+			// For non-quota errors, fail the operation
+			return nil, errors.Wrapf(err, "deleting blob %s", blobUID)
 		}
 	}
 
-	return nil
+	return failedBlobCleanups, nil
 }
 
 /*
@@ -895,10 +988,133 @@ are returned. If it is set, LogParameters represents the log filtering
 parameters.
 */
 type LogParameters struct {
-	Tail      *int64
-	Since     *time.Duration
-	SinceTime *time.Time
-	Follow    bool
+	Tail              *int64
+	Since             *time.Duration
+	SinceTime         *time.Time
+	Follow            bool
+	IncludeContainers []string // List of container names/patterns to include (regex patterns)
+	ExcludeContainers []string // List of container names/patterns to exclude (regex patterns)
+}
+
+// buildContainerIncludePattern builds the regex pattern for including containers.
+// Returns the pattern and whether the user specified an include filter.
+func buildContainerIncludePattern(logParams *LogParameters) (string, bool, error) {
+	containerQueryPattern := ".*"
+	hasUserIncludeFilter := false
+
+	if logParams == nil || len(logParams.IncludeContainers) == 0 {
+		return containerQueryPattern, hasUserIncludeFilter, nil
+	}
+
+	// Filter out any empty strings that might have slipped through
+	validIncludes := make([]string, 0, len(logParams.IncludeContainers))
+	for _, container := range logParams.IncludeContainers {
+		if trimmed := strings.TrimSpace(container); trimmed != "" {
+			validIncludes = append(validIncludes, trimmed)
+		}
+	}
+
+	if len(validIncludes) == 0 {
+		return "", false, fmt.Errorf("include_containers parameter contains no valid container names")
+	}
+
+	hasUserIncludeFilter = true
+
+	// Escape special regex characters and join with |
+	escapedIncludes := make([]string, len(validIncludes))
+	for i, container := range validIncludes {
+		// If the pattern already looks like a regex (contains special chars), use as-is
+		// Otherwise, treat as literal container name
+		if strings.ContainsAny(container, ".*+?^$|[]{}()\\") {
+			escapedIncludes[i] = container
+		} else {
+			// Escape as literal container name
+			escapedIncludes[i] = regexp.QuoteMeta(container)
+		}
+	}
+	containerQueryPattern = strings.Join(escapedIncludes, "|")
+
+	return containerQueryPattern, hasUserIncludeFilter, nil
+}
+
+// buildContainerExcludePattern builds the regex pattern for excluding containers.
+func buildContainerExcludePattern(logParams *LogParameters, hasUserIncludeFilter bool) (*regexp.Regexp, error) {
+	var excludeContainerPatterns []string
+
+	// Only apply default linkerd exclusion if user hasn't specified include_containers
+	// This allows users to explicitly include linkerd containers when needed
+	if !hasUserIncludeFilter {
+		excludeContainerPatterns = []string{"linkerd-(proxy|init)"}
+	}
+
+	// Add user-specified exclusions
+	if logParams != nil && len(logParams.ExcludeContainers) > 0 {
+		// Initialize if not already set (shouldn't happen, but be safe)
+		if excludeContainerPatterns == nil {
+			excludeContainerPatterns = []string{}
+		}
+		for _, container := range logParams.ExcludeContainers {
+			// Filter out empty strings
+			trimmed := strings.TrimSpace(container)
+			if trimmed == "" {
+				continue
+			}
+			// If the pattern already looks like a regex, use as-is
+			// Otherwise, treat as literal container name
+			if strings.ContainsAny(trimmed, ".*+?^$|[]{}()\\") {
+				excludeContainerPatterns = append(excludeContainerPatterns, trimmed)
+			} else {
+				// Escape as literal container name
+				excludeContainerPatterns = append(excludeContainerPatterns, regexp.QuoteMeta(trimmed))
+			}
+		}
+	}
+
+	// Build the final exclude pattern by combining all exclusions
+	if len(excludeContainerPatterns) > 0 {
+		// Combine all exclusion patterns with |
+		combinedExcludePattern := strings.Join(excludeContainerPatterns, "|")
+		excludeContainerQuery, err := regexp.Compile(combinedExcludePattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid exclude_containers pattern: %w", err)
+		}
+		return excludeContainerQuery, nil
+	}
+
+	// No exclusions (shouldn't happen with default, but handle gracefully)
+	return nil, nil
+}
+
+// applyLogParameters applies log filtering parameters to the tailer config.
+func applyLogParameters(config *tailer.Config, logParams *LogParameters) {
+	if logParams == nil {
+		return
+	}
+
+	helpers.Logger.Info("applying log parameters", "params", logParams)
+
+	// Handle line limiting
+	if logParams.Tail != nil {
+		config.TailLines = logParams.Tail
+		helpers.Logger.Info("applied tail parameter", "tail", *logParams.Tail)
+	}
+
+	// Handle time-based filtering
+	if logParams.SinceTime != nil {
+		config.SinceTime = logParams.SinceTime
+		helpers.Logger.Info(
+			"applying since time parameter | ",
+			"since_time: ",
+			*logParams.SinceTime,
+		)
+	} else if logParams.Since != nil {
+		config.Since = *logParams.Since
+		helpers.Logger.Info(
+			"applied since parameter | ",
+			"since: ",
+			*logParams.Since,
+		)
+	}
 }
 
 // then only logs from that staging process are returned.
@@ -929,11 +1145,11 @@ func Logs(
 		}
 	}
 
-	for _, req := range selectors {
+	for _, selectorPair := range selectors {
 		req, err := labels.NewRequirement(
-			req[0],
+			selectorPair[0],
 			selection.Equals,
-			[]string{req[1]},
+			[]string{selectorPair[1]},
 		)
 		if err != nil {
 			return err
@@ -941,9 +1157,26 @@ func Logs(
 		selector = selector.Add(*req)
 	}
 
+	// Build container filtering regex patterns
+	containerQueryPattern, hasUserIncludeFilter, err := buildContainerIncludePattern(logParams)
+	if err != nil {
+		return err
+	}
+
+	excludeContainerQuery, err := buildContainerExcludePattern(logParams, hasUserIncludeFilter)
+	if err != nil {
+		return err
+	}
+
+	// Compile the include pattern with error handling
+	containerQueryRegex, err := regexp.Compile(containerQueryPattern)
+	if err != nil {
+		return fmt.Errorf("invalid include_containers pattern: %w", err)
+	}
+
 	config := &tailer.Config{
-		ContainerQuery:        regexp.MustCompile(".*"),
-		ExcludeContainerQuery: regexp.MustCompile("linkerd-(proxy|init)"),
+		ContainerQuery:        containerQueryRegex,
+		ExcludeContainerQuery: excludeContainerQuery,
 		Exclude:               nil,
 		Include:               nil,
 		Timestamps:            true,
@@ -961,6 +1194,7 @@ func Logs(
 	}
 
 	// Apply log parameters if provided
+	applyLogParameters(config, logParams)
 	if logParams != nil {
 		helpers.Logger.Infow("applying log parameters", "params", logParams)
 

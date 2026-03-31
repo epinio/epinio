@@ -52,11 +52,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		if helpers.Logger == nil {
 			return
 		}
-		loggerError := helpers.Logger.Sync()
-		if loggerError != nil {
-			// Best-effort: logger sync failed; write to stderr.
-			_, _ = fmt.Fprintf(os.Stderr, "ZAP FALLBACK: Error flushing logs: %v\n", loggerError)
-		}
+		_ = helpers.Logger.Sync()
 	})
 
 	rootCmd := &cobra.Command{
@@ -67,13 +63,10 @@ func NewRootCmd() (*cobra.Command, error) {
 		Version:       version.Version,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if helpers.Logger == nil {
-				if err := helpers.InitLogger(); err != nil {
-					// Fallback if logger initialization failed - use standard log
-					return errors.Wrap(err, "failed to initialize logger")
-				}
+			if err := helpers.InitLogger(viper.GetString("log-level")); err != nil {
+				// Fallback if logger initialization failed - use standard log
+				return errors.Wrap(err, "failed to initialize logger")
 			}
-
 			err := client.Init(cmd.Context())
 			if err != nil {
 				return errors.Wrap(err, "initializing client")

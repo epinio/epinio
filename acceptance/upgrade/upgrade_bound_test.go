@@ -92,7 +92,7 @@ var _ = Describe("<Upgrade2> Epinio upgrade with bound app and services", func()
 			"-e", "SERVICE_NAME="+serviceName)
 		Expect(err).ToNot(HaveOccurred(), pushLog)
 
-		routeRegexp := regexp.MustCompile(`https:\/\/.*sslip.io`)
+		routeRegexp := regexp.MustCompile(`https:\/\/[^\s]+(sslip\.io|nip\.io)`)
 		route := string(routeRegexp.Find([]byte(pushLog)))
 
 		Eventually(func() string {

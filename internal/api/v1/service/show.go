@@ -15,7 +15,6 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/mask"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
@@ -92,9 +91,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 					for j := 0; true; j++ {
 						xkey := fmt.Sprintf("%s.%d", key, j)
 						if _, ok := service.Details[xkey]; !ok {
-							// Conflict resolved, key + this serial not yet used.
-							// Mask the value to prevent secret exposure
-							service.Details[xkey] = mask.MaskValue(string(value))
+							service.Details[xkey] = string(value)
 							break
 						}
 						// Still in conflict, continue to next serial
@@ -102,8 +99,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 					// Break above comes to here, conflict resolved, continue with next key
 					continue
 				}
-				// No conflict - mask the value to prevent secret exposure
-				service.Details[key] = mask.MaskValue(string(value))
+				service.Details[key] = string(value)
 			}
 		}
 	}

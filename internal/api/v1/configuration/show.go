@@ -55,6 +55,9 @@ func Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// SECURITY: Mask configuration details to prevent secret exposure in API responses
+	maskedDetails := mask.MaskMap(configurationDetails)
+
 	// For service-based configuration, fetch and record siblings. Itself excluded, of course.
 	siblings := []string{}
 	if configuration.Origin != "" {
@@ -79,9 +82,6 @@ func Show(c *gin.Context) apierror.APIErrors {
 			}
 		}
 	}
-
-	// SECURITY: Mask all configuration details to prevent secret exposure in API responses
-	maskedDetails := mask.MaskMap(configurationDetails)
 
 	response.OKReturn(c, models.ConfigurationResponse{
 		Meta: models.ConfigurationRef{

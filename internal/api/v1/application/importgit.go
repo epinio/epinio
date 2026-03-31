@@ -102,7 +102,7 @@ import (
 // of the repo and puts it on S3.
 func ImportGit(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := helpers.Logger
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -187,6 +187,11 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {
+		// Check if the error is due to quota exhaustion
+		if s3manager.IsQuotaExceededError(err) {
+			return apierror.NewQuotaExceededError("",
+				"uploading the application sources blob: "+err.Error())
+		}
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 
@@ -225,7 +230,7 @@ var (
 // checkoutRepository will clone the repository and it will checkout the revision
 // It will also try to find the matching branch/reference, and if found this will be returned
 func checkoutRepository(ctx context.Context, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
-	log := helpers.Logger
+	log := requestctx.Logger(ctx)
 	cloneOptions := git.CloneOptions{URL: url}
 	cloneOptions = loadCloneOptions(cloneOptions, gitconfig)
 
