@@ -16,10 +16,10 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/gin-gonic/gin"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/gin-gonic/gin"
 )
 
 // EnvShow handles the API endpoint /namespaces/:namespace/applications/:app/environment/:env
@@ -33,7 +33,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 	appName := c.Param("app")
 	varName := c.Param("env")
 
-	log.Info("processing environment variable request",
+	log.Infow("processing environment variable request",
 		"namespace", namespaceName, "app", appName, "var", varName)
 
 	cluster, err := kubernetes.GetCluster(ctx)

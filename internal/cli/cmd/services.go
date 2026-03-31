@@ -24,6 +24,7 @@ import (
 //counterfeiter:generate -header ../../../LICENSE_HEADER . ServicesService
 type ServicesService interface {
 	ServiceBind(serviceName, appName string) error
+	ServiceBatchBind(appName string, serviceNames []string) error
 	ServiceCatalog() error
 	ServiceCatalogShow(ctx context.Context, serviceName string) error
 	ServiceCreate(catalogName, serviceName string, wait bool, chartValues models.ChartValueSettings) error
@@ -33,7 +34,7 @@ type ServicesService interface {
 	ServicePortForward(ctx context.Context, serviceName string, address, ports []string) error
 	ServiceShow(serviceName string) error
 	ServiceUnbind(serviceName, appName string) error
-	ServiceUpdate(serviceName string, wait bool, removed []string, assignments map[string]string) error
+	ServiceUpdate(serviceName string, wait bool, removed []string, assignments map[string]string, noRestart bool) error
 
 	ServiceMatcher
 	ServiceChartValueMatcher
@@ -144,8 +145,9 @@ func NewServiceCreateCmd(client ServicesService) *cobra.Command {
 }
 
 type ServiceUpdateConfig struct {
-	wait   bool
-	change ChangeConfig // See configurations.go for definition
+	wait      bool
+	noRestart bool
+	change    ChangeConfig // See configurations.go for definition
 }
 
 func NewServiceUpdateCmd(client ServicesService) *cobra.Command {
@@ -167,7 +169,7 @@ func NewServiceUpdateCmd(client ServicesService) *cobra.Command {
 				assignments[pieces[0]] = pieces[1]
 			}
 
-			err := client.ServiceUpdate(args[0], cfg.wait, cfg.change.removed, assignments)
+			err := client.ServiceUpdate(args[0], cfg.wait, cfg.change.removed, assignments, cfg.noRestart)
 			if err != nil {
 				return errors.Wrap(err, "error creating service")
 			}
@@ -178,6 +180,7 @@ func NewServiceUpdateCmd(client ServicesService) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&cfg.wait, "wait", false, "Wait for deployment to complete")
+	cmd.Flags().BoolVar(&cfg.noRestart, "no-restart", false, "Prevent restarting bound applications after update")
 	changeOptions(cmd, &cfg.change)
 
 	return cmd
@@ -243,18 +246,40 @@ func NewServiceDeleteCmd(client ServicesService) *cobra.Command {
 // NewServiceBindCmd returns a new `epinio service bind` command
 func NewServiceBindCmd(client ServicesService) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "bind SERVICENAME APPNAME",
-		Short:             "Bind a service SERVICENAME to an Epinio app APPNAME",
-		Args:              cobra.ExactArgs(2),
+		Use:   "bind SERVICENAME APPNAME [SERVICENAME...]",
+		Short: "Bind one or more services to an Epinio app",
+		Long: `Bind services to an application.
+
+Usage:
+  Single service (backward compatible):
+    epinio service bind SERVICENAME APPNAME
+  
+  Multiple services (batch binding - MUCH faster):
+    epinio service bind APPNAME SERVICENAME1 SERVICENAME2 [SERVICENAME3...]
+    
+When providing 3 or more arguments, the first is treated as APPNAME and the rest as service names.
+This allows binding multiple services in a single operation with only one pod restart.`,
+		Args:              cobra.MinimumNArgs(2),
 		ValidArgsFunction: NewServiceAppMatcherFunc(client),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			serviceName := args[0]
-			appName := args[1]
+			// Maintain backward compatibility:
+			// - 2 args: OLD format SERVICE APP
+			// - 3+ args: NEW batch format APP SERVICE1 SERVICE2 ...
+			if len(args) == 2 {
+				// Backward compatible: single service bind
+				serviceName := args[0]
+				appName := args[1]
+				err := client.ServiceBind(serviceName, appName)
+				return errors.Wrap(err, "error binding service")
+			}
 
-			err := client.ServiceBind(serviceName, appName)
-			return errors.Wrap(err, "error binding service")
+			// New batch binding format (3+ args)
+			appName := args[0]
+			serviceNames := args[1:]
+			err := client.ServiceBatchBind(appName, serviceNames)
+			return errors.Wrap(err, "error binding services")
 		},
 	}
 

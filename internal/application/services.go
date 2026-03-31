@@ -14,6 +14,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -167,6 +168,27 @@ func BoundServicesUnset(ctx context.Context, cluster *kubernetes.Cluster, appRef
 	return svcUpdate(ctx, cluster, appRef, func(svcSecret *v1.Secret) {
 		delete(svcSecret.Data, serviceName)
 	})
+}
+
+// BoundServiceNames returns the service names bound to the application, sorted for stability.
+func BoundServiceNames(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
+	svcSecret, err := svcLoad(ctx, cluster, appRef)
+	if err != nil {
+		return nil, err
+	}
+
+	return BoundServiceNamesFromSecret(svcSecret), nil
+}
+
+// BoundServiceNamesFromSecret extracts the bound service names from the provided secret.
+func BoundServiceNamesFromSecret(svcSecret *v1.Secret) []string {
+	names := make([]string, 0, len(svcSecret.Data))
+	for name := range svcSecret.Data {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+	return names
 }
 
 // svcUpdate is a helper for the public functions. It encapsulates the read/modify/write cycle

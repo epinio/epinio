@@ -18,41 +18,45 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 type Tail struct {
-	Namespace string
-	PodName string
+	Namespace     string
+	PodName       string
 	ContainerName string
-	Options *TailOptions
-	logger logr.Logger
-	clientSet *kubernetes.Clientset
+	Options       *TailOptions
+	logger        logr.Logger
+	clientSet     *kubernetes.Clientset
 }
 
 type TailOptions struct {
-	Timestamps bool
-	Follow bool
+	Timestamps   bool
+	Follow       bool
+	SinceTime    *time.Time
 	SinceSeconds int64
-	Exclude []*regexp.Regexp
-	Include []*regexp.Regexp
-	Namespace bool
-	TailLines *int64
-	Logger logr.Logger
+	Exclude      []*regexp.Regexp
+	Include      []*regexp.Regexp
+	Namespace    bool
+	TailLines    *int64
+	Logger       logr.Logger
 }
 
 // NewTail returns a new tail for a Kubernetes container inside a pod
 func NewTail(namespace, podName, containerName string, logger logr.Logger, clientSet *kubernetes.Clientset, options *TailOptions) *Tail {
 	return &Tail{
-		Namespace: namespace,
-		PodName: podName,
+		Namespace:     namespace,
+		PodName:       podName,
 		ContainerName: containerName,
-		Options: options,
-		logger: logger,
-		clientSet: clientSet,
+		Options:       options,
+		logger:        logger,
+		clientSet:     clientSet,
 	}
 }
 
@@ -70,15 +74,31 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 		mode = "local"
 	}
 
-	t.logger.Info("starting the tail for pod " + t.PodName)
+	helpers.Logger.Infow("starting the tail for pod", "pod", t.PodName)
 
-	req := t.clientSet.CoreV1().Pods(t.Namespace).GetLogs(t.PodName, &corev1.PodLogOptions{
-		Follow: follow,
+	podLogOptions := &corev1.PodLogOptions{
+		Follow:     follow,
 		Timestamps: t.Options.Timestamps,
-		Container: t.ContainerName,
-		SinceSeconds: &t.Options.SinceSeconds,
-		TailLines: t.Options.TailLines,
-	})
+		Container:  t.ContainerName,
+		TailLines:  t.Options.TailLines,
+	}
+
+	if t.Options.SinceTime != nil {
+		podLogOptions.SinceTime = &metav1.Time{Time: *t.Options.SinceTime}
+	} else if t.Options.SinceSeconds > 0 {
+		podLogOptions.SinceSeconds = &t.Options.SinceSeconds
+	}
+
+	// Log the options being passed to Kubernetes API
+	helpers.Logger.Infow("calling Kubernetes API with options",
+		"tail_lines", t.Options.TailLines,
+		"since_seconds", t.Options.SinceSeconds,
+		"follow", follow,
+		"container", t.ContainerName,
+	)
+
+	helpers.Logger.Infow("podLogOptions", "options", podLogOptions)
+	req := t.clientSet.CoreV1().Pods(t.Namespace).GetLogs(t.PodName, podLogOptions)
 
 	stream, err := req.Stream(ctx)
 	if err != nil {
@@ -93,23 +113,42 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 
 	reader := bufio.NewReader(stream)
 
-	t.logger.Info(fmt.Sprintf("now tracking %s %s", mode, ident))
+	helpers.Logger.Infow("now tracking", "mode", mode, "ident", ident)
 OUTER:
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
-				t.logger.Info("tailer reached end of logs", "container", ident)
+				helpers.Logger.Infow("tailer reached end of logs", "container", ident)
 			} else {
-				t.logger.Error(err, "reading failed")
+				helpers.Logger.Errorw("reading failed", "error", err)
 			}
 			return nil
 		}
 
 		str := strings.TrimRight(string(line), "\r\n\t ")
 
+		// Parse timestamp if present (RFC3339 format from Kubernetes)
+		// Format: 2023-04-15T10:30:45.123456789Z message
+		var timestamp string
+		var message string
+		if t.Options.Timestamps {
+			// Timestamps from Kubernetes are in RFC3339Nano format
+			// Look for the first space after the timestamp
+			spaceIdx := strings.Index(str, " ")
+			if spaceIdx > 0 {
+				timestamp = str[:spaceIdx]
+				message = str[spaceIdx+1:]
+			} else {
+				// No space found, use the whole line as message
+				message = str
+			}
+		} else {
+			message = str
+		}
+
 		for _, rex := range t.Options.Exclude {
-			if rex.MatchString(str) {
+			if rex.MatchString(message) {
 				continue OUTER
 			}
 		}
@@ -117,7 +156,7 @@ OUTER:
 		if len(t.Options.Include) != 0 {
 			matches := false
 			for _, rin := range t.Options.Include {
-				if rin.MatchString(str) {
+				if rin.MatchString(message) {
 					matches = true
 					break
 				}
@@ -127,12 +166,13 @@ OUTER:
 			}
 		}
 
-		t.logger.Info("passing", "container", ident, "", str)
+		helpers.Logger.Debugw("passing", "container", ident, "message", message)
 		logChan <- ContainerLogLine{
-			Message: str,
+			Message:       message,
 			ContainerName: t.ContainerName,
-			PodName: t.PodName,
-			Namespace: t.Namespace,
+			PodName:       t.PodName,
+			Namespace:     t.Namespace,
+			Timestamp:     timestamp,
 		}
 	}
 }

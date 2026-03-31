@@ -455,18 +455,6 @@ func (fake *FakeAppchartsService) GetAPIReturnsOnCall(i int, result1 usercmd.API
 func (fake *FakeAppchartsService) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.chartDefaultSetMutex.RLock()
-	defer fake.chartDefaultSetMutex.RUnlock()
-	fake.chartDefaultShowMutex.RLock()
-	defer fake.chartDefaultShowMutex.RUnlock()
-	fake.chartListMutex.RLock()
-	defer fake.chartListMutex.RUnlock()
-	fake.chartMatchingMutex.RLock()
-	defer fake.chartMatchingMutex.RUnlock()
-	fake.chartShowMutex.RLock()
-	defer fake.chartShowMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

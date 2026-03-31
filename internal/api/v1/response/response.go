@@ -13,18 +13,19 @@
 package response
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/gin-gonic/gin"
+
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/gin-gonic/gin"
 )
 
 // OK reports a generic success
 func OK(c *gin.Context) {
-	requestctx.Logger(c.Request.Context()).Info("OK",
+	requestctx.Logger(c.Request.Context()).Infow("OK",
 		"origin", c.Request.URL.String(),
 		"returning", models.ResponseOK,
 	)
@@ -34,7 +35,7 @@ func OK(c *gin.Context) {
 
 // OKBytes reports a success with some data
 func OKBytes(c *gin.Context, response []byte) {
-	requestctx.Logger(c.Request.Context()).Info("OK",
+	requestctx.Logger(c.Request.Context()).Infow("OK",
 		"origin", c.Request.URL.String(),
 		"returning", response,
 	)
@@ -44,7 +45,7 @@ func OKBytes(c *gin.Context, response []byte) {
 
 // OKYaml reports a success with some YAML data
 func OKYaml(c *gin.Context, response interface{}) {
-	requestctx.Logger(c.Request.Context()).Info("OK",
+	requestctx.Logger(c.Request.Context()).Infow("OK",
 		"origin", c.Request.URL.String(),
 		"returning", response,
 	)
@@ -54,9 +55,11 @@ func OKYaml(c *gin.Context, response interface{}) {
 
 // OKReturn reports a success with some data
 func OKReturn(c *gin.Context, response interface{}) {
-	requestctx.Logger(c.Request.Context()).Info("OK",
+	// SECURITY: Log only response type/summary to avoid potential secret exposure in logs.
+	// The actual response is already sanitized at the endpoint level before being returned.
+	requestctx.Logger(c.Request.Context()).Infow("OK",
 		"origin", c.Request.URL.String(),
-		"returning", response,
+		"response_type", fmt.Sprintf("%T", response),
 	)
 
 	c.JSON(http.StatusOK, response)
@@ -64,7 +67,7 @@ func OKReturn(c *gin.Context, response interface{}) {
 
 // Created reports successful creation of a resource.
 func Created(c *gin.Context) {
-	requestctx.Logger(c.Request.Context()).Info("CREATED",
+	requestctx.Logger(c.Request.Context()).Infow("CREATED",
 		"origin", c.Request.URL.String(),
 		"returning", models.ResponseOK,
 	)
@@ -74,7 +77,8 @@ func Created(c *gin.Context) {
 
 // Error reports the specified errors
 func Error(c *gin.Context, responseErrors errors.APIErrors) {
-	requestctx.Logger(c.Request.Context()).Info("ERROR",
+	log := requestctx.Logger(c.Request.Context())
+	log.Infow("ERROR",
 		"origin", c.Request.URL.String(),
 		"error", responseErrors,
 	)
@@ -82,8 +86,7 @@ func Error(c *gin.Context, responseErrors errors.APIErrors) {
 	// add errors to the Gin context
 	for _, err := range responseErrors.Errors() {
 		if ginErr := c.Error(err); ginErr != nil {
-			requestctx.Logger(c.Request.Context()).Error(
-				ginErr, "ERROR",
+			log.Errorw("ERROR",
 				"origin", c.Request.URL.String(),
 				"error", ginErr,
 			)

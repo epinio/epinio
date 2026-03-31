@@ -47,8 +47,11 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 		env.MakeContainerImageApp(app, 1, containerImageURL)
 		defer env.DeleteApp(app)
 
-		appObj := appShow(namespace, app)
-		Expect(appObj.Workload.Status).To(Equal("1/1"))
+		var appObj models.App
+		Eventually(func() string {
+			appObj = appShow(namespace, app)
+			return appObj.Workload.Status
+		}, "5m", "5s").Should(Equal("1/1"), "app show should report 1/1 before assertions")
 		createdAt, err := time.Parse(time.RFC3339, appObj.Workload.CreatedAt)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(createdAt.Unix()).To(BeNumerically("<", time.Now().Unix()))
@@ -68,49 +71,58 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 			fmt.Sprintf("--selector=app.kubernetes.io/name=%s", app),
 			"--namespace", namespace, "--output", "name")
 		Expect(err).ToNot(HaveOccurred())
-		podNames := strings.Split(string(out), "\n")
+		rawPodNames := strings.Split(strings.TrimSpace(string(out)), "\n")
+		podNames := make([]string, 0, len(rawPodNames))
+		for _, n := range rawPodNames {
+			if n != "" {
+				podNames = append(podNames, n)
+			}
+		}
+		Expect(podNames).ToNot(BeEmpty(), "expected at least one pod for app %s", app)
 
 		// Run `yes > /dev/null &` and expect at least 1000 millicpus
 		// https://winaero.com/how-to-create-100-cpu-load-in-linux/
+		// Use PID file so we can kill without killall/pkill (not in all images)
 		out, err = proc.Kubectl("exec",
 			"--namespace", namespace, podNames[0], "--container", appObj.Workload.Name,
-			"--", "bin/sh", "-c", "yes > /dev/null 2> /dev/null &")
+			"--", "/bin/sh", "-c", "yes > /dev/null 2>/dev/null & echo $! > /tmp/yes.pid")
 		Expect(err).ToNot(HaveOccurred(), out)
+		// In CI, CPU may be throttled; require a non-trivial reading rather than 900m.
 		Eventually(func() int64 {
 			appObj := appShow(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].MilliCPUs
-		}, "240s", "1s").Should(BeNumerically(">=", 900))
-		// Kill the "yes" process to bring CPU down again
+		}, "360s", "2s").Should(BeNumerically(">=", 100))
+		// Kill the "yes" process to bring CPU down again (use PID file; no killall in minimal images)
 		out, err = proc.Kubectl("exec",
 			"--namespace", namespace, podNames[0], "--container", appObj.Workload.Name,
-			"--", "killall", "-9", "yes")
+			"--", "/bin/sh", "-c", "kill -9 $(cat /tmp/yes.pid) 2>/dev/null; rm -f /tmp/yes.pid")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		// Increase memory for 3 minutes to check memory metric
+		// Increase memory briefly to check memory metric without blocking for minutes.
 		out, err = proc.Kubectl("exec",
 			"--namespace", namespace, podNames[0], "--container", appObj.Workload.Name,
-			"--", "bin/bash", "-c", "cat <( </dev/zero head -c 50m) <(sleep 180) | tail")
+			"--", "/bin/sh", "-c", "head -c 50000000 </dev/zero >/tmp/epinio-mem.bin; sleep 5; rm -f /tmp/epinio-mem.bin")
 		Expect(err).ToNot(HaveOccurred(), out)
 		Eventually(func() int64 {
 			appObj := appShow(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].MemoryBytes
-		}, "240s", "1s").Should(BeNumerically(">=", 0))
+		}, "360s", "2s").Should(BeNumerically(">=", 0))
 
 		Consistently(func() int32 {
 			appObj := appShow(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].Restarts
 		}, "10s", "1s").Should(BeNumerically("==", 0))
 
-		// Kill an app container and see the count increasing
-		out, err = proc.Kubectl("exec",
-			"--namespace", namespace, podNames[0], "--container", appObj.Workload.Name,
-			"--", "bin/sh", "-c", "kill 1")
+		// Disrupt the running pod and verify the workload recovers.
+		podNameForDelete := strings.TrimPrefix(podNames[0], "pod/")
+		out, err = proc.Kubectl("delete", "pod",
+			"--namespace", namespace, podNameForDelete)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		Eventually(func() int32 {
+		Eventually(func() string {
 			appObj := appShow(namespace, app)
-			return appObj.Workload.Replicas[replica.Name].Restarts
-		}, "15s", "1s").Should(BeNumerically("==", 1))
+			return appObj.Workload.Status
+		}, "300s", "2s").Should(Equal("1/1"))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

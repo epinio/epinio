@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -24,6 +25,16 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
+
+// stringRef implements fmt.Stringer so failure messages can show current output.
+type stringRef struct{ s *string }
+
+func (r stringRef) String() string {
+	if r.s != nil {
+		return *r.s
+	}
+	return ""
+}
 
 var _ = Describe("ServiceUnbind Endpoint", LService, func() {
 	var namespace, containerImageURL, app, serviceName, chartName string
@@ -85,5 +96,54 @@ var _ = Describe("ServiceUnbind Endpoint", LService, func() {
 		Expect(err).ToNot(HaveOccurred())
 		matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
 		Expect(appShowOut).ToNot(MatchRegexp(matchString))
+	})
+
+	It("Unbinds service with multiple configurations in one operation (batching optimization)", func() {
+		By("verifying the service is bound")
+		out, err := env.Epinio("", "app", "show", app)
+		Expect(err).ToNot(HaveOccurred(), out)
+		matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
+		Expect(out).To(MatchRegexp(matchString))
+
+		By("getting pod names before unbind")
+		getPodNames := func(namespace, app string) ([]string, error) {
+			podName, err := proc.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+			return strings.Split(strings.Trim(podName, "'"), " "), err
+		}
+
+		oldPodNames, err := getPodNames(namespace, app)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("unbinding the service (may have multiple configurations)")
+		endpoint := fmt.Sprintf("%s%s/%s",
+			serverURL, apiv1.Root, apiv1.Routes.Path("ServiceUnbind", namespace, serviceName))
+		requestBody, err := json.Marshal(models.ServiceBindRequest{AppName: app})
+		Expect(err).ToNot(HaveOccurred())
+		response, err := env.Curl("POST", endpoint, strings.NewReader(string(requestBody)))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+
+		By("verifying the service is unbound")
+		Eventually(func() string {
+			appShowOut, err := env.Epinio("", "app", "show", app)
+			Expect(err).ToNot(HaveOccurred())
+			return appShowOut
+		}, "30s").ShouldNot(MatchRegexp(matchString))
+
+		By("verifying pod restarted (names changed) - this proves deployment happened")
+		Eventually(func() []string {
+			names, err := getPodNames(namespace, app)
+			Expect(err).ToNot(HaveOccurred())
+			return names
+		}, "1m", "2s").ShouldNot(ContainElements(oldPodNames))
+
+		By("verifying app is healthy after unbind")
+		var lastAppShowOut string
+		Eventually(func() string {
+			out, err := env.Epinio("", "app", "show", app)
+			Expect(err).ToNot(HaveOccurred())
+			lastAppShowOut = out
+			return out
+		}, "1m").Should(MatchRegexp("Status.*1/1"), "app show output (last):\n%s", stringRef{&lastAppShowOut})
 	})
 })

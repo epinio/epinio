@@ -16,14 +16,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/internal/version"
@@ -42,7 +43,7 @@ type ResponseHandler[T any] func(httpResponse *http.Response) (T, error)
 
 type APIError struct {
 	StatusCode int
-	Err *apierrors.ErrorResponse
+	Err        *apierrors.ErrorResponse
 }
 
 func (e *APIError) Error() string {
@@ -137,7 +138,7 @@ func DoWithHandlers[T any](
 	reqLog := requestLogger(c.log, request)
 	reqLog.V(1).Info("executing request")
 
-	httpResponse, err := c.HttpClient.Do(request)
+	httpResponse, err := c.HttpClient.Do(request) // nolint:gosec // API client, request URL from user/config
 	if err != nil {
 		return response, errors.Wrap(err, "making the request")
 	}
@@ -254,7 +255,9 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 	return func(httpResponse *http.Response) (T, error) {
 		defer func() {
 			if err := httpResponse.Body.Close(); err != nil {
-				fmt.Sprintf("failed to close the response body %s: ", err)
+				if helpers.Logger != nil {
+					helpers.Logger.Errorw("failed to close response body", "error", err)
+				}
 			}
 		}()
 
@@ -267,8 +270,31 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 
 		respLog.V(1).Info("response received", "status", httpResponse.StatusCode)
 
+		bodyStr := string(bodyBytes)
+
+		// Optionally print the full response body for debugging when explicitly enabled.
+		// This is controlled via the EPINIO_DEBUG_HTTP environment variable to avoid
+		// polluting normal CLI output (which breaks JSON-parsing callers and tests).
+		if debugEnv := strings.ToLower(strings.TrimSpace(os.Getenv("EPINIO_DEBUG_HTTP"))); debugEnv == "1" || debugEnv == "true" || debugEnv == "yes" {
+			fmt.Fprintf(os.Stderr, "\n=== RAW RESPONSE (Status: %d) ===\n", httpResponse.StatusCode)
+			fmt.Fprintf(os.Stderr, "%s\n", bodyStr)
+			fmt.Fprintf(os.Stderr, "=== END RAW RESPONSE ===\n\n")
+			_ = os.Stderr.Sync() // Force flush to ensure output appears
+		}
+
+		// Check if the response looks like HTML/XML (starts with '<')
+		if strings.HasPrefix(strings.TrimSpace(bodyStr), "<") {
+			logger.Error(nil, "received HTML/XML response instead of JSON", "body", bodyStr)
+			return response, errors.Errorf(
+				"server returned HTTP %d with HTML/XML response instead of JSON. "+
+					"This usually indicates the API endpoint is misconfigured, the server is not running, "+
+					"or there's a network/proxy issue. Full response:\n%s",
+				httpResponse.StatusCode, bodyStr)
+		}
+
 		if err := json.Unmarshal(bodyBytes, &response); err != nil {
-			return response, errors.Wrap(err, "decoding JSON response")
+			logger.Error(err, "decoding json error", "body", bodyStr)
+			return response, errors.Wrapf(err, "decoding JSON response. Full response body:\n%s", bodyStr)
 		}
 
 		logger.V(1).Info("response decoded", "response", response)
@@ -280,15 +306,14 @@ func NewJSONResponseHandler[T any](logger logr.Logger, response T) ResponseHandl
 func handleError(logger logr.Logger, response *http.Response) error {
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			fmt.Sprintf("failed to close the response body: %s", err)
+			logger.Error(err, "failed to close the response body")
 		}
 	}()
 
 	bodyBytes, err := io.ReadAll(response.Body)
 
-	if logger.V(5).Enabled() {
-		logger = logger.WithValues("body", string(bodyBytes))
-	}
+	// Always log the body for debugging
+	logger = logger.WithValues("body", string(bodyBytes))
 
 	if err != nil {
 		logger.Error(err, "failed to read response body")
@@ -297,14 +322,46 @@ func handleError(logger logr.Logger, response *http.Response) error {
 
 	epinioError := &APIError{
 		StatusCode: response.StatusCode,
-		Err: &apierrors.ErrorResponse{},
+		Err:        &apierrors.ErrorResponse{},
 	}
 
 	if len(bodyBytes) > 0 {
+		bodyStr := strings.TrimSpace(string(bodyBytes))
+
+		// Print a sanitized version of the response body for debugging to stderr.
+		// This is a CLI tool, not a web server, so this output is not rendered
+		// in a browser and cannot trigger XSS in a victim.
+		fmt.Fprintf(os.Stderr, "\n=== RAW ERROR RESPONSE ===\n")
+		fmt.Fprintf(os.Stderr, "URL: %s\n", response.Request.URL.String())       // nolint:gosec // debug to stderr, not HTML
+		fmt.Fprintf(os.Stderr, "Status: %d %s\n", response.StatusCode, response.Status) // nolint:gosec // debug to stderr, not HTML
+		fmt.Fprintf(os.Stderr, "Content-Type: %s\n", response.Header.Get("Content-Type")) // nolint:gosec // debug to stderr, not HTML
+		fmt.Fprintf(os.Stderr, "Body:\n%s\n", bodyStr)
+		fmt.Fprintf(os.Stderr, "=== END RAW ERROR RESPONSE ===\n\n")
+		_ = os.Stderr.Sync() // Force flush to ensure output appears
+
+		// Check if the response looks like HTML/XML (starts with '<')
+		if strings.HasPrefix(bodyStr, "<") {
+			// Response is HTML/XML, not JSON - likely an error page from a proxy or misconfigured server
+			logger.Error(nil, "decoding json error", "body", bodyStr)
+
+			return errors.Errorf(
+				"server returned HTTP %d with HTML/XML response instead of JSON. "+
+					"This usually indicates the API endpoint is misconfigured, the server is not running, "+
+					"or there's a network/proxy issue. Full response:\n%s",
+				response.StatusCode, bodyStr)
+		}
+
+		// Try to parse as JSON
 		err = json.Unmarshal(bodyBytes, epinioError.Err)
 		if err != nil {
-			logger.Error(err, "decoding json error")
-			return errors.Wrap(err, "parsing error response")
+			logger.Error(err, "decoding json error", "body", bodyStr)
+			// Print again before returning error to ensure it's visible
+			fmt.Fprintf(os.Stderr, "\n=== JSON PARSE ERROR ===\n")
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Response body: %s\n", bodyStr)
+			fmt.Fprintf(os.Stderr, "=== END JSON PARSE ERROR ===\n\n")
+			_ = os.Stderr.Sync()
+			return errors.Wrapf(err, "parsing error response (HTTP %d). Full response body:\n%s", response.StatusCode, bodyStr)
 		}
 	}
 
@@ -362,7 +419,7 @@ func (c *Client) handleAuthorization(request *http.Request) error {
 				return errors.Wrap(err, "failed getting token")
 			}
 			if newToken.AccessToken != c.Settings.Token.AccessToken {
-				log.Println("Refreshed expired token.")
+				c.log.V(1).Info("Refreshed expired token")
 
 				c.Settings.Token.AccessToken = newToken.AccessToken
 				c.Settings.Token.RefreshToken = newToken.RefreshToken

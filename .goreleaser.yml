@@ -280,6 +280,10 @@ brews:
     homepage: "https://epinio.io/"
     license: "Apache-2.0"
 
+    # Only push to Homebrew for release candidates (tags containing "rc")
+    # Skip if tag does NOT contain "rc" (split by "rc" results in only 1 part)
+    skip_upload: "{{ if eq (len (split .Tag \"rc\")) 1 }}true{{ else }}false{{ end }}"
+
     repository:
       owner: epinio
       name: homebrew-tap

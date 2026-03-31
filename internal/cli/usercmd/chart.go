@@ -90,7 +90,7 @@ func (c *EpinioClient) ChartList(ctx context.Context) error {
 	for _, chart := range charts {
 		mark := ""
 		name := chart.Meta.Name
-		created := chart.Meta.CreatedAt.String()
+		created := formatCreatedAt(chart.Meta.CreatedAt)
 		short := chart.ShortDescription
 		numSettings := fmt.Sprintf(`%d`, len(chart.Settings))
 
@@ -126,7 +126,7 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 
 	c.ui.Note().WithTable("Key", "Value").
 		WithTableRow("Name", chart.Meta.Name).
-		WithTableRow("Created", chart.Meta.CreatedAt.String()).
+		WithTableRow("Created", formatCreatedAt(chart.Meta.CreatedAt)).
 		WithTableRow("Short", chart.ShortDescription).
 		WithTableRow("Description", chart.Description).
 		WithTableRow("Helm Repository", chart.HelmRepo).

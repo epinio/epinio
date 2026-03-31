@@ -234,12 +234,6 @@ func (fake *FakeConfigurationAppMatcher) GetAPIReturnsOnCall(i int, result1 user
 func (fake *FakeConfigurationAppMatcher) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.appsMatchingMutex.RLock()
-	defer fake.appsMatchingMutex.RUnlock()
-	fake.configurationMatchingMutex.RLock()
-	defer fake.configurationMatchingMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

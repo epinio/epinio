@@ -12,11 +12,12 @@
 package middleware
 
 import (
+	"time"
+
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 )
 
@@ -25,15 +26,59 @@ func EpinioVersion(ctx *gin.Context) {
 }
 
 // InitContext initialize the Request Context injecting the logger and the requestID
-func InitContext(logger logr.Logger) gin.HandlerFunc {
+func InitContext() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		reqCtx := ctx.Request.Context()
 
 		requestID := uuid.NewString()
-		baseLogger := logger.WithValues("requestId", requestID)
 
 		reqCtx = requestctx.WithID(reqCtx, requestID)
-		reqCtx = requestctx.WithLogger(reqCtx, baseLogger)
 		ctx.Request = ctx.Request.WithContext(reqCtx)
+	}
+}
+
+// GinLogger returns a gin middleware that logs HTTP requests using zap
+func GinLogger() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		raw := c.Request.URL.RawQuery
+
+		// Process request
+		c.Next()
+
+		// Log request details
+		latency := time.Since(start)
+		clientIP := c.ClientIP()
+		method := c.Request.Method
+		statusCode := c.Writer.Status()
+		errorMessage := c.Errors.ByType(gin.ErrorTypePrivate).String()
+
+		if raw != "" {
+			path = path + "?" + raw
+		}
+
+		logFields := []interface{}{
+			"status", statusCode,
+			"latency", latency,
+			"clientIP", clientIP,
+			"method", method,
+			"path", path,
+		}
+
+		if errorMessage != "" {
+			logFields = append(logFields, "error", errorMessage)
+		}
+
+		reqLogger := requestctx.Logger(c.Request.Context()).With(logFields...)
+
+		switch {
+		case statusCode >= 500:
+			reqLogger.Errorw("HTTP request")
+		case statusCode >= 400:
+			reqLogger.Warnw("HTTP request")
+		default:
+			reqLogger.Infow("HTTP request")
+		}
 	}
 }

@@ -13,13 +13,12 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -32,18 +31,19 @@ import (
 
 // GetService will find the service with the provided namespace and name
 func GetService(
-	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,
+	ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, serviceName string,
 ) (*models.Service, apierror.APIErrors) {
+	logger := requestctx.Logger(ctx).With("component", "serviceLookup")
 
-	logger.Info("get service client")
+	logger.Infow("get service client")
 
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
 		return nil, apierror.InternalError(err)
 	}
 
-	logger.Info("get service")
+	logger.Infow("get service")
 
 	theService, err := kubeServiceClient.Get(ctx, namespace, serviceName)
 	if err != nil {
@@ -58,25 +58,26 @@ func GetService(
 		return nil, apierror.NewNotFoundError("service", serviceName)
 	}
 
-	logger.Info(fmt.Sprintf("service found %+v\n", serviceName))
+	logger.Infow("service found", "service", serviceName)
 	return theService, nil
 }
 
 // ValidateService is used by various service endpoints to verify that the service exists,
 // as well as its helm release, before action is taken.
 func ValidateService(
-	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,
+	ctx context.Context, cluster *kubernetes.Cluster,
 	service *models.Service,
 ) apierror.APIErrors {
+	logger := requestctx.Logger(ctx).With("component", "serviceValidate")
 
-	logger.Info("getting helm client")
+	logger.Infow("getting helm client")
 
-	client, err := helm.GetHelmClient(cluster.RestConfig, logger, service.Namespace())
+	client, err := helm.GetHelmClient(cluster.RestConfig, service.Namespace())
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("looking for service release")
+	logger.Infow("looking for service release")
 
 	releaseName := names.ServiceReleaseName(service.Meta.Name)
 	srv, err := client.GetRelease(releaseName)

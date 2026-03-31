@@ -28,7 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
-	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/auth"
 )
 
@@ -40,7 +40,7 @@ var (
 type Settings struct {
 	Namespace string       `mapstructure:"namespace"` // Currently targeted namespace
 	User      string       `mapstructure:"user"`
-	Password  string       `mapstructure:"pass"`
+	Password  string       `mapstructure:"pass"` // nolint:gosec // intentional auth field for API
 	Token     TokenSetting `mapstructure:"token"`
 	API       string       `mapstructure:"api"`
 	WSS       string       `mapstructure:"wss"`
@@ -55,9 +55,9 @@ type Settings struct {
 }
 
 type TokenSetting struct {
-	AccessToken  string    `json:"accesstoken" mapstructure:"accesstoken"`
+	AccessToken  string    `json:"accesstoken" mapstructure:"accesstoken"`   // nolint:gosec // intentional auth field
 	TokenType    string    `json:"tokentype,omitempty" mapstructure:"tokentype,omitempty"`
-	RefreshToken string    `json:"refreshtoken,omitempty" mapstructure:"refreshtoken,omitempty"`
+	RefreshToken string    `json:"refreshtoken,omitempty" mapstructure:"refreshtoken,omitempty"` // nolint:gosec // intentional auth field
 	Expiry       time.Time `json:"expiry,omitempty" mapstructure:"expiry,omitempty"`
 }
 
@@ -75,7 +75,7 @@ func Load() (*Settings, error) {
 func LoadFrom(file string) (*Settings, error) {
 	cfg := new(Settings)
 
-	log := tracelog.NewLogger().WithName(fmt.Sprintf("Settings-%p", cfg)).V(3)
+	log := helpers.LoggerToLogr().WithName(fmt.Sprintf("Settings-%p", cfg)).V(3)
 	log.Info("Loading", "from", file)
 
 	v := viper.New()
@@ -120,7 +120,26 @@ func LoadFrom(file string) (*Settings, error) {
 		auth.ExtendLocalTrust(cfg.Certs)
 	}
 
-	if viper.GetBool("skip-ssl-verification") {
+	// Check skip-ssl-verification flag from viper (bound flag) or environment variable
+	// The flag is bound in root.go, so we check the global viper instance
+	skipSSLVerification := viper.GetBool("skip-ssl-verification")
+	
+	// Also check environment variables as fallback (viper might not have the flag value yet)
+	// Check both EPINIO_SKIP_SSL_VERIFICATION and SKIP_SSL_VERIFICATION
+	envSkipSSL := os.Getenv("EPINIO_SKIP_SSL_VERIFICATION")
+	if envSkipSSL == "" {
+		envSkipSSL = os.Getenv("SKIP_SSL_VERIFICATION")
+	}
+	if envSkipSSL == "true" || envSkipSSL == "1" {
+		skipSSLVerification = true
+	}
+	
+	log.V(1).Info("SSL verification check", 
+		"skip-ssl-verification", skipSSLVerification,
+		"viper-value", viper.GetBool("skip-ssl-verification"),
+		"env-value", envSkipSSL)
+
+	if skipSSLVerification {
 		// Note: This has to work regardless of if `ExtendLocalTrust` was invoked or not.
 		// I.e. the `TLSClientConfig` of default http transport and default dialer may or
 		// may not be nil. Actually we can assume that either both are nil, or none, and

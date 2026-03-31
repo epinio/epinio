@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/pkg/errors"
 )
 
@@ -46,7 +47,9 @@ func (u PosixUpdater) Update(targetVersion string) error {
 
 	defer func() {
 		if err := os.Remove(tmpFile); err != nil {
-			fmt.Sprintf("failed to remove temporary file: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to remove temporary file", "error", err)
+			}
 		}
 	}()
 
@@ -60,13 +63,15 @@ func (u PosixUpdater) Update(targetVersion string) error {
 	if err := os.Rename(tmpFile, binaryInfo.Path); err != nil {
 		linkErr, ok := err.(*os.LinkError)
 		if ok {
-			fmt.Fprintf(os.Stderr, "Cross-device error trying to rename a file: %s -- will do a full copy\n", linkErr)
+			if helpers.Logger != nil {
+				helpers.Logger.Warnw("Cross-device error trying to rename a file, will do a full copy", "error", linkErr)
+			}
 			var tempInput []byte
 			tempInput, err = os.ReadFile(tmpFile) //nolint:gosec
 			if err != nil {
 				return errors.Wrapf(err, "Error reading temporary file %s", tmpFile)
 			}
-			err = os.WriteFile(binaryInfo.Path, tempInput, binaryInfo.Permissions)
+			err = os.WriteFile(binaryInfo.Path, tempInput, binaryInfo.Permissions) //nolint:gosec // Path is trusted (current binary path)
 			if err != nil {
 				return errors.Wrap(err, "copying new binary to its destination")
 			}

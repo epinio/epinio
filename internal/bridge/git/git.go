@@ -18,10 +18,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +33,6 @@ type SecretLister interface {
 }
 
 type Manager struct {
-	logger         logr.Logger
 	SecretLister   SecretLister
 	Configurations []Configuration
 }
@@ -53,7 +52,7 @@ type Configuration struct {
 	// For Github/Gitlab the username can be anything (see https://gitlab.com/gitlab-org/gitlab/-/issues/212953).
 	Username string
 	// The Personal Access Token
-	Password string
+	Password string // nolint:gosec // intentional auth field for git config
 	// UserOrg is used to specify the username/organization/project
 	UserOrg string
 	// Repository is used to specify the exact repository
@@ -68,8 +67,8 @@ func (c Configuration) Gitconfig() string {
 	return c.ID
 }
 
-func NewManager(logger logr.Logger, secretLoader SecretLister) (*Manager, error) {
-	logger = logger.WithName("GitManager")
+func NewManager(secretLoader SecretLister) (*Manager, error) {
+	logger := helpers.Logger.With("component", "GitManager")
 
 	secretSelector := labels.Set(map[string]string{
 		kubernetes.EpinioAPIGitCredentialsLabelKey: "true",
@@ -93,10 +92,9 @@ func NewManager(logger logr.Logger, secretLoader SecretLister) (*Manager, error)
 		return configurations[i].ID < configurations[j].ID
 	})
 
-	logger.V(1).Info(fmt.Sprintf("found %d git configurations [%s]", len(configurations), strings.Join(configIDs, ", ")))
+	logger.Debugw("found git configurations", "count", len(configurations), "configs", strings.Join(configIDs, ", "))
 
 	return &Manager{
-		logger:         logger,
 		SecretLister:   secretLoader,
 		Configurations: configurations,
 	}, nil

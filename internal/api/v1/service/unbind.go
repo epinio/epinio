@@ -21,7 +21,6 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -32,7 +31,7 @@ import (
 // It removes the binding between the specified service and application
 func Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).WithName("ServiceUnbind")
+	logger := requestctx.Logger(ctx).With("component", "ServiceUnbind")
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
@@ -49,7 +48,7 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("looking for application")
+	logger.Infow("looking for application")
 	app, err := application.Lookup(ctx, cluster, namespace, bindRequest.AppName)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -58,12 +57,12 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(bindRequest.AppName)
 	}
 
-	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr
 	}
 
-	apiErr = ValidateService(ctx, cluster, logger, service)
+	apiErr = ValidateService(ctx, cluster, service)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -73,16 +72,16 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 	// configurations. Here these configurations are simply unbound from the
 	// application.
 
-	logger.Info("looking for service secrets")
+	logger.Infow("looking for service secrets")
 
 	serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
+	logger.Infow("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
 
-	apiErr = UnbindService(ctx, cluster, logger, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
+	apiErr = UnbindService(ctx, cluster, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -92,24 +91,35 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 }
 
 func UnbindService(
-	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,
+	ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, serviceName, appName, userName string,
 	serviceConfigurations []v1.Secret,
 ) apierror.APIErrors {
-	logger.Info("unbinding service configurations", "service", serviceName, "app", appName)
+	logger := requestctx.Logger(ctx).With("component", "ServiceUnbind")
+	logger.Infow("unbinding service configurations", "service", serviceName, "app", appName, "count", len(serviceConfigurations))
 
+	// Collect all configuration names to unbind them in a single operation
+	// This triggers only ONE Helm deployment instead of N deployments (one per configuration)
+	configurationNames := []string{}
 	for _, secret := range serviceConfigurations {
-		// TODO: Don't `helm upgrade` after each removal. Do it once.
+		configurationNames = append(configurationNames, secret.Name)
+	}
+
+	logger.Infow("unbinding configurations in batch", "configurations", configurationNames)
+
+	// Call DeleteBinding ONCE with all configuration names
+	// This is the key optimization: 1 helm upgrade instead of N
+	if len(configurationNames) > 0 {
 		errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, appName, userName, []string{secret.Name},
+			ctx, cluster, namespace, appName, userName, configurationNames,
 		)
 		if errors != nil {
 			return apierror.NewMultiError(errors.Errors())
 		}
 	}
 
-	logger.Info("unbound service configurations")
-	logger.Info("unset service/application linkage")
+	logger.Infow("unbound service configurations")
+	logger.Infow("unset service/application linkage")
 
 	appRef := models.NewAppRef(appName, namespace)
 	err := application.BoundServicesUnset(ctx, cluster, appRef, serviceName)
@@ -117,6 +127,26 @@ func UnbindService(
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("unbound service")
+	logger.Infow("unbound service")
 	return nil
+}
+
+func deleteServiceBindings(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace, appName, userName string,
+	serviceConfigurations []v1.Secret,
+	deleteBinding func(context.Context, *kubernetes.Cluster, string, string, string, []string) apierror.APIErrors,
+) apierror.APIErrors {
+	configNames := make([]string, 0, len(serviceConfigurations))
+	for _, secret := range serviceConfigurations {
+		configNames = append(configNames, secret.Name)
+	}
+
+	// TODO: Don't `helm upgrade` after each removal. Do it once.
+	if len(configNames) == 0 {
+		return nil
+	}
+
+	return deleteBinding(ctx, cluster, namespace, appName, userName, configNames)
 }

@@ -22,13 +22,13 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Users", LMisc, func() {
+var _ = Describe("Users", Label("temp-label"), func() {
 	var request *http.Request
 	var err error
 	var uri string
 
 	BeforeEach(func() {
-		uri = fmt.Sprintf("%s%s/me", serverURL, v1.Root)
+		uri = fmt.Sprintf("%s%s/me", serverURL+":8443", v1.Root)
 		request, err = http.NewRequest("GET", uri, strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -103,7 +103,7 @@ var _ = Describe("Users", LMisc, func() {
 		})
 
 		Specify("can describe its namespace", func() {
-			uri := fmt.Sprintf("%s%s/namespaces/workspace", serverURL, v1.Root)
+			uri := fmt.Sprintf("%s%s/namespaces/workspace", serverURL+":8443", v1.Root)
 			request, err := http.NewRequest("GET", uri, nil)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -115,7 +115,7 @@ var _ = Describe("Users", LMisc, func() {
 		})
 
 		Specify("cannot describe another namespace", func() {
-			uri := fmt.Sprintf("%s%s/namespaces/%s", serverURL, v1.Root, namespace)
+			uri := fmt.Sprintf("%s%s/namespaces/%s", serverURL+":8443", v1.Root, namespace)
 			request, err := http.NewRequest("GET", uri, nil)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -139,7 +139,7 @@ var _ = Describe("Users", LMisc, func() {
 		})
 
 		Specify("can describe any namespace", func() {
-			uri := fmt.Sprintf("%s%s/namespaces/workspace", serverURL, v1.Root)
+			uri := fmt.Sprintf("%s%s/namespaces/workspace", serverURL+":8443", v1.Root)
 			request, err := http.NewRequest("GET", uri, nil)
 			Expect(err).ToNot(HaveOccurred())
 

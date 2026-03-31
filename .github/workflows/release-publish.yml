@@ -54,7 +54,18 @@ jobs:
           event-type: epinio-release
           client-payload: '{"ref": "${{ steps.get_tag.outputs.TAG }}"}'
 
+      # Only bump Homebrew formula for release candidates (tags containing "rc")
+      - name: Check if release candidate
+        id: check_rc
+        run: |
+          if [[ "${{ steps.get_tag.outputs.TAG }}" == *"rc"* ]]; then
+            echo "is_rc=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_rc=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Bump Homebrew formula
+        if: steps.check_rc.outputs.is_rc == 'false'
         uses: mislav/bump-homebrew-formula-action@v2
         with:
           download-url: https://github.com/epinio/epinio/archive/refs/tags/${{ steps.get_tag.outputs.TAG }}.tar.gz

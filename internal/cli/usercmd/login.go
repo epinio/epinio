@@ -17,13 +17,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"syscall"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/termui"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -179,8 +179,13 @@ func readUserInput() (string, error) {
 func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, error) {
 	var builder strings.Builder
 
+	type certWithAddress struct {
+		cert    *x509.Certificate
+		address string
+	}
+
 	// get all the certs to check
-	certsToCheck := []*x509.Certificate{}
+	certsToCheck := []certWithAddress{}
 	for _, address := range addresses {
 		cert, err := checkCA(address)
 		if err != nil {
@@ -189,7 +194,7 @@ func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, err
 				return "", errors.Wrap(err, "error while checking CA")
 			}
 			// add the untrusted certificate to the list to check
-			certsToCheck = append(certsToCheck, cert)
+			certsToCheck = append(certsToCheck, certWithAddress{cert: cert, address: address})
 		} else {
 			// and regularly trusted certs go directly into the result
 			// This was missing in PR #1964, and demonstrated as bug with issue #2003
@@ -200,9 +205,9 @@ func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, err
 
 	// in cert we trust!
 	if trustCA {
-		for i, cert := range certsToCheck {
-			ui.Success().Msgf("Trusting certificate for address %s...", addresses[i])
-			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+		for _, certInfo := range certsToCheck {
+			ui.Success().Msgf("Trusting certificate for address %s...", certInfo.address)
+			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certInfo.cert.Raw})
 			builder.Write(pemCert)
 		}
 		return builder.String(), nil
@@ -211,24 +216,24 @@ func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, err
 	trustedIssuersMap := map[string]bool{}
 
 	// let's prompt the user for every issuer
-	for i, cert := range certsToCheck {
+	for _, certInfo := range certsToCheck {
 		var trustedCA, asked bool
 		var err error
 
-		trustedCA, asked = trustedIssuersMap[cert.Issuer.String()]
+		trustedCA, asked = trustedIssuersMap[certInfo.cert.Issuer.String()]
 
 		if !asked {
-			trustedCA, err = askTrustCA(ui, cert)
+			trustedCA, err = askTrustCA(ui, certInfo.cert)
 			if err != nil {
 				return "", errors.Wrap(err, "error while asking to trust the CA")
 			}
-			trustedIssuersMap[cert.Issuer.String()] = trustedCA
+			trustedIssuersMap[certInfo.cert.Issuer.String()] = trustedCA
 		}
 
 		// if the CA is trusted we can add the cert
 		if trustedCA {
-			ui.Success().Msgf("Trusting certificate for address %s...", addresses[i])
-			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+			ui.Success().Msgf("Trusting certificate for address %s...", certInfo.address)
+			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certInfo.cert.Raw})
 			builder.Write(pemCert)
 		}
 	}
@@ -257,7 +262,9 @@ func checkCA(address string) (*x509.Certificate, error) {
 
 	defer func() {
 		if err := conn.Close(); err != nil {
-			fmt.Sprintf("could not close connection: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close connection", "error", err)
+			}
 		}
 	}()
 

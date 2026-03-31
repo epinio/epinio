@@ -12,13 +12,11 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/gin-gonic/gin"
 
@@ -30,7 +28,7 @@ import (
 // It creates a binding between the specified service and application
 func Bind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).WithName("ServiceBind")
+	logger := requestctx.Logger(ctx).With("component", "ServiceBind")
 
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
@@ -46,7 +44,7 @@ func Bind(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info("looking for application")
+	logger.Infow("looking for application")
 	app, err := application.Lookup(ctx, cluster, namespace, bindRequest.AppName)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -55,12 +53,12 @@ func Bind(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(bindRequest.AppName)
 	}
 
-	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr
 	}
 
-	apiErr = ValidateService(ctx, cluster, logger, service)
+	apiErr = ValidateService(ctx, cluster, service)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -69,21 +67,21 @@ func Bind(c *gin.Context) apierror.APIErrors {
 	// a specific set of labels turns these secrets into valid epinio
 	// configurations. These configurations are then bound to the application.
 
-	logger.Info("looking for secrets to label")
+	logger.Infow("looking for secrets to label")
 
 	configurationSecrets, err := configurations.LabelServiceSecrets(ctx, cluster, service)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", configurationSecrets))
+	logger.Infow("configurationSecrets found", "secrets", configurationSecrets)
 
 	configurationNames := []string{}
 	for _, secret := range configurationSecrets {
 		configurationNames = append(configurationNames, secret.Name)
 	}
 
-	logger.Info("binding service configuration")
+	logger.Infow("binding service configuration")
 
 	_, errors := configurationbinding.CreateConfigurationBinding(
 		ctx, cluster, namespace, *app, configurationNames,
@@ -93,12 +91,12 @@ func Bind(c *gin.Context) apierror.APIErrors {
 		return apierror.NewMultiError(errors.Errors())
 	}
 
-	logger.Info("binding service")
+	logger.Infow("binding service")
 
 	// And track the service binding itself as well.
 	okToBind := []string{serviceName}
 
-	logger.Info("BoundServicesSet")
+	logger.Infow("BoundServicesSet")
 	err = application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, false)
 	if err != nil {
 		// TODO: Rewind the configuration bindings made above.

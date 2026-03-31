@@ -162,10 +162,6 @@ func (fake *FakeServiceMatcher) ServiceMatchingReturnsOnCall(i int, result1 []st
 func (fake *FakeServiceMatcher) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
-	fake.serviceMatchingMutex.RLock()
-	defer fake.serviceMatchingMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

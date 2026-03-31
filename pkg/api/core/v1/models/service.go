@@ -71,9 +71,10 @@ type ServiceCreateRequest struct {
 // ServiceUpdateRequest represents and contains the data needed to
 // update a service instance (add/change, and remove custom value keys)
 type ServiceUpdateRequest struct {
-	Remove []string           `json:"remove,omitempty"`
-	Set    ChartValueSettings `json:"edit,omitempty"`
-	Wait   bool               `json:"wait,omitempty"`
+	Remove  []string           `json:"remove,omitempty"`
+	Set     ChartValueSettings `json:"edit,omitempty"`
+	Wait    bool               `json:"wait,omitempty"`
+	Restart *bool              `json:"restart,omitempty"`
 }
 
 // ServiceReplaceRequest represents and contains the data needed to
@@ -81,6 +82,7 @@ type ServiceUpdateRequest struct {
 type ServiceReplaceRequest struct {
 	Settings ChartValueSettings `json:"settings,omitempty"`
 	Wait     bool               `json:"wait,omitempty"`
+	Restart  *bool              `json:"restart,omitempty"`
 }
 
 // ServiceDeleteRequest represents and contains the data needed to delete a service
@@ -99,6 +101,12 @@ type ServiceBindRequest struct {
 
 type ServiceUnbindRequest struct {
 	AppName string `json:"app_name,omitempty"`
+}
+
+// ServiceBatchBindRequest represents a request to bind multiple services to an application at once
+type ServiceBatchBindRequest struct {
+	AppName      string   `json:"app_name,omitempty"`
+	ServiceNames []string `json:"service_names,omitempty"`
 }
 
 // CatalogServices is a list of catalog service elements

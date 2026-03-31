@@ -30,10 +30,13 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/gitconfig"
 	"github.com/epinio/epinio/internal/api/v1/gitproxy"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
+	"github.com/epinio/epinio/internal/api/v1/report"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
+	"github.com/epinio/epinio/internal/api/v1/supportbundle"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
@@ -61,8 +64,8 @@ func funcName(i interface{}) string {
 func errorHandler(action APIActionFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if errors := action(c); errors != nil {
-			requestctx.Logger(c.Request.Context()).Info(
-				"responding with json error response",
+			log := requestctx.Logger(c.Request.Context()).With("component", "api-router")
+			log.Infow("responding with json error response",
 				"action", funcName(action),
 				"errors", errors,
 			)
@@ -92,10 +95,16 @@ func put(path string, h gin.HandlerFunc) routes.Route {
 }
 
 // AdminRoutes is the list of restricted routes, only accessible by admins
-var AdminRoutes map[string]struct{} = map[string]struct{}{}
+// The key is the full path as it appears in the request URL (e.g., "/api/v1/support-bundle")
+var AdminRoutes map[string]struct{} = map[string]struct{}{
+	"/api/v1/support-bundle": {},
+	"/api/v1/report/nodes":   {},
+}
 
 var Routes = routes.NamedRoutes{
 	"AuthToken": get("/authtoken", errorHandler(AuthToken)),
+
+	"NodeReport": get("/report/nodes", errorHandler(report.Nodes)),
 
 	// app controller files see application/*.go
 
@@ -196,6 +205,11 @@ var Routes = routes.NamedRoutes{
 		"/namespaces/:namespace/services/:service/unbind",
 		errorHandler(service.Unbind)),
 
+	// Batch bind multiple services to an application
+	"ServiceBatchBind": post(
+		"/namespaces/:namespace/applications/:app/servicebindings",
+		errorHandler(service.BatchBind)),
+
 	// App charts
 	"ChartList":   get("/appcharts", errorHandler(appchart.Index)),
 	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Match)),
@@ -218,6 +232,9 @@ var Routes = routes.NamedRoutes{
 	"ExportregistriesMatch0": get("/exportregistrymatches", errorHandler(exportregistry.Match)),
 
 	"GitProxy": post("/gitproxy", errorHandler(gitproxy.ProxyHandler)),
+
+	// Support bundle
+	"SupportBundle": get("/support-bundle", errorHandler(supportbundle.Bundle)),
 }
 
 var WsRoutes = routes.NamedRoutes{
@@ -226,6 +243,7 @@ var WsRoutes = routes.NamedRoutes{
 	"AppLogs":            get("/namespaces/:namespace/applications/:app/logs", application.Logs),
 	"ServicePortForward": get("/namespaces/:namespace/services/:service/portforward", errorHandler(service.PortForward)),
 	"StagingLogs":        get("/namespaces/:namespace/staging/:stage_id/logs", application.Logs),
+	"StagingCompleteWs":  get("/namespaces/:namespace/staging/:stage_id/complete", application.StagedWebsocket),
 }
 
 // Lemon extends the specified router with the methods and urls

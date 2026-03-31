@@ -16,18 +16,19 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/api/v1/proxy"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/internal/api/v1/proxy"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 var upgrader = websocket.Upgrader{} // use default option
 
 func PortForward(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).WithName("PortForward")
+	logger := requestctx.Logger(ctx).With("component", "PortForward")
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
 
@@ -36,7 +37,7 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -47,20 +48,20 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 
 	wconn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		logger.Error(err, "failed to upgrade")
+		logger.Errorw("failed to upgrade", "error", err)
 		return apierror.InternalError(err)
 	}
 
 	defer func() {
 		if err := wconn.Close(); err != nil {
-			logger.Error(err, "failed to close connection: ")
+			logger.Errorw("failed to close connection", "error", err)
 		}
 	}()
 
 	conn := wconn.UnderlyingConn()
 
 	msg := fmt.Sprintf("upgraded connection [%s] - service routes [%s]", conn.RemoteAddr().String(), strings.Join(service.InternalRoutes, ", "))
-	logger.V(1).Info(msg)
+	logger.Debugw(msg)
 
 	if len(service.InternalRoutes) == 0 {
 		return apierror.NewInternalError("no internal service routes available")

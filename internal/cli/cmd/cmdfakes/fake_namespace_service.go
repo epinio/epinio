@@ -386,16 +386,6 @@ func (fake *FakeNamespaceService) ShowNamespaceReturnsOnCall(i int, result1 erro
 func (fake *FakeNamespaceService) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.createNamespaceMutex.RLock()
-	defer fake.createNamespaceMutex.RUnlock()
-	fake.deleteNamespaceMutex.RLock()
-	defer fake.deleteNamespaceMutex.RUnlock()
-	fake.namespacesMutex.RLock()
-	defer fake.namespacesMutex.RUnlock()
-	fake.namespacesMatchingMutex.RLock()
-	defer fake.namespacesMatchingMutex.RUnlock()
-	fake.showNamespaceMutex.RLock()
-	defer fake.showNamespaceMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

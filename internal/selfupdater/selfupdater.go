@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/pkg/errors"
 	progressbar "github.com/schollz/progressbar/v3"
 )
@@ -59,6 +60,8 @@ type Updater interface {
 // downloadFile downloads a remote file to the specified directory, using
 // a "random" name. It returns the new file path and/or and error if one occurs.
 func downloadFile(remoteURL, dir string) (string, error) {
+	// remoteURL is obtained from the Epinio release metadata and not from arbitrary users.
+	//nolint:gosec // G704 - controlled URL from trusted release metadata
 	tmpFile, err := os.CreateTemp(dir, "epinio")
 	if err != nil {
 		return "", errors.Wrap(err, "creating a temporary file")
@@ -66,7 +69,9 @@ func downloadFile(remoteURL, dir string) (string, error) {
 
 	defer func() {
 		if err := tmpFile.Close(); err != nil {
-			fmt.Printf("failed to close temp file: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close temp file", "error", err)
+			}
 		}
 	}()
 
@@ -74,14 +79,16 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "constructing a request")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // nolint:gosec // remoteURL from release metadata, not user input
 	if err != nil {
 		return "", errors.Wrap(err, "making the request")
 	}
 	
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("failed to close response body: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close response body", "error", err)
+			}
 		}
 	}()
 
@@ -89,7 +96,9 @@ func downloadFile(remoteURL, dir string) (string, error) {
 		return "", errors.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	fmt.Printf("Downloading file %s\n", remoteURL)
+	if helpers.Logger != nil {
+		helpers.Logger.Infow("Downloading file", "url", remoteURL)
+	}
 	bar := progressbar.DefaultBytes(
 		resp.ContentLength,
 		"Progress",
@@ -137,7 +146,9 @@ func validateFileChecksum(filePath, checksumFileURL, fileNamePattern string) err
 	
 	defer func() {
 		if err := os.RemoveAll(tmpDir); err != nil {
-			fmt.Printf("failed to close temp directory: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to remove temp directory", "error", err)
+			}
 		}
 	}()
 
@@ -172,7 +183,9 @@ func calculateChecksum(filePath string) (string, error) {
 	
 	defer func() {
 		if err := f.Close(); err != nil {
-			fmt.Printf("failed to close file: %s", err)
+			if helpers.Logger != nil {
+				helpers.Logger.Errorw("failed to close file", "error", err)
+			}
 		}
 	}()
 

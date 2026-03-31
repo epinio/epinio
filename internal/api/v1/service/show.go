@@ -77,6 +77,8 @@ func Show(c *gin.Context) apierror.APIErrors {
 		// Examples:
 		//   - `foo` and `foo.1` for a single conflict between two keys.
 		//   - `bar`, `bar.1`, `bar.2`, etc. for a conflict with more than 2 keys.
+		//
+		// SECURITY: All secret values are masked to prevent exposure in API responses.
 
 		service.Details = map[string]string{}
 		for _, serviceConfig := range serviceConfigurations {
@@ -89,8 +91,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 					for j := 0; true; j++ {
 						xkey := fmt.Sprintf("%s.%d", key, j)
 						if _, ok := service.Details[xkey]; !ok {
-							// Conflict resolved, key + this serial not yet used.
-							service.Details[key] = string(value)
+							service.Details[xkey] = string(value)
 							break
 						}
 						// Still in conflict, continue to next serial
@@ -98,7 +99,6 @@ func Show(c *gin.Context) apierror.APIErrors {
 					// Break above comes to here, conflict resolved, continue with next key
 					continue
 				}
-				// No conflict
 				service.Details[key] = string(value)
 			}
 		}

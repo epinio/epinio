@@ -40,7 +40,7 @@ func (c *EpinioClient) ServiceCatalog() error {
 	for _, service := range catalog {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
-			service.Meta.CreatedAt.String(),
+			formatCreatedAt(service.Meta.CreatedAt),
 			service.AppVersion,
 			service.ShortDescription,
 		)
@@ -68,7 +68,7 @@ func (c *EpinioClient) ServiceCatalogShow(ctx context.Context, serviceName strin
 
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", catalogService.Meta.Name).
-		WithTableRow("Created", catalogService.Meta.CreatedAt.String()).
+		WithTableRow("Created", formatCreatedAt(catalogService.Meta.CreatedAt)).
 		WithTableRow("Version", catalogService.AppVersion).
 		WithTableRow("Short Description", catalogService.ShortDescription).
 		WithTableRow("Description", catalogService.Description).
@@ -107,7 +107,7 @@ func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wai
 }
 
 // UpdateService updates a service specified by name and information about removed keys and changed assignments.
-func (c *EpinioClient) ServiceUpdate(name string, wait bool, removedKeys []string, assignments map[string]string) error {
+func (c *EpinioClient) ServiceUpdate(name string, wait bool, removedKeys []string, assignments map[string]string, noRestart bool) error {
 	log := c.Log.WithName("Update Service").
 		WithValues("Name", name, "Namespace", c.Settings.Namespace)
 	log.Info("start")
@@ -119,10 +119,12 @@ func (c *EpinioClient) ServiceUpdate(name string, wait bool, removedKeys []strin
 		return err
 	}
 
+	restart := !noRestart
 	request := models.ServiceUpdateRequest{
-		Remove: removedKeys,
-		Set:    assignments,
-		Wait:   wait,
+		Remove:  removedKeys,
+		Set:     assignments,
+		Wait:    wait,
+		Restart: &restart,
 	}
 
 	_, err := c.API.ServiceUpdate(request, c.Settings.Namespace, name)
@@ -167,7 +169,7 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", service.Meta.Name).
-		WithTableRow("Created", service.Meta.CreatedAt.String()).
+		WithTableRow("Created", formatCreatedAt(service.Meta.CreatedAt)).
 		WithTableRow("Catalog Service", service.CatalogService).
 		WithTableRow("Version", service.CatalogServiceVersion).
 		WithTableRow("Status", service.Status.String()).
@@ -338,6 +340,36 @@ func (c *EpinioClient) ServiceBind(name, appName string) error {
 	return errors.Wrap(err, "service bind failed")
 }
 
+// ServiceBatchBind binds multiple services to an application at once
+func (c *EpinioClient) ServiceBatchBind(appName string, serviceNames []string) error {
+	log := c.Log.WithName("ServiceBatchBind")
+	log.Info("start", "services", serviceNames)
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Application", appName).
+		WithStringValue("Services", strings.Join(serviceNames, ", ")).
+		Msg("Binding Services...")
+
+	request := models.ServiceBatchBindRequest{
+		AppName:      appName,
+		ServiceNames: serviceNames,
+	}
+
+	_, err := c.API.ServiceBatchBind(request, c.Settings.Namespace, appName)
+	if err != nil {
+		return errors.Wrap(err, "service batch bind failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Application", appName).
+		WithStringValue("Services", strings.Join(serviceNames, ", ")).
+		WithStringValue("Namespace", c.Settings.Namespace).
+		Msg("Services Bound Successfully.")
+
+	return nil
+}
+
 // ServiceUnbind unbinds a service from an application
 func (c *EpinioClient) ServiceUnbind(name, appName string) error {
 	log := c.Log.WithName("ServiceUnbind")
@@ -360,17 +392,22 @@ func (c *EpinioClient) ServiceList() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().
-		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Listing Services...")
+	jsonOutput := c.ui.JSONEnabled()
+
+	if !jsonOutput {
+		c.ui.Note().
+			WithStringValue("Namespace", c.Settings.Namespace).
+			Msg("Listing Services...")
+	}
 
 	services, err := c.API.ServiceList(c.Settings.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "service list failed")
 	}
 
-	if c.ui.JSONEnabled() {
-		sort.Sort(services)
+	sort.Sort(services)
+
+	if jsonOutput {
 		return c.ui.JSON(services)
 	}
 
@@ -379,13 +416,11 @@ func (c *EpinioClient) ServiceList() error {
 		return nil
 	}
 
-	sort.Sort(services)
-
 	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Version", "Status", "Applications")
 	for _, service := range services {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
-			service.Meta.CreatedAt.String(),
+			formatCreatedAt(service.Meta.CreatedAt),
 			service.CatalogService,
 			service.CatalogServiceVersion,
 			service.Status.String(),
@@ -403,15 +438,20 @@ func (c *EpinioClient) ServiceListAll() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().Msg("Listing all Services...")
+	jsonOutput := c.ui.JSONEnabled()
+
+	if !jsonOutput {
+		c.ui.Note().Msg("Listing all Services...")
+	}
 
 	services, err := c.API.AllServices()
 	if err != nil {
 		return errors.Wrap(err, "service list failed")
 	}
 
-	if c.ui.JSONEnabled() {
-		sort.Sort(services)
+	sort.Sort(services)
+
+	if jsonOutput {
 		return c.ui.JSON(services)
 	}
 
@@ -420,14 +460,12 @@ func (c *EpinioClient) ServiceListAll() error {
 		return nil
 	}
 
-	sort.Sort(services)
-
 	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Version", "Status", "Application")
 	for _, service := range services {
 		msg = msg.WithTableRow(
 			service.Meta.Namespace,
 			service.Meta.Name,
-			service.Meta.CreatedAt.String(),
+			formatCreatedAt(service.Meta.CreatedAt),
 			service.CatalogService,
 			service.CatalogServiceVersion,
 			service.Status.String(),

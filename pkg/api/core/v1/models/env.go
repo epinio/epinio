@@ -21,10 +21,21 @@ import (
 // This subsection of models provides structures related to the
 // environment variables of applications.
 
+// EnvVariableOrigin represents the source of an environment variable
+type EnvVariableOrigin string
+
+const (
+	// EnvOriginUser indicates the variable was set by the user
+	EnvOriginUser EnvVariableOrigin = "user"
+	// EnvOriginService indicates the variable came from a bound service/configuration
+	EnvOriginService EnvVariableOrigin = "service"
+)
+
 // EnvVariable represents the Show Response for a single environment variable
 type EnvVariable struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+	Name   string             `json:"name"`
+	Value  string             `json:"value"`
+	Origin EnvVariableOrigin  `json:"origin,omitempty"`
 }
 
 // EnvVariableList is a collection of EVs.
@@ -33,6 +44,12 @@ type EnvVariableList []EnvVariable
 // EnvVariableMap is a collection of EVs as a map. It is used for Set Requests, and as
 // List Responses
 type EnvVariableMap map[string]string
+
+// EnvVariableGroupedResponse represents environment variables grouped by their origin
+type EnvVariableGroupedResponse struct {
+	User    EnvVariableMap `json:"user"`
+	Service EnvVariableMap `json:"service"`
+}
 
 // EnvVarnameList is a collection of EV names, it is used for Unset Requests, and as Match
 // Responses

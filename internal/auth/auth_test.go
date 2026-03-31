@@ -23,7 +23,6 @@ import (
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/auth/authfakes"
-	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -59,7 +58,6 @@ var _ = Describe("Auth users", func() {
 		fakeConfigMap = &authfakes.FakeConfigMapInterface{}
 
 		authService = &auth.AuthService{
-			Logger:             logr.Discard(),
 			SecretInterface:    fakeSecret,
 			ConfigMapInterface: fakeConfigMap,
 		}

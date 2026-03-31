@@ -24,12 +24,13 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
+
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 // Update handles the API endpoint PATCH /namespaces/:namespace/applications/:app
@@ -68,7 +69,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		return apierror.NewBadRequestError(err.Error())
 	}
 
-	log.Info("updating app", "namespace", namespace, "app", appName, "request", updateRequest)
+	log.Infow("updating app", "namespace", namespace, "app", appName, "request", updateRequest)
 
 	if updateRequest.Instances != nil && *updateRequest.Instances < 0 {
 		return apierror.NewBadRequestError("instances param should be integer equal or greater than zero")
@@ -89,7 +90,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		updateRequest.Routes == nil &&
 		updateRequest.AppChart == "" {
 
-		log.Info("updating app -- no changes")
+		log.Infow("updating app -- no changes")
 		response.OK(c)
 		return nil
 	}
@@ -136,7 +137,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	// update appChart
 	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
-		log.Info("updating app", "appChart", updateRequest.AppChart)
+		log.Infow("updating app", "appChart", updateRequest.AppChart)
 
 		err := updateAppChart(ctx, cluster, client, app.Meta.Namespace, app.Meta.Name, updateRequest.AppChart)
 		if err != nil {
@@ -148,9 +149,9 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	var desired int32
 	if updateRequest.Instances != nil {
 		desired = *updateRequest.Instances
-		log.Info("updating app", "instances", desired)
+		log.Infow("updating app", "instances", desired)
 
-		err := application.ScalingSet(ctx, cluster, appRef, desired)
+		err := application.ScalingSetWithEvent(ctx, cluster, appRef, desired, username)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
@@ -158,9 +159,10 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	// update envs
 	if len(updateRequest.Environment) > 0 {
-		log.Info("updating app", "environment", updateRequest.Environment)
+		log.Infow("updating app", "environment", updateRequest.Environment)
 
-		err := application.EnvironmentSet(ctx, cluster, app.Meta, updateRequest.Environment, true)
+		replaceEnv := envReplaceFlag(updateRequest.ReplaceEnv)
+		err := application.EnvironmentSet(ctx, cluster, app.Meta, updateRequest.Environment, replaceEnv)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
@@ -168,7 +170,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	// update configurations
 	if updateRequest.Configurations != nil {
-		log.Info("updating app", "configurations", updateRequest.Configurations)
+		log.Infow("updating app", "configurations", updateRequest.Configurations)
 
 		err := updateConfigurations(ctx, cluster, appRef, updateRequest.Configurations)
 		if err != nil {
@@ -181,7 +183,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	// update routes
 	if updateRequest.Routes != nil {
-		log.Info("updating app", "routes", updateRequest.Routes)
+		log.Infow("updating app", "routes", updateRequest.Routes)
 
 		err := updateRoutes(ctx, client, namespace, appName, updateRequest.Routes)
 		if err != nil {
@@ -191,7 +193,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	// update settings only if chart values have been set, otherwise just leave it as it is.
 	if len(updateRequest.Settings) > 0 {
-		log.Info("updating app", "settings", updateRequest.Settings)
+		log.Infow("updating app", "settings", updateRequest.Settings)
 
 		err := updateChartValueSettings(ctx, client, namespace, appName, updateRequest.Settings)
 		if err != nil {
@@ -203,7 +205,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	restart := updateRequest.Restart == nil || *updateRequest.Restart
 	if restart {
 		if app.Workload != nil || desired > 0 {
-			log.Info("updating app -- restarting")
+			log.Infow("updating app -- restarting")
 
 			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 			if apierr != nil {
@@ -214,6 +216,10 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	response.OK(c)
 	return nil
+}
+
+func envReplaceFlag(replace *bool) bool {
+	return replace != nil && *replace
 }
 
 func updateAppChart(

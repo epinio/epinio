@@ -87,13 +87,17 @@ type ConfigurationCreateRequest struct {
 // ConfigurationUpdateRequest represents and contains the data needed to
 // update a configuration instance (add/change, and remove keys)
 type ConfigurationUpdateRequest struct {
-	Remove []string          `json:"remove,omitempty"`
-	Set    map[string]string `json:"edit,omitempty"`
+	Remove  []string          `json:"remove,omitempty"`
+	Set     map[string]string `json:"edit,omitempty"`
+	Restart *bool             `json:"restart,omitempty"`
 }
 
 // ConfigurationReplaceRequest represents and contains the data needed to
 // replace a configuration instance
-type ConfigurationReplaceRequest map[string]string
+type ConfigurationReplaceRequest struct {
+	Data    map[string]string `json:"data"`
+	Restart *bool             `json:"restart,omitempty"`
+}
 
 // ConfigurationDeleteRequest represents and contains the data needed to delete a configuration
 type ConfigurationDeleteRequest struct {
@@ -140,9 +144,12 @@ type ApplicationConfiguration struct {
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	ReplaceEnv     *bool              `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
+	Services       []string           `json:"services,omitempty" yaml:"services,omitempty"`
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Ignore         []string           `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
@@ -215,6 +222,7 @@ type ApplicationUpdateRequest struct {
 	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
 	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
 	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
+	ReplaceEnv     *bool              `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
 	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
@@ -226,6 +234,7 @@ func NewApplicationUpdateRequest(manifest ApplicationManifest) ApplicationUpdate
 		Instances:      manifestConfig.Instances,
 		Configurations: manifestConfig.Configurations,
 		Environment:    manifestConfig.Environment,
+		ReplaceEnv:     manifestConfig.ReplaceEnv,
 		Routes:         manifestConfig.Routes,
 		AppChart:       manifestConfig.AppChart,
 		Settings:       manifestConfig.Settings,
@@ -258,6 +267,24 @@ type StageResponse struct {
 	ImageURL string   `json:"image,omitempty"`
 }
 
+// StageCompleteEvent is sent over the staging completion websocket endpoint
+// to signal the status of a staging job.
+type StageCompleteEvent struct {
+	StageID   string `json:"stage_id"`
+	Namespace string `json:"namespace"`
+	Status    string `json:"status"`
+	Message   string `json:"message,omitempty"`
+	Completed bool   `json:"completed"`
+}
+
+// StageComplete statuses used in websocket payloads.
+const (
+	StageStatusWaiting   = "waiting"
+	StageStatusSucceeded = "succeeded"
+	StageStatusFailed    = "failed"
+	StageStatusError     = "error"
+)
+
 // DeployRequest represents and contains the data needed to deploy an application
 // Note that the overall application configuration (instances, configurations, EVs) is
 // already known server side, through AppCreate/AppUpdate requests.
@@ -272,12 +299,19 @@ type DeployRequest struct {
 
 // DeployResponse represents the server's response to a successful app deployment
 type DeployResponse struct {
-	Routes []string `json:"routes,omitempty"`
+	Routes   []string `json:"routes,omitempty"`
+	Warnings []string `json:"warnings,omitempty"`
+}
+
+// ApplicationDeleteRequest represents and contains the data needed to delete an application
+type ApplicationDeleteRequest struct {
+	DeleteImage bool `json:"deleteImage"`
 }
 
 // ApplicationDeleteResponse represents the server's response to a successful app deletion
 type ApplicationDeleteResponse struct {
 	UnboundConfigurations []string `json:"unboundconfigurations"`
+	Warnings              []string `json:"warnings,omitempty"`
 }
 
 // EnvMatchResponse contains the list of names for matching env variables

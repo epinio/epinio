@@ -30,17 +30,27 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const (
+	bitnamiRepoURL      = "https://charts.bitnami.com/bitnami"
+	dockerHubUserEnvVar = "DOCKERHUB_USERNAME"
+	bitnamiRepoAuthRef  = "bitnami-repo-auth"
+)
+
 func NginxCatalogService(name string) models.CatalogService {
-	values := `{"service": {"type": "ClusterIP"}}`
+	values := `{
+		"service": {"type": "ClusterIP"},
+		"image": {"pullPolicy": "IfNotPresent"}
+	}`
 
 	return models.CatalogService{
 		Meta: models.MetaLite{
 			Name: name,
 		},
-		HelmChart: "nginx",
+		HelmChart:    "nginx",
+		ChartVersion: "22.5.0",
 		HelmRepo: models.HelmRepo{
 			Name: "",
-			URL: "https://charts.bitnami.com/bitnami",
+			URL:  "https://charts.bitnami.com/bitnami",
 		},
 		Values: values,
 		Settings: map[string]models.ChartSetting{
@@ -63,6 +73,24 @@ func NginxCatalogService(name string) models.CatalogService {
 	}
 }
 
+func RedisCatalogService(name string) models.CatalogService {
+	return models.CatalogService{
+		Meta: models.MetaLite{
+			Name: name,
+		},
+		HelmChart: "redis",
+		HelmRepo: models.HelmRepo{
+			Name: "",
+			URL:  "https://charts.bitnami.com/bitnami",
+		},
+		Values: `{
+			"architecture": "standalone",
+			"auth": {"enabled": false},
+			"image": {"pullPolicy": "IfNotPresent"}
+		}`,
+	}
+}
+
 func CreateCatalogServiceNginx() models.CatalogService {
 	catalogService := NginxCatalogService(NewCatalogServiceName())
 
@@ -80,8 +108,9 @@ func CreateCatalogService(catalogService models.CatalogService) {
 func CreateCatalogServiceInNamespace(namespace string, catalogService models.CatalogService) {
 	By("creating catalog entry in " + namespace + ": " + catalogService.Meta.Name)
 
-	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService)
-	
+	helmRepoSecret := ensureHelmRepoAuthSecret(namespace, catalogService.HelmRepo.URL)
+	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService, helmRepoSecret)
+
 	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(os.Remove(sampleServiceFilePath)).ToNot(HaveOccurred())
@@ -99,36 +128,37 @@ func DeleteCatalogServiceFromNamespace(namespace, name string) {
 }
 
 // Create temp file to hold the catalog service formatted as yaml, and return the path
-func SampleServiceTmpFile(namespace string, catalogService models.CatalogService) string {
+func SampleServiceTmpFile(namespace string, catalogService models.CatalogService, helmRepoSecret string) string {
 
 	// Convert from internal model to CRD structure
 	settings := map[string]epinioappv1.ServiceSetting{}
 	for key, value := range catalogService.Settings {
 		settings[key] = epinioappv1.ServiceSetting{
-			Type: value.Type,
+			Type:    value.Type,
 			Minimum: value.Minimum,
 			Maximum: value.Maximum,
-			Enum: value.Enum,
+			Enum:    value.Enum,
 		}
 	}
 
 	srv := epinioappv1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: epinioappv1.GroupVersion.String(),
-			Kind: "Service",
+			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: catalogService.Meta.Name,
+			Name:      catalogService.Meta.Name,
 			Namespace: namespace,
 		},
 		Spec: epinioappv1.ServiceSpec{
-			Name:catalogService.Meta.Name,
+			Name:        catalogService.Meta.Name,
 			Description: "A simple description of this service.",
 			HelmRepo: epinioappv1.HelmRepo{
-				URL: catalogService.HelmRepo.URL,
+				URL:    catalogService.HelmRepo.URL,
+				Secret: helmRepoSecret,
 			},
 			HelmChart: catalogService.HelmChart,
-			Values: catalogService.Values,
+			Values:    catalogService.Values,
 			Settings:  settings,
 		},
 	}
@@ -155,6 +185,49 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	Expect(err).ToNot(HaveOccurred())
 
 	return filePath
+}
+
+func ensureHelmRepoAuthSecret(namespace, repoURL string) string {
+	if repoURL != bitnamiRepoURL {
+		return ""
+	}
+
+	username := os.Getenv(dockerHubUserEnvVar)
+	password := os.Getenv("DOCKERHUB_" + "PASSWORD")
+	if username == "" || password == "" {
+		By("docker hub credentials not configured in environment; using anonymous chart pulls")
+		return ""
+	}
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		Type: corev1.SecretTypeOpaque,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      bitnamiRepoAuthRef,
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			"username": username,
+			"password": password,
+		},
+	}
+
+	secretBytes, err := json.Marshal(secret)
+	Expect(err).ToNot(HaveOccurred())
+
+	secretPath, err := helpers.CreateTmpFile(string(secretBytes))
+	Expect(err).ToNot(HaveOccurred())
+	defer func() {
+		Expect(os.Remove(secretPath)).ToNot(HaveOccurred())
+	}()
+
+	out, err := proc.Kubectl("apply", "-f", secretPath)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	return bitnamiRepoAuthRef
 }
 
 // Remove a service instance without going through epinio. Code is analogous though
@@ -199,14 +272,14 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 
 	By("CS secret")
 
-	var labels map[string]string			// default: nil
+	var labels map[string]string      // default: nil
 	var annotations map[string]string // default: nil
 
 	if label {
 		labels = map[string]string{
-			"application.epinio.io/catalog-service-name": catalogService.Meta.Name,
+			"application.epinio.io/catalog-service-name":    catalogService.Meta.Name,
 			"application.epinio.io/catalog-service-version": catalogService.AppVersion,
-			"application.epinio.io/service-name": name,
+			"application.epinio.io/service-name":            name,
 		}
 		if broken {
 			labels["application.epinio.io/catalog-service-name"] = "missing-catalog-service"
@@ -223,21 +296,21 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 	sname := names.GenerateResourceName("s", name)
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
-			Kind: "Secret",
+			Kind:       "Secret",
 			APIVersion: "v1",
 		},
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
-			Name: sname,
-			Namespace: namespace,
-			Labels: labels,
+			Name:        sname,
+			Namespace:   namespace,
+			Labels:      labels,
 			Annotations: annotations,
 		},
 	}
 
 	secretTmpFile := NewTmpName("tmpUserFile") + `.json`
 	// Used in acceptance tests, no need to check for file inclusion
-	//nolint:gosec 
+	//nolint:gosec
 	file, err := os.Create(secretTmpFile)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -270,7 +343,7 @@ func CreateServiceX(name, namespace string, catalogService models.CatalogService
 		Expect(err).ToNot(HaveOccurred())
 		cmd = append(cmd, "-f", filePath)
 
-		//Defer was firing to early, causing tests to fail, we shouldn't have to remove 
+		//Defer was firing to early, causing tests to fail, we shouldn't have to remove
 		//files anyways since the epinio is spun up per each test suite, keeping this to ensure there are no unintended issues.
 		//defer Expect(os.Remove(filePath)).ToNot(HaveOccurred())
 	}

@@ -18,10 +18,10 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
+	"github.com/gin-gonic/gin"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Match handles the API endpoint /namespace/:namespace/configurationsmatches/:pattern (GET)
@@ -32,25 +32,25 @@ func Match(c *gin.Context) apierror.APIErrors {
 
 	namespace := c.Param("namespace")
 
-	log.Info("match configurations")
-	defer log.Info("return")
+	log.Infow("match configurations")
+	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	log.Info("list configurations")
+	log.Infow("list configurations")
 
 	configurationList, err := configurations.List(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	log.Info("get configuration prefix")
+	log.Infow("get configuration prefix")
 	prefix := c.Param("pattern")
 
-	log.Info("match prefix", "pattern", prefix)
+	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, config := range configurationList {
 		if strings.HasPrefix(config.Name, prefix) {
@@ -58,7 +58,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	log.Info("deliver matches", "found", matches)
+	log.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.ConfigurationMatchResponse{
 		Names: matches,

@@ -1113,6 +1113,9 @@
         ],
         "summary": "Store the named `App` from a Git repo in the `Namespace`.",
         "operationId": "AppImportGit",
+        "consumes": [
+          "application/x-www-form-urlencoded"
+        ],
         "parameters": [
           {
             "type": "string",
@@ -1128,13 +1131,13 @@
           },
           {
             "type": "string",
-            "name": "GitUrl",
-            "in": "query"
+            "name": "giturl",
+            "in": "formData"
           },
           {
             "type": "string",
-            "name": "GitRev",
-            "in": "query"
+            "name": "gitrev",
+            "in": "formData"
           }
         ],
         "responses": {

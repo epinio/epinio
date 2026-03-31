@@ -17,8 +17,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -215,7 +215,7 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		// While the error is ignored, as the server can operate without metrics, and while
 		// the missing metrics will be noted in the data shown to the user, it is logged so
 		// that the operator can see this as well.
-		requestctx.Logger(ctx).Error(err, "metrics not available")
+		helpers.Logger.Errorw("metrics not available", "error", err)
 	}
 
 	return a.AssembleFromParts(ctx, podList, podMetrics, routes)

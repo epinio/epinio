@@ -20,8 +20,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +38,7 @@ type Config struct {
 	Exclude               []*regexp.Regexp // If specified suppress all log entries matching the RE
 	Include               []*regexp.Regexp // If specified show only log entries matching this RE
 	Since                 time.Duration    // Show only log entries younger than the duration.
+	SinceTime             *time.Time       // Show only log entries newer than the time.
 	AllNamespaces         bool
 	LabelSelector         labels.Selector
 	TailLines             *int64
@@ -52,12 +53,18 @@ type ContainerLogLine struct {
 	ContainerName string
 	PodName       string
 	Namespace     string
+	Timestamp     string
 }
 
 // FetchLogs writes all the logs of the matching containers to the logChan.
 // If ctx is Done() the method stops even if not all logs are fetched.
-func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
-	logger := requestctx.Logger(ctx).WithName("fetching-logs").V(3)
+func FetchLogs(
+	ctx context.Context,
+	logChan chan ContainerLogLine,
+	wg *sync.WaitGroup,
+	config *Config,
+	cluster *kubernetes.Cluster,
+) error {
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
@@ -65,26 +72,51 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 		return errors.New("no namespace set for tailing logs")
 	}
 
-	logger.Info("list pods")
+	helpers.Logger.Infow("list pods")
 	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
-		ctx, metav1.ListOptions{LabelSelector: config.LabelSelector.String()})
+		ctx,
+		metav1.ListOptions{LabelSelector: config.LabelSelector.String()},
+	)
 	if err != nil {
 		return err
 	}
 
+	tailOptions := &TailOptions{
+		Timestamps: config.Timestamps,
+		SinceTime:  config.SinceTime,
+		Exclude:    config.Exclude,
+		Include:    config.Include,
+		Namespace:  config.AllNamespaces,
+		TailLines:  config.TailLines,
+	}
+
+	// If no TailLines is set, or it is set to 0, override it to the max value
+	if config.TailLines == nil || (config.TailLines != nil && *config.TailLines == 0) {
+		tailOverride := int64(100000)
+		tailOptions.TailLines = &tailOverride
+	}
+
+	// Set SinceSeconds to 2 days if no other value is set
+	if config.Since != 0 {
+		tailOptions.SinceSeconds = int64(config.Since.Seconds())
+	} else {
+		tailOptions.SinceSeconds = int64(172800)
+	}
+
+	// SinceTime overrides SinceSeconds
+	if config.SinceTime != nil {
+		tailOptions.SinceSeconds = 0
+		tailOptions.SinceTime = config.SinceTime
+	}
+
 	tails := []*Tail{}
 	newTail := func(pod corev1.Pod, c corev1.Container) *Tail {
+		// Convert zap logger to logr for tailer functions (compatibility bridge for logr.Logger interface)
 		return NewTail(pod.Namespace, pod.Name, c.Name,
-			requestctx.Logger(ctx).WithName("log-tracing").V(4),
+			helpers.SugaredLoggerToLogr(helpers.Logger.With("component", "log-tracing")).V(4),
 			cluster.Kubectl,
-			&TailOptions{
-				Timestamps:   config.Timestamps,
-				SinceSeconds: int64(config.Since.Seconds()),
-				Exclude:      config.Exclude,
-				Include:      config.Include,
-				Namespace:    config.AllNamespaces,
-				TailLines:    config.TailLines,
-			})
+			tailOptions,
+		)
 	}
 
 	acceptable := func(c corev1.Container) bool {
@@ -98,7 +130,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 		return true
 	}
 
-	logger.Info("filter pods, containers")
+	helpers.Logger.Infow("filter pods, containers")
 
 	for _, pod := range podList.Items {
 		for _, c := range pod.Spec.InitContainers {
@@ -107,7 +139,11 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 			}
 			tails = append(tails, newTail(pod, c))
 
-			logger.Info("have", "namespace", pod.Namespace, "pod", pod.Name, "container", c.Name)
+			helpers.Logger.Debugw("have init container",
+				"namespace", pod.Namespace,
+				"pod", pod.Name,
+				"container", c.Name,
+			)
 		}
 		for _, c := range pod.Spec.Containers {
 			if !acceptable(c) {
@@ -115,19 +151,27 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 			}
 			tails = append(tails, newTail(pod, c))
 
-			logger.Info("have", "namespace", pod.Namespace, "pod", pod.Name, "container", c.Name)
+			helpers.Logger.Debugw("have container",
+				"namespace", pod.Namespace,
+				"pod", pod.Name,
+				"container", c.Name,
+			)
 		}
 	}
 
 	if config.Ordered {
-		logger.Info("fetch in order")
+		helpers.Logger.Debugw("fetch in order")
 
 		for _, t := range tails {
-			logger.Info("tail", "namespace", t.Namespace, "pod", t.PodName, "container", t.ContainerName)
+			helpers.Logger.Debugw("tail container",
+				"namespace", t.Namespace,
+				"pod", t.PodName,
+				"container", t.ContainerName,
+			)
 
 			err := t.Start(ctx, logChan, false)
 			if err != nil {
-				logger.Error(err, "failed to start a Tail")
+				helpers.Logger.Errorw("failed to start a Tail", "error", err)
 			}
 		}
 
@@ -135,13 +179,17 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 	}
 
 	for _, t := range tails {
-		logger.Info("tail", "namespace", t.Namespace, "pod", t.PodName, "container", t.ContainerName)
+		helpers.Logger.Debugw("tail container",
+			"namespace", t.Namespace,
+			"pod", t.PodName,
+			"container", t.ContainerName,
+		)
 
 		wg.Add(1)
 		go func(tail *Tail) {
 			err := tail.Start(ctx, logChan, false)
 			if err != nil {
-				logger.Error(err, "failed to start a Tail")
+				helpers.Logger.Errorw("failed to start a Tail", "error", err)
 			}
 			wg.Done()
 		}(t)
@@ -154,7 +202,8 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 // logChan.  The containers are determined by an internal watcher
 // polling the cluster for pod __changes__.
 func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
-	logger := requestctx.Logger(ctx).WithName("tail-handling").V(3)
+	// Convert zap logger to logr for tailer functions (compatibility bridge for logr.Logger interface)
+	logger := helpers.SugaredLoggerToLogr(helpers.Logger.With("component", "tail-handling")).V(3)
 
 	var namespace string
 	if config.AllNamespaces {
@@ -163,13 +212,25 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 		return errors.New("no namespace set for tailing logs")
 	}
 
+	excludedStr := "<none>"
+	if config.ExcludeContainerQuery != nil {
+		excludedStr = config.ExcludeContainerQuery.String()
+	}
 	logger.Info("start watcher",
 		"pods", config.PodQuery.String(),
 		"containers", config.ContainerQuery.String(),
-		"excluded", config.ExcludeContainerQuery.String(),
+		"excluded", excludedStr,
 		"selector", config.LabelSelector.String())
-	added, removed, err := Watch(ctx, cluster.Kubectl.CoreV1().Pods(namespace),
-		config.PodQuery, config.ContainerQuery, config.ExcludeContainerQuery, config.ContainerState, config.LabelSelector)
+
+	added, removed, err := Watch(
+		ctx,
+		cluster.Kubectl.CoreV1().Pods(namespace),
+		config.PodQuery,
+		config.ContainerQuery,
+		config.ExcludeContainerQuery,
+		config.ContainerState,
+		config.LabelSelector,
+	)
 	if err != nil {
 		return errors.Wrap(err, "failed to set up watch")
 	}
@@ -192,11 +253,13 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 
 			logger.Info("tailer add", "id", id)
 
+			// Convert zap logger to logr for tailer functions (compatibility bridge for logr.Logger interface)
 			tail := NewTail(p.Namespace, p.Pod, p.Container,
-				requestctx.Logger(ctx).WithName("log-tracing"),
+				helpers.SugaredLoggerToLogr(helpers.Logger.With("component", "log-tracing")),
 				cluster.Kubectl,
 				&TailOptions{
 					Timestamps:   config.Timestamps,
+					SinceTime:    config.SinceTime,
 					SinceSeconds: int64(config.Since.Seconds()),
 					Exclude:      config.Exclude,
 					Include:      config.Include,

@@ -18,16 +18,17 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
+
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // TokenAuth middleware is used to authenticate a user from a 'authtoken'
 // It's used when trying to establish a websocket connections for authenticated users.
 func TokenAuth(ctx *gin.Context) {
-	logger := requestctx.Logger(ctx.Request.Context()).WithName("TokenAuth")
-	logger.V(1).Info("Authtoken authentication")
+	logger := requestctx.Logger(ctx.Request.Context()).With("component", "TokenAuth")
+	logger.Debugw("Authtoken authentication")
 
 	token := ctx.Query("authtoken")
 	claims, err := authtoken.Validate(token)
@@ -46,14 +47,14 @@ func TokenAuth(ctx *gin.Context) {
 		}
 
 		// detailed log message
-		logger.V(2).Info(apiErr.Title, "error", err.Error())
+		logger.Debugw(apiErr.Title, "error", err.Error())
 		// not too specific log message for unauthorized client
 		response.Error(ctx, apiErr)
 		ctx.Abort()
 		return
 	}
 
-	authService, err := auth.NewAuthServiceFromContext(ctx, logger)
+	authService, err := auth.NewAuthServiceFromContext(ctx)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err))
 		ctx.Abort()

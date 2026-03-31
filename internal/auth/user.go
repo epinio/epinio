@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
-	"github.com/go-logr/logr"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +30,7 @@ import (
 // User is a struct containing all the information of an Epinio User
 type User struct {
 	Username   string
-	Password   string
+	Password string // nolint:gosec // intentional auth field, not logged
 	CreatedAt  time.Time
 	Roles      Roles
 	Namespaces []string // list of namespaces this user has created (and thus access to)
@@ -150,7 +150,8 @@ func filterRolesByNamespace(roles Roles, namespace string) Roles {
 // newUserFromSecret create an Epinio User from a Secret
 // this is an internal function that should not be used from the outside.
 // It could contain internals details on how create a user from a secret.
-func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
+func newUserFromSecret(secret corev1.Secret) User {
+	logger := helpers.Logger.With("component", "userFromSecret")
 	user := User{
 		Username:   string(secret.Data["username"]),
 		Password:   string(secret.Data["password"]),
@@ -177,7 +178,7 @@ func newUserFromSecret(logger logr.Logger, secret corev1.Secret) User {
 			// find the role for the user
 			userRole, found := EpinioRoles.FindByID(userRoleID)
 			if !found {
-				logger.V(1).Info("role not found", "user", user.Username, "role", userRoleID)
+				logger.Debugw("role not found", "user", user.Username, "role", userRoleID)
 				continue
 			}
 
@@ -272,12 +273,13 @@ func updateUserSecretData(user User, userSecret *corev1.Secret) *corev1.Secret {
 }
 
 // IsUpdateUserNeeded returns whenever a user needs to be updated, and the user with the updated information
-func IsUpdateUserNeeded(logger logr.Logger, user User) (User, bool) {
+func IsUpdateUserNeeded(user User) (User, bool) {
+	logger := helpers.Logger.With("component", "userUpdateCheck")
 	var updateNeeded bool
 
 	newRoles, needsUpdate := isUpdateUserRoleNeeded(user.roleIDs, user.Roles.IDs())
 	if needsUpdate {
-		logger.Info(
+		logger.Infow(
 			"user needs update for different roles",
 			"old", strings.Join(user.roleIDs, ","),
 			"new", strings.Join(newRoles, ","),
@@ -288,7 +290,7 @@ func IsUpdateUserNeeded(logger logr.Logger, user User) (User, bool) {
 
 	newNamespaces, needsUpdate := isUpdateUserNamespacesNeeded(user.Namespaces, user.Roles)
 	if needsUpdate {
-		logger.Info(
+		logger.Infow(
 			"user needs update for different namespaces",
 			"old", strings.Join(user.Namespaces, ","),
 			"new", strings.Join(newNamespaces, ","),

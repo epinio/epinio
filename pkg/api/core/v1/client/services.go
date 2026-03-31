@@ -109,6 +109,14 @@ func (c *Client) ServiceUnbind(request models.ServiceUnbindRequest, namespace, n
 	return Post(c, endpoint, request, response)
 }
 
+// ServiceBatchBind binds multiple services to an application at once
+func (c *Client) ServiceBatchBind(request models.ServiceBatchBindRequest, namespace, appName string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ServiceBatchBind", namespace, appName)
+
+	return Post(c, endpoint, request, response)
+}
+
 func (c *Client) ServiceList(namespace string) (models.ServiceList, error) {
 	response := models.ServiceList{}
 	endpoint := api.Routes.Path("ServiceList", namespace)

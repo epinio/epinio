@@ -18,10 +18,10 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/services"
+	"github.com/gin-gonic/gin"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Match handles the API endpoint /catalogservicesmatches/:pattern (GET)
@@ -30,15 +30,15 @@ func CatalogMatch(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
-	log.Info("match catalog services")
-	defer log.Info("return")
+	log.Infow("match catalog services")
+	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	log.Info("list catalog services")
+	log.Infow("list catalog services")
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -49,10 +49,10 @@ func CatalogMatch(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	log.Info("get service prefix")
+	log.Infow("get service prefix")
 	prefix := c.Param("pattern")
 
-	log.Info("match prefix", "pattern", prefix)
+	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, service := range serviceList {
 		if strings.HasPrefix(service.Meta.Name, prefix) {
@@ -60,7 +60,7 @@ func CatalogMatch(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	log.Info("deliver matches", "found", matches)
+	log.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.CatalogMatchResponse{
 		Names: matches,

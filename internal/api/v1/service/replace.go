@@ -19,11 +19,11 @@ import (
 	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/services"
+	"github.com/gin-gonic/gin"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/gin-gonic/gin"
 )
 
 // Replace handles the API endpoint PUT /namespaces/:namespace/services/:app
@@ -32,14 +32,12 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
-	logger := requestctx.Logger(ctx)
-
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -55,12 +53,16 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 		return apierror.InternalError(err)
 	}
 
-	_, err = kubeServiceClient.ReplaceService(ctx, cluster, service, replaceRequest,
-		func(ctx context.Context) error {
+	// backward compatibility: if no flag provided then restart the app
+	restart := replaceRequest.Restart == nil || *replaceRequest.Restart
+
+	var restartCallback func(context.Context) error
+	if restart {
+		restartCallback = func(ctx context.Context) error {
 			// note: hook is not called if the replacement does not involve a change.
 			// no need to use the bool changed/restart result of `ReplaceService`.
 
-			err := WhenFullyDeployed(ctx, cluster, logger, namespace, serviceName)
+			err := WhenFullyDeployed(ctx, cluster, namespace, serviceName)
 			if err != nil {
 				return err
 			}
@@ -79,7 +81,14 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 			}
 
 			return nil
-		})
+		}
+	} else {
+		restartCallback = func(ctx context.Context) error {
+			return WhenFullyDeployed(ctx, cluster, namespace, serviceName)
+		}
+	}
+
+	_, err = kubeServiceClient.ReplaceService(ctx, cluster, service, replaceRequest, restartCallback)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

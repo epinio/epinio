@@ -14,6 +14,7 @@ import (
 	"context"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/mholt/archives"
 	"github.com/pkg/errors"
@@ -21,6 +22,8 @@ import (
 )
 
 const blobName = "blob.tar"
+
+const epinioIgnoreFile = ".epinioignore"
 
 var excludedGitFiles = []string{
 	".git",
@@ -30,32 +33,82 @@ var excludedGitFiles = []string{
 	".git-credentials",
 }
 
-// Creates tar of a git repository directory using mholdt/archives.
-func Tar(dir string) (string, string, error) {
+// Tar creates a tarball of a directory, excluding files based on ignore patterns.
+// The ignore patterns can come from:
+//   - .epinioignore file in the directory
+//   - manifestPatterns parameter (from epinio.yaml)
+//
+// Patterns from both sources are merged, with .epinioignore patterns processed after
+// manifest patterns (so they can override if needed).
+func Tar(dir string, manifestPatterns []string) (string, string, error) {
 	ctx := context.TODO()
 
-	files, err := os.ReadDir(dir)
+	// Normalize the directory path first (before loading .epinioignore)
+	dir, err := filepath.Abs(dir)
 	if err != nil {
-		return "", "", errors.Wrap(err, "cannot read the apps source files")
+		return "", "", errors.Wrap(err, "cannot get absolute path")
+	}
+
+	// Load ignore patterns from .epinioignore and merge with manifest patterns
+	ignoreMatcher, err := LoadIgnoreMatcher(dir, manifestPatterns)
+	if err != nil {
+		return "", "", errors.Wrap(err, "failed to load ignore patterns")
 	}
 
 	sources := make(map[string]string)
-	for _, f := range files {
-		// Ignore git config files in the app sources.
-		if slices.Contains(excludedGitFiles, f.Name()) {
-			continue
+
+	// Recursively walk the directory tree
+	err = filepath.Walk(dir, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			// If we can't read a file/directory, skip it but continue
+			return nil
 		}
-		
-		// The os.DirEntry structures returned by ReadDir() provide only the base
-		// name of the file or directory they are for. We have to add back the
-		// path of the application directory to get the proper paths to the files
-		// and directories to assemble in the tarball.
-		//
-		// Note that the files and directories must be in a map[string]string format.
-		// The second string in the map is the name of the file or directory that 
-		// will be reflected in the tarball. For further information, see: 
-		// https://github.com/mholt/archives?tab=readme-ov-file#create-archive
-		sources[path.Join(dir, f.Name())] = f.Name()
+
+		// Get relative path for checking ignore patterns
+		relPath, err := filepath.Rel(dir, filePath)
+		if err != nil {
+			return nil // Skip if we can't get relative path
+		}
+
+		// Always ignore git config files
+		baseName := filepath.Base(relPath)
+		if slices.Contains(excludedGitFiles, baseName) {
+			if info.IsDir() {
+				return filepath.SkipDir // Skip the entire .git directory
+			}
+			return nil // Skip this file
+		}
+
+		// Check if this path should be ignored based on .epinioignore
+		if ignoreMatcher.ShouldIgnore(dir, filePath, info.IsDir()) {
+			if info.IsDir() {
+				return filepath.SkipDir // Skip the entire ignored directory
+			}
+			return nil // Skip this ignored file
+		}
+
+		// Also ignore .epinioignore file itself (don't include it in the tarball)
+		if baseName == epinioIgnoreFile {
+			return nil
+		}
+
+		// Only add files to sources, not directories
+		// The archives library will create directory structure automatically from file paths
+		// Adding directories would cause it to recursively include all files, bypassing ignore logic
+		if info.IsDir() {
+			// Skip directories - they'll be created automatically when we add files
+			return nil
+		}
+
+		// Add this file to sources
+		// The key is the full path, the value is the relative path in the tarball
+		sources[filePath] = relPath
+
+		return nil
+	})
+
+	if err != nil {
+		return "", "", errors.Wrap(err, "error walking directory tree")
 	}
 	
 	filesFromDisk, filesFromDiskError := archives.FilesFromDisk(

@@ -162,10 +162,6 @@ func (fake *FakeRegistryMatcher) GetAPIReturnsOnCall(i int, result1 usercmd.APIC
 func (fake *FakeRegistryMatcher) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.exportregistryMatchingMutex.RLock()
-	defer fake.exportregistryMatchingMutex.RUnlock()
-	fake.getAPIMutex.RLock()
-	defer fake.getAPIMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

@@ -46,7 +46,7 @@ var _ = Describe("URL Cache", func() {
 		tmpFile.Close()
 		defer os.Remove(tmpFile.Name())
 
-		path, errc := urlcache.Get(context.Background(), logger, tmpFile.Name())
+		path, errc := urlcache.Get(context.Background(), tmpFile.Name())
 		Expect(errc).ToNot(HaveOccurred())
 		Expect(hits).To(Equal(0))
 		Expect(path).To(Equal(tmpFile.Name()))
@@ -55,7 +55,7 @@ var _ = Describe("URL Cache", func() {
 	It("fails to fetch a bad url", func() {
 		url := initServer(500, `hit is bad`)
 
-		path, errc := urlcache.Get(context.Background(), logger, url)
+		path, errc := urlcache.Get(context.Background(), url)
 		Expect(errc).To(HaveOccurred())
 		Expect(hits).To(Equal(1))
 		Expect(path).To(BeEmpty())
@@ -64,11 +64,11 @@ var _ = Describe("URL Cache", func() {
 	It("fetches an url once", func() {
 		url := initServer(200, `OK`)
 
-		patha, errc := urlcache.Get(context.Background(), logger, url)
+		patha, errc := urlcache.Get(context.Background(), url)
 		Expect(errc).ToNot(HaveOccurred())
 		Expect(hits).To(Equal(1))
 
-		pathb, errc := urlcache.Get(context.Background(), logger, url)
+		pathb, errc := urlcache.Get(context.Background(), url)
 		Expect(errc).ToNot(HaveOccurred())
 		Expect(hits).To(Equal(1))
 		Expect(patha).To(Equal(pathb))

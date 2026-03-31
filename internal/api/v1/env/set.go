@@ -17,9 +17,10 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/gin-gonic/gin"
+
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/gin-gonic/gin"
 )
 
 // Set handles the API endpoint /namespaces/:namespace/applications/:app/environment (POST)
@@ -27,13 +28,12 @@ import (
 // and add/modifies the variable in the  application's environment.
 func Set(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
 	username := requestctx.User(ctx).Username
 
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
 
-	log.Info("processing environment variable assignment",
+	requestctx.Logger(ctx).Infow("processing environment variable assignment",
 		"namespace", namespaceName, "app", appName)
 
 	cluster, err := kubernetes.GetCluster(ctx)

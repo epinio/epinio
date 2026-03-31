@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -100,23 +101,71 @@ func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, er
 func (m *Machine) SetupNamespace(namespace string) {
 	By(fmt.Sprintf("creating a namespace: %s", namespace))
 
-	out, err := m.Epinio("", "namespace", "create", namespace)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	var attempt int
+	// Namespace creation can race with internal secret propagation on busy CI nodes.
+	EventuallyWithOffset(1, func() error {
+		attempt++
+		_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] attempt %d namespace=%s\n", attempt, namespace)
 
-	out, err = m.Epinio("", "namespace", "show", namespace)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + namespace))
+		t0 := time.Now()
+		out, err := m.Epinio(m.nodeTmpDir, "namespace", "create", namespace)
+		elapsedCreate := time.Since(t0)
+		if err != nil && !strings.Contains(out, "already exists") {
+			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] namespace create failed namespace=%s err=%v elapsed=%v out=%s\n", namespace, err, elapsedCreate, out)
+			if strings.Contains(out, "EOF") || strings.Contains(out, "making the request") {
+				_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] root cause: API connection closed (EOF) or request failed before response - often under parallel load\n")
+			}
+			return errors.New(out)
+		}
+
+		t1 := time.Now()
+		out, err = m.Epinio(m.nodeTmpDir, "namespace", "show", namespace)
+		elapsedShow := time.Since(t1)
+		if err != nil {
+			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] namespace show failed namespace=%s err=%v elapsed=%v out=%s\n", namespace, err, elapsedShow, out)
+			if strings.Contains(out, "EOF") || strings.Contains(out, "making the request") {
+				_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] root cause: API connection closed (EOF) - often under parallel load\n")
+			}
+			return errors.New(out)
+		}
+
+		if !strings.Contains(out, namespace) {
+			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] namespace show output missing namespace=%s out=%s\n", namespace, out)
+			return errors.New(out)
+		}
+
+		// Probe for registry-creds and log readiness for diagnostics.
+		// Do not block namespace setup on this secret: some suites do not
+		// require it and propagation timing varies across CI jobs.
+		t2 := time.Now()
+		secretOut, secretErr := proc.Kubectl("get", "secret", "registry-creds", "-n", namespace, "-o", "name")
+		elapsedSecret := time.Since(t2)
+		if secretErr != nil || !strings.Contains(secretOut, "registry-creds") {
+			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] registry-creds not ready namespace=%s err=%v elapsed=%v out=%s (continuing)\n", namespace, secretErr, elapsedSecret, secretOut)
+		} else {
+			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] registry-creds ready namespace=%s elapsed=%v out=%s\n", namespace, elapsedSecret, secretOut)
+		}
+
+		_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] success attempt=%d namespace=%s create=%v show=%v\n", attempt, namespace, elapsedCreate, elapsedShow)
+		return nil
+	}, "6m", "5s").Should(Succeed(), "SetupNamespace failed for namespace=%s (check logs above for create/show errors)", namespace)
 }
 
 func (m *Machine) TargetNamespace(namespace string) {
 	By(fmt.Sprintf("targeting a namespace: %s", namespace))
 
 	out, err := m.Epinio(m.nodeTmpDir, "target", namespace)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	if err != nil {
+		_, _ = fmt.Fprintf(GinkgoWriter, "[TargetNamespace] epinio target %s failed: err=%v out=%s\n", namespace, err, out)
+	}
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "epinio target %s: out=%s", namespace, out)
 
 	out, err = m.Epinio(m.nodeTmpDir, "target")
+	if err != nil {
+		_, _ = fmt.Fprintf(GinkgoWriter, "[TargetNamespace] epinio target (show) failed: err=%v out=%s\n", err, out)
+	}
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted namespace: " + namespace))
+	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted namespace: "+namespace), "target output should show current namespace; got out=%s", out)
 }
 
 func (m *Machine) SetupAndTargetNamespace(namespace string) {
@@ -129,7 +178,7 @@ func (m *Machine) DeleteNamespace(namespace string) {
 
 	By(fmt.Sprintf("deleting a namespace: %s", namespace))
 
-	out, err := m.Epinio("", "namespace", "delete", "-f", namespace)
+	out, err := m.Epinio(m.nodeTmpDir, "namespace", "delete", "-f", namespace)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	out, err = proc.Kubectl("get", "namespace", namespace)
@@ -139,7 +188,7 @@ func (m *Machine) DeleteNamespace(namespace string) {
 
 func (m *Machine) VerifyNamespaceNotExist(namespace string) {
 	EventuallyWithOffset(1, func() string {
-		out, err := m.Epinio("", "namespace", "list")
+		out, err := m.Epinio(m.nodeTmpDir, "namespace", "list")
 		ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 		return out
 	}, "2m").ShouldNot(MatchRegexp(namespace))

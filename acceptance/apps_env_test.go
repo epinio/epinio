@@ -82,8 +82,14 @@ var _ = Describe("apps env", LApplication, func() {
 				out, err := env.Epinio("", "apps", "env", "list", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				Expect(out).To(HaveATable(WithHeaders("VARIABLE", "VALUE")))
-				Expect(out).ToNot(HaveATable(WithRow("MYVAR", "myvalue")))
+				// CLI shows either a VARIABLE/VALUE table (when vars exist) or
+				// "No user-provided environment variables" when the list is empty.
+				Expect(out).To(SatisfyAny(
+					HaveATable(WithHeaders("VARIABLE", "VALUE")),
+					ContainSubstring("No user-provided environment variables"),
+				), "env list output:\n---\n%s\n---", out)
+				Expect(out).ToNot(ContainSubstring("myvalue"),
+					"after unset, MYVAR value should not appear. env list output:\n---\n%s\n---", out)
 			})
 
 			It("is retrieved as empty string with show", func() {
@@ -310,6 +316,40 @@ var _ = Describe("apps env", LApplication, func() {
 					return deployedEnv(namespace, appName)
 				}).Should(ContainSubstring("MYVAR"))
 			})
+		})
+	})
+
+	Describe("env merge and replace", func() {
+		BeforeEach(func() {
+			appDir := "../assets/sample-app"
+			out, err := env.EpinioPush(appDir, appName, "--name", appName, "--env", "FOO=frommanifest")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				return deployedEnv(namespace, appName)
+			}).Should(ContainSubstring("FOO"))
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("merges envs by default when updating", func() {
+			out, err := env.Epinio("", "apps", "update", appName, "--env", "BAR=fromupdate")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				return deployedEnv(namespace, appName)
+			}).Should(And(ContainSubstring("FOO"), ContainSubstring("BAR")))
+		})
+
+		It("replaces envs when --env-replace is set", func() {
+			out, err := env.Epinio("", "apps", "update", appName, "--env-replace", "--env", "BAR=replaced")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				return deployedEnv(namespace, appName)
+			}).Should(And(Not(ContainSubstring("FOO")), ContainSubstring("BAR")))
 		})
 	})
 })

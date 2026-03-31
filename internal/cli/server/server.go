@@ -15,12 +15,11 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/middleware"
@@ -30,21 +29,17 @@ import (
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
 
-	"github.com/alron/ginlogr"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
-	"github.com/mattn/go-colorable"
 	"github.com/spf13/viper"
 )
 
 // NewHandler creates and setup the gin router
-func NewHandler(logger logr.Logger) (*gin.Engine, error) {
+func NewHandler() (*gin.Engine, error) {
 	rolesInitialized := false
 
-	// Support colors on Windows also
-	gin.DefaultWriter = colorable.NewColorableStdout()
-
+	// Disable gin's default logger - we use zap logger via middleware.GinLogger
 	gin.SetMode(gin.ReleaseMode)
+	gin.DisableConsoleColor()
 
 	// Endpoint structure ...
 	// | Path              | Notes      | Logging
@@ -53,6 +48,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	// | /ready            | L/R Probes |
 	// | /namespaces/target/:namespace | ditto      | ditto
 
+	// Use gin.New() instead of gin.Default() to avoid gin's default logger
+	// All logging is handled by zap via middleware.GinLogger
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
 	router.NoMethod(func(ctx *gin.Context) {
@@ -80,8 +77,6 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		})
 	}
 
-	ginLogger := ginlogr.Ginlogr(logger, time.RFC3339, true)
-
 	// Register routes - No authentication, no logging, no session.
 	// This is the healthcheck.
 	router.GET("/ready", func(c *gin.Context) {
@@ -98,9 +93,9 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	// Add common middlewares to all the routes declared after
 	router.Use(
-		ginLogger,
+		middleware.GinLogger(),
 		middleware.Recovery,
-		middleware.InitContext(logger),
+		middleware.InitContext(),
 	)
 
 	// No authentication, no session. This is epinio's version and auth information.
@@ -161,17 +156,17 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	authservice := auth.NewAuthService(logger, cluster)
+	authservice := auth.NewAuthService(cluster)
 
 	if err := apiv1.InitAuthAndRoles(authservice); err != nil {
 		return nil, errors.Wrap(err, "initializing authentication")
 	}
 	rolesInitialized = true
 
-	// print all registered routes
-	if logger.V(3).Enabled() {
+	// print all registered routes at debug level
+	if helpers.Logger != nil {
 		for _, h := range router.Routes() {
-			logger.V(3).Info(fmt.Sprintf("%-6s %s", h.Method, h.Path))
+			helpers.Logger.Debugw("registered route", "method", h.Method, "path", h.Path)
 		}
 	}
 

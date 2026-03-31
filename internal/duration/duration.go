@@ -14,11 +14,11 @@
 package duration
 
 import (
-	"log"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -43,7 +43,11 @@ func Flags(pf *flag.FlagSet, argToEnv map[string]string) {
 	pf.IntP("timeout-multiplier", "", 1, "Multiply timeouts by this factor")
 	err := viper.BindPFlag("timeout-multiplier", pf.Lookup("timeout-multiplier"))
 	if err != nil {
-		log.Fatal(err)
+		if helpers.Logger != nil {
+			helpers.Logger.Fatalw("failed to bind timeout-multiplier flag", "error", err)
+		}
+		// Programming/configuration error; abort early.
+		panic(err)
 	}
 	argToEnv["timeout-multiplier"] = "EPINIO_TIMEOUT_MULTIPLIER"
 }
