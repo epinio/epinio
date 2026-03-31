@@ -14,7 +14,6 @@ package namespace
 import (
 	"strings"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
@@ -30,17 +29,18 @@ import (
 // It returns a list of all Epinio-controlled namespaces matching the prefix pattern.
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
 	user := requestctx.User(ctx)
 
-	helpers.Logger.Infow("match namespaces")
-	defer helpers.Logger.Infow("return")
+	log.Infow("match namespaces")
+	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Infow("list namespaces")
+	log.Infow("list namespaces")
 	namespaces, err := namespaces.List(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -48,10 +48,10 @@ func Match(c *gin.Context) apierror.APIErrors {
 
 	namespaces = auth.FilterResources(user, namespaces)
 
-	helpers.Logger.Infow("get namespace prefix")
+	log.Infow("get namespace prefix")
 	prefix := c.Param("pattern")
 
-	helpers.Logger.Infow("match prefix", "pattern", prefix)
+	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, namespace := range namespaces {
 		if strings.HasPrefix(namespace.Name, prefix) {
@@ -59,7 +59,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	helpers.Logger.Infow("deliver matches", "found", matches)
+	log.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.NamespacesMatchResponse{
 		Names: matches,

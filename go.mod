@@ -16,6 +16,9 @@ go 1.25.0
 require (
 	github.com/adrg/xdg v0.5.3
 	github.com/avast/retry-go v3.0.0+incompatible
+	github.com/aws/aws-sdk-go-v2 v1.41.1
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.7
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.0
 	github.com/briandowns/spinner v1.23.2
 	github.com/coreos/go-oidc/v3 v3.9.0
 	github.com/dchest/uniuri v1.2.0
@@ -34,7 +37,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.12.1
 	github.com/mholt/archives v0.1.3
-	github.com/minio/minio-go/v7 v7.0.95
 	github.com/mittwald/go-helm-client v0.12.18
 	github.com/novln/docker-parser v1.0.0
 	github.com/olekukonko/tablewriter v0.0.5
@@ -81,6 +83,15 @@ require (
 	github.com/STARRY-S/zip v0.2.1 // indirect
 	github.com/andybalholm/brotli v1.1.2-0.20250424173009-453214e765f3 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.4 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.17 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.17 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.17 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.17 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.17 // indirect
+	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bodgit/plumbing v1.3.0 // indirect
 	github.com/bodgit/sevenzip v1.6.0 // indirect
@@ -100,7 +111,6 @@ require (
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
-	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
@@ -113,7 +123,6 @@ require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.0 // indirect
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
-	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.4 // indirect
@@ -159,8 +168,6 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
-	github.com/minio/crc64nvme v1.0.2 // indirect
-	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minlz v1.0.0 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
@@ -181,14 +188,12 @@ require (
 	github.com/paketo-buildpacks/libpak v1.73.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	github.com/rs/xid v1.6.0 // indirect
 	github.com/rubenv/sql-migrate v1.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.3.0 // indirect
@@ -203,7 +208,6 @@ require (
 	github.com/spf13/afero v1.10.0 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tinylib/msgp v1.3.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect

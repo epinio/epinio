@@ -116,7 +116,9 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, namespace stri
 	}()
 
 	p, err := ants.NewPoolWithFunc(maxConcurrent, func(i interface{}) {
-		err := application.Delete(ctx, cluster, i.(models.AppRef), false)
+		// Namespaces are deleted without an explicit request body, so default to
+		// not deleting the built image to match existing behavior.
+		_, err := application.Delete(ctx, cluster, i.(models.AppRef), false)
 		if err != nil {
 			errChan <- err
 		}

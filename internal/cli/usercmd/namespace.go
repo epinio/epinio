@@ -97,7 +97,7 @@ func (c *EpinioClient) Namespaces() error {
 		sort.Strings(namespace.Configurations)
 		msg = msg.WithTableRow(
 			namespace.Meta.Name,
-			namespace.Meta.CreatedAt.String(),
+			formatCreatedAt(namespace.Meta.CreatedAt),
 			strings.Join(namespace.Apps, ", "),
 			strings.Join(namespace.Configurations, ", "))
 	}
@@ -257,7 +257,7 @@ func (c *EpinioClient) ShowNamespace(namespace string) error {
 
 	msg = msg.
 		WithTableRow("Name", space.Meta.Name).
-		WithTableRow("Created", space.Meta.CreatedAt.String()).
+		WithTableRow("Created", formatCreatedAt(space.Meta.CreatedAt)).
 		WithTableRow("Applications", strings.Join(space.Apps, "\n")).
 		WithTableRow("Configurations", strings.Join(space.Configurations, "\n"))
 

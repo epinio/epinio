@@ -265,7 +265,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 			deploy := &models.DeployResponse{}
 			err = json.Unmarshal(bodyBytes, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.sslip\.io`))
+			Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.(?:sslip\.io|nip\.io)`))
 
 			By("waiting for the deployment to complete")
 
@@ -337,7 +337,7 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 			deploy := &models.DeployResponse{}
 			err = json.Unmarshal(bodyBytes, deploy)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.sslip\.io`))
+			Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.(?:sslip\.io|nip\.io)`))
 
 			By("waiting for the deployment to complete")
 

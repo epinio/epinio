@@ -13,6 +13,7 @@ package configuration
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/mask"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
@@ -54,6 +55,9 @@ func Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// SECURITY: Mask configuration details to prevent secret exposure in API responses
+	maskedDetails := mask.MaskMap(configurationDetails)
+
 	// For service-based configuration, fetch and record siblings. Itself excluded, of course.
 	siblings := []string{}
 	if configuration.Origin != "" {
@@ -79,9 +83,6 @@ func Show(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	// SECURITY: Mask all configuration details to prevent secret exposure in API responses
-	//maskedDetails := mask.MaskMap(configurationDetails)
-
 	response.OKReturn(c, models.ConfigurationResponse{
 		Meta: models.ConfigurationRef{
 			Meta: models.Meta{
@@ -92,7 +93,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 		},
 		Configuration: models.ConfigurationShowResponse{
 			Username:  configuration.User(),
-			Details:   configurationDetails,
+			Details:   maskedDetails,
 			BoundApps: appNames,
 			Type:      configuration.Type,
 			Origin:    configuration.Origin,

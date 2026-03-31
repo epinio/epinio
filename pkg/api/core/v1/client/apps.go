@@ -16,70 +16,53 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/httpstream"
-	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/tools/remotecommand"
-	"k8s.io/client-go/transport"
-	gospdy "k8s.io/client-go/transport/spdy"
+	wsstream "k8s.io/client-go/transport/websocket"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	v1 "k8s.io/api/core/v1"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
 )
 
-// Upgrader implements the spdy.Upgrader interface. It delegates to spdy.SpdyRoundTripper
-// but handles Epinio errors (like 404) first. The upstream upgrader would simply
-// ignore 404 in cases when app or namespace is not found.
-// Here: https://github.com/kubernetes/apimachinery/blob/v0.21.4/pkg/util/httpstream/spdy/roundtripper.go#L343
-type Upgrader struct {
-	upstreamUpgr *spdy.SpdyRoundTripper
-}
-
-func (upgr *Upgrader) NewConnection(resp *http.Response) (httpstream.Connection, error) {
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			if helpers.Logger != nil {
-				helpers.Logger.Errorw("failed to close response body", "error", err)
-			}
-		}
-	}()
-
-	if resp.StatusCode >= 400 {
-		b, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, errors.New("failed to read response body")
-		}
-
-		return nil, errors.New(string(b))
-	}
-
-	return upgr.upstreamUpgr.NewConnection(resp)
-}
-
-func (upgr *Upgrader) RoundTrip(req *http.Request) (*http.Response, error) {
-	return upgr.upstreamUpgr.RoundTrip(req)
-}
-
-func NewUpgrader(cfg spdy.RoundTripperConfig) (*Upgrader, error) {
-	roundTripper, err := spdy.NewRoundTripperWithConfig(cfg)
+// createRestConfigForWebSocket creates a rest.Config for WebSocket connections
+// from the client's API settings. The server will proxy this to Kubernetes API.
+func (c *Client) createRestConfigForWebSocket() (*rest.Config, error) {
+	baseURL, err := url.Parse(c.Settings.API)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating roundtripper for upgrader")
+		return nil, errors.Wrap(err, "parsing API URL")
 	}
 
-	return &Upgrader{upstreamUpgr: roundTripper}, nil
+	restConfig := &rest.Config{
+		Host:    baseURL.Host,
+		APIPath: baseURL.Path,
+	}
+
+	// Set TLS config from default transport
+	if httpTransport, ok := http.DefaultTransport.(*http.Transport); ok && httpTransport.TLSClientConfig != nil {
+		restConfig.TLSClientConfig = rest.TLSClientConfig{
+			Insecure:   httpTransport.TLSClientConfig.InsecureSkipVerify,
+			ServerName: httpTransport.TLSClientConfig.ServerName,
+		}
+	}
+
+	return restConfig, nil
 }
 
 // AppCreate creates an application resource
@@ -292,11 +275,23 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, option
 		// Report the dialer error if response claimed to be OK
 		return errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
 	}
+	defer func() {
+		if err := webSocketConn.Close(); err != nil {
+			c.log.V(1).Error(err, "failed to close websocket connection")
+		}
+	}()
 
 	var logLine tailer.ContainerLogLine
 	for {
 		_, message, err := webSocketConn.ReadMessage()
 		if err != nil {
+			// Connection closed or error - this is normal when logs stream ends
+			// Return nil to indicate normal completion
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				return nil
+			}
+			// For other errors, log but still return nil (stream ended)
+			c.log.V(1).Error(err, "websocket read error, ending log stream")
 			return nil
 		}
 
@@ -377,14 +372,6 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 	endpoint := fmt.Sprintf("%s%s/%s",
 		c.Settings.API, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
-	upgradeRoundTripper, err := NewUpgrader(spdy.RoundTripperConfig{
-		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
-		PingPeriod: time.Second * 5,
-	})
-	if err != nil {
-		return errors.Wrap(err, "creating upgrader")
-	}
-
 	execURL, err := url.Parse(endpoint)
 	if err != nil {
 		return err
@@ -400,10 +387,17 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 		execURL.RawQuery = values.Encode()
 	}
 
-	// upgradeRoundTripper implements both interfaces, Roundtripper and Upgrader
-	exec, err := remotecommand.NewSPDYExecutorForTransports(upgradeRoundTripper, upgradeRoundTripper, "GET", execURL)
+	// Create rest.Config for WebSocket executor
+	restConfig, err := c.createRestConfigForWebSocket()
 	if err != nil {
 		return err
+	}
+
+	// Use WebSocket executor instead of SPDY
+	// The full URL with auth token is passed as the url parameter
+	exec, err := remotecommand.NewWebSocketExecutor(restConfig, "GET", execURL.String())
+	if err != nil {
+		return errors.Wrap(err, "creating websocket executor")
 	}
 
 	fn := func() error {
@@ -454,6 +448,351 @@ func NewPortForwardOpts(address, ports []string) *PortForwardOpts {
 	return opts
 }
 
+// WebSocketDialer implements httpstream.Dialer for WebSocket connections
+type WebSocketDialer struct {
+	restConfig *rest.Config
+	method     string
+	url        *url.URL
+}
+
+// NewWebSocketDialer creates a new WebSocket dialer for port forwarding
+func NewWebSocketDialer(restConfig *rest.Config, method string, url *url.URL) httpstream.Dialer {
+	return &WebSocketDialer{
+		restConfig: restConfig,
+		method:     method,
+		url:        url,
+	}
+}
+
+// Dial implements httpstream.Dialer interface
+func (d *WebSocketDialer) Dial(protocols ...string) (httpstream.Connection, string, error) {
+	// Validate protocols
+	if len(protocols) == 0 {
+		return nil, "", errors.New("at least one protocol must be specified")
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest(d.method, d.url.String(), nil)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "creating request")
+	}
+
+	// Get WebSocket roundtripper from rest config
+	rt, connHolder, err := wsstream.RoundTripperFor(d.restConfig)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "creating websocket roundtripper")
+	}
+
+	// Execute request to establish WebSocket connection
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "round trip failed")
+	}
+	// Ensure response body is closed in all paths
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
+		}
+	}()
+
+	// Get WebSocket connection from connection holder
+	wsConn, err := wsstream.Negotiate(rt, connHolder, req, protocols...)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "websocket negotiation failed")
+	}
+
+	// Convert WebSocket connection to httpstream.Connection
+	streamConn := &websocketStreamConnection{
+		conn:       wsConn,
+		connHolder: connHolder,
+		streams:    make(map[uint32]*websocketStream),
+		closeCh:    make(chan bool, 1),
+		readerDone: make(chan struct{}),
+	}
+
+	// Start a single reader that routes data to streams
+	go streamConn.readerLoop()
+
+	return streamConn, protocols[0], nil
+}
+
+// websocketStreamConnection wraps a WebSocket connection to implement httpstream.Connection
+type websocketStreamConnection struct {
+	conn       *websocket.Conn
+	connHolder wsstream.ConnectionHolder
+	streams    map[uint32]*websocketStream
+	nextID     uint32
+	mu         sync.Mutex
+	closeCh    chan bool
+	readerDone chan struct{}
+}
+
+func (w *websocketStreamConnection) CreateStream(headers http.Header) (httpstream.Stream, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.streams == nil {
+		w.streams = make(map[uint32]*websocketStream)
+	}
+
+	// Generate stream ID
+	w.nextID++
+	streamID := w.nextID
+
+	// Create a new stream with larger buffer for high-throughput port forwarding
+	stream := &websocketStream{
+		id:      streamID,
+		headers: headers,
+		conn:    w.conn,
+		readCh:  make(chan []byte, 1000), // Increased buffer size for high throughput
+		done:    make(chan struct{}),
+	}
+
+	w.streams[streamID] = stream
+
+	return stream, nil
+}
+
+// readerLoop reads from the WebSocket connection and routes data to streams.
+// Kubernetes port forwarding protocol: Data flows directly through WebSocket.
+// The portforward package handles protocol parsing (port headers, request IDs).
+// We route all data to data streams, and errors to error streams.
+func (w *websocketStreamConnection) readerLoop() {
+	defer close(w.readerDone)
+	for {
+		messageType, data, err := w.conn.ReadMessage()
+		if err != nil {
+			// Connection closed or error - signal all streams
+			w.mu.Lock()
+			for _, stream := range w.streams {
+				// Use select to avoid panic if channel already closed
+				select {
+				case <-stream.done:
+					// Already closed, skip
+				default:
+					close(stream.readCh)
+				}
+			}
+			w.mu.Unlock()
+			return
+		}
+
+		if messageType == websocket.BinaryMessage || messageType == websocket.TextMessage {
+			w.mu.Lock()
+			// For Kubernetes port forwarding, data flows through the connection.
+			// The portforward package will parse the protocol (port headers, request IDs).
+			// We route based on stream type headers set when streams were created.
+			// Note: When multiple data streams exist (multiple ports), the same data
+			// is sent to all data streams. The portforward package filters by port
+			// headers in the data, so this is the correct behavior.
+			var dataStreams []*websocketStream
+			var errorStreams []*websocketStream
+
+			for _, stream := range w.streams {
+				switch streamType := stream.headers.Get(v1.StreamType); streamType {
+				case v1.StreamTypeData:
+					dataStreams = append(dataStreams, stream)
+				case v1.StreamTypeError:
+					errorStreams = append(errorStreams, stream)
+				}
+			}
+
+			// Route data: binary messages to data streams, text/errors to error streams
+			// If no streams exist yet, data is dropped (streams should be created before data arrives)
+			if messageType == websocket.BinaryMessage {
+				// Binary data goes to data streams (port forwarding data)
+				for _, stream := range dataStreams {
+					select {
+					case stream.readCh <- data:
+					case <-stream.done:
+						// Stream closed, skip
+					default:
+						// Channel full, skip to avoid blocking
+					}
+				}
+				// If no data streams, also try error streams (fallback)
+				if len(dataStreams) == 0 && len(errorStreams) > 0 {
+					for _, stream := range errorStreams {
+						select {
+						case stream.readCh <- data:
+						case <-stream.done:
+						default:
+						}
+					}
+				}
+			} else {
+				// Text messages typically indicate errors
+				for _, stream := range errorStreams {
+					select {
+					case stream.readCh <- data:
+					case <-stream.done:
+					default:
+					}
+				}
+				// Fallback to data streams if no error streams
+				if len(errorStreams) == 0 {
+					for _, stream := range dataStreams {
+						select {
+						case stream.readCh <- data:
+						case <-stream.done:
+						default:
+						}
+					}
+				}
+			}
+			w.mu.Unlock()
+		}
+	}
+}
+
+// websocketStream implements httpstream.Stream for WebSocket connections
+type websocketStream struct {
+	id      uint32
+	headers http.Header
+	conn    *websocket.Conn
+	readCh  chan []byte
+	done    chan struct{}
+	closed  bool
+	mu      sync.Mutex
+	buffer  []byte // Buffer for partial reads
+}
+
+func (s *websocketStream) Read(p []byte) (n int, err error) {
+	// First, consume any buffered data
+	if len(s.buffer) > 0 {
+		n = copy(p, s.buffer)
+		s.buffer = s.buffer[n:]
+		if len(p) == n {
+			return n, nil
+		}
+		// Still have space, continue to read from channel
+	}
+
+	// Read from channel
+	select {
+	case data := <-s.readCh:
+		if len(data) == 0 {
+			return 0, io.EOF
+		}
+		remaining := len(p) - n
+		if remaining > 0 {
+			copied := copy(p[n:], data)
+			n += copied
+			if copied < len(data) {
+				// Buffer remaining data
+				s.buffer = data[copied:]
+			}
+		}
+		return n, nil
+	case <-s.done:
+		if n > 0 {
+			return n, nil
+		}
+		return 0, io.EOF
+	}
+}
+
+func (s *websocketStream) Write(p []byte) (n int, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return 0, io.ErrClosedPipe
+	}
+
+	// For port forwarding, write directly to WebSocket connection
+	// The WebSocket protocol handles the framing
+	err = s.conn.WriteMessage(websocket.BinaryMessage, p)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func (s *websocketStream) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+	close(s.done)
+	return nil
+}
+
+func (s *websocketStream) Reset() error {
+	return s.Close()
+}
+
+func (s *websocketStream) Headers() http.Header {
+	return s.headers
+}
+
+func (s *websocketStream) Identifier() uint32 {
+	return s.id
+}
+
+func (w *websocketStreamConnection) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// Close all streams
+	for _, stream := range w.streams {
+		_ = stream.Close()
+	}
+	w.streams = nil
+
+	// Close WebSocket connection
+	if w.conn != nil {
+		err := w.conn.Close()
+		select {
+		case w.closeCh <- true:
+		default:
+		}
+		return err
+	}
+	return nil
+}
+
+func (w *websocketStreamConnection) CloseChan() <-chan bool {
+	if w.closeCh == nil {
+		w.closeCh = make(chan bool, 1)
+	}
+	return w.closeCh
+}
+
+func (w *websocketStreamConnection) RemoteAddr() net.Addr {
+	if w.conn != nil {
+		return w.conn.RemoteAddr()
+	}
+	return nil
+}
+
+// SetIdleTimeout sets the idle timeout for the connection.
+// For WebSocket connections, we set read/write deadlines on the underlying connection.
+// Errors from SetReadDeadline/SetWriteDeadline are non-fatal and typically indicate
+// the connection is already closed, so we ignore them.
+func (w *websocketStreamConnection) SetIdleTimeout(timeout time.Duration) {
+	if w.conn != nil && timeout > 0 {
+		deadline := time.Now().Add(timeout)
+		_ = w.conn.SetReadDeadline(deadline)
+		_ = w.conn.SetWriteDeadline(deadline)
+	}
+}
+
+func (w *websocketStreamConnection) RemoveStreams(streams ...httpstream.Stream) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	for _, stream := range streams {
+		if wsStream, ok := stream.(*websocketStream); ok {
+			delete(w.streams, wsStream.id)
+			_ = wsStream.Close()
+		}
+	}
+}
+
 // AppPortForward will forward the local traffic to a remote app
 func (c *Client) AppPortForward(namespace string, appName, instance string, opts *PortForwardOpts) error {
 	endpoint := fmt.Sprintf("%s%s/%s", c.Settings.API, api.WsRoot, api.WsRoutes.Path("AppPortForward", namespace, appName))
@@ -472,17 +811,14 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 		portForwardURL.RawQuery = values.Encode()
 	}
 
-	upgradeRoundTripper, err := NewUpgrader(spdy.RoundTripperConfig{
-		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
-		PingPeriod: time.Second * 5,
-	})
+	// Create rest.Config for WebSocket dialer
+	restConfig, err := c.createRestConfigForWebSocket()
 	if err != nil {
-		return errors.Wrap(err, "creating upgrader")
+		return err
 	}
 
-	wrapper := transport.NewBearerAuthRoundTripper(c.Settings.Token.AccessToken, upgradeRoundTripper)
-
-	dialer := gospdy.NewDialer(upgradeRoundTripper, &http.Client{Transport: wrapper}, "GET", portForwardURL)
+	// Create WebSocket dialer instead of SPDY dialer
+	dialer := NewWebSocketDialer(restConfig, "GET", portForwardURL)
 	fw, err := portforward.NewOnAddresses(dialer, opts.Address, opts.Ports, opts.StopChannel, opts.ReadyChannel, opts.Out, opts.ErrOut)
 	if err != nil {
 		return err

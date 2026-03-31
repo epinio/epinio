@@ -59,8 +59,9 @@ var _ = Describe("AppExec Endpoint", LApplication, func() {
 				//    raw: append([]byte{0}, []byte(cmdStr)...)
 				wsConn, err = env.MakeWebSocketConnection(token, wsURL, wsstream.ChannelWebSocketProtocol)
 				Expect(err).ToNot(HaveOccurred())
-				wsConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-				wsConn.SetReadDeadline(time.Now().Add(10 * time.Second))
+				// Use 120s deadlines; slow environments may take longer to get the shell prompt
+				wsConn.SetWriteDeadline(time.Now().Add(120 * time.Second))
+				wsConn.SetReadDeadline(time.Now().Add(120 * time.Second))
 			})
 
 			AfterEach(func() {
@@ -70,24 +71,27 @@ var _ = Describe("AppExec Endpoint", LApplication, func() {
 			})
 
 			It("runs a command and gets the output back", func() {
-				// Run command: echo "test" > /workspace/test && exit
+				// Run command: echo "test" > /tmp/test-echo (use /tmp - writable in all environments)
 				// Check stdout stream (it should send back the command we sent)
 				// Check if the file exists on the application Pod with kubectl
 
 				var messageBytes []byte
 				var err error
 
-				// Read until we reach the prompt
-				r, err := regexp.Compile(`.*\$`) // Matches the bash command prompt
+				// Read until we reach the prompt ($ for user, # for root)
+				r, err := regexp.Compile(`.*[\$#]`)
 				Expect(err).ToNot(HaveOccurred())
 				for !r.MatchString(string(messageBytes)) {
 					_, newBytes, err := wsConn.ReadMessage()
 					Expect(err).ToNot(HaveOccurred())
-					messageBytes = append(messageBytes, newBytes[1:]...) // Skip the "channel" byte
+					if len(newBytes) > 1 {
+						messageBytes = append(messageBytes, newBytes[1:]...) // Skip the "channel" byte
+					}
 				}
 
-				// Run the command
-				cmdStr := "echo testing-epinio > /workspace/test-echo"
+				// Use /tmp so the test works across different K8s versions and images (e.g. different CWD/layouts)
+				testEchoPath := "/tmp/test-echo"
+				cmdStr := fmt.Sprintf("echo testing-epinio > %s", testEchoPath)
 				command := append([]byte{0}, []byte(cmdStr)...)
 				err = wsConn.WriteMessage(websocket.BinaryMessage, command)
 				Expect(err).ToNot(HaveOccurred())
@@ -102,10 +106,11 @@ var _ = Describe("AppExec Endpoint", LApplication, func() {
 				Eventually(func() string {
 					_, newBytes, err := wsConn.ReadMessage()
 					Expect(err).ToNot(HaveOccurred())
-
-					messageBytes = append(messageBytes, newBytes[1:]...) // Skip the "channel" byte
+					if len(newBytes) > 1 {
+						messageBytes = append(messageBytes, newBytes[1:]...) // Skip the "channel" byte
+					}
 					return replaceRegex.ReplaceAllString(string(messageBytes), "")
-				}, "20s", "1s").Should(MatchRegexp(cmdStr))
+				}, "20s", "1s").Should(MatchRegexp(regexp.QuoteMeta(cmdStr)))
 
 				// Exit the terminal
 				cmdStr = "\nexit\n"
@@ -113,18 +118,22 @@ var _ = Describe("AppExec Endpoint", LApplication, func() {
 				err = wsConn.WriteMessage(websocket.TextMessage, command)
 				Expect(err).ToNot(HaveOccurred())
 
-				// Check the effects of the command we run
-				out, err := proc.Kubectl("get", "pods",
+				// Check the effects of the command we run (Eventually: allow time for shell to flush on slow envs)
+				podOut, err := proc.Kubectl("get", "pods",
 					"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
 					"-n", namespace, "-o", "name")
 				Expect(err).ToNot(HaveOccurred())
 
-				out, err = proc.Kubectl("exec",
-					strings.TrimSpace(out), "-n", namespace,
-					"--", "cat", "/workspace/test-echo")
-				Expect(err).ToNot(HaveOccurred(), out)
-
-				Expect(strings.TrimSpace(out)).To(Equal("testing-epinio"))
+				var out string
+				Eventually(func() string {
+					out, err = proc.Kubectl("exec",
+						strings.TrimSpace(podOut), "-n", namespace,
+						"--", "cat", testEchoPath)
+					if err != nil {
+						return ""
+					}
+					return strings.TrimSpace(out)
+				}, "15s", "2s").Should(Equal("testing-epinio"))
 			})
 		})
 

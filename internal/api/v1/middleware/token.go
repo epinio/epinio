@@ -14,7 +14,6 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/authtoken"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
@@ -28,7 +27,7 @@ import (
 // TokenAuth middleware is used to authenticate a user from a 'authtoken'
 // It's used when trying to establish a websocket connections for authenticated users.
 func TokenAuth(ctx *gin.Context) {
-	logger := helpers.Logger.With("component", "TokenAuth")
+	logger := requestctx.Logger(ctx.Request.Context()).With("component", "TokenAuth")
 	logger.Debugw("Authtoken authentication")
 
 	token := ctx.Query("authtoken")

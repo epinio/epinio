@@ -186,13 +186,17 @@ func (s *AuthService) UpdateUser(ctx context.Context, user User) (User, error) {
 	logger := helpers.Logger.With("component", "AuthService")
 	logger.Debugw("UpdateUser", "username", user.Username)
 
-	userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
-	if err != nil {
-		return User{}, errors.Wrapf(err, "error getting the user secret [%s]", user.Username)
-	}
-	userSecret = updateUserSecretData(user, userSecret)
-
-	updatedUserSecret, err := s.updateUserSecret(ctx, userSecret)
+	var updatedUserSecret *corev1.Secret
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		userSecret, getErr := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+		userSecret = updateUserSecretData(user, userSecret)
+		var updateErr error
+		updatedUserSecret, updateErr = s.updateUserSecret(ctx, userSecret)
+		return updateErr
+	})
 	if err != nil {
 		return User{}, errors.Wrapf(err, "error updating user [%s]", user.Username)
 	}
@@ -281,20 +285,12 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 	return secretList.Items, nil
 }
 
+// updateUserSecret performs a single update of the user secret (caller must retry on conflict).
 func (s *AuthService) updateUserSecret(ctx context.Context, userSecret *corev1.Secret) (*corev1.Secret, error) {
-	var updatedSecret *corev1.Secret
-
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		var updateErr error
-		updatedSecret, updateErr = s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
-
-		return updateErr
-	})
-
+	updatedSecret, err := s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "error updating the user secret [%s]", userSecret.Name)
 	}
-
 	return updatedSecret, nil
 }
 
