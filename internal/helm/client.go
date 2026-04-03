@@ -137,7 +137,7 @@ func (c *SynchronizedClient) UpgradeChart(ctx context.Context, spec *hc.ChartSpe
 	return c.helmClient.UpgradeChart(ctx, spec, opts)
 }
 
-// Status implements the 'helm status' command, with the ShowResources flag enabled
+// Status implements the 'helm status' command
 func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
@@ -145,7 +145,6 @@ func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
 	}
 
 	statusAction := action.NewStatus(concreteHelmClient.ActionConfig)
-	statusAction.ShowResources = true
 	return statusAction.Run(name)
 }
 
