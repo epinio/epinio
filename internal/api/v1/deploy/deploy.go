@@ -27,6 +27,7 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -236,10 +237,6 @@ func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, i
 }
 
 func UpdateImageURL(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, imageURL string) error {
-	if err := unstructured.SetNestedField(app.Object, imageURL, "spec", "imageurl"); err != nil {
-		return err
-	}
-
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -249,8 +246,32 @@ func UpdateImageURL(ctx context.Context, cluster *kubernetes.Cluster, app *unstr
 	if err != nil {
 		return err
 	}
+	name, _, err := unstructured.NestedString(app.UnstructuredContent(), "metadata", "name")
+	if err != nil {
+		return err
+	}
 
-	_, err = client.Namespace(namespace).Update(ctx, app, metav1.UpdateOptions{})
+	// App status and staging updates can race with this write.
+	// Retry with the latest resource version on conflict.
+	current := app
+	for i := 0; i < 3; i++ {
+		if err := unstructured.SetNestedField(current.Object, imageURL, "spec", "imageurl"); err != nil {
+			return err
+		}
 
-	return err
+		_, err = client.Namespace(namespace).Update(ctx, current, metav1.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+		if !apierrors.IsConflict(err) || i == 2 {
+			return err
+		}
+
+		current, err = client.Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
