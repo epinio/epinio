@@ -26,5 +26,62 @@ var _ = Describe("Auth actions", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(actions).ToNot(BeEmpty())
 		})
+
+		It("defines granular application actions with the expected routes", func() {
+			_, err := auth.InitActions()
+			Expect(err).ToNot(HaveOccurred())
+
+			appCreate, found := auth.ActionsMap["app_create"]
+			Expect(found).To(BeTrue())
+			Expect(appCreate.Routes).To(ContainElement("AppCreate"))
+			Expect(appCreate.Routes).To(ContainElement("AppImportGit"))
+			Expect(appCreate.Routes).To(ContainElement("AppUpload"))
+
+			appUpdateEnv, found := auth.ActionsMap["app_update_env"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateEnv.Routes).To(ContainElement("EnvSet"))
+			Expect(appUpdateEnv.Routes).To(ContainElement("EnvUnset"))
+
+			appUpdateConfigs, found := auth.ActionsMap["app_update_configs"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateConfigs.Routes).To(ContainElement("ConfigurationBindingCreate"))
+			Expect(appUpdateConfigs.Routes).To(ContainElement("ConfigurationBindingDelete"))
+
+			appScale, found := auth.ActionsMap["app_scale"]
+			Expect(found).To(BeTrue())
+			Expect(appScale.Routes).To(ContainElement("AppUpdate"))
+
+			appUpdateRoutes, found := auth.ActionsMap["app_update_routes"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateRoutes.Routes).To(ContainElement("AppUpdate"))
+
+			appUpdateSettings, found := auth.ActionsMap["app_update_settings"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateSettings.Routes).To(ContainElement("AppUpdate"))
+
+			appUpdateChart, found := auth.ActionsMap["app_update_chart"]
+			Expect(found).To(BeTrue())
+			Expect(appUpdateChart.Routes).To(ContainElement("AppUpdate"))
+		})
+
+		It("keeps app_write as compatibility action", func() {
+			_, err := auth.InitActions()
+			Expect(err).ToNot(HaveOccurred())
+
+			appWrite, found := auth.ActionsMap["app_write"]
+			Expect(found).To(BeTrue())
+
+			// app_write is now a composite action and should still cover existing write paths.
+			Expect(appWrite.Routes).To(ContainElement("AppCreate"))
+			Expect(appWrite.Routes).To(ContainElement("AppDelete"))
+			Expect(appWrite.Routes).To(ContainElement("AppDeploy"))
+			Expect(appWrite.Routes).To(ContainElement("AppStage"))
+			Expect(appWrite.Routes).To(ContainElement("AppUpdate"))
+			Expect(appWrite.Routes).To(ContainElement("EnvSet"))
+			Expect(appWrite.Routes).To(ContainElement("ConfigurationBindingCreate"))
+			// Keep legacy dependency behavior too.
+			Expect(appWrite.Routes).To(ContainElement("AppShow"))
+			Expect(appWrite.WsRoutes).To(ContainElement("AppLogs"))
+		})
 	})
 })
