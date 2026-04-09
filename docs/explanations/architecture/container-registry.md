@@ -5,12 +5,12 @@ specified everything needed to work with an external registry.
 
 The current setup of this registry evolved under the following constraints:
 
-  1. The paketo lifecycle creator used by our staging accesses the registry using a TLS-secured
-  channel.
+  1. The build tooling used by staging (pack) accesses the
+  registry using a TLS-secured channel.
 
      It cannot be configured to use an unsecured channel.
 
-     See [Paketo Ticket #524](https://github.com/buildpacks/lifecycle/issues/524)
+     See [Buildpacks lifecycle issue #524](https://github.com/buildpacks/lifecycle/issues/524)
      for a request to change this.
 
   2. For the application pods to use a TLS-secured channel for access to the registry it is necesssary to either

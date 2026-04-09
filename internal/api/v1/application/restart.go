@@ -12,6 +12,7 @@
 package application
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -20,6 +21,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/registry"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -56,11 +59,20 @@ func Restart(c *gin.Context) apierror.APIErrors {
 		// version up.
 
 		// Recompute the image url, by replacing the old image tag (= old stage id) with the
-		// new stage id.
-
-		pieces := strings.Split(app.ImageURL, ":")
-		pieces[len(pieces)-1] = app.StageID
-		newImageURL := strings.Join(pieces, ":")
+		// new stage id. If the current image is empty/malformed, reconstruct the full URL
+		// from the registry public URL.
+		publicURL := ""
+		if app.ImageURL == "" || !strings.Contains(app.ImageURL, ":") {
+			details, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
+			if err != nil {
+				return apierror.InternalError(err, "getting registry connection details")
+			}
+			publicURL, err = details.PublicRegistryURL()
+			if err != nil {
+				return apierror.InternalError(err, "getting public registry URL")
+			}
+		}
+		newImageURL := computeRestartImageURL(app.ImageURL, app.StageID, app.Meta.Namespace, app.Meta.Name, publicURL)
 
 		// .. and save it for `DeployApp` to find.
 
@@ -82,4 +94,14 @@ func Restart(c *gin.Context) apierror.APIErrors {
 
 	response.OK(c)
 	return nil
+}
+
+func computeRestartImageURL(currentImageURL, stageID, namespace, appName, publicRegistryURL string) string {
+	if currentImageURL == "" || !strings.Contains(currentImageURL, ":") {
+		return fmt.Sprintf("%s/%s-%s:%s", publicRegistryURL, namespace, appName, stageID)
+	}
+
+	pieces := strings.Split(currentImageURL, ":")
+	pieces[len(pieces)-1] = stageID
+	return strings.Join(pieces, ":")
 }

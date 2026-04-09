@@ -49,6 +49,13 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+const (
+	// Helm readiness checks can throttle on small clusters under load.
+	// Keep a conservative minimum so deploy waits don't fail due to client-side rate limits.
+	minHelmKubeAPIQPS   = float32(50)
+	minHelmKubeAPIBurst = 100
+)
+
 type PostDeployFunction func(ctx context.Context) error
 
 type ServiceParameters struct {
@@ -394,7 +401,7 @@ func Deploy(parameters ChartParameters) error {
 		Wait:        true,
 		Atomic:      true, // implies `Wait true`
 		ValuesYaml:  params,
-		Timeout:     duration.ToDeployment(),
+		Timeout:     maxDuration(duration.ToDeployment(), 8*time.Minute),
 		ReuseValues: true,
 	}
 
@@ -511,8 +518,16 @@ func GetHelmClient(
 	restConfig *rest.Config,
 	namespace string,
 ) (*SynchronizedClient, error) {
+	helmRestConfig := rest.CopyConfig(restConfig)
+	if helmRestConfig.QPS < minHelmKubeAPIQPS {
+		helmRestConfig.QPS = minHelmKubeAPIQPS
+	}
+	if helmRestConfig.Burst < minHelmKubeAPIBurst {
+		helmRestConfig.Burst = minHelmKubeAPIBurst
+	}
+
 	options := &hc.RestConfClientOptions{
-		RestConfig: restConfig,
+		RestConfig: helmRestConfig,
 		Options: &hc.Options{
 			Namespace:        namespace,         // Match chart spec
 			RepositoryCache:  "/tmp/.helmcache", // Hopefully reduces chart downloads.
@@ -674,6 +689,13 @@ func installOrUpgradeChartWithRetry(ctx context.Context, client hc.Client,
 		}
 		return err
 	})
+}
+
+func maxDuration(a, b time.Duration) time.Duration {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func getChartReference(ctx context.Context, client hc.Client, appChart *models.AppChartFull) (string, string, error) {

@@ -469,7 +469,7 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().String("container-image-url", "", "Container image url for the app workload image")
 	cmd.Flags().StringP("name", "n", "", "Application name. (mandatory if no manifest is provided)")
 	cmd.Flags().StringP("path", "p", "", "Path to application sources.")
-	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
+	cmd.Flags().String("builder-image", "", "Builder image to use for staging")
 
 	gitProviderOption(cmd)
 	routeOption(cmd)
@@ -564,7 +564,7 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 
 	// It scales the named app
 	var noRestart bool
-	
+
 	cmd := &cobra.Command{
 		Use:               "update NAME",
 		Short:             "Update the named application",
@@ -603,7 +603,7 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 				AppChart:       manifestConfig.AppChart,
 				Settings:       manifestConfig.Settings,
 			}
-			
+
 			// Set restart flag based on --no-restart option
 			restart := !noRestart
 			updateRequest.Restart = &restart
@@ -626,7 +626,7 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().String("app-chart", "", "App chart to use for deployment")
 	bindFlag(cmd, "app-chart")
 	bindFlagCompletionFunc(cmd, "app-chart", NewAppChartMatcherValueFunc(client))
-	
+
 	cmd.Flags().BoolVar(&noRestart, "no-restart", false, "Prevent restarting the application after update")
 
 	return cmd

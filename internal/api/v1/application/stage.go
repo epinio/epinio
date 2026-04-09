@@ -55,6 +55,8 @@ type stageParam struct {
 	models.AppRef
 	BlobUID             string
 	BuilderImage        string
+	BuildImage          string
+	BuildEngine         string
 	DownloadImage       string
 	UnpackImage         string
 	Environment         models.EnvVariableList
@@ -79,6 +81,8 @@ type HelmValuesMap struct {
 	Affinity                corev1.Affinity             `json:"affinity,omitempty"`
 	Resources               corev1.ResourceRequirements `json:"resources,omitempty"`
 	TTLSecondsAfterFinished int32                       `json:"ttlSecondsAfterFinished,omitempty"`
+	DockerSocketPath        string                      `json:"dockerSocketPath,omitempty"` // e.g. /var/run/docker.sock for pack build (minikube)
+	RegistryHostOverride    string                      `json:"registryHostOverride,omitempty"`
 	Storage                 struct {
 		SourceBlobs StagingStorageValues `json:"sourceBlobs,omitempty"`
 		Cache       StagingStorageValues `json:"cache,omitempty"`
@@ -219,6 +223,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 
 	log.Infow("staging app", "scripts", config.Name)
 	log.Infow("staging app", "builder", builderImage)
+	log.Infow("staging app", "build image", config.BuildImage)
+	log.Infow("staging app", "build engine", config.BuildEngine)
 	log.Infow("staging app", "download", config.DownloadImage)
 	log.Infow("staging app", "unpack", config.UnpackImage)
 	log.Infow("staging app", "userid", config.UserID)
@@ -293,6 +299,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
+		BuildImage:          config.BuildImage,
+		BuildEngine:         config.BuildEngine,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
 		BlobUID:             blobUID,
@@ -309,6 +317,13 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		GroupID:             config.GroupID,
 		Scripts:             config.Name,
 		HelmValues:          config.HelmValues,
+	}
+	if params.HelmValues.DockerSocketPath != "" && params.HelmValues.RegistryHostOverride != "" {
+		params.RegistryURL = overrideRegistryHost(params.RegistryURL, params.HelmValues.RegistryHostOverride)
+	}
+
+	if params.BuildImage == "" {
+		params.BuildImage = params.BuilderImage
 	}
 
 	if !params.HelmValues.Storage.Cache.EmptyDir {
@@ -648,8 +663,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	// runtime: BashImage
 	unpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageUnpack)
 
-	// runtime: app.BuilderImage
-	buildpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageBuild)
+	// runtime: app.BuildImage (use . for POSIX sh; many build images have only /bin/sh)
+	buildpackScript := fmt.Sprintf(". /stage-support/%s", helmchart.EpinioStageBuild)
 
 	// build configuration
 	// - shared between all the phases, even if each phase uses only part of the set
@@ -771,6 +786,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	volumes, volumeMounts = mountS3Certs(volumes, volumeMounts)
 	volumes, volumeMounts = mountRegistryCerts(app, volumes, volumeMounts)
+	volumes, volumeMounts = mountDockerSocket(app, volumes, volumeMounts)
 
 	// Create job environment as a copy of the app environment
 	env := make(map[string][]byte)
@@ -862,19 +878,16 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					Containers: []corev1.Container{
 						{
 							Name:    "buildpack",
-							Image:   app.BuilderImage,
-							Command: []string{"/bin/bash"},
+							Image:   app.BuildImage,
+							Command: []string{"/bin/sh"},
 							Args: []string{
 								"-c",
 								buildpackScript,
 							},
-							Env:          stageEnv,
-							VolumeMounts: volumeMounts,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:  ptr.To[int64](app.UserID),
-								RunAsGroup: ptr.To[int64](app.GroupID),
-							},
-							Resources: app.HelmValues.Resources,
+							Env:             stageEnv,
+							VolumeMounts:    volumeMounts,
+							SecurityContext: buildpackSecurityContext(app),
+							Resources:       app.HelmValues.Resources,
 						},
 					},
 					RestartPolicy: corev1.RestartPolicyNever,
@@ -904,6 +917,8 @@ func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
 	stageEnv = appendEnvVar(stageEnv, "BLOBID", app.BlobUID)
 	stageEnv = appendEnvVar(stageEnv, "PREIMAGE", previous.ImageURL(previous.RegistryURL))
 	stageEnv = appendEnvVar(stageEnv, "APPIMAGE", app.ImageURL(app.RegistryURL))
+	stageEnv = appendEnvVar(stageEnv, "BUILDERIMAGE", app.BuilderImage)
+	stageEnv = appendEnvVar(stageEnv, "BUILDENGINE", app.BuildEngine)
 	stageEnv = appendEnvVar(stageEnv, "USERID", strconv.FormatInt(app.UserID, 10))
 	stageEnv = appendEnvVar(stageEnv, "GROUPID", strconv.FormatInt(app.GroupID, 10))
 
@@ -1007,13 +1022,7 @@ func findPreviousBlobUID(app *unstructured.Unstructured) (string, error) {
 }
 
 func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
-	if err := unstructured.SetNestedField(app.Object, params.BlobUID, "spec", "blobuid"); err != nil {
-		return err
-	}
-	if err := unstructured.SetNestedField(app.Object, params.Stage.ID, "spec", "stageid"); err != nil {
-		return err
-	}
-	if err := unstructured.SetNestedField(app.Object, params.BuilderImage, "spec", "builderimage"); err != nil {
+	if err := setAppStagingFields(app, params); err != nil {
 		return err
 	}
 
@@ -1030,6 +1039,23 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 	_, err = client.Namespace(namespace).Update(ctx, app, metav1.UpdateOptions{})
 
 	return err
+}
+
+func setAppStagingFields(app *unstructured.Unstructured, params stageParam) error {
+	if err := unstructured.SetNestedField(app.Object, params.BlobUID, "spec", "blobuid"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(app.Object, params.Stage.ID, "spec", "stageid"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(app.Object, params.ImageURL(params.RegistryURL), "spec", "imageurl"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(app.Object, params.BuilderImage, "spec", "builderimage"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func mountS3Certs(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) ([]corev1.Volume, []corev1.VolumeMount) {
@@ -1078,14 +1104,63 @@ func mountRegistryCerts(app stageParam, volumes []corev1.Volume, volumeMounts []
 	return volumes, volumeMounts
 }
 
+// buildpackSecurityContext returns SecurityContext for the buildpack container.
+// When Docker socket is mounted, run as root so the container can access the host Docker daemon.
+func buildpackSecurityContext(app stageParam) *corev1.SecurityContext {
+	userID, groupID := app.UserID, app.GroupID
+	if app.HelmValues.DockerSocketPath != "" {
+		userID, groupID = 0, 0
+	}
+	return &corev1.SecurityContext{
+		RunAsUser:  ptr.To[int64](userID),
+		RunAsGroup: ptr.To[int64](groupID),
+	}
+}
+
+func mountDockerSocket(app stageParam, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) ([]corev1.Volume, []corev1.VolumeMount) {
+	if app.HelmValues.DockerSocketPath == "" {
+		return volumes, volumeMounts
+	}
+	volumes = append(volumes, corev1.Volume{
+		Name: "docker-socket",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: app.HelmValues.DockerSocketPath,
+				Type: ptr.To(corev1.HostPathSocket),
+			},
+		},
+	})
+	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		Name:      "docker-socket",
+		MountPath: "/var/run/docker.sock",
+		ReadOnly:  false,
+	})
+	return volumes, volumeMounts
+}
+
 func appendEnvVar(envs []corev1.EnvVar, name, value string) []corev1.EnvVar {
 	return append(envs, corev1.EnvVar{Name: name, Value: value})
+}
+
+func overrideRegistryHost(registryURL, hostOverride string) string {
+	hostOverride = strings.Trim(hostOverride, "/")
+	if hostOverride == "" {
+		return registryURL
+	}
+
+	parts := strings.SplitN(strings.Trim(registryURL, "/"), "/", 2)
+	if len(parts) == 1 {
+		return hostOverride
+	}
+	return fmt.Sprintf("%s/%s", hostOverride, parts[1])
 }
 
 // StagingScriptConfig holds all the information for using a (set of) buildpack(s)
 type StagingScriptConfig struct {
 	Name          string                // config name. Needed to mount the resource in the pod
 	Builder       string                // glob pattern for builders supported by this resource
+	BuildImage    string                // image to run the build phase with
+	BuildEngine   string                // build command family, normalized to pack
 	UserID        int64                 // user id to run the build phase with (`cnb` user)
 	GroupID       int64                 // group id to run the build hase with
 	Base          string                // optional, name of resource to pull the other parts from
@@ -1205,8 +1280,18 @@ func StagingScriptConfigResolve(ctx context.Context, cluster *kubernetes.Cluster
 	// BEWARE: Keep environment data of the incoming config.
 
 	config.Name = base.Name
-	config.DownloadImage = base.Data["downloadImage"]
-	config.UnpackImage = base.Data["unpackImage"]
+	if config.BuildImage == "" {
+		config.BuildImage = base.Data["buildImage"]
+	}
+	if config.BuildEngine == "" {
+		config.BuildEngine = base.Data["buildEngine"]
+	}
+	if config.DownloadImage == "" {
+		config.DownloadImage = base.Data["downloadImage"]
+	}
+	if config.UnpackImage == "" {
+		config.UnpackImage = base.Data["unpackImage"]
+	}
 
 	return nil
 }
@@ -1215,10 +1300,18 @@ func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, erro
 	stagingScript := &StagingScriptConfig{
 		Name:          config.Name,
 		Builder:       config.Data["builder"],
+		BuildImage:    config.Data["buildImage"],
+		BuildEngine:   config.Data["buildEngine"],
 		Base:          config.Data["base"],
 		DownloadImage: config.Data["downloadImage"],
 		UnpackImage:   config.Data["unpackImage"],
 		// env, user, group id, Helm Values, see below.
+	}
+
+	// Engine is normalized to pack for all profiles.
+	stagingScript.BuildEngine = "pack"
+	if stagingScript.BuildImage == "" {
+		stagingScript.BuildImage = config.Data["builderImage"] // backward compatible key
 	}
 
 	userID, err := strconv.ParseInt(config.Data["userID"], 10, 64)
