@@ -161,7 +161,7 @@ func (c *Collector) CollectSeaweedFSLogs(ctx context.Context) error {
 		selectors = append(selectors, sel2)
 	}
 
-	namespaces := []string{SupportBundleNamespace, "default"}
+	namespaces := []string{c.namespace, "default"}
 	for _, ns := range namespaces {
 		for _, selector := range selectors {
 			if err := c.collectPodLogs(ctx, "seaweedfs", ns, selector, false); err == nil {
