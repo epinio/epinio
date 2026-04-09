@@ -142,46 +142,41 @@ func (c *Collector) CollectStagingJobLogs(ctx context.Context) error {
 	return nil
 }
 
-// CollectMinioLogs collects logs from Minio pods
-func (c *Collector) CollectMinioLogs(ctx context.Context) error {
-	// Minio is typically deployed with app=minio or app.kubernetes.io/name=minio
-	// Try multiple common label selectors
+// CollectSeaweedFSLogs collects logs from SeaweedFS (S3 storage) pods
+func (c *Collector) CollectSeaweedFSLogs(ctx context.Context) error {
+	// SeaweedFS is typically deployed with app.kubernetes.io/name=seaweedfs or app=seaweedfs
 	selectors := []labels.Selector{}
 
-	// Try app=minio
 	sel1 := labels.NewSelector()
-	req1, err := labels.NewRequirement("app", selection.Equals, []string{"minio"})
+	req1, err := labels.NewRequirement("app", selection.Equals, []string{"seaweedfs"})
 	if err == nil {
 		sel1 = sel1.Add(*req1)
 		selectors = append(selectors, sel1)
 	}
 
-	// Try app.kubernetes.io/name=minio
 	sel2 := labels.NewSelector()
-	req2, err := labels.NewRequirement("app.kubernetes.io/name", selection.Equals, []string{"minio"})
+	req2, err := labels.NewRequirement("app.kubernetes.io/name", selection.Equals, []string{"seaweedfs"})
 	if err == nil {
 		sel2 = sel2.Add(*req2)
 		selectors = append(selectors, sel2)
 	}
 
-	// Try to find Minio in common namespaces
-	namespaces := []string{c.namespace, "minio", "default"}
+	namespaces := []string{SupportBundleNamespace, "default"}
 	for _, ns := range namespaces {
 		for _, selector := range selectors {
-			if err := c.collectPodLogs(ctx, "minio", ns, selector, false); err == nil {
-				return nil // Successfully collected
+			if err := c.collectPodLogs(ctx, "seaweedfs", ns, selector, false); err == nil {
+				return nil
 			}
 		}
 	}
 
-	// If not found in specific namespaces, try all namespaces
 	for _, selector := range selectors {
-		if err := c.collectPodLogs(ctx, "minio", "", selector, false); err == nil {
+		if err := c.collectPodLogs(ctx, "seaweedfs", "", selector, false); err == nil {
 			return nil
 		}
 	}
 
-	c.logger.Infow("Minio pods not found, skipping Minio logs")
+	c.logger.Infow("SeaweedFS pods not found, skipping SeaweedFS logs")
 	return nil
 }
 

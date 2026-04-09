@@ -600,7 +600,11 @@ func validateBlob(
 		return apierror.InternalError(err, "querying blob id meta-data")
 	}
 
-	blobApp, ok := blobMeta["App"]
+	// S3 and SeaweedFS return user metadata keys in lowercase (per S3/HTTP behavior)
+	blobApp, ok := blobMeta["app"]
+	if !ok {
+		blobApp, ok = blobMeta["App"]
+	}
 	if !ok {
 		return apierror.NewInternalError("blob has no app name meta data")
 	}
@@ -609,7 +613,10 @@ func validateBlob(
 			WithDetailsf("expected: [%s], found: [%s]", app.Name, blobApp)
 	}
 
-	blobNamespace, ok := blobMeta["Namespace"]
+	blobNamespace, ok := blobMeta["namespace"]
+	if !ok {
+		blobNamespace, ok = blobMeta["Namespace"]
+	}
 	if !ok {
 		return apierror.NewInternalError("blob has no namespace meta data")
 	}
