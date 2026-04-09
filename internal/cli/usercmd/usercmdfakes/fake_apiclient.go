@@ -103,6 +103,34 @@ type FakeAPIClient struct {
 		result1 *models.DeployResponse
 		result2 error
 	}
+	AppDeploymentStatusStub        func(string, string, string) (models.AsyncDeployStatus, error)
+	appDeploymentStatusMutex       sync.RWMutex
+	appDeploymentStatusArgsForCall []struct {
+		arg1 string
+		arg2 string
+		arg3 string
+	}
+	appDeploymentStatusReturns struct {
+		result1 models.AsyncDeployStatus
+		result2 error
+	}
+	appDeploymentStatusReturnsOnCall map[int]struct {
+		result1 models.AsyncDeployStatus
+		result2 error
+	}
+	AppDeploymentsStartStub        func(models.AsyncDeployRequest) (*models.AsyncDeployStatus, error)
+	appDeploymentsStartMutex       sync.RWMutex
+	appDeploymentsStartArgsForCall []struct {
+		arg1 models.AsyncDeployRequest
+	}
+	appDeploymentsStartReturns struct {
+		result1 *models.AsyncDeployStatus
+		result2 error
+	}
+	appDeploymentsStartReturnsOnCall map[int]struct {
+		result1 *models.AsyncDeployStatus
+		result2 error
+	}
 	AppExecStub        func(context.Context, string, string, string, term.TTY) error
 	appExecMutex       sync.RWMutex
 	appExecArgsForCall []struct {
@@ -1368,6 +1396,136 @@ func (fake *FakeAPIClient) AppDeployReturnsOnCall(i int, result1 *models.DeployR
 	}
 	fake.appDeployReturnsOnCall[i] = struct {
 		result1 *models.DeployResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppDeploymentStatus(arg1 string, arg2 string, arg3 string) (models.AsyncDeployStatus, error) {
+	fake.appDeploymentStatusMutex.Lock()
+	ret, specificReturn := fake.appDeploymentStatusReturnsOnCall[len(fake.appDeploymentStatusArgsForCall)]
+	fake.appDeploymentStatusArgsForCall = append(fake.appDeploymentStatusArgsForCall, struct {
+		arg1 string
+		arg2 string
+		arg3 string
+	}{arg1, arg2, arg3})
+	stub := fake.AppDeploymentStatusStub
+	fakeReturns := fake.appDeploymentStatusReturns
+	fake.recordInvocation("AppDeploymentStatus", []interface{}{arg1, arg2, arg3})
+	fake.appDeploymentStatusMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) AppDeploymentStatusCallCount() int {
+	fake.appDeploymentStatusMutex.RLock()
+	defer fake.appDeploymentStatusMutex.RUnlock()
+	return len(fake.appDeploymentStatusArgsForCall)
+}
+
+func (fake *FakeAPIClient) AppDeploymentStatusCalls(stub func(string, string, string) (models.AsyncDeployStatus, error)) {
+	fake.appDeploymentStatusMutex.Lock()
+	defer fake.appDeploymentStatusMutex.Unlock()
+	fake.AppDeploymentStatusStub = stub
+}
+
+func (fake *FakeAPIClient) AppDeploymentStatusArgsForCall(i int) (string, string, string) {
+	fake.appDeploymentStatusMutex.RLock()
+	defer fake.appDeploymentStatusMutex.RUnlock()
+	argsForCall := fake.appDeploymentStatusArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) AppDeploymentStatusReturns(result1 models.AsyncDeployStatus, result2 error) {
+	fake.appDeploymentStatusMutex.Lock()
+	defer fake.appDeploymentStatusMutex.Unlock()
+	fake.AppDeploymentStatusStub = nil
+	fake.appDeploymentStatusReturns = struct {
+		result1 models.AsyncDeployStatus
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppDeploymentStatusReturnsOnCall(i int, result1 models.AsyncDeployStatus, result2 error) {
+	fake.appDeploymentStatusMutex.Lock()
+	defer fake.appDeploymentStatusMutex.Unlock()
+	fake.AppDeploymentStatusStub = nil
+	if fake.appDeploymentStatusReturnsOnCall == nil {
+		fake.appDeploymentStatusReturnsOnCall = make(map[int]struct {
+			result1 models.AsyncDeployStatus
+			result2 error
+		})
+	}
+	fake.appDeploymentStatusReturnsOnCall[i] = struct {
+		result1 models.AsyncDeployStatus
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppDeploymentsStart(arg1 models.AsyncDeployRequest) (*models.AsyncDeployStatus, error) {
+	fake.appDeploymentsStartMutex.Lock()
+	ret, specificReturn := fake.appDeploymentsStartReturnsOnCall[len(fake.appDeploymentsStartArgsForCall)]
+	fake.appDeploymentsStartArgsForCall = append(fake.appDeploymentsStartArgsForCall, struct {
+		arg1 models.AsyncDeployRequest
+	}{arg1})
+	stub := fake.AppDeploymentsStartStub
+	fakeReturns := fake.appDeploymentsStartReturns
+	fake.recordInvocation("AppDeploymentsStart", []interface{}{arg1})
+	fake.appDeploymentsStartMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) AppDeploymentsStartCallCount() int {
+	fake.appDeploymentsStartMutex.RLock()
+	defer fake.appDeploymentsStartMutex.RUnlock()
+	return len(fake.appDeploymentsStartArgsForCall)
+}
+
+func (fake *FakeAPIClient) AppDeploymentsStartCalls(stub func(models.AsyncDeployRequest) (*models.AsyncDeployStatus, error)) {
+	fake.appDeploymentsStartMutex.Lock()
+	defer fake.appDeploymentsStartMutex.Unlock()
+	fake.AppDeploymentsStartStub = stub
+}
+
+func (fake *FakeAPIClient) AppDeploymentsStartArgsForCall(i int) models.AsyncDeployRequest {
+	fake.appDeploymentsStartMutex.RLock()
+	defer fake.appDeploymentsStartMutex.RUnlock()
+	argsForCall := fake.appDeploymentsStartArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeAPIClient) AppDeploymentsStartReturns(result1 *models.AsyncDeployStatus, result2 error) {
+	fake.appDeploymentsStartMutex.Lock()
+	defer fake.appDeploymentsStartMutex.Unlock()
+	fake.AppDeploymentsStartStub = nil
+	fake.appDeploymentsStartReturns = struct {
+		result1 *models.AsyncDeployStatus
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppDeploymentsStartReturnsOnCall(i int, result1 *models.AsyncDeployStatus, result2 error) {
+	fake.appDeploymentsStartMutex.Lock()
+	defer fake.appDeploymentsStartMutex.Unlock()
+	fake.AppDeploymentsStartStub = nil
+	if fake.appDeploymentsStartReturnsOnCall == nil {
+		fake.appDeploymentsStartReturnsOnCall = make(map[int]struct {
+			result1 *models.AsyncDeployStatus
+			result2 error
+		})
+	}
+	fake.appDeploymentsStartReturnsOnCall[i] = struct {
+		result1 *models.AsyncDeployStatus
 		result2 error
 	}{result1, result2}
 }
