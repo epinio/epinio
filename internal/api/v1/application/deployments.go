@@ -94,6 +94,8 @@ func DeploymentsStart(c *gin.Context) apierror.APIErrors {
 	username := requestctx.User(ctx).Username
 	go runAsyncDeployment(context.Background(), id, req, username)
 
+	// Help clients recover deployment id even when intermediaries strip 202 bodies.
+	c.Header("Location", c.Request.URL.Path+"/"+id)
 	c.JSON(202, job.status)
 	return nil
 }
