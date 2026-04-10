@@ -33,7 +33,7 @@ import (
 // It deletes the named service
 func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := helpers.Logger.With("component", "ServiceDelete")
+	logger := requestctx.Logger(ctx).With("component", "ServiceDelete")
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")

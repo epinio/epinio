@@ -33,6 +33,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
 )
@@ -73,6 +74,13 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 
 	c.ui.Success().Msg("Ok")
 	return nil
+}
+
+// formatCreatedAt normalizes timestamps to a stable UTC representation that matches
+// the acceptance test expectations (e.g. `2022-05-19 13:49:20 +0000 UTC`), and
+// avoids differences caused by the local time zone of the client.
+func formatCreatedAt(t metav1.Time) string {
+	return t.Time.UTC().Format("2006-01-02 15:04:05 -0700 MST")
 }
 
 // AppsMatching returns all Epinio apps having the specified prefix in their name.
@@ -190,7 +198,7 @@ func (c *EpinioClient) Apps(all bool) error {
 			msg = msg.WithTableRow(
 				app.Meta.Namespace,
 				app.Meta.Name,
-				app.Meta.CreatedAt.String(),
+				formatCreatedAt(app.Meta.CreatedAt),
 				status,
 				routes,
 				configurations,
@@ -199,7 +207,7 @@ func (c *EpinioClient) Apps(all bool) error {
 		} else {
 			msg = msg.WithTableRow(
 				app.Meta.Name,
-				app.Meta.CreatedAt.String(),
+				formatCreatedAt(app.Meta.CreatedAt),
 				status,
 				routes,
 				configurations,
@@ -641,7 +649,7 @@ func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, de
 func (c *EpinioClient) printAppDetails(app models.App) error {
 	msg := c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Origin", app.Origin.String()).
-		WithTableRow("Created", app.Meta.CreatedAt.String())
+		WithTableRow("Created", formatCreatedAt(app.Meta.CreatedAt))
 
 	var createdAt time.Time
 	var err error

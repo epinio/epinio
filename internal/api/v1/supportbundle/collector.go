@@ -140,46 +140,41 @@ func (c *Collector) CollectStagingJobLogs(ctx context.Context) error {
 	return nil
 }
 
-// CollectMinioLogs collects logs from Minio pods
-func (c *Collector) CollectMinioLogs(ctx context.Context) error {
-	// Minio is typically deployed with app=minio or app.kubernetes.io/name=minio
-	// Try multiple common label selectors
+// CollectSeaweedFSLogs collects logs from SeaweedFS (S3 storage) pods
+func (c *Collector) CollectSeaweedFSLogs(ctx context.Context) error {
+	// SeaweedFS is typically deployed with app.kubernetes.io/name=seaweedfs or app=seaweedfs
 	selectors := []labels.Selector{}
 
-	// Try app=minio
 	sel1 := labels.NewSelector()
-	req1, err := labels.NewRequirement("app", selection.Equals, []string{"minio"})
+	req1, err := labels.NewRequirement("app", selection.Equals, []string{"seaweedfs"})
 	if err == nil {
 		sel1 = sel1.Add(*req1)
 		selectors = append(selectors, sel1)
 	}
 
-	// Try app.kubernetes.io/name=minio
 	sel2 := labels.NewSelector()
-	req2, err := labels.NewRequirement("app.kubernetes.io/name", selection.Equals, []string{"minio"})
+	req2, err := labels.NewRequirement("app.kubernetes.io/name", selection.Equals, []string{"seaweedfs"})
 	if err == nil {
 		sel2 = sel2.Add(*req2)
 		selectors = append(selectors, sel2)
 	}
 
-	// Try to find Minio in common namespaces
-	namespaces := []string{SupportBundleNamespace, "minio", "default"}
+	namespaces := []string{SupportBundleNamespace, "default"}
 	for _, ns := range namespaces {
 		for _, selector := range selectors {
-			if err := c.collectPodLogs(ctx, "minio", ns, selector, false); err == nil {
-				return nil // Successfully collected
+			if err := c.collectPodLogs(ctx, "seaweedfs", ns, selector, false); err == nil {
+				return nil
 			}
 		}
 	}
 
-	// If not found in specific namespaces, try all namespaces
 	for _, selector := range selectors {
-		if err := c.collectPodLogs(ctx, "minio", "", selector, false); err == nil {
+		if err := c.collectPodLogs(ctx, "seaweedfs", "", selector, false); err == nil {
 			return nil
 		}
 	}
 
-	c.logger.Infow("Minio pods not found, skipping Minio logs")
+	c.logger.Infow("SeaweedFS pods not found, skipping SeaweedFS logs")
 	return nil
 }
 
@@ -421,7 +416,7 @@ func (c *Collector) collectPodLogsWithPrevious(ctx context.Context, dirName, nam
 func (c *Collector) collectPodLogsDirect(ctx context.Context, dirName string, pod corev1.Pod, applyTimeWindow bool) error {
 	// Create directory for this component
 	componentDir := filepath.Join(c.bundleDir, dirName)
-	if err := os.MkdirAll(componentDir, 0755); err != nil {
+	if err := os.MkdirAll(componentDir, 0755); err != nil { // nolint:gosec // componentDir under bundleDir, dirName from pod/list
 		return errors.Wrap(err, "failed to create component directory")
 	}
 
@@ -478,7 +473,7 @@ func (c *Collector) collectPodLogsDirect(ctx context.Context, dirName string, po
 func (c *Collector) collectPodLogsDirectWithPrevious(ctx context.Context, dirName string, pod corev1.Pod) error {
 	// Create directory for this component
 	componentDir := filepath.Join(c.bundleDir, dirName)
-	if err := os.MkdirAll(componentDir, 0755); err != nil {
+	if err := os.MkdirAll(componentDir, 0755); err != nil { // nolint:gosec // componentDir under bundleDir, dirName from pod/list
 		return errors.Wrap(err, "failed to create component directory")
 	}
 
@@ -644,7 +639,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	files := make(map[string]string)
 
 	// Walk the bundle directory and collect all log files
-	err := filepath.Walk(c.bundleDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(c.bundleDir, func(path string, info os.FileInfo, err error) error { // nolint:gosec // bundleDir from Bundle(), controlled
 		if err != nil {
 			return errors.Wrapf(err, "error accessing path %s", path)
 		}
@@ -681,7 +676,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	}
 
 	// Create the archive file
-	outFile, err := os.Create(archivePath)
+	outFile, err := os.Create(archivePath) // nolint:gosec // archivePath built from bundleDir in same function
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create archive file")
 	}
@@ -701,7 +696,7 @@ func (c *Collector) CreateArchive(ctx context.Context) (string, error) {
 	}
 
 	// Verify archive was created successfully
-	archiveInfo, err := os.Stat(archivePath)
+	archiveInfo, err := os.Stat(archivePath) // nolint:gosec // archivePath built from bundleDir in same function
 	if err != nil {
 		return "", errors.Wrap(err, "failed to verify archive was created")
 	}

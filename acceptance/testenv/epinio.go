@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/machine"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
@@ -142,6 +143,41 @@ func EnsureDefaultWorkspace(epinioBinary string) {
 }
 
 func AppRouteFromOutput(out string) string {
-	routeRegexp := regexp.MustCompile(`Routes: .*\n.*(https:\/\/.*\.sslip\.io)`)
-	return routeRegexp.FindStringSubmatch(out)[1]
+	// Match route URL with either sslip.io or nip.io (environment-specific)
+	routeRegexp := regexp.MustCompile(`Routes: .*\n.*(https:\/\/[^\s]+(?:sslip\.io|nip\.io))`)
+	matches := routeRegexp.FindStringSubmatch(out)
+	if len(matches) < 2 {
+		return ""
+	}
+	return matches[1]
+}
+
+// AppRouteWithPort ensures the route URL has the correct port for the environment.
+// In k3d, the loadbalancer maps host port 8443 to container 443, so app routes
+// must use :8443 when curling from the host. Routes without a port default to 443
+// which causes "connection refused".
+func AppRouteWithPort(route string) string {
+	if route == "" {
+		return route
+	}
+	port := os.Getenv("EPINIO_PORT")
+	if port == "" {
+		port = "8443" // k3d default
+	}
+	// If route already has a port, return as-is (avoid double-adding)
+	if regexp.MustCompile(`:\d+/?($|\?)`).MatchString(route) {
+		return route
+	}
+	// Insert port after hostname (after "://" and up to path or end)
+	schemeEnd := strings.Index(route, "://")
+	if schemeEnd < 0 {
+		return route + ":" + port
+	}
+	hostStart := schemeEnd + 3 // after "://"
+	pathIdx := strings.Index(route[hostStart:], "/")
+	if pathIdx < 0 {
+		return route + ":" + port
+	}
+	insertAt := hostStart + pathIdx
+	return route[:insertAt] + ":" + port + route[insertAt:]
 }

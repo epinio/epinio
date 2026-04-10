@@ -30,7 +30,7 @@ import (
 // User is a struct containing all the information of an Epinio User
 type User struct {
 	Username   string
-	Password   string
+	Password string // nolint:gosec // intentional auth field, not logged
 	CreatedAt  time.Time
 	Roles      Roles
 	Namespaces []string // list of namespaces this user has created (and thus access to)
@@ -129,6 +129,17 @@ func (u *User) IsAllowed(method, fullPath string, params map[string]string) bool
 
 	globalRoles := filterRolesByNamespace(u.Roles, "")
 	return globalRoles.IsAllowed(method, fullPath)
+}
+
+// HasGlobalRole returns true if the user has at least one role that is not scoped to a namespace.
+// Such users are allowed to access any namespace (see NamespaceAuthorization middleware).
+func (u *User) HasGlobalRole() bool {
+	for _, r := range u.Roles {
+		if r.Namespace == "" {
+			return true
+		}
+	}
+	return false
 }
 
 // IsAdmin returns true if a user has a global admin role

@@ -79,9 +79,6 @@ func Show(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	// SECURITY: Mask all configuration details to prevent secret exposure in API responses
-	//maskedDetails := mask.MaskMap(configurationDetails)
-
 	response.OKReturn(c, models.ConfigurationResponse{
 		Meta: models.ConfigurationRef{
 			Meta: models.Meta{

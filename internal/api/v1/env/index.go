@@ -12,10 +12,10 @@
 package env
 
 import (
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -28,12 +28,13 @@ import (
 // Supports optional query parameter "grouped=true" to return variables separated by origin
 func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
 
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
 	grouped := c.Query("grouped") == "true"
 
-	helpers.Logger.Infow("returning environment", "namespace", namespaceName, "app", appName, "grouped", grouped)
+	log.Infow("returning environment", "namespace", namespaceName, "app", appName, "grouped", grouped)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {

@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	// dateRegex will check for a date in the '2022-05-19 13:49:20 +0000' UTC format
-	dateRegex = `[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} \+[0-9]{4} [A-Z]{3,4}`
+	// dateRegex matches dates with timezone offset, e.g. '2022-05-19 13:49:20 +0000 UTC' or '2026-02-06 00:14:58 -0500 EST'
+	dateRegex = `[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [+-][0-9]{4} [A-Z]{3,4}`
 	// semverRegex will check for a basic semantic version string
 	semverRegex = `(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)`
 )
