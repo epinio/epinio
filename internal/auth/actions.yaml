@@ -39,6 +39,7 @@
     - Apps
     - AppShow
     - StagingComplete
+    - AppDeployment
     - AppRunning
     - AppValidateCV
     # app autocomplete
@@ -75,6 +76,7 @@
     - AppDelete
     - AppBatchDelete
     - AppDeploy
+    - AppDeployments
     - AppImportGit
     - AppRestart
     - AppStage

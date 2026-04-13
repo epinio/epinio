@@ -209,6 +209,23 @@ func (c *Client) AppDeploy(request models.DeployRequest) (*models.DeployResponse
 	return Post(c, endpoint, request, response)
 }
 
+// AppDeploymentsStart starts an asynchronous stage/build/deploy (or image-only deploy).
+// The server returns 202 Accepted with an AsyncDeployStatus containing the deployment id.
+func (c *Client) AppDeploymentsStart(request models.AsyncDeployRequest) (*models.AsyncDeployStatus, error) {
+	response := &models.AsyncDeployStatus{}
+	endpoint := api.Routes.Path("AppDeployments", request.App.Namespace, request.App.Name)
+
+	return Post(c, endpoint, request, response)
+}
+
+// AppDeploymentStatus returns the current status of an asynchronous deployment.
+func (c *Client) AppDeploymentStatus(namespace, appName, deploymentID string) (models.AsyncDeployStatus, error) {
+	response := models.AsyncDeployStatus{}
+	endpoint := api.Routes.Path("AppDeployment", namespace, appName, deploymentID)
+
+	return Get(c, endpoint, response)
+}
+
 // LogOptions represents the optional filters for retrieving application logs.
 type LogOptions struct {
 	Tail              *int64
