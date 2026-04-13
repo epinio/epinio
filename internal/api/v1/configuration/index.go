@@ -16,7 +16,6 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/mask"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
@@ -83,9 +82,6 @@ func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][
 			}
 		}
 
-		// SECURITY: Mask configuration details to prevent secret exposure in API responses
-		maskedDetails := mask.MaskMap(configurationDetails)
-
 		key := application.EncodeConfigurationKey(configuration.Name, configuration.Namespace())
 		appNames := appsOf[key]
 
@@ -111,7 +107,7 @@ func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][
 			},
 			Configuration: models.ConfigurationShowResponse{
 				Username:  configuration.User(),
-				Details:   maskedDetails,
+				Details:   configurationDetails,
 				BoundApps: appNames,
 				Type:      configuration.Type,
 				Origin:    configuration.Origin,
