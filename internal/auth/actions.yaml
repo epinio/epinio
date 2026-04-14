@@ -192,6 +192,7 @@
     - app_logs
   routes:
     - AppDeploy
+    - AppDeployments
 
 # App Export
 - id: app_export
