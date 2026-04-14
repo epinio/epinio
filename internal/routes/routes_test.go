@@ -116,6 +116,21 @@ var _ = Describe("Route", func() {
 				}))
 			})
 		})
+		When("the Ingress has no HTTP paths", func() {
+			BeforeEach(func() {
+				routeIngress.Spec.Rules = []networkingv1.IngressRule{
+					{
+						Host: "example.com",
+					},
+				}
+			})
+			It("creates no rules", func() {
+				result, err := FromIngress(routeIngress)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result).To(BeEmpty())
+			})
+		})
+
 	})
 
 	Describe("ToIngress", func() {
