@@ -20,6 +20,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -63,7 +64,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NamespaceAlreadyKnown(namespaceName)
 	}
 
-	err = namespaces.Create(ctx, cluster, namespaceName)
+	err = namespaces.Create(ctx, cluster, namespaceName, viper.GetString("namespace"))
 	if err != nil {
 		return apierror.InternalError(err)
 	}

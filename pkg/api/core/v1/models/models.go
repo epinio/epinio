@@ -303,6 +303,32 @@ type DeployResponse struct {
 	Warnings []string `json:"warnings,omitempty"`
 }
 
+// AsyncDeployRequest represents and contains the data needed to stage/build and deploy an application asynchronously.
+//
+// For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
+// `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
+type AsyncDeployRequest struct {
+	App         AppRef            `json:"app,omitempty"`
+	BlobUID     string            `json:"blobuid,omitempty"`
+	BuilderImage string           `json:"builderimage,omitempty"`
+	ImageURL    string            `json:"image,omitempty"`
+	Origin      ApplicationOrigin `json:"origin,omitempty"`
+}
+
+// AsyncDeployStatus represents the status of an asynchronous deploy operation.
+type AsyncDeployStatus struct {
+	ID         string   `json:"id"`
+	App        AppRef   `json:"app"`
+	Status     string   `json:"status"` // pending, staging, deploying, succeeded, failed
+	StageID    string   `json:"stage_id,omitempty"`
+	ImageURL   string   `json:"image,omitempty"`
+	Error      string   `json:"error,omitempty"`
+	Routes     []string `json:"routes,omitempty"`
+	Warnings   []string `json:"warnings,omitempty"`
+	StartedAt  string   `json:"startedAt,omitempty"`
+	FinishedAt string   `json:"finishedAt,omitempty"`
+}
+
 // ApplicationDeleteRequest represents and contains the data needed to delete an application
 type ApplicationDeleteRequest struct {
 	DeleteImage bool `json:"deleteImage"`

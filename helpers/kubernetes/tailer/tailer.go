@@ -33,7 +33,7 @@ type Tail struct {
 	ContainerName string
 	Options       *TailOptions
 	logger        logr.Logger
-	clientSet     *kubernetes.Clientset
+	clientSet     kubernetes.Interface
 }
 
 type TailOptions struct {
@@ -49,7 +49,7 @@ type TailOptions struct {
 }
 
 // NewTail returns a new tail for a Kubernetes container inside a pod
-func NewTail(namespace, podName, containerName string, logger logr.Logger, clientSet *kubernetes.Clientset, options *TailOptions) *Tail {
+func NewTail(namespace, podName, containerName string, logger logr.Logger, clientSet kubernetes.Interface, options *TailOptions) *Tail {
 	return &Tail{
 		Namespace:     namespace,
 		PodName:       podName,

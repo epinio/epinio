@@ -25,6 +25,18 @@
   name: App
   dependsOn:
     - app_read
+    - app_create
+    - app_delete
+    - app_update
+    - app_scale
+    - app_update_env
+    - app_update_routes
+    - app_update_configs
+    - app_update_settings
+    - app_update_chart
+    - app_stage
+    - app_deploy
+    - app_export
     - app_write
     - app_logs
     - app_exec
@@ -39,6 +51,7 @@
     - Apps
     - AppShow
     - StagingComplete
+    - AppDeployment
     - AppRunning
     - AppValidateCV
     # app autocomplete
@@ -70,24 +83,124 @@
   dependsOn:
     - app_read
     - app_logs
+    - app_create
+    - app_delete
+    - app_update
+    - app_scale
+    - app_update_env
+    - app_update_routes
+    - app_update_configs
+    - app_update_settings
+    - app_update_chart
+    - app_stage
+    - app_deploy
+    - app_export
+    - app_restart
+
+# App Create
+- id: app_create
+  name: App Create
+  dependsOn:
+    - app_read
+    - app_logs
   routes:
     - AppCreate
+    - AppImportGit
+    - AppUpload
+
+# App Delete
+- id: app_delete
+  name: App Delete
+  dependsOn:
+    - app_read
+  routes:
     - AppDelete
     - AppBatchDelete
-    - AppDeploy
-    - AppImportGit
-    - AppRestart
-    - AppStage
+
+# App Update
+- id: app_update
+  name: App Update
+  dependsOn:
+    - app_read
+  routes:
     - AppUpdate
-    - AppUpload
-    - AppPart # export part
-    - AppExport # export to registry
-    # app env
+
+# App Scale
+- id: app_scale
+  name: App Scale
+  dependsOn:
+    - app_read
+  routes:
+    - AppUpdate
+
+# App Update Environment
+- id: app_update_env
+  name: App Update Environment
+  dependsOn:
+    - app_read
+  routes:
     - EnvSet
     - EnvUnset
-    # configuration bindings
+
+# App Update Configurations
+- id: app_update_configs
+  name: App Update Configurations
+  dependsOn:
+    - app_read
+  routes:
     - ConfigurationBindingCreate
     - ConfigurationBindingDelete
+
+# App Update Routes
+- id: app_update_routes
+  name: App Update Routes
+  dependsOn:
+    - app_read
+  routes:
+    - AppUpdate
+
+# App Update Settings
+- id: app_update_settings
+  name: App Update Settings
+  dependsOn:
+    - app_read
+  routes:
+    - AppUpdate
+
+# App Update Chart
+- id: app_update_chart
+  name: App Update Chart
+  dependsOn:
+    - app_read
+  routes:
+    - AppUpdate
+
+# App Stage
+- id: app_stage
+  name: App Stage
+  dependsOn:
+    - app_read
+    - app_logs
+  routes:
+    - AppStage
+
+# App Deploy
+- id: app_deploy
+  name: App Deploy
+  dependsOn:
+    - app_read
+    - app_logs
+  routes:
+    - AppDeploy
+
+# App Export
+- id: app_export
+  name: App Export
+  dependsOn:
+    - app_read
+  routes:
+    - AppPart # export part
+    - AppExport # export to registry
 
 # App Logs
 - id: app_logs

@@ -45,13 +45,24 @@ func RoleAuthorization(c *gin.Context) {
 	}
 }
 
+// NamespaceAuthorization ensures the user is allowed to access the requested namespace.
+// Users with a global role (e.g. application_manager, view_only without ":namespace") may access any namespace.
+// Other users may only access namespaces listed in their Secret's "namespaces" field.
 func NamespaceAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
+	if user.HasGlobalRole() {
+		return
+	}
 	authorization(c, "namespace", user.Namespaces)
 }
 
+// GitconfigAuthorization ensures the user is allowed to access the requested gitconfig.
+// Users with a global role may access any gitconfig; others are restricted to user.Gitconfigs.
 func GitconfigAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
+	if user.HasGlobalRole() {
+		return
+	}
 	authorization(c, "gitconfig", user.Gitconfigs)
 }
 
