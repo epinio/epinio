@@ -35,6 +35,12 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		paged := response.PaginateSlice(apps, page, pageSize)
+		response.OKReturn(c, paged)
+		return nil
+	}
+
 	response.OKReturn(c, apps)
 	return nil
 }
