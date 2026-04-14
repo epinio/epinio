@@ -49,8 +49,8 @@ func Index(c *gin.Context) apierror.APIErrors {
 	for _, gitconfig := range gitconfigList {
 		gitconfigs = append(gitconfigs, models.Gitconfig{
 			Meta: models.MetaLite{
-				Name: gitconfig.ID,
-				// CreatedAt: -- Not tracked by gitconfig
+				Name:      gitconfig.ID,
+				CreatedAt: gitconfig.CreatedAt,
 			},
 			URL:        gitconfig.URL,
 			Provider:   gitconfig.Provider,
