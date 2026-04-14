@@ -37,14 +37,11 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/registry"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 )
@@ -433,68 +430,24 @@ func Release(ctx context.Context, cluster *kubernetes.Cluster,
 	return release, err
 }
 
-// Status will check for the readiness of the release returning an internal status instead of
-// the Helm release status (https://github.com/helm/helm/blob/main/pkg/release/status.go).
-// Helm is not checking for the actual status of the release and even if the resources are still
-// in deployment they will be marked as "deployed"
-func Status(ctx context.Context, cluster *kubernetes.Cluster,
+// Status maps the stored Helm release status to an internal ReleaseStatus.
+// This avoids fetching live resource states from the K8s API, which requires
+// one API call per resource in the release manifest and is expensive for list views.
+// The tradeoff is that Helm may report "deployed" briefly before all pods are fully
+// ready, but this is acceptable given the latency cost of per-resource checks.
+func Status(_ context.Context, _ *kubernetes.Cluster,
 	release *helmrelease.Release) (ReleaseStatus, error) {
-	logger := helpers.Logger.With("component", "helm-status")
-	resourceList := getResourceListFromRelease(release)
-	logger.Debugw("found resources for release",
-		"count", len(resourceList),
-		"release", release.Name,
-		"namespace", release.Namespace,
-	)
-
-	// Convert zap logger to logr for kube.NewReadyChecker which expects logr.Info function
-	logrInfo := func(msg string, keysAndValues ...interface{}) {
-		// Convert key-value pairs to zap fields
-		fields := make([]interface{}, 0, len(keysAndValues))
-		fields = append(fields, keysAndValues...)
-		logger.Infow(msg, fields...)
+	switch release.Info.Status {
+	case helmrelease.StatusDeployed:
+		return StatusReady, nil
+	case
+		helmrelease.StatusPendingInstall,
+		helmrelease.StatusPendingUpgrade,
+		helmrelease.StatusPendingRollback:
+		return StatusNotReady, nil
+	default:
+		return StatusUnknown, nil
 	}
-	checker := kube.NewReadyChecker(cluster.Kubectl, logrInfo, kube.PausedAsReady(true))
-	for _, v := range resourceList {
-		// IsReady checks if v is ready. It supports checking readiness for pods,
-		// deployments, persistent volume claims, services, daemon sets, custom
-		// resource definitions, stateful sets, replication controllers, and replica
-		// sets. All other resource kinds are always considered ready.
-		ready, err := checker.IsReady(ctx, v)
-
-		logger.Debugw("resource ready status", "resource", v.Name, "ready", ready)
-
-		if err != nil {
-			return StatusUnknown, errors.Wrapf(err,
-				"checking readiness of resource '%s' of release '%s'",
-				v.Name, release.Name)
-		}
-		if !ready {
-			return StatusNotReady, nil
-		}
-	}
-
-	return StatusReady, nil
-}
-
-// getResourcesFromRelease will look for Unstructured resources in the release and will return a list out of it
-func getResourceListFromRelease(release *helmrelease.Release) kube.ResourceList {
-	resourceList := make(kube.ResourceList, 0)
-
-	for _, objectList := range release.Info.Resources {
-		for _, obj := range objectList {
-			if v, ok := obj.(*unstructured.Unstructured); ok {
-				resourceList = append(resourceList, &resource.Info{
-					Object:    obj,
-					Name:      v.GetName(),
-					Namespace: v.GetNamespace(),
-				})
-			}
-
-		}
-	}
-
-	return resourceList
 }
 
 // syncNamespaceClientMap is holding a SynchronizedClient for each namespace

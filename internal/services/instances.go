@@ -24,6 +24,7 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/retry"
@@ -273,9 +274,10 @@ func (s *ServiceClient) ListInNamespace(ctx context.Context, namespace string) (
 
 // list will return all the Epinio Services available in the targeted namespace.
 // If the namespace is blank it will return all the instances from all the namespaces
-func (s *ServiceClient) list(ctx context.Context, namespace string) (models.ServiceList, error) {
-	serviceList := models.ServiceList{}
-
+func (s *ServiceClient) list(
+	ctx context.Context,
+	namespace string,
+) (models.ServiceList, error) {
 	listOpts := metav1.ListOptions{}
 	listOpts.LabelSelector = fmt.Sprintf(
 		"%s,%s",
@@ -283,11 +285,14 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 		CatalogServiceLabelKey,
 	)
 
-	services, err := s.kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOpts)
+	services, err := s.kubeClient.Kubectl.CoreV1().Secrets(namespace).List(
+		ctx,
+		listOpts,
+	)
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return serviceList, nil
+			return models.ServiceList{}, nil
 		}
 		return nil, errors.Wrap(err, "listing the service instances")
 	}
@@ -303,34 +308,44 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 		catalogServiceNameMap[catalogService.Meta.Name] = struct{}{}
 	}
 
-	for _, srv := range services.Items {
-		catalogServiceName := srv.GetLabels()[CatalogServiceLabelKey]
-		if _, exists := catalogServiceNameMap[catalogServiceName]; !exists {
-			catalogServiceName = "[Missing] " + catalogServiceName
-		}
+	serviceList := make(models.ServiceList, len(services.Items))
 
-		serviceName := srv.GetLabels()[ServiceNameLabelKey]
+	group, groupCtx := errgroup.WithContext(ctx)
+	for i, srv := range services.Items {
+		i, srv := i, srv
+		group.Go(func() error {
+			catalogServiceName := srv.GetLabels()[CatalogServiceLabelKey]
+			if _, exists := catalogServiceNameMap[catalogServiceName]; !exists {
+				catalogServiceName = "[Missing] " + catalogServiceName
+			}
 
-		service := models.Service{
-			Meta: models.Meta{
-				Name:      serviceName,
-				Namespace: srv.Namespace,
-				CreatedAt: srv.GetCreationTimestamp(),
-			},
-			CatalogService:        catalogServiceName,
-			CatalogServiceVersion: srv.GetLabels()[CatalogServiceVersionLabelKey],
-		}
+			serviceName := srv.GetLabels()[ServiceNameLabelKey]
 
-		theServiceSecret := srv
-		err = setServiceStatusAndCustomValues(&service, &theServiceSecret, ctx, s.kubeClient,
-			srv.Namespace, names.ServiceReleaseName(serviceName),
-			nil, // no settings information - TODO
-		)
-		if err != nil {
-			return nil, err
-		}
+			serviceList[i] = models.Service{
+				Meta: models.Meta{
+					Name:      serviceName,
+					Namespace: srv.Namespace,
+					CreatedAt: srv.GetCreationTimestamp(),
+				},
+				CatalogService:        catalogServiceName,
+				CatalogServiceVersion: srv.GetLabels()[CatalogServiceVersionLabelKey],
+			}
 
-		serviceList = append(serviceList, service)
+			theServiceSecret := srv
+			return setServiceStatusAndCustomValues(
+				&serviceList[i],
+				&theServiceSecret,
+				groupCtx,
+				s.kubeClient,
+				srv.Namespace,
+				names.ServiceReleaseName(serviceName),
+				nil,
+			)
+		})
+	}
+
+	if err := group.Wait(); err != nil {
+		return nil, err
 	}
 
 	return serviceList, nil
