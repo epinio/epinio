@@ -58,6 +58,8 @@ type APIClient interface {
 	AppImportGit(namespace string, name string, gitRef models.GitRef) (models.ImportGitResponse, error)
 	AppStage(req models.StageRequest) (*models.StageResponse, error)
 	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
+	AppDeploymentsStart(req models.AsyncDeployRequest) (*models.AsyncDeployStatus, error)
+	AppDeploymentStatus(namespace, appName, deploymentID string) (models.AsyncDeployStatus, error)
 	AppLogs(namespace, appName, stageID string, follow bool, options *client.LogOptions, callback func(tailer.ContainerLogLine)) error
 	StagingComplete(namespace string, id string) (models.Response, error)
 	StagingCompleteStream(ctx context.Context, namespace, id string, callback func(models.StageCompleteEvent) error) error

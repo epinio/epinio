@@ -36,15 +36,17 @@ type Collector struct {
 	bundleDir string
 	tailLines *int64
 	logger    *zap.SugaredLogger
+	namespace string
 }
 
 // NewCollector creates a new log collector
-func NewCollector(cluster *kubernetes.Cluster, bundleDir string, tailLines int64, logger *zap.SugaredLogger) *Collector {
+func NewCollector(cluster *kubernetes.Cluster, bundleDir string, tailLines int64, logger *zap.SugaredLogger, namespace string) *Collector {
 	return &Collector{
 		cluster:   cluster,
 		bundleDir: bundleDir,
 		tailLines: &tailLines,
 		logger:    logger,
+		namespace: namespace,
 	}
 }
 
@@ -58,7 +60,7 @@ func (c *Collector) CollectEpinioServerLogs(ctx context.Context) error {
 	selector = selector.Add(*req)
 
 	// Collect logs including previous containers
-	return c.collectPodLogsWithPrevious(ctx, "epinio-server", SupportBundleNamespace, selector)
+	return c.collectPodLogsWithPrevious(ctx, "epinio-server", c.namespace, selector)
 }
 
 // CollectEpinioUILogs collects logs from Epinio UI pods (current and previous containers)
@@ -73,7 +75,7 @@ func (c *Collector) CollectEpinioUILogs(ctx context.Context) error {
 
 	// Try to collect from epinio namespace first, fallback to all namespaces
 	// Collect logs including previous containers
-	err = c.collectPodLogsWithPrevious(ctx, "epinio-ui", SupportBundleNamespace, selector)
+	err = c.collectPodLogsWithPrevious(ctx, "epinio-ui", c.namespace, selector)
 	if err != nil {
 		// If not found in epinio namespace, try all namespaces
 		return c.collectPodLogsWithPrevious(ctx, "epinio-ui", "", selector)
@@ -159,7 +161,7 @@ func (c *Collector) CollectSeaweedFSLogs(ctx context.Context) error {
 		selectors = append(selectors, sel2)
 	}
 
-	namespaces := []string{SupportBundleNamespace, "default"}
+	namespaces := []string{c.namespace, "default"}
 	for _, ns := range namespaces {
 		for _, selector := range selectors {
 			if err := c.collectPodLogs(ctx, "seaweedfs", ns, selector, false); err == nil {
@@ -209,7 +211,7 @@ func (c *Collector) CollectRegistryLogs(ctx context.Context) error {
 	}
 
 	// Try to find registry in common namespaces
-	namespaces := []string{SupportBundleNamespace, "registry", "default"}
+	namespaces := []string{c.namespace, "registry", "default"}
 	for _, ns := range namespaces {
 		for _, selector := range selectors {
 			if err := c.collectPodLogs(ctx, "registry", ns, selector, false); err == nil {
