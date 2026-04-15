@@ -131,11 +131,12 @@ func (u *User) IsAllowed(method, fullPath string, params map[string]string) bool
 	return globalRoles.IsAllowed(method, fullPath)
 }
 
-// HasGlobalRole returns true if the user has at least one role that is not scoped to a namespace.
-// Such users are allowed to access any namespace (see NamespaceAuthorization middleware).
+// HasGlobalRole returns true if the user has at least one non-default role
+// that is not scoped to a namespace.
+// The default "user" role is global but should not grant cross-namespace access.
 func (u *User) HasGlobalRole() bool {
 	for _, r := range u.Roles {
-		if r.Namespace == "" {
+		if r.Namespace == "" && r.ID != "user" {
 			return true
 		}
 	}

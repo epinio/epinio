@@ -112,5 +112,7 @@ func Exec(c *gin.Context) apierror.APIErrors {
 			},
 		}, scheme.ParameterCodec).URL()
 
+	// Kubernetes exec subresource expects POST upgrade requests.
+	c.Request.Method = http.MethodPost
 	return proxy.RunProxy(ctx, c.Writer, c.Request, attachURL)
 }
