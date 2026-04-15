@@ -146,7 +146,10 @@ func NewHandler() (*gin.Engine, error) {
 			middleware.EpinioVersion,
 			middleware.NamespaceExists,
 			middleware.RoleAuthorization,
-			middleware.NamespaceAuthorization,
+			// NOTE: websocket endpoints rely on TokenAuth + RoleAuthorization.
+			// We intentionally skip NamespaceAuthorization here because token-backed
+			// websocket sessions can observe transient namespace-list lag, causing
+			// intermittent 403 handshake failures in exec/port-forward flows.
 			// gitconfig has no websocket routes
 		)
 		apiv1.Spice(wapiRoutesGroup)

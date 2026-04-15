@@ -33,6 +33,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"golang.org/x/term"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
@@ -523,7 +524,7 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) er
 	tty := kubectlterm.TTY{
 		In:     os.Stdin,
 		Out:    os.Stdout,
-		Raw:    true,
+		Raw:    term.IsTerminal(int(os.Stdin.Fd())),
 		TryDev: true,
 	}
 
@@ -851,10 +852,6 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 	// Prefer websocket streaming for completion, fallback to HTTP poll if unavailable.
 	if err := stagingWait(log.V(1), c.API, app.Meta.Namespace, stageID); err != nil {
 		return err
-	}
-
-	if err != nil {
-		return errors.Wrap(err, "waiting for staging failed")
 	}
 
 	if restart {
