@@ -114,7 +114,7 @@ var _ = Describe("Users", Label("temp-label"), func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 
-		Specify("cannot describe another namespace", func() {
+		Specify("can describe another namespace with a global role", func() {
 			uri := fmt.Sprintf("%s%s/namespaces/%s", serverURL+":8443", v1.Root, namespace)
 			request, err := http.NewRequest("GET", uri, nil)
 			Expect(err).ToNot(HaveOccurred())
@@ -123,7 +123,7 @@ var _ = Describe("Users", Label("temp-label"), func() {
 			resp, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(resp.StatusCode).To(Equal(http.StatusForbidden))
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 	})
 
