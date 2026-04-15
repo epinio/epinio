@@ -197,6 +197,10 @@ var Routes = routes.NamedRoutes{
 	"ServiceMatch":  get("/namespaces/:namespace/servicesmatches/:pattern", errorHandler(service.Match)),
 	"ServiceMatch0": get("/namespaces/:namespace/servicesmatches", errorHandler(service.Match)),
 
+	// Import an external Helm release as an Epinio service.
+	"ServiceImport":     post("/namespaces/:namespace/services/import", errorHandler(service.Import)),
+	"ServiceImportScan": get("/namespaces/:namespace/services/importable", errorHandler(service.Scan)),
+
 	// Bind a service to/from applications
 	"ServiceBind": post(
 		"/namespaces/:namespace/services/:service/bind",

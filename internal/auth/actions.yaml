@@ -261,9 +261,18 @@
   dependsOn:
     - service_read
     - service_write
+    - service_import
     - service_portforward
 
 # Service Read
+- id: service_import
+  name: Service Import
+  dependsOn:
+    - service_read
+  routes:
+    - ServiceImport
+    - ServiceImportScan
+
 - id: service_read
   name: Service Read
   routes:
@@ -286,6 +295,7 @@
   name: Service Write
   dependsOn:
     - service_read
+    - service_import
   routes:
     # service write endpoints
     - ServiceCreate

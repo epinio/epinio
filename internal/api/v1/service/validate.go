@@ -70,6 +70,13 @@ func ValidateService(
 ) apierror.APIErrors {
 	logger := requestctx.Logger(ctx).With("component", "serviceValidate")
 
+	// Imported/external services have no Helm release — just copied secrets.
+	// Skip the release presence/status check for them.
+	if services.IsExternal(service) {
+		logger.Infow("external service, skipping helm release validation", "service", service.Meta.Name)
+		return nil
+	}
+
 	logger.Infow("getting helm client")
 
 	client, err := helm.GetHelmClient(cluster.RestConfig, service.Namespace())

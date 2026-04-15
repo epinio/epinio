@@ -900,6 +900,34 @@ type FakeAPIClient struct {
 		result1 models.ServiceDeleteResponse
 		result2 error
 	}
+	ServiceImportStub        func(models.ServiceImportRequest, string) (models.Response, error)
+	serviceImportMutex       sync.RWMutex
+	serviceImportArgsForCall []struct {
+		arg1 models.ServiceImportRequest
+		arg2 string
+	}
+	serviceImportReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	serviceImportReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
+	ServiceImportScanStub        func(string, string) (models.ServiceImportScanResponse, error)
+	serviceImportScanMutex       sync.RWMutex
+	serviceImportScanArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	serviceImportScanReturns struct {
+		result1 models.ServiceImportScanResponse
+		result2 error
+	}
+	serviceImportScanReturnsOnCall map[int]struct {
+		result1 models.ServiceImportScanResponse
+		result2 error
+	}
 	ServiceListStub        func(string) (models.ServiceList, error)
 	serviceListMutex       sync.RWMutex
 	serviceListArgsForCall []struct {
@@ -5124,6 +5152,136 @@ func (fake *FakeAPIClient) ServiceDeleteReturnsOnCall(i int, result1 models.Serv
 	}
 	fake.serviceDeleteReturnsOnCall[i] = struct {
 		result1 models.ServiceDeleteResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceImport(arg1 models.ServiceImportRequest, arg2 string) (models.Response, error) {
+	fake.serviceImportMutex.Lock()
+	ret, specificReturn := fake.serviceImportReturnsOnCall[len(fake.serviceImportArgsForCall)]
+	fake.serviceImportArgsForCall = append(fake.serviceImportArgsForCall, struct {
+		arg1 models.ServiceImportRequest
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.ServiceImportStub
+	fakeReturns := fake.serviceImportReturns
+	fake.recordInvocation("ServiceImport", []interface{}{arg1, arg2})
+	fake.serviceImportMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceImportCallCount() int {
+	fake.serviceImportMutex.RLock()
+	defer fake.serviceImportMutex.RUnlock()
+	return len(fake.serviceImportArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceImportCalls(stub func(models.ServiceImportRequest, string) (models.Response, error)) {
+	fake.serviceImportMutex.Lock()
+	defer fake.serviceImportMutex.Unlock()
+	fake.ServiceImportStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceImportArgsForCall(i int) (models.ServiceImportRequest, string) {
+	fake.serviceImportMutex.RLock()
+	defer fake.serviceImportMutex.RUnlock()
+	argsForCall := fake.serviceImportArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeAPIClient) ServiceImportReturns(result1 models.Response, result2 error) {
+	fake.serviceImportMutex.Lock()
+	defer fake.serviceImportMutex.Unlock()
+	fake.ServiceImportStub = nil
+	fake.serviceImportReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceImportReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.serviceImportMutex.Lock()
+	defer fake.serviceImportMutex.Unlock()
+	fake.ServiceImportStub = nil
+	if fake.serviceImportReturnsOnCall == nil {
+		fake.serviceImportReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.serviceImportReturnsOnCall[i] = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceImportScan(arg1 string, arg2 string) (models.ServiceImportScanResponse, error) {
+	fake.serviceImportScanMutex.Lock()
+	ret, specificReturn := fake.serviceImportScanReturnsOnCall[len(fake.serviceImportScanArgsForCall)]
+	fake.serviceImportScanArgsForCall = append(fake.serviceImportScanArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.ServiceImportScanStub
+	fakeReturns := fake.serviceImportScanReturns
+	fake.recordInvocation("ServiceImportScan", []interface{}{arg1, arg2})
+	fake.serviceImportScanMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceImportScanCallCount() int {
+	fake.serviceImportScanMutex.RLock()
+	defer fake.serviceImportScanMutex.RUnlock()
+	return len(fake.serviceImportScanArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceImportScanCalls(stub func(string, string) (models.ServiceImportScanResponse, error)) {
+	fake.serviceImportScanMutex.Lock()
+	defer fake.serviceImportScanMutex.Unlock()
+	fake.ServiceImportScanStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceImportScanArgsForCall(i int) (string, string) {
+	fake.serviceImportScanMutex.RLock()
+	defer fake.serviceImportScanMutex.RUnlock()
+	argsForCall := fake.serviceImportScanArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeAPIClient) ServiceImportScanReturns(result1 models.ServiceImportScanResponse, result2 error) {
+	fake.serviceImportScanMutex.Lock()
+	defer fake.serviceImportScanMutex.Unlock()
+	fake.ServiceImportScanStub = nil
+	fake.serviceImportScanReturns = struct {
+		result1 models.ServiceImportScanResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceImportScanReturnsOnCall(i int, result1 models.ServiceImportScanResponse, result2 error) {
+	fake.serviceImportScanMutex.Lock()
+	defer fake.serviceImportScanMutex.Unlock()
+	fake.ServiceImportScanStub = nil
+	if fake.serviceImportScanReturnsOnCall == nil {
+		fake.serviceImportScanReturnsOnCall = make(map[int]struct {
+			result1 models.ServiceImportScanResponse
+			result2 error
+		})
+	}
+	fake.serviceImportScanReturnsOnCall[i] = struct {
+		result1 models.ServiceImportScanResponse
 		result2 error
 	}{result1, result2}
 }

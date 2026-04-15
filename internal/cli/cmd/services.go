@@ -28,6 +28,8 @@ type ServicesService interface {
 	ServiceCatalog() error
 	ServiceCatalogShow(ctx context.Context, serviceName string) error
 	ServiceCreate(catalogName, serviceName string, wait bool, chartValues models.ChartValueSettings) error
+	ServiceImport(sourceNamespace, release, sourceSecret, serviceName string) error
+	ServiceImportable(sourceNamespace string) error
 	ServiceDelete(serviceNames []string, unbind, all bool) error
 	ServiceList() error
 	ServiceListAll() error
@@ -64,6 +66,8 @@ func NewServicesCmd(client ServicesService, rootCfg *RootConfig) *cobra.Command 
 		NewServiceBindCmd(client),
 		NewServiceCatalogCmd(client),
 		NewServiceCreateCmd(client),
+		NewServiceImportCmd(client),
+		NewServiceImportableCmd(client),
 		NewServiceDeleteCmd(client),
 		NewServiceListCmd(client, rootCfg),
 		NewServicePortForwardCmd(client),

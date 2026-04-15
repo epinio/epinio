@@ -55,6 +55,23 @@ func (c *Client) ServiceCreate(request models.ServiceCreateRequest, namespace st
 	return Post(c, endpoint, request, response)
 }
 
+func (c *Client) ServiceImport(request models.ServiceImportRequest, namespace string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ServiceImport", namespace)
+
+	return Post(c, endpoint, request, response)
+}
+
+func (c *Client) ServiceImportScan(namespace, source string) (models.ServiceImportScanResponse, error) {
+	response := models.ServiceImportScanResponse{}
+	endpoint := fmt.Sprintf("%s?source=%s",
+		api.Routes.Path("ServiceImportScan", namespace),
+		url.QueryEscape(source),
+	)
+
+	return Get(c, endpoint, response)
+}
+
 // ServiceUpdate updates a service by invoking the associated API endpoint
 func (c *Client) ServiceUpdate(request models.ServiceUpdateRequest, namespace, name string) (models.Response, error) {
 	response := models.Response{}
