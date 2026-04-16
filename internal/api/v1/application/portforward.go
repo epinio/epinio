@@ -81,7 +81,5 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 		SubResource("portforward").
 		URL()
 
-	// Kubernetes portforward subresource expects POST upgrade requests.
-	c.Request.Method = http.MethodPost
 	return proxy.RunProxy(ctx, c.Writer, c.Request, forwardURL)
 }
