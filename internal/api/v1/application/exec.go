@@ -112,5 +112,9 @@ func Exec(c *gin.Context) apierror.APIErrors {
 			},
 		}, scheme.ParameterCodec).URL()
 
+	// Kubernetes pod exec expects a POST upgrade request. Our websocket route
+	// is exposed as GET, so rewrite the proxied request method before forwarding.
+	c.Request.Method = http.MethodPost
+
 	return proxy.RunProxy(ctx, c.Writer, c.Request, attachURL)
 }
