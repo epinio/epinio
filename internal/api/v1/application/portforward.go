@@ -81,5 +81,10 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 		SubResource("portforward").
 		URL()
 
+	// Kubernetes pod port-forward expects a POST upgrade request. Our public
+	// endpoint is exposed as a websocket GET, so adjust the proxied request
+	// method before handing it to the reverse proxy.
+	c.Request.Method = http.MethodPost
+
 	return proxy.RunProxy(ctx, c.Writer, c.Request, forwardURL)
 }
