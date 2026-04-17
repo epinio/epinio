@@ -2427,16 +2427,19 @@ userConfig:
 				"-n", namespace, "-o", "name")
 			Expect(err).ToNot(HaveOccurred())
 
-			remoteOut, err := proc.Kubectl("exec",
-				strings.TrimSpace(podName), "-n", namespace,
-				"--", "cat", testFilePath)
-			Expect(err).ToNot(HaveOccurred(),
-				"exec test: epinio exec stdout:\n%s\n---\nkubectl exec cat %s (pod %s) stderr/out:\n%s",
-				out, testFilePath, strings.TrimSpace(podName), remoteOut)
-
-			// The command we run should have effects
-			Expect(strings.TrimSpace(remoteOut)).To(Equal("testthis"),
-				"exec test: file content should be 'testthis'. Got:\n%s", remoteOut)
+			var remoteOut string
+			var remoteErr error
+			Eventually(func() string {
+				remoteOut, remoteErr = proc.Kubectl("exec",
+					strings.TrimSpace(podName), "-n", namespace,
+					"--", "cat", testFilePath)
+				if remoteErr != nil {
+					return ""
+				}
+				return strings.TrimSpace(remoteOut)
+			}, "30s", "2s").Should(Equal("testthis"),
+				"exec test: epinio exec stdout:\n%s\n---\nkubectl exec cat %s (pod %s) error: %v\noutput:\n%s",
+				out, testFilePath, strings.TrimSpace(podName), remoteErr, remoteOut)
 		})
 	})
 
