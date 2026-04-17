@@ -22,6 +22,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+// catalogServiceDisplay renders the "Catalog Service" column. External
+// services carry no catalog entry, so show a literal marker rather than a
+// blank cell that looks like missing data.
+func catalogServiceDisplay(s *models.Service) string {
+	if s.External {
+		return "(external)"
+	}
+	return s.CatalogService
+}
+
 // ServiceCatalog lists available services
 func (c *EpinioClient) ServiceCatalog() error {
 	log := c.Log.WithName("ServiceCatalog")
@@ -228,7 +238,7 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", service.Meta.Name).
 		WithTableRow("Created", formatCreatedAt(service.Meta.CreatedAt)).
-		WithTableRow("Catalog Service", service.CatalogService).
+		WithTableRow("Catalog Service", catalogServiceDisplay(service)).
 		WithTableRow("Version", service.CatalogServiceVersion).
 		WithTableRow("Status", service.Status.String()).
 		WithTableRow("Used-By", strings.Join(boundApps, ", ")).
@@ -475,11 +485,12 @@ func (c *EpinioClient) ServiceList() error {
 	}
 
 	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Version", "Status", "Applications")
-	for _, service := range services {
+	for i := range services {
+		service := &services[i]
 		msg = msg.WithTableRow(
 			service.Meta.Name,
 			formatCreatedAt(service.Meta.CreatedAt),
-			service.CatalogService,
+			catalogServiceDisplay(service),
 			service.CatalogServiceVersion,
 			service.Status.String(),
 			strings.Join(service.BoundApps, ", "),
@@ -519,12 +530,13 @@ func (c *EpinioClient) ServiceListAll() error {
 	}
 
 	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Version", "Status", "Application")
-	for _, service := range services {
+	for i := range services {
+		service := &services[i]
 		msg = msg.WithTableRow(
 			service.Meta.Namespace,
 			service.Meta.Name,
 			formatCreatedAt(service.Meta.CreatedAt),
-			service.CatalogService,
+			catalogServiceDisplay(service),
 			service.CatalogServiceVersion,
 			service.Status.String(),
 			strings.Join(service.BoundApps, ", "),

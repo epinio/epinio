@@ -58,14 +58,19 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	}
 
 	catalogServiceVersion := srv.GetLabels()[CatalogServiceVersionLabelKey]
+	external := catalogServiceName == ExternalCatalogValue
 
 	var catalogServicePrefix string
-	catalogEntry, err := s.GetCatalogService(ctx, catalogServiceName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			catalogServicePrefix = "[Missing] "
-		} else {
-			return nil, err
+	var catalogEntry *models.CatalogService
+	if !external {
+		var err error
+		catalogEntry, err = s.GetCatalogService(ctx, catalogServiceName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				catalogServicePrefix = "[Missing] "
+			} else {
+				return nil, err
+			}
 		}
 	}
 
@@ -88,9 +93,12 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 			CreatedAt: srv.GetCreationTimestamp(),
 		},
 		SecretTypes:           secretTypes,
-		CatalogService:        fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
+		External:              external,
 		CatalogServiceVersion: catalogServiceVersion,
 		InternalRoutes:        internalRoutes,
+	}
+	if !external {
+		service.CatalogService = fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName)
 	}
 
 	var settings map[string]models.ChartSetting
@@ -186,11 +194,41 @@ func (s *ServiceClient) Create(ctx context.Context,
 	return errors.Wrap(err, "error deploying service helm chart")
 }
 
-// Delete deletes the helmcharts that matches the given service which is installed on the namespace
-func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) error {
+// Delete deletes the helmcharts that matches the given service which is
+// installed on the namespace.
+func (s *ServiceClient) Delete(
+	ctx context.Context,
+	namespace,
+	name string,
+) error {
 	service := serviceResourceName(name)
 
-	err := helm.RemoveService(
+	// External services have no helm release in this namespace, the upstream
+	// release lives wherever the user originally deployed it. We only clean up
+	// the two secrets Import created. The upstream is left untouched.
+	tracking, err := s.kubeClient.GetSecret(ctx, namespace, service)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return errors.Wrap(err, "fetching tracking secret")
+	}
+	if IsExternalSecret(tracking) {
+		if err := s.kubeClient.DeleteSecret(
+			ctx,
+			namespace,
+			name+"-credentials",
+		); err != nil && !apierrors.IsNotFound(err) {
+			return errors.Wrap(err, "deleting external credential secret")
+		}
+		if err := s.kubeClient.DeleteSecret(
+			ctx,
+			namespace,
+			service,
+		); err != nil && !apierrors.IsNotFound(err) {
+			return errors.Wrap(err, "deleting tracking secret")
+		}
+		return nil
+	}
+
+	err = helm.RemoveService(
 		s.kubeClient,
 		models.NewAppRef(name, namespace),
 	)
@@ -203,8 +241,8 @@ func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) erro
 		if !strings.Contains(err.Error(), "not found") {
 			return errors.Wrap(err, "error deleting service helm release")
 		}
-		// not found -> NAME may be a partially created service, i.e. secret exists, helm release does not.
-		// -> continue to deletion of the secret.
+		// not found -> NAME may be a partially created service, i.e. secret exists,
+		//helm release does not. -> continue to deletion of the secret.
 	}
 
 	err = s.kubeClient.DeleteSecret(ctx, namespace, service)
@@ -239,6 +277,16 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, namespace string) error {
 	for _, srv := range services.Items {
 		// Inlined Delete() ... Avoids back and forth conversion between service and secret names
 		service := srv.GetLabels()[ServiceNameLabelKey]
+
+		if IsExternalSecret(&srv) {
+			if err := s.kubeClient.DeleteSecret(ctx, srv.Namespace, service+"-credentials"); err != nil && !apierrors.IsNotFound(err) {
+				return errors.Wrap(err, "deleting external credential secret")
+			}
+			if err := s.kubeClient.DeleteSecret(ctx, srv.Namespace, srv.Name); err != nil && !apierrors.IsNotFound(err) {
+				return errors.Wrap(err, "deleting tracking secret")
+			}
+			continue
+		}
 
 		err = helm.RemoveService(
 			s.kubeClient,
@@ -305,8 +353,13 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 
 	for _, srv := range services.Items {
 		catalogServiceName := srv.GetLabels()[CatalogServiceLabelKey]
-		if _, exists := catalogServiceNameMap[catalogServiceName]; !exists {
-			catalogServiceName = "[Missing] " + catalogServiceName
+		external := catalogServiceName == ExternalCatalogValue
+		if !external {
+			if _, exists := catalogServiceNameMap[catalogServiceName]; !exists {
+				catalogServiceName = "[Missing] " + catalogServiceName
+			}
+		} else {
+			catalogServiceName = ""
 		}
 
 		serviceName := srv.GetLabels()[ServiceNameLabelKey]
@@ -317,6 +370,7 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 				Namespace: srv.Namespace,
 				CreatedAt: srv.GetCreationTimestamp(),
 			},
+			External:              external,
 			CatalogService:        catalogServiceName,
 			CatalogServiceVersion: srv.GetLabels()[CatalogServiceVersionLabelKey],
 		}
@@ -338,6 +392,47 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 
 func serviceResourceName(name string) string {
 	return names.GenerateResourceName("s", name)
+}
+
+// setExternalServiceStatus computes status for an imported service by looking
+// up the upstream Helm release in its original namespace. Three ways to land
+// on NotReady: missing provenance annotation, upstream release gone, or our
+// copied credential secret removed out-of-band.
+func setExternalServiceStatus(service *models.Service,
+	serviceSecret *corev1.Secret,
+	ctx context.Context, cluster *kubernetes.Cluster,
+	namespace string,
+) error {
+	service.Status = models.ServiceStatusNotReady
+
+	credName := service.Meta.Name + "-credentials"
+	if _, err := cluster.GetSecret(ctx, namespace, credName); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return errors.Wrap(err, "checking external credential secret")
+	}
+
+	srcNS, _, release, ok := ParseProvenance(serviceSecret.Annotations[ExternalSourceAnnotation])
+	if !ok {
+		return nil
+	}
+
+	upstream, err := helm.Release(ctx, cluster, srcNS, release)
+	if err != nil {
+		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+			return nil
+		}
+		return errors.Wrap(err, "finding upstream helm release")
+	}
+
+	upstreamStatus, err := helm.Status(ctx, cluster, upstream)
+	if err != nil {
+		return errors.Wrap(err, "calculating upstream helm release status")
+	}
+
+	service.Status = NewServiceStatusFromHelmRelease(upstreamStatus)
+	return nil
 }
 
 func NewServiceStatusFromHelmRelease(status helm.ReleaseStatus) models.ServiceStatus {
@@ -596,6 +691,14 @@ func setServiceStatusAndCustomValues(service *models.Service,
 	namespace, releaseName string,
 	settings map[string]models.ChartSetting,
 ) error {
+	// External services: status is read from the upstream Helm release in the
+	// source namespace (per the provenance annotation), plus a sanity check that
+	// our copied credential secret still exists in the target namespace.
+	// No catalog settings to reconstruct — externals don't have them.
+	if IsExternalSecret(serviceSecret) {
+		return setExternalServiceStatus(service, serviceSecret, ctx, cluster, namespace)
+	}
+
 	serviceRelease, err := helm.Release(ctx, cluster, namespace, releaseName)
 
 	if err != nil {

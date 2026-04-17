@@ -45,15 +45,33 @@ const (
 	ExternalCatalogValue = "external"
 )
 
-// IsExternal reports whether a service was produced by import (vs. created
-// from a catalog entry). Handles the "[Missing] " prefix that services.Get
-// adds when a catalog entry can't be resolved.
-func IsExternal(service *models.Service) bool {
-	if service == nil {
-		return false
+// ParseProvenance splits an ExternalSourceAnnotation value of the form
+// "<src-ns>/<src-secret>@<release>" into its parts. Returns ok=false if
+// the string doesn't match; callers should treat that as "provenance lost".
+func ParseProvenance(annotation string) (srcNamespace, srcSecret, release string, ok bool) {
+	at := strings.LastIndex(annotation, "@")
+	if at <= 0 || at == len(annotation)-1 {
+		return "", "", "", false
 	}
-	return service.CatalogService == ExternalCatalogValue ||
-		service.CatalogService == "[Missing] "+ExternalCatalogValue
+	nsAndSecret, release := annotation[:at], annotation[at+1:]
+	slash := strings.Index(nsAndSecret, "/")
+	if slash <= 0 || slash == len(nsAndSecret)-1 {
+		return "", "", "", false
+	}
+	return nsAndSecret[:slash], nsAndSecret[slash+1:], release, true
+}
+
+// IsExternal reports whether a service was produced by import (vs. created
+// from a catalog entry).
+func IsExternal(service *models.Service) bool {
+	return service != nil && service.External
+}
+
+// IsExternalSecret reports whether a service tracking secret represents an
+// imported external service. Used where callers have the raw secret but not
+// the assembled models.Service (delete paths, status computation, listing).
+func IsExternalSecret(secret *corev1.Secret) bool {
+	return secret != nil && secret.Labels[CatalogServiceLabelKey] == ExternalCatalogValue
 }
 
 // ImportRequest describes one import operation.
@@ -68,10 +86,18 @@ type ImportRequest struct {
 // ScanReleases lists Helm releases in a namespace that the caller can see,
 // grouped with the secrets each release owns. Runs with the caller's
 // credentials — no privilege escalation.
-func (s *ServiceClient) ScanReleases(ctx context.Context, namespace string) ([]models.ReleaseCandidate, error) {
-	secrets, err := s.kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/managed-by=Helm",
-	})
+func (s *ServiceClient) ScanReleases(
+	ctx context.Context,
+	namespace string,
+) ([]models.ReleaseCandidate, error) {
+	secrets, err := s.kubeClient.
+		Kubectl.
+		CoreV1().
+		Secrets(namespace).
+		List(ctx, metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/managed-by=Helm",
+		})
+
 	if err != nil {
 		return nil, errors.Wrap(err, "listing helm-managed secrets")
 	}
@@ -102,7 +128,11 @@ func (s *ServiceClient) ScanReleases(ctx context.Context, namespace string) ([]m
 		sort.Strings(c.Secrets)
 		out = append(out, *c)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Release < out[j].Release })
+	sort.Slice(
+		out,
+		func(i, j int) bool { return out[i].Release < out[j].Release },
+	)
+
 	return out, nil
 }
 
@@ -207,7 +237,7 @@ func (s *ServiceClient) Import(ctx context.Context, req ImportRequest) error {
 	trackingName := serviceResourceName(req.ServiceName)
 	tracking := map[string]string{
 		CatalogServiceLabelKey:        ExternalCatalogValue,
-		CatalogServiceVersionLabelKey: "n-a",
+		CatalogServiceVersionLabelKey: src.Labels["helm.sh/chart"],
 		ServiceNameLabelKey:           req.ServiceName,
 	}
 	annotations := map[string]string{
