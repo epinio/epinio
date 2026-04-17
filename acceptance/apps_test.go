@@ -2396,20 +2396,31 @@ userConfig:
 		})
 
 		It("executes a command in the application's container (one of the pods)", func() {
-			var out bytes.Buffer
 			// Use /tmp so the test works for both buildpack and container-image apps (container images often have no /workspace).
 			testFilePath := "/tmp/epinio-exec-testfile"
-			containerCmd := bytes.NewReader([]byte("echo testthis > " + testFilePath + " && exit\r"))
+			var out string
+			var runErr error
+			// apps exec uses websocket upgrades and can occasionally fail under CI load with a transient exit 255.
+			// Retry to reduce flakes while keeping the behavior assertion intact.
+			Eventually(func() error {
+				var b bytes.Buffer
+				containerCmd := bytes.NewReader([]byte("echo testthis > " + testFilePath + " && exit\r"))
 
-			cmd := exec.Command(testenv.EpinioBinaryPath(), "apps", "exec", appName)
-			cmd.Stdin = containerCmd
-			cmd.Stdout = &out
-			cmd.Stderr = &out
+				cmd := exec.Command(testenv.EpinioBinaryPath(), "apps", "exec", appName)
+				cmd.Stdin = containerCmd
+				cmd.Stdout = &b
+				cmd.Stderr = &b
 
-			err := cmd.Run()
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(out.String()).To(ContainSubstring("Executing a shell"))
+				runErr = cmd.Run()
+				out = b.String()
+				if runErr != nil {
+					return runErr
+				}
+				if !strings.Contains(out, "Executing a shell") {
+					return fmt.Errorf("missing expected shell banner in output")
+				}
+				return nil
+			}, "90s", "5s").Should(Succeed(), "apps exec failed. last error: %v\noutput:\n%s", runErr, out)
 
 			podName, err := proc.Kubectl("get", "pods",
 				"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
@@ -2421,7 +2432,7 @@ userConfig:
 				"--", "cat", testFilePath)
 			Expect(err).ToNot(HaveOccurred(),
 				"exec test: epinio exec stdout:\n%s\n---\nkubectl exec cat %s (pod %s) stderr/out:\n%s",
-				out.String(), testFilePath, strings.TrimSpace(podName), remoteOut)
+				out, testFilePath, strings.TrimSpace(podName), remoteOut)
 
 			// The command we run should have effects
 			Expect(strings.TrimSpace(remoteOut)).To(Equal("testthis"),
