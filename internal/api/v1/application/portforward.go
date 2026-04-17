@@ -97,7 +97,9 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-	defer wconn.Close()
+	defer func() {
+		_ = wconn.Close()
+	}()
 
 	target := fmt.Sprintf("%s:%d", pod.Status.PodIP, remotePort)
 	tcpProxy, err := proxy.NewTCPProxy(c, wconn.UnderlyingConn(), target)
