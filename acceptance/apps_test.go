@@ -2422,16 +2422,25 @@ userConfig:
 				return nil
 			}, "90s", "5s").Should(Succeed(), "apps exec failed. last error: %v\noutput:\n%s", runErr, out)
 
-			podName, err := proc.Kubectl("get", "pods",
-				"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
-				"-n", namespace, "-o", "name")
-			Expect(err).ToNot(HaveOccurred())
+			var podName string
+			Eventually(func() string {
+				out, err := proc.Kubectl("get", "pods",
+					"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
+					"-n", namespace,
+					"--field-selector=status.phase=Running",
+					"-o", "jsonpath={.items[0].metadata.name}")
+				if err != nil {
+					return ""
+				}
+				podName = strings.TrimSpace(out)
+				return podName
+			}, "60s", "2s").ShouldNot(BeEmpty(), "no running pod found for app %s in namespace %s", appName, namespace)
 
 			var remoteOut string
 			var remoteErr error
 			Eventually(func() string {
 				remoteOut, remoteErr = proc.Kubectl("exec",
-					strings.TrimSpace(podName), "-n", namespace,
+					podName, "-n", namespace,
 					"--", "cat", testFilePath)
 				if remoteErr != nil {
 					return ""
@@ -2439,7 +2448,7 @@ userConfig:
 				return strings.TrimSpace(remoteOut)
 			}, "30s", "2s").Should(Equal("testthis"),
 				"exec test: epinio exec stdout:\n%s\n---\nkubectl exec cat %s (pod %s) error: %v\noutput:\n%s",
-				out, testFilePath, strings.TrimSpace(podName), remoteErr, remoteOut)
+				out, testFilePath, podName, remoteErr, remoteOut)
 		})
 	})
 
