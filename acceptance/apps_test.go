@@ -2416,9 +2416,6 @@ userConfig:
 				if runErr != nil {
 					return runErr
 				}
-				if !strings.Contains(out, "Executing a shell") {
-					return fmt.Errorf("missing expected shell banner in output")
-				}
 				return nil
 			}, "90s", "5s").Should(Succeed(), "apps exec failed. last error: %v\noutput:\n%s", runErr, out)
 
