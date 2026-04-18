@@ -127,6 +127,31 @@ type FakeServicesService struct {
 	serviceDeleteReturnsOnCall map[int]struct {
 		result1 error
 	}
+	ServiceImportStub        func(string, string, string, string) error
+	serviceImportMutex       sync.RWMutex
+	serviceImportArgsForCall []struct {
+		arg1 string
+		arg2 string
+		arg3 string
+		arg4 string
+	}
+	serviceImportReturns struct {
+		result1 error
+	}
+	serviceImportReturnsOnCall map[int]struct {
+		result1 error
+	}
+	ServiceImportableStub        func(string) error
+	serviceImportableMutex       sync.RWMutex
+	serviceImportableArgsForCall []struct {
+		arg1 string
+	}
+	serviceImportableReturns struct {
+		result1 error
+	}
+	serviceImportableReturnsOnCall map[int]struct {
+		result1 error
+	}
 	ServiceListStub        func() error
 	serviceListMutex       sync.RWMutex
 	serviceListArgsForCall []struct {
@@ -761,6 +786,131 @@ func (fake *FakeServicesService) ServiceDeleteReturnsOnCall(i int, result1 error
 		})
 	}
 	fake.serviceDeleteReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceImport(arg1 string, arg2 string, arg3 string, arg4 string) error {
+	fake.serviceImportMutex.Lock()
+	ret, specificReturn := fake.serviceImportReturnsOnCall[len(fake.serviceImportArgsForCall)]
+	fake.serviceImportArgsForCall = append(fake.serviceImportArgsForCall, struct {
+		arg1 string
+		arg2 string
+		arg3 string
+		arg4 string
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.ServiceImportStub
+	fakeReturns := fake.serviceImportReturns
+	fake.recordInvocation("ServiceImport", []interface{}{arg1, arg2, arg3, arg4})
+	fake.serviceImportMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeServicesService) ServiceImportCallCount() int {
+	fake.serviceImportMutex.RLock()
+	defer fake.serviceImportMutex.RUnlock()
+	return len(fake.serviceImportArgsForCall)
+}
+
+func (fake *FakeServicesService) ServiceImportCalls(stub func(string, string, string, string) error) {
+	fake.serviceImportMutex.Lock()
+	defer fake.serviceImportMutex.Unlock()
+	fake.ServiceImportStub = stub
+}
+
+func (fake *FakeServicesService) ServiceImportArgsForCall(i int) (string, string, string, string) {
+	fake.serviceImportMutex.RLock()
+	defer fake.serviceImportMutex.RUnlock()
+	argsForCall := fake.serviceImportArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeServicesService) ServiceImportReturns(result1 error) {
+	fake.serviceImportMutex.Lock()
+	defer fake.serviceImportMutex.Unlock()
+	fake.ServiceImportStub = nil
+	fake.serviceImportReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceImportReturnsOnCall(i int, result1 error) {
+	fake.serviceImportMutex.Lock()
+	defer fake.serviceImportMutex.Unlock()
+	fake.ServiceImportStub = nil
+	if fake.serviceImportReturnsOnCall == nil {
+		fake.serviceImportReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.serviceImportReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceImportable(arg1 string) error {
+	fake.serviceImportableMutex.Lock()
+	ret, specificReturn := fake.serviceImportableReturnsOnCall[len(fake.serviceImportableArgsForCall)]
+	fake.serviceImportableArgsForCall = append(fake.serviceImportableArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.ServiceImportableStub
+	fakeReturns := fake.serviceImportableReturns
+	fake.recordInvocation("ServiceImportable", []interface{}{arg1})
+	fake.serviceImportableMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeServicesService) ServiceImportableCallCount() int {
+	fake.serviceImportableMutex.RLock()
+	defer fake.serviceImportableMutex.RUnlock()
+	return len(fake.serviceImportableArgsForCall)
+}
+
+func (fake *FakeServicesService) ServiceImportableCalls(stub func(string) error) {
+	fake.serviceImportableMutex.Lock()
+	defer fake.serviceImportableMutex.Unlock()
+	fake.ServiceImportableStub = stub
+}
+
+func (fake *FakeServicesService) ServiceImportableArgsForCall(i int) string {
+	fake.serviceImportableMutex.RLock()
+	defer fake.serviceImportableMutex.RUnlock()
+	argsForCall := fake.serviceImportableArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeServicesService) ServiceImportableReturns(result1 error) {
+	fake.serviceImportableMutex.Lock()
+	defer fake.serviceImportableMutex.Unlock()
+	fake.ServiceImportableStub = nil
+	fake.serviceImportableReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceImportableReturnsOnCall(i int, result1 error) {
+	fake.serviceImportableMutex.Lock()
+	defer fake.serviceImportableMutex.Unlock()
+	fake.ServiceImportableStub = nil
+	if fake.serviceImportableReturnsOnCall == nil {
+		fake.serviceImportableReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.serviceImportableReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }

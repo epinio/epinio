@@ -70,6 +70,23 @@ func ValidateService(
 ) apierror.APIErrors {
 	logger := requestctx.Logger(ctx).With("component", "serviceValidate")
 
+	// Imported/external services have no Helm release. The bindable invariant
+	// is that the copied credential secret is still present in the target
+	// namespace — if someone deleted it out-of-band, the bind path would
+	// silently produce zero configurations. Fail loudly here instead.
+	if services.IsExternal(service) {
+		credName := service.Meta.Name + "-credentials"
+		if _, err := cluster.GetSecret(ctx, service.Namespace(), credName); err != nil {
+			if k8serrors.IsNotFound(err) {
+				return apierror.NewNotFoundError("credential secret", credName).
+					WithDetailsf("external service %s is missing its credential secret", service.Meta.Name)
+			}
+			return apierror.InternalError(err)
+		}
+		logger.Infow("external service validated", "service", service.Meta.Name)
+		return nil
+	}
+
 	logger.Infow("getting helm client")
 
 	client, err := helm.GetHelmClient(cluster.RestConfig, service.Namespace())

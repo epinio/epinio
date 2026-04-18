@@ -16,6 +16,7 @@ type Service struct {
 	SecretTypes           []string           `json:"secretTypes,omitempty"`
 	CatalogService        string             `json:"catalog_service,omitempty"`
 	CatalogServiceVersion string             `json:"catalog_service_version,omitempty"`
+	External              bool               `json:"external"`
 	Status                ServiceStatus      `json:"status,omitempty"`
 	BoundApps             []string           `json:"boundapps"`
 	InternalRoutes        []string           `json:"internal_routes,omitempty"`

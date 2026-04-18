@@ -22,6 +22,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+// catalogServiceDisplay renders the "Catalog Service" column. External
+// services carry no catalog entry, so show a literal marker rather than a
+// blank cell that looks like missing data.
+func catalogServiceDisplay(s *models.Service) string {
+	if s.External {
+		return "(external)"
+	}
+	return s.CatalogService
+}
+
 // ServiceCatalog lists available services
 func (c *EpinioClient) ServiceCatalog() error {
 	log := c.Log.WithName("ServiceCatalog")
@@ -78,6 +88,64 @@ func (c *EpinioClient) ServiceCatalogShow(ctx context.Context, serviceName strin
 
 	c.ChartSettingsShow(ctx, catalogService.Settings)
 
+	return nil
+}
+
+// ServiceImportable lists Helm releases in sourceNamespace that could be imported.
+func (c *EpinioClient) ServiceImportable(sourceNamespace string) error {
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	resp, err := c.API.ServiceImportScan(c.Settings.Namespace, sourceNamespace)
+	if err != nil {
+		return errors.Wrap(err, "service import scan failed")
+	}
+
+	if len(resp.Candidates) == 0 {
+		c.ui.Note().Msgf("No Helm releases found in %s", sourceNamespace)
+		return nil
+	}
+
+	msg := c.ui.Success().WithTable("Release", "Chart", "Secrets")
+	for _, rc := range resp.Candidates {
+		msg = msg.WithTableRow(rc.Release, rc.Chart, strings.Join(rc.Secrets, ", "))
+	}
+	msg.Msgf("Importable releases in %s:", sourceNamespace)
+	return nil
+}
+
+// ServiceImport imports an external Helm release as an Epinio service.
+func (c *EpinioClient) ServiceImport(sourceNamespace, release, sourceSecret, serviceName string) error {
+	log := c.Log.WithName("ServiceImport")
+	log.Info("start")
+	defer log.Info("return")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	c.ui.Note().
+		WithStringValue("Source Namespace", sourceNamespace).
+		WithStringValue("Release", release).
+		WithStringValue("Source Secret", sourceSecret).
+		WithStringValue("Service", serviceName).
+		WithStringValue("Target Namespace", c.Settings.Namespace).
+		Msg("Importing external service...")
+
+	req := models.ServiceImportRequest{
+		SourceNamespace: sourceNamespace,
+		Release:         release,
+		SourceSecret:    sourceSecret,
+		ServiceName:     serviceName,
+	}
+
+	_, err := c.API.ServiceImport(req, c.Settings.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "service import failed")
+	}
+
+	c.ui.Success().Msg("Service imported.")
 	return nil
 }
 
@@ -170,7 +238,7 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", service.Meta.Name).
 		WithTableRow("Created", formatCreatedAt(service.Meta.CreatedAt)).
-		WithTableRow("Catalog Service", service.CatalogService).
+		WithTableRow("Catalog Service", catalogServiceDisplay(service)).
 		WithTableRow("Version", service.CatalogServiceVersion).
 		WithTableRow("Status", service.Status.String()).
 		WithTableRow("Used-By", strings.Join(boundApps, ", ")).
@@ -417,11 +485,12 @@ func (c *EpinioClient) ServiceList() error {
 	}
 
 	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Version", "Status", "Applications")
-	for _, service := range services {
+	for i := range services {
+		service := &services[i]
 		msg = msg.WithTableRow(
 			service.Meta.Name,
 			formatCreatedAt(service.Meta.CreatedAt),
-			service.CatalogService,
+			catalogServiceDisplay(service),
 			service.CatalogServiceVersion,
 			service.Status.String(),
 			strings.Join(service.BoundApps, ", "),
@@ -461,12 +530,13 @@ func (c *EpinioClient) ServiceListAll() error {
 	}
 
 	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Version", "Status", "Application")
-	for _, service := range services {
+	for i := range services {
+		service := &services[i]
 		msg = msg.WithTableRow(
 			service.Meta.Namespace,
 			service.Meta.Name,
 			formatCreatedAt(service.Meta.CreatedAt),
-			service.CatalogService,
+			catalogServiceDisplay(service),
 			service.CatalogServiceVersion,
 			service.Status.String(),
 			strings.Join(service.BoundApps, ", "),
