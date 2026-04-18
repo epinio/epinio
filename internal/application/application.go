@@ -1551,6 +1551,11 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.ImageURL = imageURL
 	app.Staging.Builder = builderURL
 
+	// Best-effort CVE heal report from the image label. Failures here must
+	// not fail the GET — the image may not exist yet, the registry may be
+	// unreachable, or the image may predate the CVE-scan buildpack.
+	app.CVE, _ = LoadCVE(ctx, cluster, imageURL)
+
 	// Check if app is active, and if yes, fill the associated parts.  May have to
 	// straighten the workload structure a bit further.
 

@@ -62,12 +62,24 @@ func TokenAuth(ctx *gin.Context) {
 	}
 
 	// find the user and add it to the context
-
 	user, err := authService.GetUserByUsername(ctx, claims.Username)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err))
 		ctx.Abort()
 		return
+	}
+
+	// Match Authentication middleware: merge namespaces from namespaced roles into the user
+	// and persist when needed. Websocket routes skip Authentication, so without this,
+	// NamespaceAuthorization can deny App Shell even when HTTP API calls work.
+	updatedUser, needsUpdate := auth.IsUpdateUserNeeded(user)
+	if needsUpdate {
+		user, err = authService.UpdateUser(ctx, updatedUser)
+		if err != nil {
+			response.Error(ctx, apierrors.InternalError(err, "updating user"))
+			ctx.Abort()
+			return
+		}
 	}
 
 	newCtx := ctx.Request.Context()

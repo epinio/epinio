@@ -105,6 +105,27 @@ type App struct {
 	StatusMessage string                   `json:"statusmessage"`
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
 	ImageURL      string                   `json:"image_url"`
+	CVE           *CVEInfo                 `json:"cve,omitempty"`
+}
+
+// CVEInfo carries the heal report the CVE-scan buildpack writes into the
+// app image as layer metadata. Populated on GET by reading the
+// io.buildpacks.lifecycle.metadata label off the image config.
+type CVEInfo struct {
+	Fixed   []CVEFinding `json:"fixed,omitempty"`
+	Unfixed []CVEFinding `json:"unfixed,omitempty"`
+}
+
+// CVEFinding mirrors the subset of Trivy vulnerability fields the
+// buildpack persists. Kept as plain JSON tags so the label bytes can be
+// unmarshalled directly.
+type CVEFinding struct {
+	VulnerabilityID  string `json:"VulnerabilityID"`
+	PkgName          string `json:"PkgName"`
+	InstalledVersion string `json:"InstalledVersion,omitempty"`
+	FixedVersion     string `json:"FixedVersion,omitempty"`
+	Severity         string `json:"Severity,omitempty"`
+	Title            string `json:"Title,omitempty"`
 }
 
 type PodInfo struct {
