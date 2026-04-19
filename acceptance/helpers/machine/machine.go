@@ -87,11 +87,35 @@ func (m *Machine) Versions() {
 
 const stagingError = "Failed to stage"
 
+func isTransientPushError(out string) bool {
+	return (strings.Contains(out, "making the request") && strings.Contains(out, "EOF")) ||
+		strings.Contains(out, "unexpected EOF") ||
+		strings.Contains(out, "connection reset by peer") ||
+		strings.Contains(out, "TLS handshake timeout")
+}
+
 // EpinioPush shows the staging log if the error indicates that staging
 // failed
 func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, error) {
-	out, err := proc.Run(dir, false, m.epinioBinaryPath, append([]string{"apps", "push"}, arg...)...)
+	var out string
+	var err error
+
+	for attempt := 1; attempt <= 3; attempt++ {
+		out, err = proc.Run(dir, false, m.epinioBinaryPath, append([]string{"apps", "push"}, arg...)...)
+		if err == nil {
+			return out, nil
+		}
+
+		if !isTransientPushError(out) || attempt == 3 {
+			break
+		}
+
+		_, _ = fmt.Fprintf(GinkgoWriter, "[EpinioPush] transient push error for app=%s attempt=%d/3, retrying: %v\nout=%s\n", name, attempt, err, out)
+		time.Sleep(time.Duration(attempt) * 2 * time.Second)
+	}
+
 	if err != nil && strings.Contains(out, stagingError) {
+		_, _ = fmt.Fprintf(GinkgoWriter, "[EpinioPush] staging failed for app=%s, dumping staging logs\n", name)
 		m.ShowStagingLogs(name)
 	}
 

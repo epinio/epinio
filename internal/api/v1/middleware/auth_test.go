@@ -53,6 +53,8 @@ var _ = Describe("Authorization Middleware", func() {
 		BeforeEach(func() {
 			userRole := auth.Role{
 				ID: "user",
+				// Namespace-scoped role to validate namespace restrictions.
+				Namespace: "workspace",
 				Actions: []auth.Action{
 					auth.ActionsMap["namespace"],
 				},
