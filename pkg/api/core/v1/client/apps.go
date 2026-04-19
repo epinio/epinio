@@ -401,12 +401,14 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 	}
 
 	fn := func() error {
+		// Must match application.Exec PodExecOptions.TTY (false). A mismatch between
+		// this flag and the attach URL the server builds breaks the exec websocket
+		// protocol (often exit status 255 with no useful stderr).
 		options := remotecommand.StreamOptions{
-			Stdin:             tty.In,
-			Stdout:            tty.Out,
-			Stderr:            tty.Out, // Not used when tty. Check `exec.Stream` docs.
-			Tty:               tty.Raw,
-			TerminalSizeQueue: tty.MonitorSize(tty.GetSize()),
+			Stdin:  tty.In,
+			Stdout: tty.Out,
+			Stderr: tty.Out,
+			Tty:    false,
 		}
 
 		return exec.StreamWithContext(ctx, options)
