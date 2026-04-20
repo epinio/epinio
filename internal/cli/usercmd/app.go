@@ -525,7 +525,9 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) er
 		In:     os.Stdin,
 		Out:    os.Stdout,
 		Raw:    term.IsTerminal(int(os.Stdin.Fd())),
-		TryDev: true,
+		// Avoid trying /dev/tty for non-interactive runs (e.g. CI pipes), which can
+		// cause exec sessions to hang before streaming starts.
+		TryDev: false,
 	}
 
 	return c.API.AppExec(ctx, c.Settings.Namespace, appName, instance, tty)

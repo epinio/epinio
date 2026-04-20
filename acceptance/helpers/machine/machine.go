@@ -16,6 +16,7 @@ package machine
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -99,7 +100,10 @@ func (m *Machine) EpinioCLI(dir string, stdinFactory func() io.Reader, args ...s
 	var lastErr error
 	for attempt := 1; attempt <= 5; attempt++ {
 		var b bytes.Buffer
-		cmd := exec.Command(m.epinioBinaryPath, args...) // nolint:gosec // acceptance helper
+		// Bound each interactive attempt so flaky websocket exec calls can retry
+		// instead of hanging for the whole spec duration.
+		ctx, cancel := context.WithTimeout(context.Background(), 75*time.Second)
+		cmd := exec.CommandContext(ctx, m.epinioBinaryPath, args...) // nolint:gosec // acceptance helper
 		cmd.Dir = wd
 		if stdinFactory != nil {
 			cmd.Stdin = stdinFactory()
@@ -107,7 +111,14 @@ func (m *Machine) EpinioCLI(dir string, stdinFactory func() io.Reader, args ...s
 		cmd.Stdout = &b
 		cmd.Stderr = &b
 		lastErr = cmd.Run()
+		cancel()
 		lastOut = b.String()
+		if ctx.Err() == context.DeadlineExceeded {
+			if lastOut == "" {
+				lastOut = "epinio CLI command timed out after 75s"
+			}
+			lastErr = ctx.Err()
+		}
 		if lastErr == nil {
 			return lastOut, nil
 		}
