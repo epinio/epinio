@@ -2400,24 +2400,9 @@ userConfig:
 		It("executes a command in the application's container (one of the pods)", func() {
 			// Use /tmp so the test works for both buildpack and container-image apps (container images often have no /workspace).
 			testFilePath := "/tmp/epinio-exec-testfile"
-			var out string
-			var runErr error
-			// apps exec uses websocket upgrades and can occasionally fail under CI load with a transient exit 255.
-			// Retry to reduce flakes while keeping the behavior assertion intact.
-			Eventually(func() error {
-				script := "echo testthis > " + testFilePath + " && exit\n"
-				var err error
-				out, err = env.EpinioCLI("", func() io.Reader {
-					return bytes.NewReader([]byte(script))
-				}, "apps", "exec", appName)
-				runErr = err
-				if err != nil {
-					return err
-				}
-				return nil
-			}, "120s", "5s").Should(Succeed(), "apps exec failed. last error: %v\noutput:\n%s", runErr, out)
-
 			var podName string
+			// Ensure a running pod exists before trying websocket exec. Under CI load, the
+			// app can be created but not yet in Running phase when exec is attempted.
 			Eventually(func() string {
 				out, err := proc.Kubectl("get", "pods",
 					"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
@@ -2429,7 +2414,26 @@ userConfig:
 				}
 				podName = strings.TrimSpace(out)
 				return podName
-			}, "60s", "2s").ShouldNot(BeEmpty(), "no running pod found for app %s in namespace %s", appName, namespace)
+			}, "120s", "3s").ShouldNot(BeEmpty(), "no running pod found for app %s in namespace %s", appName, namespace)
+
+			var out string
+			var runErr error
+			// apps exec uses websocket upgrades and can occasionally fail under CI load with a transient exit 255.
+			// Retry to reduce flakes while keeping the behavior assertion intact.
+			Eventually(func() error {
+				// Prefix with newline and terminate with newline to make shell parsing
+				// reliable across different prompt/readline timings.
+				script := "\necho testthis > " + testFilePath + "\nexit\n"
+				var err error
+				out, err = env.EpinioCLI("", func() io.Reader {
+					return bytes.NewReader([]byte(script))
+				}, "apps", "exec", appName)
+				runErr = err
+				if err != nil {
+					return err
+				}
+				return nil
+			}, "300s", "10s").Should(Succeed(), "apps exec failed. last error: %v\noutput:\n%s", runErr, out)
 
 			var remoteOut string
 			var remoteErr error
