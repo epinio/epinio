@@ -857,7 +857,9 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-					WithRow(appName, WithDate(), "0/1", ".*", "", ".*"),
+					// Failed deploys can transiently report either desired replicas (0/1)
+					// or no workload yet (n/a), depending on reconcile timing.
+					WithRow(appName, WithDate(), "((0/1)|(n/a))", ".*", "", ".*"),
 				),
 			)
 		})
@@ -2403,7 +2405,7 @@ userConfig:
 			// apps exec uses websocket upgrades and can occasionally fail under CI load with a transient exit 255.
 			// Retry to reduce flakes while keeping the behavior assertion intact.
 			Eventually(func() error {
-				script := "echo testthis > " + testFilePath + " && exit\r"
+				script := "echo testthis > " + testFilePath + " && exit\n"
 				var err error
 				out, err = env.EpinioCLI("", func() io.Reader {
 					return bytes.NewReader([]byte(script))
