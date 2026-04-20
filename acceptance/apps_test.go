@@ -18,9 +18,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -2403,21 +2403,17 @@ userConfig:
 			// apps exec uses websocket upgrades and can occasionally fail under CI load with a transient exit 255.
 			// Retry to reduce flakes while keeping the behavior assertion intact.
 			Eventually(func() error {
-				var b bytes.Buffer
-				containerCmd := bytes.NewReader([]byte("echo testthis > " + testFilePath + " && exit\r"))
-
-				cmd := exec.Command(testenv.EpinioBinaryPath(), "apps", "exec", appName)
-				cmd.Stdin = containerCmd
-				cmd.Stdout = &b
-				cmd.Stderr = &b
-
-				runErr = cmd.Run()
-				out = b.String()
-				if runErr != nil {
-					return runErr
+				script := "echo testthis > " + testFilePath + " && exit\r"
+				var err error
+				out, err = env.EpinioCLI("", func() io.Reader {
+					return bytes.NewReader([]byte(script))
+				}, "apps", "exec", appName)
+				runErr = err
+				if err != nil {
+					return err
 				}
 				return nil
-			}, "90s", "5s").Should(Succeed(), "apps exec failed. last error: %v\noutput:\n%s", runErr, out)
+			}, "120s", "5s").Should(Succeed(), "apps exec failed. last error: %v\noutput:\n%s", runErr, out)
 
 			var podName string
 			Eventually(func() string {

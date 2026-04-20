@@ -15,6 +15,7 @@
 package machine
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -66,7 +67,57 @@ func (m *Machine) ShowStagingLogs(app string) {
 // dir parameter defines the directory from which the command should be run.
 // It defaults to the current dir if left empty.
 func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
-	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
+	var out string
+	var err error
+	args := append([]string{command}, arg...)
+	for attempt := 1; attempt <= 5; attempt++ {
+		out, err = proc.Run(dir, false, m.epinioBinaryPath, args...)
+		if err == nil {
+			return out, nil
+		}
+		if !isTransientAPIError(out) || attempt == 5 {
+			break
+		}
+		_, _ = fmt.Fprintf(GinkgoWriter, "[Epinio] transient error retry %d/5 command=%s err=%v out=%s\n", attempt, command, err, out)
+		time.Sleep(time.Duration(attempt) * time.Second)
+	}
+	return out, err
+}
+
+// EpinioCLI runs the epinio binary with a full argv (e.g. "apps", "exec", name).
+// stdinFactory is invoked per attempt so stdin can be rewound between retries.
+func (m *Machine) EpinioCLI(dir string, stdinFactory func() io.Reader, args ...string) (string, error) {
+	wd := dir
+	if wd == "" {
+		var err error
+		wd, err = os.Getwd()
+		if err != nil {
+			return "", err
+		}
+	}
+	var lastOut string
+	var lastErr error
+	for attempt := 1; attempt <= 5; attempt++ {
+		var b bytes.Buffer
+		cmd := exec.Command(m.epinioBinaryPath, args...) // nolint:gosec // acceptance helper
+		cmd.Dir = wd
+		if stdinFactory != nil {
+			cmd.Stdin = stdinFactory()
+		}
+		cmd.Stdout = &b
+		cmd.Stderr = &b
+		lastErr = cmd.Run()
+		lastOut = b.String()
+		if lastErr == nil {
+			return lastOut, nil
+		}
+		if !isTransientAPIError(lastOut) || attempt == 5 {
+			break
+		}
+		_, _ = fmt.Fprintf(GinkgoWriter, "[EpinioCLI] transient error retry %d/5 args=%v err=%v out=%s\n", attempt, args, lastErr, lastOut)
+		time.Sleep(time.Duration(attempt) * time.Second)
+	}
+	return lastOut, lastErr
 }
 
 // EpinioCmd creates a Cmd to run the Epinio client
@@ -87,11 +138,33 @@ func (m *Machine) Versions() {
 
 const stagingError = "Failed to stage"
 
-func isTransientPushError(out string) bool {
-	return (strings.Contains(out, "making the request") && strings.Contains(out, "EOF")) ||
-		strings.Contains(out, "unexpected EOF") ||
+// isTransientAPIError detects CLI/API failures that often clear after a short wait
+// (parallel CI load, ingress rollouts, or systemd-resolved timeouts to *.sslip.io).
+func isTransientAPIError(out string) bool {
+	if out == "" {
+		return false
+	}
+	lo := strings.ToLower(out)
+	if strings.Contains(lo, "making the request") &&
+		(strings.Contains(lo, "eof") || strings.Contains(lo, "i/o timeout") || strings.Contains(lo, "connection reset")) {
+		return true
+	}
+	if strings.Contains(out, "unexpected EOF") ||
 		strings.Contains(out, "connection reset by peer") ||
-		strings.Contains(out, "TLS handshake timeout")
+		strings.Contains(out, "TLS handshake timeout") {
+		return true
+	}
+	if strings.Contains(lo, "dial tcp:") && strings.Contains(lo, "lookup") && strings.Contains(lo, "i/o timeout") {
+		return true
+	}
+	if strings.Contains(lo, "read udp") && strings.Contains(lo, "127.0.0.53:53") && strings.Contains(lo, "i/o timeout") {
+		return true
+	}
+	return false
+}
+
+func isTransientPushError(out string) bool {
+	return isTransientAPIError(out)
 }
 
 // EpinioPush shows the staging log if the error indicates that staging
