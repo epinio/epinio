@@ -2424,7 +2424,7 @@ userConfig:
 				var err error
 				out, err = env.EpinioCLI("", func() io.Reader {
 					return bytes.NewReader([]byte(script))
-				}, "apps", "exec", appName, "--instance", podName)
+				}, "--skip-ssl-verification", "apps", "exec", appName, "--instance", podName)
 				runErr = err
 				if err != nil {
 					return err
