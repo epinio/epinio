@@ -2430,7 +2430,9 @@ userConfig:
 					return err
 				}
 				return nil
-			}, "300s", "10s").Should(Succeed(), "apps exec failed. last error: %v\noutput:\n%s", runErr, out)
+			}, "300s", "10s").Should(Succeed(), func() string {
+				return fmt.Sprintf("apps exec failed. last error: %v\noutput:\n%s", runErr, out)
+			})
 
 			var remoteOut string
 			var remoteErr error
