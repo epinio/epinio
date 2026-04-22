@@ -2386,11 +2386,7 @@ userConfig:
 
 	Describe("exec", func() {
 		BeforeEach(func() {
-			pushOutput, err := env.Epinio("", "apps", "push",
-				"--name", appName,
-				"--container-image-url", containerImageURL,
-			)
-			Expect(err).ToNot(HaveOccurred(), pushOutput)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 		})
 
 		AfterEach(func() {
