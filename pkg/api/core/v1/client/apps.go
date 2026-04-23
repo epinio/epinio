@@ -28,6 +28,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
@@ -54,11 +55,47 @@ func (c *Client) createRestConfigForWebSocket() (*rest.Config, error) {
 		APIPath: baseURL.Path,
 	}
 
-	// Set TLS config from default transport
+	// Determine whether TLS verification should be skipped. The side-effect of
+	// settings.LoadFrom sets InsecureSkipVerify on http.DefaultTransport's
+	// TLSClientConfig, but be defensive: also consult viper and env so the flag
+	// works even if the default transport wasn't mutated (e.g. when a process
+	// replaces http.DefaultTransport, or if the rest.Config path races the
+	// settings side-effect). See settings.LoadFrom for the authoritative logic.
+	insecure := false
+	var serverName string
 	if httpTransport, ok := http.DefaultTransport.(*http.Transport); ok && httpTransport.TLSClientConfig != nil {
+		insecure = httpTransport.TLSClientConfig.InsecureSkipVerify
+		serverName = httpTransport.TLSClientConfig.ServerName
+	}
+	if !insecure {
+		if viper.GetBool("skip-ssl-verification") {
+			insecure = true
+		} else if v := os.Getenv("EPINIO_SKIP_SSL_VERIFICATION"); v == "true" || v == "1" {
+			insecure = true
+		} else if v := os.Getenv("SKIP_SSL_VERIFICATION"); v == "true" || v == "1" {
+			insecure = true
+		}
+	}
+
+	if insecure {
+		// Insecure and CAData are mutually exclusive in rest.Config.
 		restConfig.TLSClientConfig = rest.TLSClientConfig{
-			Insecure:   httpTransport.TLSClientConfig.InsecureSkipVerify,
-			ServerName: httpTransport.TLSClientConfig.ServerName,
+			Insecure:   true,
+			ServerName: serverName,
+		}
+	} else if c.Settings != nil && c.Settings.Certs != "" {
+		// Propagate the CA the user trusted during login. Without this the
+		// websocket executor builds a transport that does not inherit the CA
+		// pool set up via auth.ExtendLocalTrust on http.DefaultTransport, so a
+		// self-signed Epinio ingress cert fails verification even though
+		// regular API calls succeed.
+		restConfig.TLSClientConfig = rest.TLSClientConfig{
+			CAData:     []byte(c.Settings.Certs),
+			ServerName: serverName,
+		}
+	} else {
+		restConfig.TLSClientConfig = rest.TLSClientConfig{
+			ServerName: serverName,
 		}
 	}
 
