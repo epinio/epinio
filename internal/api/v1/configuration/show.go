@@ -13,7 +13,6 @@ package configuration
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/mask"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
@@ -54,7 +53,6 @@ func Show(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-	maskedDetails := mask.MaskMap(configurationDetails)
 
 	// For service-based configuration, fetch and record siblings. Itself excluded, of course.
 	siblings := []string{}
@@ -91,7 +89,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 		},
 		Configuration: models.ConfigurationShowResponse{
 			Username:  configuration.User(),
-			Details:   maskedDetails,
+			Details:   configurationDetails,
 			BoundApps: appNames,
 			Type:      configuration.Type,
 			Origin:    configuration.Origin,
