@@ -403,12 +403,13 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			out, err := env.Epinio("", "configuration", "show", configurationName1)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Configuration Details"))
-			// Be robust to masking and formatting changes: just ensure the table headers,
-			// parameter name and access path are present.
-			Expect(out).To(ContainSubstring("PARAMETER"))
-			Expect(out).To(ContainSubstring("ACCESS PATH"))
-			Expect(out).To(ContainSubstring("username"))
-			Expect(out).To(ContainSubstring("/configurations/" + configurationName1 + "/username"))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
+					WithRow("username", "epinio-user", "\\/configurations\\/"+configurationName1+"\\/username"),
+				),
+			)
 		})
 
 		It("shows a configuration in JSON format", func() {
@@ -429,10 +430,16 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			out, err := env.Epinio("", "configuration", "show", configurationName1)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Configuration Details"))
-			// When values are masked (****), truncation text like "hiding N bytes" may not appear.
-			// Just verify the file parameter and its access path are shown.
-			Expect(out).To(ContainSubstring("file"))
-			Expect(out).To(ContainSubstring("/configurations/" + configurationName1 + "/file"))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
+					WithRow("file", `# Copyright © 2021 - 2023`, "\\/configurations\\/"+configurationName1+"\\/file"),
+					WithRow("", "SUSE LLC # Licensed under the"),
+					WithRow("", "Apache Licens [(]hiding 1718", ""),
+					WithRow("", "additional bytes[)]", ""),
+				),
+			)
 		})
 
 		Context("command completion", func() {
@@ -493,13 +500,13 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(ContainSubstring("Update Configuration"))
-			// Check that the diff is rendered without asserting on the exact value formatting.
-			Expect(out).To(ContainSubstring("PARAMETER"))
-			Expect(out).To(ContainSubstring("OP"))
-			Expect(out).To(ContainSubstring("username"))
-			Expect(out).To(ContainSubstring("remove"))
-			Expect(out).To(ContainSubstring("user"))
-			Expect(out).To(ContainSubstring("add/change"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "OP", "VALUE"),
+					WithRow("username", "remove", ""),
+					WithRow("user", "add\\/change", "ci\\/cd"),
+				),
+			)
 			Expect(out).To(ContainSubstring("Configuration Changes Saved"))
 
 			// Confirm the changes ...
@@ -508,9 +515,12 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(ContainSubstring("Configuration Details"))
-			// Values are masked; just ensure the parameter and access path are present.
-			Expect(out).To(ContainSubstring("user"))
-			Expect(out).To(ContainSubstring("/configurations/" + configurationName1 + "/user"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
+					WithRow("user", "ci\\/cd", "\\/configurations\\/"+configurationName1+"\\/user"),
+				),
+			)
 
 			// Wait for app to resettle ...
 
