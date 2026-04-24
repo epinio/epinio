@@ -178,6 +178,18 @@ func isTransientPushError(out string) bool {
 	return isTransientAPIError(out)
 }
 
+// isTransient403 detects the "user unauthorized for namespace X" 403 that
+// intermittently appears under parallel CI load when concurrent writes to the
+// admin user secret briefly clobber its role annotation. It clears on its own
+// once a subsequent mutation rewrites the secret, so retry rather than fail.
+func isTransient403(out string) bool {
+	if out == "" {
+		return false
+	}
+	return strings.Contains(out, "user unauthorized") &&
+		strings.Contains(out, "403")
+}
+
 // EpinioPush shows the staging log if the error indicates that staging
 // failed
 func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, error) {
@@ -234,6 +246,9 @@ func (m *Machine) SetupNamespace(namespace string) {
 			if strings.Contains(out, "EOF") || strings.Contains(out, "making the request") {
 				_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] root cause: API connection closed (EOF) - often under parallel load\n")
 			}
+			if isTransient403(out) {
+				_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] root cause: transient 403 - admin role annotation temporarily clobbered by concurrent UpdateUser, will retry\n")
+			}
 			return errors.New(out)
 		}
 
@@ -262,13 +277,23 @@ func (m *Machine) SetupNamespace(namespace string) {
 func (m *Machine) TargetNamespace(namespace string) {
 	By(fmt.Sprintf("targeting a namespace: %s", namespace))
 
-	out, err := m.Epinio(m.nodeTmpDir, "target", namespace)
-	if err != nil {
-		_, _ = fmt.Fprintf(GinkgoWriter, "[TargetNamespace] epinio target %s failed: err=%v out=%s\n", namespace, err, out)
-	}
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "epinio target %s: out=%s", namespace, out)
+	var attempt int
+	var lastOut string
+	// Retry transient 403 "user unauthorized" errors that appear under parallel
+	// CI load when concurrent writes to the admin user secret briefly clobber
+	// its role annotation. Also retries transient API errors (see isTransientAPIError).
+	EventuallyWithOffset(1, func() error {
+		attempt++
+		out, err := m.Epinio(m.nodeTmpDir, "target", namespace)
+		lastOut = out
+		if err != nil {
+			_, _ = fmt.Fprintf(GinkgoWriter, "[TargetNamespace] attempt %d epinio target %s failed: err=%v out=%s\n", attempt, namespace, err, out)
+			return errors.New(out)
+		}
+		return nil
+	}, "6m", "5s").Should(Succeed(), "epinio target %s: out=%s", namespace, lastOut)
 
-	out, err = m.Epinio(m.nodeTmpDir, "target")
+	out, err := m.Epinio(m.nodeTmpDir, "target")
 	if err != nil {
 		_, _ = fmt.Fprintf(GinkgoWriter, "[TargetNamespace] epinio target (show) failed: err=%v out=%s\n", err, out)
 	}
