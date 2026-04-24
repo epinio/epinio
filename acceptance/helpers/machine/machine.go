@@ -192,12 +192,22 @@ func isTransient403(out string) bool {
 
 // EpinioPush shows the staging log if the error indicates that staging
 // failed
-func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, error) {
+func (m *Machine) EpinioPush(
+	dir string,
+	name string,
+	arg ...string,
+) (string, error) {
 	var out string
 	var err error
 
 	for attempt := 1; attempt <= 3; attempt++ {
-		out, err = proc.Run(dir, false, m.epinioBinaryPath, append([]string{"apps", "push"}, arg...)...)
+		out, err = proc.Run(
+			dir,
+			false,
+			m.epinioBinaryPath,
+			append([]string{"apps", "push"}, arg...)...,
+		)
+
 		if err == nil {
 			return out, nil
 		}
@@ -206,7 +216,15 @@ func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, er
 			break
 		}
 
-		_, _ = fmt.Fprintf(GinkgoWriter, "[EpinioPush] transient push error for app=%s attempt=%d/3, retrying: %v\nout=%s\n", name, attempt, err, out)
+		_, _ = fmt.Fprintf(
+			GinkgoWriter,
+			"[EpinioPush] transient push error for app=%s attempt=%d/3, retrying: %v\nout=%s\n",
+			name,
+			attempt,
+			err,
+			out,
+		)
+
 		time.Sleep(time.Duration(attempt) * 2 * time.Second)
 	}
 
@@ -279,15 +297,21 @@ func (m *Machine) TargetNamespace(namespace string) {
 
 	var attempt int
 	var lastOut string
-	// Retry transient 403 "user unauthorized" errors that appear under parallel
-	// CI load when concurrent writes to the admin user secret briefly clobber
-	// its role annotation. Also retries transient API errors (see isTransientAPIError).
+	// Retries any error, primary motivation is the transient 403 role-annotation
+	// race under parallel CI load.
 	EventuallyWithOffset(1, func() error {
 		attempt++
 		out, err := m.Epinio(m.nodeTmpDir, "target", namespace)
 		lastOut = out
 		if err != nil {
-			_, _ = fmt.Fprintf(GinkgoWriter, "[TargetNamespace] attempt %d epinio target %s failed: err=%v out=%s\n", attempt, namespace, err, out)
+			_, _ = fmt.Fprintf(
+				GinkgoWriter,
+				"[TargetNamespace] attempt %d epinio target %s failed: err=%v out=%s\n",
+				attempt,
+				namespace,
+				err,
+				out,
+			)
 			return errors.New(out)
 		}
 		return nil
