@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # Set up epinio alias
@@ -33,6 +33,15 @@ fi
 export KUBECONFIG="$HOME/.kube/config"
 mkdir -p "$HOME/.kube"
 k3d kubeconfig get epinio > "$KUBECONFIG"
+
+# Connect this devcontainer to the k3d network so kubectl can reach the API server directly
+# by container IP. With docker-outside-of-docker, k3d runs as a sibling on the host daemon,
+# so 0.0.0.0 in the kubeconfig isn't routable from inside the devcontainer.
+CONTAINER_ID=$(hostname)
+docker network connect k3d-epinio "$CONTAINER_ID" 2>/dev/null || true
+K3D_SERVER_IP=$(docker inspect k3d-epinio-server-0 \
+  --format '{{(index .NetworkSettings.Networks "k3d-epinio").IPAddress}}')
+sed -i "s|server: https://0\.0\.0\.0:[0-9]*|server: https://${K3D_SERVER_IP}:6443|g" "$KUBECONFIG"
 
 export EPINIO_SYSTEM_DOMAIN=127.0.0.1.sslip.io
 
