@@ -34,10 +34,10 @@ const (
 
 	// DefaultExpiry for the auth token when not configured
 	DefaultExpiry = 30 * time.Second
-)
 
-// AuthTokenDefaultExpiryEnv is the environment variable for configuring default token expiry
-const AuthTokenDefaultExpiryEnv = "AUTH_TOKEN_DEFAULT_EXPIRY"
+	// AuthTokenDefaultExpiryEnv is the environment variable for configuring default token expiry
+	AuthTokenDefaultExpiryEnv = "AUTH_TOKEN_DEFAULT_EXPIRY" // nolint:gosec
+)
 
 // GetDefaultExpiry returns the configured default token expiry from AUTH_TOKEN_DEFAULT_EXPIRY
 // (e.g. "30s", "60s", "2m"), or DefaultExpiry if not set or invalid.
