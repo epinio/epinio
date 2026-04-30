@@ -64,10 +64,10 @@ var (
 var clusterMemo *Cluster
 
 type Platform interface {
-	Detect(context.Context, *kubernetes.Clientset) bool
+	Detect(context.Context, kubernetes.Interface) bool
 	Describe() string
 	String() string
-	Load(context.Context, *kubernetes.Clientset) error
+	Load(context.Context, kubernetes.Interface) error
 	ExternalIPs() []string
 }
 
@@ -81,7 +81,7 @@ var SupportedPlatforms = []Platform{
 type Cluster struct {
 	//	InternalIPs []string
 	//	Ingress     bool
-	Kubectl    *kubernetes.Clientset
+	Kubectl    kubernetes.Interface
 	RestConfig *restclient.Config
 	platform   Platform
 }
@@ -104,6 +104,12 @@ func GetHTTP1Client(ctx context.Context) (*kubernetes.Clientset, error) {
 	config.NextProtos = []string{"http/1.1"}
 
 	return kubernetes.NewForConfig(config)
+}
+
+// SetClusterMemo sets the cluster memoization.
+// This is used for testing purposes only.
+func SetClusterMemo(c *Cluster) {
+	clusterMemo = c
 }
 
 // GetCluster returns the Cluster needed to talk to it. On first call it
@@ -401,7 +407,7 @@ func (c *Cluster) CreateLabeledSecret(ctx context.Context, namespace, name strin
 
 // GetVersion get the kube server version
 func (c *Cluster) GetVersion() (string, error) {
-	v, err := c.Kubectl.ServerVersion()
+	v, err := c.Kubectl.Discovery().ServerVersion()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get kube server version")
 	}

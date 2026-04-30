@@ -47,8 +47,8 @@ func Show(c *gin.Context) apierror.APIErrors {
 
 		response.OKReturn(c, models.Gitconfig{
 			Meta: models.MetaLite{
-				Name: gitconfig.ID,
-				// CreatedAt: -- Not tracked by gitconfig
+				Name:      gitconfig.ID,
+				CreatedAt: gitconfig.CreatedAt,
 			},
 			URL:        gitconfig.URL,
 			Provider:   gitconfig.Provider,

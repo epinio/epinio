@@ -93,7 +93,7 @@ func Get(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace st
 
 // Create generates a new epinio-controlled namespace, i.e. a kube
 // namespace plus a service account.
-func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace string) error {
+func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, installationNamespace string) error {
 	if _, err := kubeClient.Kubectl.CoreV1().Namespaces().Create(
 		ctx,
 		&corev1.Namespace{
@@ -136,7 +136,7 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 		var serviceAccountPullSecrets string
 		var getErr error
 
-		_, getErr = kubeClient.Kubectl.CoreV1().Secrets("epinio").Get(diagCtx, registry.CredentialsSecretName, metav1.GetOptions{})
+		_, getErr = kubeClient.Kubectl.CoreV1().Secrets(installationNamespace).Get(diagCtx, registry.CredentialsSecretName, metav1.GetOptions{})
 		if getErr == nil {
 			sourceSecretState = "present"
 		} else if apierrors.IsNotFound(getErr) {
