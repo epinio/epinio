@@ -23,10 +23,10 @@
 #
 # yielding, for example
 #
-# % ep version
+# % epinio version
 # Epinio Version: "v0.1.6-16-ge5ad0849-2021-11-18T10-00-27"
 
-VSUFFIX ?= 
+VSUFFIX ?=
 VERSION ?= $(shell git describe --tags)$(VSUFFIX)
 CGO_ENABLED ?= 0
 export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
@@ -39,7 +39,7 @@ help: ## Display this help.
 
 build: build-amd64
 
-# amd64 variant
+# amd64 variant with coverage instrumentation (used in acceptance tests)
 build-cover:
 	GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go build -cover -covermode=count -coverpkg ./... $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-amd64
 
@@ -98,11 +98,11 @@ tag:
 ########################################################################
 # Acceptance tests
 
+FLAKE_ATTEMPTS ?= 2
 GINKGO_NODES ?= 2
 GINKGO_POLL_PROGRESS_AFTER ?= 200s
-GINKGO_TIMEOUT ?= 90m
 REGEX ?= ""
-STANDARD_TEST_OPTIONS= -v --nodes ${GINKGO_NODES} --poll-progress-after ${GINKGO_POLL_PROGRESS_AFTER} --timeout ${GINKGO_TIMEOUT} --randomize-all --fail-on-pending
+STANDARD_TEST_OPTIONS= -v --nodes ${GINKGO_NODES} --poll-progress-after ${GINKGO_POLL_PROGRESS_AFTER} --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending
 
 acceptance-cluster-delete:
 	k3d cluster delete epinio-acceptance
@@ -121,7 +121,7 @@ acceptance-cluster-setup-several-k8s-versions:
 	@./scripts/acceptance-cluster-setup-several-k8s-versions.sh
 
 test-acceptance: showfocus
-	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/. acceptance/api/v1/. acceptance/apps/.
+	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/api/v1/. acceptance/apps/.
 
 test-acceptance-api: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/api/v1/.
@@ -138,24 +138,11 @@ test-acceptance-api-other: showfocus
 test-acceptance-apps: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/apps/.
 
-test-acceptance-cli: showfocus
-	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/.
-
-test-acceptance-cli-apps: showfocus
-	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "application" acceptance/.
-
-test-acceptance-cli-services: showfocus
-	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "service" acceptance/.
-
-test-acceptance-cli-other: showfocus
-	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "!application && !service" acceptance/.
-
 test-acceptance-upgrade: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus "${REGEX}" acceptance/upgrade/.
 
 test-acceptance-install: showfocus
-	# TODO support for labels is coming in ginkgo v2
-	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all acceptance/install/.
+	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} acceptance/install/.
 
 test-acceptance-api-apps-critical-endpoints: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "application_exec_test.go" --label-filter "application" acceptance/api/v1/.
@@ -164,14 +151,10 @@ test-acceptance-api-apps-critical-endpoints: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "service_portforward_test.go" --label-filter "service" acceptance/api/v1/.
 
 showfocus:
-	@if test `cat acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go ; echo ; fi
+	@if test `cat acceptance/apps/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/apps/*.go acceptance/api/v1/*.go ; echo ; fi
 
 generate:
 	go generate ./...
-
-# Assumes that the `docs` checkout is a sibling of the `epinio` checkout
-generate-cli-docs:
-	@./scripts/cli-docs-generate.sh ../docs/docs/references/commands/cli
 
 lint:
 	golangci-lint run --skip-files docs.go
@@ -182,7 +165,7 @@ tidy:
 fmt:
 	go fmt ./... ; git checkout -- internal/api/v1/docs/docs.go
 
-patch-epinio-deployment:
+patch-server-deployment:
 	@./scripts/patch-epinio-deployment.sh
 
 appchart:

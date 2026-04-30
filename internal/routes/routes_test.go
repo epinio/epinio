@@ -84,10 +84,10 @@ var _ = Describe("Route", func() {
 			BeforeEach(func() {
 				routeIngress.Spec.Rules = []networkingv1.IngressRule{}
 			})
-			It("returns an empty list of routes", func() {
-				result, err := FromIngress(routeIngress)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(result).To(BeEmpty())
+			It("returns an error", func() {
+				_, err := FromIngress(routeIngress)
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(MatchError("no Rules found on Ingress"))
 			})
 		})
 		When("the Ingress has multiple rules defined", func() {

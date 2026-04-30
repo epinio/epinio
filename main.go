@@ -12,9 +12,9 @@
 package main
 
 import (
-	"github.com/epinio/epinio/internal/cli"
+	"github.com/epinio/epinio/internal/server"
 )
 
 func main() {
-	cli.Execute()
+	server.Execute()
 }

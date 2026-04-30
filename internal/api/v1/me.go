@@ -13,7 +13,7 @@ package v1
 
 import (
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/server/requestctx"
 
 	"github.com/gin-gonic/gin"
 

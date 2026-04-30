@@ -15,8 +15,6 @@
 package machine
 
 import (
-	"bytes"
-	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -26,14 +24,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/gorilla/websocket"
 )
 
@@ -68,67 +64,7 @@ func (m *Machine) ShowStagingLogs(app string) {
 // dir parameter defines the directory from which the command should be run.
 // It defaults to the current dir if left empty.
 func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
-	var out string
-	var err error
-	args := append([]string{command}, arg...)
-	for attempt := 1; attempt <= 5; attempt++ {
-		out, err = proc.Run(dir, false, m.epinioBinaryPath, args...)
-		if err == nil {
-			return out, nil
-		}
-		if !isTransientAPIError(out) || attempt == 5 {
-			break
-		}
-		_, _ = fmt.Fprintf(GinkgoWriter, "[Epinio] transient error retry %d/5 command=%s err=%v out=%s\n", attempt, command, err, out)
-		time.Sleep(time.Duration(attempt) * time.Second)
-	}
-	return out, err
-}
-
-// EpinioCLI runs the epinio binary with a full argv (e.g. "apps", "exec", name).
-// stdinFactory is invoked per attempt so stdin can be rewound between retries.
-func (m *Machine) EpinioCLI(dir string, stdinFactory func() io.Reader, args ...string) (string, error) {
-	wd := dir
-	if wd == "" {
-		var err error
-		wd, err = os.Getwd()
-		if err != nil {
-			return "", err
-		}
-	}
-	var lastOut string
-	var lastErr error
-	for attempt := 1; attempt <= 5; attempt++ {
-		var b bytes.Buffer
-		// Bound each interactive attempt so flaky websocket exec calls can retry
-		// instead of hanging for the whole spec duration.
-		ctx, cancel := context.WithTimeout(context.Background(), 75*time.Second)
-		cmd := exec.CommandContext(ctx, m.epinioBinaryPath, args...) // nolint:gosec // acceptance helper
-		cmd.Dir = wd
-		if stdinFactory != nil {
-			cmd.Stdin = stdinFactory()
-		}
-		cmd.Stdout = &b
-		cmd.Stderr = &b
-		lastErr = cmd.Run()
-		cancel()
-		lastOut = b.String()
-		if ctx.Err() == context.DeadlineExceeded {
-			if lastOut == "" {
-				lastOut = "epinio CLI command timed out after 75s"
-			}
-			lastErr = ctx.Err()
-		}
-		if lastErr == nil {
-			return lastOut, nil
-		}
-		if !isTransientAPIError(lastOut) || attempt == 5 {
-			break
-		}
-		_, _ = fmt.Fprintf(GinkgoWriter, "[EpinioCLI] transient error retry %d/5 args=%v err=%v out=%s\n", attempt, args, lastErr, lastOut)
-		time.Sleep(time.Duration(attempt) * time.Second)
-	}
-	return lastOut, lastErr
+	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
 }
 
 // EpinioCmd creates a Cmd to run the Epinio client
@@ -149,87 +85,11 @@ func (m *Machine) Versions() {
 
 const stagingError = "Failed to stage"
 
-// isTransientAPIError detects CLI/API failures that often clear after a short wait
-// (parallel CI load, ingress rollouts, or systemd-resolved timeouts to *.sslip.io).
-func isTransientAPIError(out string) bool {
-	if out == "" {
-		return false
-	}
-	lo := strings.ToLower(out)
-	if strings.Contains(lo, "making the request") &&
-		(strings.Contains(lo, "eof") || strings.Contains(lo, "i/o timeout") || strings.Contains(lo, "connection reset")) {
-		return true
-	}
-	if strings.Contains(out, "unexpected EOF") ||
-		strings.Contains(out, "connection reset by peer") ||
-		strings.Contains(out, "TLS handshake timeout") {
-		return true
-	}
-	if strings.Contains(lo, "dial tcp:") && strings.Contains(lo, "lookup") && strings.Contains(lo, "i/o timeout") {
-		return true
-	}
-	if strings.Contains(lo, "read udp") && strings.Contains(lo, "127.0.0.53:53") && strings.Contains(lo, "i/o timeout") {
-		return true
-	}
-	return false
-}
-
-func isTransientPushError(out string) bool {
-	return isTransientAPIError(out)
-}
-
-// isTransient403 detects the "user unauthorized for namespace X" 403 that
-// intermittently appears under parallel CI load when concurrent writes to the
-// admin user secret briefly clobber its role annotation. It clears on its own
-// once a subsequent mutation rewrites the secret, so retry rather than fail.
-func isTransient403(out string) bool {
-	if out == "" {
-		return false
-	}
-	return strings.Contains(out, "user unauthorized") &&
-		strings.Contains(out, "403")
-}
-
 // EpinioPush shows the staging log if the error indicates that staging
 // failed
-func (m *Machine) EpinioPush(
-	dir string,
-	name string,
-	arg ...string,
-) (string, error) {
-	var out string
-	var err error
-
-	for attempt := 1; attempt <= 3; attempt++ {
-		out, err = proc.Run(
-			dir,
-			false,
-			m.epinioBinaryPath,
-			append([]string{"apps", "push"}, arg...)...,
-		)
-
-		if err == nil {
-			return out, nil
-		}
-
-		if !isTransientPushError(out) || attempt == 3 {
-			break
-		}
-
-		_, _ = fmt.Fprintf(
-			GinkgoWriter,
-			"[EpinioPush] transient push error for app=%s attempt=%d/3, retrying: %v\nout=%s\n",
-			name,
-			attempt,
-			err,
-			out,
-		)
-
-		time.Sleep(time.Duration(attempt) * 2 * time.Second)
-	}
-
+func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, error) {
+	out, err := proc.Run(dir, false, m.epinioBinaryPath, append([]string{"apps", "push"}, arg...)...)
 	if err != nil && strings.Contains(out, stagingError) {
-		_, _ = fmt.Fprintf(GinkgoWriter, "[EpinioPush] staging failed for app=%s, dumping staging logs\n", name)
 		m.ShowStagingLogs(name)
 	}
 
@@ -239,90 +99,23 @@ func (m *Machine) EpinioPush(
 func (m *Machine) SetupNamespace(namespace string) {
 	By(fmt.Sprintf("creating a namespace: %s", namespace))
 
-	var attempt int
-	// Namespace creation can race with internal secret propagation on busy CI nodes.
-	EventuallyWithOffset(1, func() error {
-		attempt++
-		_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] attempt %d namespace=%s\n", attempt, namespace)
+	out, err := m.Epinio("", "namespace", "create", namespace)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-		t0 := time.Now()
-		out, err := m.Epinio(m.nodeTmpDir, "namespace", "create", namespace)
-		elapsedCreate := time.Since(t0)
-		if err != nil && !strings.Contains(out, "already exists") {
-			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] namespace create failed namespace=%s err=%v elapsed=%v out=%s\n", namespace, err, elapsedCreate, out)
-			if strings.Contains(out, "EOF") || strings.Contains(out, "making the request") {
-				_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] root cause: API connection closed (EOF) or request failed before response - often under parallel load\n")
-			}
-			return errors.New(out)
-		}
-
-		t1 := time.Now()
-		out, err = m.Epinio(m.nodeTmpDir, "namespace", "show", namespace)
-		elapsedShow := time.Since(t1)
-		if err != nil {
-			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] namespace show failed namespace=%s err=%v elapsed=%v out=%s\n", namespace, err, elapsedShow, out)
-			if strings.Contains(out, "EOF") || strings.Contains(out, "making the request") {
-				_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] root cause: API connection closed (EOF) - often under parallel load\n")
-			}
-			if isTransient403(out) {
-				_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] root cause: transient 403 - admin role annotation temporarily clobbered by concurrent UpdateUser, will retry\n")
-			}
-			return errors.New(out)
-		}
-
-		if !strings.Contains(out, namespace) {
-			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] namespace show output missing namespace=%s out=%s\n", namespace, out)
-			return errors.New(out)
-		}
-
-		// Probe for registry-creds and log readiness for diagnostics.
-		// Do not block namespace setup on this secret: some suites do not
-		// require it and propagation timing varies across CI jobs.
-		t2 := time.Now()
-		secretOut, secretErr := proc.Kubectl("get", "secret", "registry-creds", "-n", namespace, "-o", "name")
-		elapsedSecret := time.Since(t2)
-		if secretErr != nil || !strings.Contains(secretOut, "registry-creds") {
-			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] registry-creds not ready namespace=%s err=%v elapsed=%v out=%s (continuing)\n", namespace, secretErr, elapsedSecret, secretOut)
-		} else {
-			_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] registry-creds ready namespace=%s elapsed=%v out=%s\n", namespace, elapsedSecret, secretOut)
-		}
-
-		_, _ = fmt.Fprintf(GinkgoWriter, "[SetupNamespace] success attempt=%d namespace=%s create=%v show=%v\n", attempt, namespace, elapsedCreate, elapsedShow)
-		return nil
-	}, "6m", "5s").Should(Succeed(), "SetupNamespace failed for namespace=%s (check logs above for create/show errors)", namespace)
+	out, err = m.Epinio("", "namespace", "show", namespace)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + namespace))
 }
 
 func (m *Machine) TargetNamespace(namespace string) {
 	By(fmt.Sprintf("targeting a namespace: %s", namespace))
 
-	var attempt int
-	var lastOut string
-	// Retries any error, primary motivation is the transient 403 role-annotation
-	// race under parallel CI load.
-	EventuallyWithOffset(1, func() error {
-		attempt++
-		out, err := m.Epinio(m.nodeTmpDir, "target", namespace)
-		lastOut = out
-		if err != nil {
-			_, _ = fmt.Fprintf(
-				GinkgoWriter,
-				"[TargetNamespace] attempt %d epinio target %s failed: err=%v out=%s\n",
-				attempt,
-				namespace,
-				err,
-				out,
-			)
-			return errors.New(out)
-		}
-		return nil
-	}, "6m", "5s").Should(Succeed(), "epinio target %s: out=%s", namespace, lastOut)
-
-	out, err := m.Epinio(m.nodeTmpDir, "target")
-	if err != nil {
-		_, _ = fmt.Fprintf(GinkgoWriter, "[TargetNamespace] epinio target (show) failed: err=%v out=%s\n", err, out)
-	}
+	out, err := m.Epinio(m.nodeTmpDir, "target", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted namespace: "+namespace), "target output should show current namespace; got out=%s", out)
+
+	out, err = m.Epinio(m.nodeTmpDir, "target")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted namespace: " + namespace))
 }
 
 func (m *Machine) SetupAndTargetNamespace(namespace string) {
@@ -335,7 +128,7 @@ func (m *Machine) DeleteNamespace(namespace string) {
 
 	By(fmt.Sprintf("deleting a namespace: %s", namespace))
 
-	out, err := m.Epinio(m.nodeTmpDir, "namespace", "delete", "-f", namespace)
+	out, err := m.Epinio("", "namespace", "delete", "-f", namespace)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	out, err = proc.Kubectl("get", "namespace", namespace)
@@ -345,7 +138,7 @@ func (m *Machine) DeleteNamespace(namespace string) {
 
 func (m *Machine) VerifyNamespaceNotExist(namespace string) {
 	EventuallyWithOffset(1, func() string {
-		out, err := m.Epinio(m.nodeTmpDir, "namespace", "list")
+		out, err := m.Epinio("", "namespace", "list")
 		ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 		return out
 	}, "2m").ShouldNot(MatchRegexp(namespace))
@@ -394,13 +187,14 @@ func (m *Machine) GetPodNames(appName, namespaceName string) []string {
 	return strings.Split(out, "\n")
 }
 
-func (m *Machine) GetSettingsFrom(location string) (*settings.Settings, error) {
-	return settings.LoadFrom(location)
-}
+// todo (austin)
+// func (m *Machine) GetSettingsFrom(location string) (*settings.Settings, error) {
+// 	return settings.LoadFrom(location)
+// }
 
-func (m *Machine) GetSettings() (*settings.Settings, error) {
-	return settings.Load()
-}
+// func (m *Machine) GetSettings() (*settings.Settings, error) {
+// 	return settings.Load()
+// }
 
 // SaveApplicationSpec is a debugging helper function saving the
 // specified application's manifest and helm data (values, chart) into

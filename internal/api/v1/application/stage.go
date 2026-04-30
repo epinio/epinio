@@ -36,17 +36,18 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -159,7 +160,7 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, config StagingS
 // It creates a Job resource to stage the app
 func Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -465,7 +466,7 @@ func Staged(c *gin.Context) apierror.APIErrors {
 // It streams a small status payload when the staging job finishes (success or failure) and then closes the socket.
 func StagedWebsocket(c *gin.Context) {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	namespace := c.Param("namespace")
 	stageID := c.Param("stage_id")
@@ -512,7 +513,7 @@ func StagedWebsocket(c *gin.Context) {
 
 	// initial acknowledgement so the caller knows the socket is established
 	if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-		log.Errorw("failed to send initial staging websocket message",
+		helpers.Logger.Errorw("failed to send initial staging websocket message",
 			"error", err,
 		)
 		return
@@ -577,7 +578,7 @@ func StagedWebsocket(c *gin.Context) {
 				"waiting for staging job to finish",
 				false,
 			); err != nil {
-				log.Errorw("failed to send staging heartbeat", "error", err)
+				helpers.Logger.Errorw("failed to send staging heartbeat", "error", err)
 			}
 		}
 	}
@@ -600,11 +601,7 @@ func validateBlob(
 		return apierror.InternalError(err, "querying blob id meta-data")
 	}
 
-	// S3 and SeaweedFS return user metadata keys in lowercase (per S3/HTTP behavior)
-	blobApp, ok := blobMeta["app"]
-	if !ok {
-		blobApp, ok = blobMeta["App"]
-	}
+	blobApp, ok := blobMeta["App"]
 	if !ok {
 		return apierror.NewInternalError("blob has no app name meta data")
 	}
@@ -613,10 +610,7 @@ func validateBlob(
 			WithDetailsf("expected: [%s], found: [%s]", app.Name, blobApp)
 	}
 
-	blobNamespace, ok := blobMeta["namespace"]
-	if !ok {
-		blobNamespace, ok = blobMeta["Namespace"]
-	}
+	blobNamespace, ok := blobMeta["Namespace"]
 	if !ok {
 		return apierror.NewInternalError("blob has no namespace meta data")
 	}
@@ -1098,7 +1092,7 @@ type StagingScriptConfig struct {
 func DetermineStagingScripts(ctx context.Context,
 	cluster *kubernetes.Cluster,
 	namespace, builder string) (*StagingScriptConfig, error) {
-	logger := requestctx.Logger(ctx).With("component", "staging-scripts")
+	logger := helpers.Logger.With("component", "staging-scripts")
 
 	logger.Infow("locate staging scripts", "namespace", namespace)
 	logger.Infow("locate staging scripts", "builder", builder)
@@ -1192,7 +1186,7 @@ func StagingScriptConfigResolve(ctx context.Context, cluster *kubernetes.Cluster
 		return nil
 	}
 
-	logger := requestctx.Logger(ctx).With("component", "staging-scripts")
+	logger := helpers.Logger.With("component", "staging-scripts")
 	logger.Infow("locate staging scripts - inherit", "base", config.Base)
 
 	base, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), config.Base)

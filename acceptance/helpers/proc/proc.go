@@ -20,10 +20,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Get constructs an *exec.Cmd for the given command and arguments.
-// This helper is only used in acceptance tests where the commands are
-// controlled by the test code and not by arbitrary user input.
-// #nosec G204 - command comes from trusted test code
 func Get(dir, command string, arg ...string) (*exec.Cmd, error) {
 	var err error
 
@@ -33,7 +29,7 @@ func Get(dir, command string, arg ...string) (*exec.Cmd, error) {
 		}
 	}
 
-	p := exec.Command(command, arg...) // nolint:gosec // acceptance test helper, command from test code
+	p := exec.Command(command, arg...)
 	p.Dir = dir
 
 	return p, nil
@@ -44,11 +40,8 @@ func RunW(cmd string, args ...string) (string, error) {
 	return Run("", false, cmd, args...)
 }
 
-// Run executes a command in the given directory and returns its combined output.
-// It is used by test helpers that pass in fixed command names and arguments.
-// #nosec G204 - command comes from trusted test code
 func Run(dir string, toStdout bool, command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...) // nolint:gosec // acceptance test helper, command from test code
+	cmd := exec.Command(command, args...)
 
 	var b bytes.Buffer
 	if toStdout {

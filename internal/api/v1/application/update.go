@@ -17,13 +17,14 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	"github.com/gin-gonic/gin"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,7 +40,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	username := requestctx.User(ctx).Username
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -151,7 +152,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		desired = *updateRequest.Instances
 		log.Infow("updating app", "instances", desired)
 
-		err := application.ScalingSetWithEvent(ctx, cluster, appRef, desired, username)
+		err := application.ScalingSet(ctx, cluster, appRef, desired)
 		if err != nil {
 			return apierror.InternalError(err)
 		}

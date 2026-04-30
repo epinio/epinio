@@ -44,13 +44,13 @@ const (
 type RegistryCredentials struct {
 	URL      string
 	Username string
-	Password string // nolint:gosec // intentional auth field for registry
+	Password string
 }
 
 type ContainerRegistryAuth struct {
 	Auth     string `json:"auth"`
 	Username string `json:"username"`
-	Password string `json:"password"` // nolint:gosec // intentional auth field for registry
+	Password string `json:"password"`
 }
 
 type DockerConfigJSON struct {
@@ -449,7 +449,7 @@ func DeleteImage(
 	client := &http.Client{
 		Transport: transport,
 	}
-	resp, err := client.Do(req) // nolint:gosec // registry URL from cluster config, not user input
+	resp, err := client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "fetching manifest")
 	}
@@ -534,7 +534,7 @@ func listRepositoryTags(ctx context.Context, scheme, registryURL, repository, au
 
 	listReq.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 
-	listResp, err := client.Do(listReq) // nolint:gosec // registry URL from cluster config, not user input
+	listResp, err := client.Do(listReq)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing tags")
 	}
@@ -586,7 +586,7 @@ func deleteTagByTag(
 	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json")
 
-	resp, err := client.Do(req) // nolint:gosec // registry URL from cluster config, not user input
+	resp, err := client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "fetching manifest")
 	}
@@ -632,7 +632,7 @@ func deleteTagByTag(
 	}
 	deleteReq.Header.Set("Accept", acceptHeader)
 
-	deleteResp, err := client.Do(deleteReq) // nolint:gosec // registry URL from cluster config, not user input
+	deleteResp, err := client.Do(deleteReq)
 	if err != nil {
 		return errors.Wrap(err, "deleting manifest")
 	}

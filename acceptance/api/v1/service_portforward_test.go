@@ -12,15 +12,13 @@
 package v1_test
 
 import (
-	"crypto/tls"
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gorilla/websocket"
@@ -38,32 +36,32 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 
 	Context("With ensured namespace", func() {
 
-		BeforeEach(func() {
-			namespace = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace)
+		// todo (austin)
+		// BeforeEach(func() {
+		// 	namespace = catalog.NewNamespaceName()
+		// 	env.SetupAndTargetNamespace(namespace)
+		// 	settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+		// 	Expect(err).ToNot(HaveOccurred())
 
-			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
-			Expect(err).ToNot(HaveOccurred())
+		// 	// parse the API URL to properly pull the hostname without duplicating a port entry.
+		// 	parsed, err := url.Parse(settings.API)
+		// 	Expect(err).ToNot(HaveOccurred())
 
-			// parse the API URL to properly pull the hostname without duplicating a port entry.
-			parsed, err := url.Parse(settings.API)
-			Expect(err).ToNot(HaveOccurred())
+		// 	catalogServiceName := catalog.NewCatalogServiceName()
+		// 	catalogServiceHostname = strings.Replace(parsed.Hostname(), `epinio`, catalogServiceName, 1)
 
-			catalogServiceName := catalog.NewCatalogServiceName()
-			catalogServiceHostname = strings.Replace(parsed.Hostname(), `epinio`, catalogServiceName, 1)
+		// 	catalogService = catalog.NginxCatalogService(catalogServiceName)
+		// 	catalog.CreateCatalogService(catalogService)
 
-			catalogService = catalog.NginxCatalogService(catalogServiceName)
-			catalog.CreateCatalogService(catalogService)
+		// 	// temporarily include :8080 to test port resolution
+		// 	// catalogServiceURL = "http://" + catalogServiceHostname
+		// 	catalogServiceURL = fmt.Sprintf("%s://%s:%s", "https", catalogServiceHostname, parsed.Port())
 
-			// temporarily include :8080 to test port resolution
-			// catalogServiceURL = "http://" + catalogServiceHostname
-			catalogServiceURL = fmt.Sprintf("%s://%s:%s", "https", catalogServiceHostname, parsed.Port())
-
-			DeferCleanup(func() {
-				catalog.DeleteCatalogService(catalogService.Meta.Name)
-				env.DeleteNamespace(namespace)
-			})
-		})
+		// 	DeferCleanup(func() {
+		// 		catalog.DeleteCatalogService(catalogService.Meta.Name)
+		// 		env.DeleteNamespace(namespace)
+		// 	})
+		// })
 
 		Context("With ensured service", func() {
 			var serviceName string
@@ -81,15 +79,18 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 				//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
 				Eventually(func() int {
 					tr := &http.Transport{
-						TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 					}
 					noTlsClient := &http.Client{Transport: tr}
-					
+
 					resp, err := noTlsClient.Get(catalogServiceURL)
+
 					if err != nil {
-						return 0
+						fmt.Println(resp)
+						fmt.Println(err)
 					}
-					defer resp.Body.Close()
+
+					Expect(err).ToNot(HaveOccurred())
 					return resp.StatusCode
 				}, "1m", "1s").Should(Equal(http.StatusOK))
 

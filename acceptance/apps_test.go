@@ -18,9 +18,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -37,7 +37,6 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"gopkg.in/yaml.v2"
 
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -131,8 +130,7 @@ var _ = Describe("Apps", LApplication, func() {
 						WithRow("App Chart", "standard"),
 						WithRow("Desired Instances", "2"),
 						WithRow("Bound Configurations", configurationName),
-						// CLI now labels this section as "User Environment".
-						WithRow("User Environment", ""),
+						WithRow("Environment", ""),
 						WithRow("- COMPLEX", "-X foo=bar"),
 						WithRow("- COMPLEXB", "-Xbab -Xaba"),
 						WithRow("- CREDO", "up"),
@@ -270,21 +268,18 @@ var _ = Describe("Apps", LApplication, func() {
 				"-e", "BP_PHP_WEB_DIR=wordpress",
 				"-e", "BP_PHP_VERSION=8.0.x",
 				"-e", "BP_PHP_SERVER=nginx")
-			Expect(err).ToNot(HaveOccurred(),
-				"push from git (repository alone) failed. Push output:\n---\n%s\n---", pushLog)
+			Expect(err).ToNot(HaveOccurred(), pushLog)
 
-			var listOut string
 			Eventually(func() string {
-				var err error
-				listOut, err = env.Epinio("", "app", "list")
-				Expect(err).ToNot(HaveOccurred(), listOut)
-				return listOut
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
 			}, "5m").Should(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
 					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
 				),
-				"app list should show app as 1/1. Output:\n---\n%s\n---", listOut)
+			)
 
 			By("deleting the app")
 			env.DeleteApp(appName)
@@ -351,8 +346,6 @@ var _ = Describe("Apps", LApplication, func() {
 			})
 
 			It("pushes the app when providing a proper token", func() {
-				Expect(os.Getenv("PRIVATE_REPO_IMPORT_PAT")).ToNot(BeEmpty(), "PRIVATE_REPO_IMPORT_PAT not set; this test requires a private repo token")
-
 				env.MakeGitconfig(catalog.NewGitconfigName())
 
 				out, err := env.Epinio("", "push", "--name", appName, "--git", privateRepo)
@@ -801,38 +794,28 @@ var _ = Describe("Apps", LApplication, func() {
 					"--builder-image", defaultBuilder)
 			}()
 
-			// Wait until previous staging job is done (Complete or Failed). Staging is expected
-			// to complete so deployment can fail; in slow or flaky envs we accept Failed too.
+			// Wait until previous staging job is complete
 			By("waiting for the old staging job to complete")
-			var lastJobList string
 			Eventually(func() error {
-				var err error
-				lastJobList, err = proc.Kubectl("get", "jobs", "-A",
+				statusJSON, err := proc.Kubectl("get", "jobs", "-A",
 					"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
-					"-o", "json")
+					"-o", "jsonpath={.items[].status['conditions'][]}")
 				if err != nil {
 					return err
 				}
 
-				var list batchv1.JobList
-				if err := json.Unmarshal([]byte(lastJobList), &list); err != nil {
+				var status map[string]string
+				err = json.Unmarshal([]byte(statusJSON), &status)
+				if err != nil {
 					return err
 				}
-				if len(list.Items) == 0 {
-					return errors.New("no staging job found yet")
+
+				if status["type"] != "Complete" || status["status"] != "True" {
+					return errors.New("staging job not complete")
 				}
 
-				for _, job := range list.Items {
-					for _, c := range job.Status.Conditions {
-						if c.Status == corev1.ConditionTrue &&
-							(c.Type == batchv1.JobComplete || c.Type == batchv1.JobFailed || c.Type == "FailureTarget") {
-							return nil
-						}
-					}
-				}
-				return errors.New("staging job not complete")
-			}, 5*time.Minute, 3*time.Second).ShouldNot(HaveOccurred(),
-				"timed out waiting for staging job. Last job list (excerpt):\n---\n%s\n---", lastJobList)
+				return nil
+			}, 3*time.Minute, 3*time.Second).ShouldNot(HaveOccurred())
 
 		})
 
@@ -844,11 +827,10 @@ var _ = Describe("Apps", LApplication, func() {
 		It("shows the proper status", func() {
 			out, err := env.Epinio("", "app", "show", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
-			// Status may be deployment failed (staging ok) or staging failed depending on timing
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
-					WithRow("Status", "((0/1)|(staging ok, deployment failed)|(not deployed, staging failed))"),
+					WithRow("Status", "((0/1)|(staging ok, deployment failed))"),
 				),
 			)
 
@@ -857,34 +839,18 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-					// Failed deploys can transiently report either desired replicas (0/1)
-					// or no workload yet (n/a), depending on reconcile timing.
-					WithRow(appName, WithDate(), "((0/1)|(n/a))", ".*", "", ".*"),
+					WithRow(appName, WithDate(), "0/1", ".*", "", ".*"),
 				),
 			)
 		})
 
 		It("succeeds when re-pushing a fix", func() {
-			// Fix the problem (so that the app now deploys fine) and push again.
-			// The app may already exist from the failed push (409); retry after a short wait.
+			// Fix the problem (so that the app now deploys fine) and push again
 			By("fixing the problem and pushing the application again")
 			os.Remove(path.Join(tmpDir, "Procfile"))
-			var out string
-			var err error
-			for attempt := 0; attempt < 3; attempt++ {
-				out, err = env.EpinioPush(tmpDir, appName, "--name", appName,
-					"--builder-image", defaultBuilder)
-				if err == nil {
-					break
-				}
-				if strings.Contains(out, "already exists") || strings.Contains(out, "409") {
-					time.Sleep(15 * time.Second)
-					continue
-				}
-				break
-			}
-			Expect(err).ToNot(HaveOccurred(),
-				"re-push after fixing Procfile failed. Push output:\n---\n%s\n---", out)
+			out, err := env.EpinioPush(tmpDir, appName, "--name", appName,
+				"--builder-image", defaultBuilder)
+			Expect(err).ToNot(HaveOccurred(), out)
 		})
 	})
 
@@ -914,8 +880,7 @@ var _ = Describe("Apps", LApplication, func() {
 				_, _ = env.EpinioPush(tmpDir, appName, "--name", appName)
 			}()
 
-			// Wait until previous staging job is complete (failed). Kubernetes may report
-			// either "Failed" or "FailureTarget" depending on version.
+			// Wait until previous staging job is complete
 			By("waiting for the old staging job to fail")
 			Eventually(func() string {
 				statusJSON, err := proc.Kubectl(
@@ -932,7 +897,7 @@ var _ = Describe("Apps", LApplication, func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				return status["type"]
-			}, 3*time.Minute, 3*time.Second).Should(SatisfyAny(BeEquivalentTo("Failed"), BeEquivalentTo("FailureTarget")))
+			}, 3*time.Minute, 3*time.Second).Should(BeEquivalentTo("Failed"))
 		})
 
 		It("succeeds when re-pushing a fix", func() {
@@ -1036,19 +1001,11 @@ var _ = Describe("Apps", LApplication, func() {
 			})
 
 			It("is using the cache PVC", func() {
-				pvcName := names.GenerateResourceName(namespace, "cache", appName)
-				// Wait for build cache PVC to appear (staging may create it asynchronously).
-				var found bool
-				for deadline := time.Now().Add(2 * time.Minute); time.Now().Before(deadline); time.Sleep(5 * time.Second) {
-					_, err := proc.Kubectl("get", "pvc", "--namespace", testenv.Namespace, pvcName)
-					if err == nil {
-						found = true
-						break
-					}
-				}
-				Expect(found).To(BeTrue(), "build cache PVC %q was not present in namespace %q after waiting 2m", pvcName, testenv.Namespace)
+				out, err := proc.Kubectl("get", "pvc", "--namespace",
+					testenv.Namespace, names.GenerateResourceName(namespace, appName))
+				Expect(err).ToNot(HaveOccurred(), out)
 
-				out, err := push()
+				out, err = push()
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(out).To(ContainSubstring("Reusing cached layer"))
@@ -1056,22 +1013,15 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 		When("deleting the app", func() {
 			It("deletes the cache PVC too", func() {
-				pvcName := names.GenerateResourceName(namespace, "cache", appName)
-				// Wait for build cache PVC to appear.
-				var found bool
-				for deadline := time.Now().Add(2 * time.Minute); time.Now().Before(deadline); time.Sleep(5 * time.Second) {
-					_, err := proc.Kubectl("get", "pvc", "--namespace", testenv.Namespace, pvcName)
-					if err == nil {
-						found = true
-						break
-					}
-				}
-				Expect(found).To(BeTrue(), "build cache PVC %q was not present in namespace %q after waiting 2m", pvcName, testenv.Namespace)
+				out, err := proc.Kubectl("get", "pvc", "--namespace",
+					testenv.Namespace, names.GenerateResourceName(namespace, appName))
+				Expect(err).ToNot(HaveOccurred(), out)
 				env.DeleteApp(appName)
 
-				out, err := proc.Kubectl("get", "pvc", "--namespace", testenv.Namespace, pvcName)
+				out, err = proc.Kubectl("get", "pvc", "--namespace",
+					testenv.Namespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).To(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring(`persistentvolumeclaims "%s" not found`, pvcName))
+				Expect(out).To(ContainSubstring(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(namespace, appName)))
 			})
 		})
 	})
@@ -1098,8 +1048,8 @@ var _ = Describe("Apps", LApplication, func() {
 			})
 
 			// WARNING -- Find may return a bad value for higher trace levels
-			routeRegexp := regexp.MustCompile(`https:\/\/[^\s]+(sslip\.io|nip\.io)`)
-			route := testenv.AppRouteWithPort(string(routeRegexp.Find([]byte(out))))
+			routeRegexp := regexp.MustCompile(`https:\/\/.*sslip.io`)
+			route := string(routeRegexp.Find([]byte(out)))
 
 			Eventually(func() int {
 				resp, err := env.Curl("GET", route, strings.NewReader(""))
@@ -1124,14 +1074,14 @@ var _ = Describe("Apps", LApplication, func() {
 			out := env.MakeApp(appName, 1, true)
 
 			// WARNING -- Find may return a bad value for higher trace levels
-			routeRegexp := regexp.MustCompile(`https:\/\/[^\s]+(sslip\.io|nip\.io)`)
-			route := testenv.AppRouteWithPort(string(routeRegexp.Find([]byte(out))))
+			routeRegexp := regexp.MustCompile(`https:\/\/.*sslip.io`)
+			route := string(routeRegexp.Find([]byte(out)))
 
 			Eventually(func() int {
 				resp, err := env.Curl("GET", route, strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				return resp.StatusCode
-			}, 2*time.Minute, 5*time.Second).Should(Equal(http.StatusOK))
+			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
 			By("deleting the app")
 			env.DeleteApp(appName)
@@ -1582,22 +1532,8 @@ configuration:
 
 		Context("with --no-restart flag", func() {
 			getPodNames := func(namespace, app string) ([]string, error) {
-				// Only Running pods; excludes Terminating pods during rollout
-				podName, err := proc.Kubectl("get", "pods", "-n", namespace,
-					"-l", fmt.Sprintf("app.kubernetes.io/name=%s", app),
-					"--field-selector=status.phase=Running",
-					"-o", "jsonpath='{.items[*].metadata.name}'")
-				if err != nil {
-					return nil, err
-				}
-				raw := strings.Split(strings.Trim(podName, "'"), " ")
-				var names []string
-				for _, s := range raw {
-					if n := strings.TrimSpace(s); n != "" {
-						names = append(names, n)
-					}
-				}
-				return names, nil
+				podName, err := proc.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+				return strings.Split(strings.Trim(podName, "'"), " "), err
 			}
 
 			It("updates instances without restarting the app", func() {
@@ -1605,49 +1541,42 @@ configuration:
 
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "show", appName)
-					if err != nil {
-						return "" // retry on transient API errors (e.g. 503)
-					}
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 					return out
-				}, "2m", "5s").Should(
+				}, "1m").Should(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Status", "1/1"),
 					),
 				)
 
-				podNamesBeforeUpdate, err := getPodNames(namespace, appName)
+				// Get pod names before update
+				oldPodNames, err := getPodNames(namespace, appName)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(podNamesBeforeUpdate).ToNot(BeEmpty())
 
 				// Update with --no-restart flag
 				out, err := env.Epinio("", "app", "update", appName, "-i", "2", "--no-restart")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("Successfully updated application"))
 
-				// Verify desired instances changed; readiness can lag on overloaded CI clusters.
+				// Verify instances changed
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "show", appName)
-					if err != nil {
-						return "" // retry on transient API errors (e.g. 503)
-					}
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 					return out
-				}, "20m", "10s").Should(
+				}, "1m").Should(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
-						WithRow("Desired Instances", "2"),
-						WithRow("Status", "(1|2)/2"),
+						WithRow("Status", "2/2"),
 					),
 				)
 
-				// Validate at least one original running pod remains after no-restart update.
-				Eventually(func() []string {
+				// Verify pods DID NOT restart (pod names should be the same)
+				Consistently(func() []string {
 					names, err := getPodNames(namespace, appName)
-					if err != nil {
-						return nil
-					}
+					Expect(err).ToNot(HaveOccurred())
 					return names
-				}, "2m", "5s").Should(ContainElement(podNamesBeforeUpdate[0]))
+				}, "10s", "2s").Should(ContainElements(oldPodNames))
 			})
 
 			It("updates environment without restarting the app", func() {
@@ -1664,6 +1593,7 @@ configuration:
 					),
 				)
 
+				// Get pod names before update
 				oldPodNames, err := getPodNames(namespace, appName)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -1682,9 +1612,7 @@ configuration:
 				// Verify pods DID NOT restart
 				Consistently(func() []string {
 					names, err := getPodNames(namespace, appName)
-					if err != nil {
-						return oldPodNames
-					}
+					Expect(err).ToNot(HaveOccurred())
 					return names
 				}, "10s", "2s").Should(ContainElements(oldPodNames))
 			})
@@ -1694,11 +1622,9 @@ configuration:
 
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "show", appName)
-					if err != nil {
-						return "" // retry on transient API errors (e.g. 503)
-					}
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 					return out
-				}, "2m", "5s").Should(
+				}, "1m").Should(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Status", "1/1"),
@@ -1706,35 +1632,19 @@ configuration:
 				)
 
 				// Get pod names before update
-				_, err := getPodNames(namespace, appName)
+				oldPodNames, err := getPodNames(namespace, appName)
 				Expect(err).ToNot(HaveOccurred())
 
 				// Update WITHOUT --no-restart (should restart by default)
 				out, err := env.Epinio("", "app", "update", appName, "-i", "2")
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				// Wait for rollout to complete (2 instances ready) before checking pod names
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "show", appName)
-					if err != nil {
-						return ""
-					}
-					return out
-				}, "15m", "5s").Should(
-					HaveATable(
-						WithHeaders("KEY", "VALUE"),
-						WithRow("Status", "2/2"),
-					),
-					"wait for app to have 2/2 instances after update (restart) before checking pod names")
-
-				// Ensure the rollout converged to two running pods.
-				Eventually(func() int {
+				// Verify restart occurred (pod names changed)
+				Eventually(func() []string {
 					names, err := getPodNames(namespace, appName)
-					if err != nil {
-						return 0
-					}
-					return len(names)
-				}, "8m", "5s").Should(Equal(2))
+					Expect(err).ToNot(HaveOccurred())
+					return names
+				}, "1m", "2s").ShouldNot(ContainElements(oldPodNames))
 			})
 		})
 	})
@@ -1906,43 +1816,8 @@ configuration:
 				})
 
 				It("exports the details of a customized app", func() {
-					Skip("Skipping export test for container image epinio/sample-app due upstream registry pull denial in CI")
-
-					Eventually(func() string {
-						out, err := env.Epinio("", "app", "show", app)
-						if err != nil {
-							return ""
-						}
-						return out
-					}, "10m", "10s").Should(
-						HaveATable(
-							WithHeaders("KEY", "VALUE"),
-							WithRow("Status", "1/1"),
-						),
-					)
-
-					Eventually(func() error {
-						out, err := env.Epinio("", "app", "export", app, exportPath)
-						if err != nil {
-							fmt.Fprintf(GinkgoWriter, "[DEBUG export customized] epinio app export failed: err=%v; combined stdout/stderr:\n---\n%s\n---\n", err, out)
-							return fmt.Errorf("export command failed: %w; output: %s", err, out)
-						}
-						if strings.Contains(out, "failed to retrieve image") || strings.Contains(out, "failed to open tar file") {
-							return fmt.Errorf("export failed: %s", out)
-						}
-						for _, f := range []string{exportValues, exportChart, exportImage} {
-							if _, err := os.Stat(f); err != nil {
-								entries, _ := os.ReadDir(exportPath)
-								var names []string
-								for _, e := range entries {
-									names = append(names, e.Name())
-								}
-								fmt.Fprintf(GinkgoWriter, "[DEBUG export customized] file missing: %q err=%v; exportPath contents: %v\n", f, err, names)
-								return err
-							}
-						}
-						return nil
-					}, "24m", "45s").ShouldNot(HaveOccurred(), "export failed")
+					out, err := env.Epinio("", "app", "export", app, exportPath)
+					Expect(err).ToNot(HaveOccurred(), out)
 
 					exported, err := filepath.Glob(exportPath + "/*")
 					Expect(err).ToNot(HaveOccurred(), exported)
@@ -1956,7 +1831,7 @@ configuration:
 					values, err := os.ReadFile(exportValues)
 					Expect(err).ToNot(HaveOccurred(), string(values))
 
-					expectedCustomized := fmt.Sprintf(`chartConfig:
+					Expect(string(values)).To(Equal(fmt.Sprintf(`chartConfig:
   tuning: speed
 epinio:
   appName: %s
@@ -1976,11 +1851,7 @@ epinio:
   username: admin
 userConfig:
   foo: bar
-`, app, domain, domain)
-					actualCustomized := string(values)
-					Expect(actualCustomized).To(Equal(expectedCustomized),
-						"Exported values.yaml (customized app) did not match.\n\nExpected (length %d):\n---\n%s\n---\n\nActual (length %d):\n---\n%s\n---",
-						len(expectedCustomized), expectedCustomized, len(actualCustomized), actualCustomized)
+`, app, domain, domain)))
 					// Not checking that exportChart is a proper tarball.
 				})
 			})
@@ -2009,43 +1880,8 @@ userConfig:
 			})
 
 			It("exports the details of an app", func() {
-				Skip("Skipping export test for container image epinio/sample-app due upstream registry pull denial in CI")
-
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "show", app)
-					if err != nil {
-						return ""
-					}
-					return out
-				}, "10m", "10s").Should(
-					HaveATable(
-						WithHeaders("KEY", "VALUE"),
-						WithRow("Status", "1/1"),
-					),
-				)
-
-				Eventually(func() error {
-					out, err := env.Epinio("", "app", "export", app, exportPath)
-					if err != nil {
-						fmt.Fprintf(GinkgoWriter, "[DEBUG export] epinio app export failed: err=%v (exit code may be 255); combined stdout/stderr:\n---\n%s\n---\n", err, out)
-						return fmt.Errorf("export command failed: %w; output: %s", err, out)
-					}
-					if strings.Contains(out, "failed to retrieve image") || strings.Contains(out, "failed to open tar file") {
-						return fmt.Errorf("export failed: %s", out)
-					}
-					for _, f := range []string{exportValues, exportChart, exportImage} {
-						if _, err := os.Stat(f); err != nil {
-							entries, _ := os.ReadDir(exportPath)
-							var names []string
-							for _, e := range entries {
-								names = append(names, e.Name())
-							}
-							fmt.Fprintf(GinkgoWriter, "[DEBUG export] file missing: %q err=%v; exportPath contents: %v\n", f, err, names)
-							return err
-						}
-					}
-					return nil
-				}, "24m", "45s").ShouldNot(HaveOccurred(), "export failed")
+				out, err := env.Epinio("", "app", "export", app, exportPath)
+				Expect(err).ToNot(HaveOccurred(), out)
 
 				exported, err := filepath.Glob(exportPath + "/*")
 				Expect(err).ToNot(HaveOccurred(), exported)
@@ -2079,8 +1915,6 @@ userConfig:
 			})
 
 			It("correctly handles complex quoting when deploying and exporting an app", func() {
-				Skip("Skipping export test for container image epinio/sample-app due upstream registry pull denial in CI")
-
 				out, err := env.Epinio("", "apps", "env", "set", app,
 					"complex", `{
    "usernameOrOrg": "scures",
@@ -2089,41 +1923,8 @@ userConfig:
 }`)
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "show", app)
-					if err != nil {
-						return ""
-					}
-					return out
-				}, "10m", "10s").Should(
-					HaveATable(
-						WithHeaders("KEY", "VALUE"),
-						WithRow("Status", "1/1"),
-					),
-				)
-
-				Eventually(func() error {
-					out, err := env.Epinio("", "app", "export", app, exportPath)
-					if err != nil {
-						fmt.Fprintf(GinkgoWriter, "[DEBUG export complex quoting] epinio app export failed: err=%v; combined stdout/stderr:\n---\n%s\n---\n", err, out)
-						return fmt.Errorf("export command failed: %w; output: %s", err, out)
-					}
-					if strings.Contains(out, "failed to retrieve image") || strings.Contains(out, "failed to open tar file") {
-						return fmt.Errorf("export failed: %s", out)
-					}
-					for _, f := range []string{exportValues, exportChart, exportImage} {
-						if _, err := os.Stat(f); err != nil {
-							entries, _ := os.ReadDir(exportPath)
-							var names []string
-							for _, e := range entries {
-								names = append(names, e.Name())
-							}
-							fmt.Fprintf(GinkgoWriter, "[DEBUG export complex quoting] file missing: %q err=%v; exportPath contents: %v\n", f, err, names)
-							return err
-						}
-					}
-					return nil
-				}, "24m", "45s").ShouldNot(HaveOccurred(), "export failed")
+				out, err = env.Epinio("", "app", "export", app, exportPath)
+				Expect(err).ToNot(HaveOccurred(), out)
 
 				exported, err := filepath.Glob(exportPath + "/*")
 				Expect(err).ToNot(HaveOccurred(), exported)
@@ -2137,7 +1938,7 @@ userConfig:
 				values, err := os.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
 
-				expected := fmt.Sprintf(`epinio:
+				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
   appName: %s
   configpaths: []
   configurations: []
@@ -2158,11 +1959,7 @@ userConfig:
   stageID: ""
   tlsIssuer: epinio-ca
   username: admin
-`, app, domain, domain)
-				actual := string(values)
-				Expect(actual).To(Equal(expected),
-					"Exported values.yaml did not match.\n\nExpected (length %d):\n---\n%s\n---\n\nActual (length %d):\n---\n%s\n---",
-					len(expected), expected, len(actual), actual)
+`, app, domain, domain)))
 				// Not checking that exportChart is a proper tarball.
 			})
 		})
@@ -2289,9 +2086,8 @@ userConfig:
 			By("deploying an app")
 
 			out := env.MakeApp(appName, 1, true)
-			routeRegexp := regexp.MustCompile(`https:\/\/[^\s]+(sslip\.io|nip\.io)`)
-			route = testenv.AppRouteWithPort(string(routeRegexp.Find([]byte(out))))
-			Expect(route).ToNot(BeEmpty(), "route not found in MakeApp output (expected https://...sslip.io or ...nip.io). Output:\n%s", out)
+			routeRegexp := regexp.MustCompile(`https:\/\/.*sslip.io`)
+			route = string(routeRegexp.Find([]byte(out)))
 
 			By("getting the current logs in full")
 			out, err := env.Epinio("", "app", "logs", appName)
@@ -2374,79 +2170,52 @@ userConfig:
 			}, "1m").Should(Equal(http.StatusOK))
 
 			By("checking the latest log")
-			var lastLogLine string
 			Eventually(func() string {
 				scanner.Scan()
-				lastLogLine = scanner.Text()
-				return lastLogLine
-			}, "180s").Should(ContainSubstring("[200]: GET /"),
-				"log stream should contain '[200]: GET /'. Last line received:\n---\n%s\n--- (route: %s)", lastLogLine, route)
+				return scanner.Text()
+			}, "30s").Should((ContainSubstring("[200]: GET /")))
 		})
 	})
 
 	Describe("exec", func() {
 		BeforeEach(func() {
-			env.MakeContainerImageApp(appName, 1, containerImageURL)
+			pushOutput, err := env.Epinio("", "apps", "push",
+				"--name", appName,
+				"--container-image-url", containerImageURL,
+			)
+			Expect(err).ToNot(HaveOccurred(), pushOutput)
 		})
 
 		AfterEach(func() {
 			env.DeleteApp(appName)
 		})
 
-		// Skip at runtime (instead of XIt) so --fail-on-pending does not fail the suite.
 		It("executes a command in the application's container (one of the pods)", func() {
-			// Use /tmp so the test works for both buildpack and container-image apps (container images often have no /workspace).
-			testFilePath := "/tmp/epinio-exec-testfile"
-			var podName string
-			// Ensure a running pod exists before trying websocket exec. Under CI load, the
-			// app can be created but not yet in Running phase when exec is attempted.
-			Eventually(func() string {
-				out, err := proc.Kubectl("get", "pods",
-					"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
-					"-n", namespace,
-					"--field-selector=status.phase=Running",
-					"-o", "jsonpath={.items[0].metadata.name}")
-				if err != nil {
-					return ""
-				}
-				podName = strings.TrimSpace(out)
-				return podName
-			}, "120s", "3s").ShouldNot(BeEmpty(), "no running pod found for app %s in namespace %s", appName, namespace)
+			var out bytes.Buffer
+			containerCmd := bytes.NewReader([]byte("echo testthis > /workspace/testfile && exit\r"))
 
-			var out string
-			var runErr error
-			// apps exec uses websocket upgrades and can occasionally fail under CI load with a transient exit 255.
-			// Retry to reduce flakes while keeping the behavior assertion intact.
-			Eventually(func() error {
-				// Prefix with newline and terminate with newline to make shell parsing
-				// reliable across different prompt/readline timings.
-				script := "\necho testthis > " + testFilePath + "\nexit\n"
-				var err error
-				out, err = env.EpinioCLI("", func() io.Reader {
-					return bytes.NewReader([]byte(script))
-				}, "--skip-ssl-verification", "apps", "exec", appName, "--instance", podName)
-				runErr = err
-				if err != nil {
-					return err
-				}
-				return nil
-			}, "300s", "10s").Should(Succeed(), func() string {
-				return fmt.Sprintf("apps exec failed. last error: %v\noutput:\n%s", runErr, out)
-			})
+			cmd := exec.Command(testenv.EpinioBinaryPath(), "apps", "exec", appName)
+			cmd.Stdin = containerCmd
+			cmd.Stdout = &out
+			cmd.Stderr = &out
 
-			var remoteOut string
-			var remoteErr error
-			Eventually(func() string {
-				remoteOut, remoteErr = proc.Kubectl("exec",
-					podName, "-n", namespace,
-					"--", "cat", testFilePath)
-				if remoteErr != nil {
-					return ""
-				}
-				return strings.TrimSpace(remoteOut)
-			}, "30s", "2s").Should(Equal("testthis"),
-				"exec test: epinio exec stdout:\n%s\n---\nkubectl exec cat %s (pod %s) error: %v\noutput:\n%s",
-				out, testFilePath, podName, remoteErr, remoteOut)
+			err := cmd.Run()
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(out.String()).To(ContainSubstring("Executing a shell"))
+
+			podName, err := proc.Kubectl("get", "pods",
+				"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
+				"-n", namespace, "-o", "name")
+			Expect(err).ToNot(HaveOccurred())
+
+			remoteOut, err := proc.Kubectl("exec",
+				strings.TrimSpace(podName), "-n", namespace,
+				"--", "cat", "/workspace/testfile")
+			Expect(err).ToNot(HaveOccurred(), remoteOut)
+
+			// The command we run should have effects
+			Expect(strings.TrimSpace(remoteOut)).To(Equal("testthis"))
 		})
 	})
 
@@ -2508,8 +2277,7 @@ userConfig:
 			It("does not match bogus arguments", func() {
 				out, err := env.Epinio("", "__complete", "app", command, appName, "")
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).ToNot(ContainSubstring(appName),
-					"completion for 'app %s <appName> \"\"' should not suggest app name. Full output:\n---\n%s\n---", command, out)
+				Expect(out).ToNot(ContainSubstring(appName))
 			})
 		})
 	}

@@ -20,7 +20,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -80,41 +79,22 @@ func appImportGit(namespace, app, gitURL, revision string) ([]byte, int) {
 	data.Set("gitrev", revision)
 
 	endpoint := makeEndpoint(v1.Routes.Path("AppImportGit", namespace, app))
-	body := data.Encode()
+	request, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(data.Encode()))
+	Expect(err).ToNot(HaveOccurred())
 
-	// Use a long timeout (6m); git clone can be slow and gateways may allow up to 5m
-	client := &http.Client{
-		Transport: env.Client().Transport,
-		Timeout:   6 * time.Minute,
-	}
+	request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 
-	var bodyBytes []byte
-	var statusCode int
-	for attempt := 0; attempt < 2; attempt++ {
-		request, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(body))
-		Expect(err).ToNot(HaveOccurred())
+	response, err := env.Client().Do(request)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response).ToNot(BeNil())
+	defer response.Body.Close()
 
-		request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
-		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		request.Header.Add("Content-Length", strconv.Itoa(len(body)))
+	bodyBytes, err := io.ReadAll(response.Body)
+	Expect(err).ToNot(HaveOccurred())
 
-		response, err := client.Do(request)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(response).ToNot(BeNil())
-
-		bodyBytes, err = io.ReadAll(response.Body)
-		response.Body.Close()
-		Expect(err).ToNot(HaveOccurred())
-
-		statusCode = response.StatusCode
-		if statusCode != http.StatusGatewayTimeout || attempt == 1 {
-			break
-		}
-		// Retry once on 504 (gateway timeout); clone may succeed on retry
-		time.Sleep(2 * time.Second)
-	}
-
-	return bodyBytes, statusCode
+	return bodyBytes, response.StatusCode
 }
 
 func gitproxy(body io.Reader) ([]byte, int) {

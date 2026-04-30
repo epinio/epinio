@@ -16,12 +16,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/dex"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
@@ -82,7 +83,7 @@ func Authentication(ctx *gin.Context) {
 
 // basicAuthentication performs the Basic Authentication
 func basicAuthentication(ctx *gin.Context, authService *auth.AuthService) (auth.User, apierrors.APIErrors) {
-	logger := requestctx.Logger(ctx.Request.Context()).With("component", "basicAuthentication")
+	logger := helpers.Logger.With("component", "basicAuthentication")
 	logger.Debugw("starting Basic Authentication")
 
 	// Bail early if the request has no proper credentials embedded into it.
@@ -119,7 +120,7 @@ func basicAuthentication(ctx *gin.Context, authService *auth.AuthService) (auth.
 
 // oidcAuthentication perform the OIDC authentication with dex
 func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
-	logger := requestctx.Logger(ctx.Request.Context()).With("component", "oidcAuthentication")
+	logger := helpers.Logger.With("component", "oidcAuthentication")
 	logger.Debugw("starting OIDC Authentication")
 
 	oidcProvider, err := getOIDCProvider(ctx)
@@ -146,7 +147,7 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 		return auth.User{}, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized)
 	}
 
-	roles := getRolesFromProviderGroups(ctx.Request.Context(), oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
+	roles := getRolesFromProviderGroups(oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
 
 	user, err := getOrCreateUserByEmail(ctx, claims.Email, roles)
 	if err != nil {
@@ -190,8 +191,8 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 }
 
 // getRolesFromProviderGroups returns the user roles, looking for it in the groups defined for the provider.
-func getRolesFromProviderGroups(ctx context.Context, oidcProvider *dex.OIDCProvider, providerID string, groups []string) auth.Roles {
-	logger := requestctx.Logger(ctx).With("component", "oidcGroupRoles")
+func getRolesFromProviderGroups(oidcProvider *dex.OIDCProvider, providerID string, groups []string) auth.Roles {
+	logger := helpers.Logger.With("component", "oidcGroupRoles")
 	roles := auth.Roles{}
 
 	pg, err := oidcProvider.GetProviderGroups(providerID)

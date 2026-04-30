@@ -9,7 +9,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cli
+// Package server provides the Epinio server command and HTTP server lifecycle.
+package server
 
 import (
 	"context"
@@ -24,7 +25,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/internal/cli/server"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
@@ -40,82 +41,56 @@ func init() {
 	flags := CmdServer.Flags()
 
 	flags.StringP("namespace", "n", "epinio", "(NAMESPACE) The namespace to use")
-	err := viper.BindPFlag("namespace", flags.Lookup("namespace"))
-	checkErr(err)
-	err = viper.BindEnv("namespace", "NAMESPACE")
-	checkErr(err)
+	checkErr(viper.BindPFlag("namespace", flags.Lookup("namespace")))
+	checkErr(viper.BindEnv("namespace", "NAMESPACE"))
 
 	flags.Int("port", 0, "(PORT) The port to listen on. Leave empty to auto-assign a random port")
-	err = viper.BindPFlag("port", flags.Lookup("port"))
-	checkErr(err)
-	err = viper.BindEnv("port", "PORT")
-	checkErr(err)
+	checkErr(viper.BindPFlag("port", flags.Lookup("port")))
+	checkErr(viper.BindEnv("port", "PORT"))
 
 	flags.String("tls-issuer", "", "(TLS_ISSUER) The cluster issuer to use for workload certificates")
-	err = viper.BindPFlag("tls-issuer", flags.Lookup("tls-issuer"))
-	checkErr(err)
-	err = viper.BindEnv("tls-issuer", "TLS_ISSUER")
-	checkErr(err)
+	checkErr(viper.BindPFlag("tls-issuer", flags.Lookup("tls-issuer")))
+	checkErr(viper.BindEnv("tls-issuer", "TLS_ISSUER"))
 
 	flags.String("access-control-allow-origin", "", "(ACCESS_CONTROL_ALLOW_ORIGIN) Domains allowed to use the API")
-	err = viper.BindPFlag("access-control-allow-origin", flags.Lookup("access-control-allow-origin"))
-	checkErr(err)
-	err = viper.BindEnv("access-control-allow-origin", "ACCESS_CONTROL_ALLOW_ORIGIN")
-	checkErr(err)
+	checkErr(viper.BindPFlag("access-control-allow-origin", flags.Lookup("access-control-allow-origin")))
+	checkErr(viper.BindEnv("access-control-allow-origin", "ACCESS_CONTROL_ALLOW_ORIGIN"))
 
 	flags.String("registry-certificate-secret", "", "(REGISTRY_CERTIFICATE_SECRET) Secret for the registry's TLS certificate")
-	err = viper.BindPFlag("registry-certificate-secret", flags.Lookup("registry-certificate-secret"))
-	checkErr(err)
-	err = viper.BindEnv("registry-certificate-secret", "REGISTRY_CERTIFICATE_SECRET")
-	checkErr(err)
+	checkErr(viper.BindPFlag("registry-certificate-secret", flags.Lookup("registry-certificate-secret")))
+	checkErr(viper.BindEnv("registry-certificate-secret", "REGISTRY_CERTIFICATE_SECRET"))
 
 	flags.String("s3-certificate-secret", "", "(S3_CERTIFICATE_SECRET) Secret for the S3 endpoint TLS certificate. Can be left empty if S3 is served with a trusted certificate.")
-	err = viper.BindPFlag("s3-certificate-secret", flags.Lookup("s3-certificate-secret"))
-	checkErr(err)
-	err = viper.BindEnv("s3-certificate-secret", "S3_CERTIFICATE_SECRET")
-	checkErr(err)
+	checkErr(viper.BindPFlag("s3-certificate-secret", flags.Lookup("s3-certificate-secret")))
+	checkErr(viper.BindEnv("s3-certificate-secret", "S3_CERTIFICATE_SECRET"))
 
 	flags.String("ingress-class-name", "", "(INGRESS_CLASS_NAME) Name of the ingress class to use for apps. Leave empty to add no ingressClassName to the ingress.")
-	err = viper.BindPFlag("ingress-class-name", flags.Lookup("ingress-class-name"))
-	checkErr(err)
-	err = viper.BindEnv("ingress-class-name", "INGRESS_CLASS_NAME")
-	checkErr(err)
+	checkErr(viper.BindPFlag("ingress-class-name", flags.Lookup("ingress-class-name")))
+	checkErr(viper.BindEnv("ingress-class-name", "INGRESS_CLASS_NAME"))
 
 	flags.String("app-image-exporter", "", "(APP_IMAGE_EXPORTER) Name of the container image used to download the application image from the 'export' API.")
-	err = viper.BindPFlag("app-image-exporter", flags.Lookup("app-image-exporter"))
-	checkErr(err)
-	err = viper.BindEnv("app-image-exporter", "APP_IMAGE_EXPORTER")
-	checkErr(err)
+	checkErr(viper.BindPFlag("app-image-exporter", flags.Lookup("app-image-exporter")))
+	checkErr(viper.BindEnv("app-image-exporter", "APP_IMAGE_EXPORTER"))
 
 	flags.String("default-builder-image", "", "(DEFAULT_BUILDER_IMAGE) Name of the container image used to build images from staged sources.")
-	err = viper.BindPFlag("default-builder-image", flags.Lookup("default-builder-image"))
-	checkErr(err)
-	err = viper.BindEnv("default-builder-image", "DEFAULT_BUILDER_IMAGE")
-	checkErr(err)
+	checkErr(viper.BindPFlag("default-builder-image", flags.Lookup("default-builder-image")))
+	checkErr(viper.BindEnv("default-builder-image", "DEFAULT_BUILDER_IMAGE"))
 
 	flags.Bool("disable-tracking", false, "(DISABLE_TRACKING) Disable tracking of the running Epinio and Kubernetes versions")
-	err = viper.BindPFlag("disable-tracking", flags.Lookup("disable-tracking"))
-	checkErr(err)
-	err = viper.BindEnv("disable-tracking", "DISABLE_TRACKING")
-	checkErr(err)
+	checkErr(viper.BindPFlag("disable-tracking", flags.Lookup("disable-tracking")))
+	checkErr(viper.BindEnv("disable-tracking", "DISABLE_TRACKING"))
 
-	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Disable tracking of the running Epinio and Kubernetes versions")
-	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
-	checkErr(err)
-	err = viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS")
-	checkErr(err)
+	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Address of the upgrade responder service")
+	checkErr(viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address")))
+	checkErr(viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS"))
 
 	flags.Float32("kube-api-qps", rest.DefaultQPS, "(KUBE_API_QPS) The QPS indicates the maximum QPS of the Kubernetes client.")
-	err = viper.BindPFlag("kube-api-qps", flags.Lookup("kube-api-qps"))
-	checkErr(err)
-	err = viper.BindEnv("kube-api-qps", "KUBE_API_QPS")
-	checkErr(err)
+	checkErr(viper.BindPFlag("kube-api-qps", flags.Lookup("kube-api-qps")))
+	checkErr(viper.BindEnv("kube-api-qps", "KUBE_API_QPS"))
 
 	flags.Int("kube-api-burst", rest.DefaultBurst, "(KUBE_API_BURST) Maximum burst for throttle of the Kubernetes client.")
-	err = viper.BindPFlag("kube-api-burst", flags.Lookup("kube-api-burst"))
-	checkErr(err)
-	err = viper.BindEnv("kube-api-burst", "KUBE_API_BURST")
-	checkErr(err)
+	checkErr(viper.BindPFlag("kube-api-burst", flags.Lookup("kube-api-burst")))
+	checkErr(viper.BindEnv("kube-api-burst", "KUBE_API_BURST"))
 
 	version.ChartVersion = os.Getenv("CHART_VERSION")
 	if !strings.HasPrefix(version.ChartVersion, "v") {
@@ -130,14 +105,15 @@ var CmdServer = &cobra.Command{
 	Long:  "This command starts the Epinio server. `epinio install` ensures the server is running inside your cluster. Normally you don't need to run this command manually.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-		// Ensure the centralized logger is initialized (root persistent pre-run normally does this)
+
 		if helpers.Logger == nil {
 			if err := helpers.InitLogger(viper.GetString("log-level")); err != nil {
 				return errors.Wrap(err, "initializing logger")
 			}
 		}
 
-		handler, err := server.NewHandler()
+		// NewHandler is defined in server.go (same package, moved from internal/cli/server/server.go)
+		handler, err := NewHandler()
 		if err != nil {
 			return errors.Wrap(err, "error creating handler")
 		}
@@ -160,16 +136,14 @@ var CmdServer = &cobra.Command{
 		)
 
 		if !trackingDisabled {
-			// Convert zap logger to logr.Logger for upgraderesponder (compatibility bridge)
 			logrLogger := helpers.LoggerToLogr().WithName("UpgradeResponder")
 			checker, err := upgraderesponder.NewChecker(
 				context.Background(),
 				logrLogger,
 				upgradeResponderAddress,
 			)
-
 			if err != nil {
-				helpers.Logger.Errorw("error creating listener", "error", err)
+				helpers.Logger.Errorw("error creating upgrade checker", "error", err)
 				return err
 			}
 
@@ -181,7 +155,36 @@ var CmdServer = &cobra.Command{
 	},
 }
 
-// startServerGracefully will start the server and will wait for a graceful shutdown
+// Execute builds the minimal root command for the server binary and runs it.
+func Execute() {
+	rootCmd := &cobra.Command{
+		Use:           "epinio",
+		Short:         "Epinio server",
+		Version:       version.Version,
+		SilenceErrors: true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return helpers.InitLogger(viper.GetString("log-level"))
+		},
+	}
+
+	pf := rootCmd.PersistentFlags()
+
+	pf.String("log-level", "info", "(LOG_LEVEL) Log level (debug, info, warn, error)")
+	checkErr(viper.BindPFlag("log-level", pf.Lookup("log-level")))
+	checkErr(viper.BindEnv("log-level", "LOG_LEVEL"))
+
+	argToEnv := map[string]string{}
+	duration.Flags(pf, argToEnv)
+
+	rootCmd.AddCommand(CmdServer)
+
+	if err := rootCmd.Execute(); err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+// startServerGracefully starts the HTTP server and blocks until SIGINT or SIGTERM.
 func startServerGracefully(listener net.Listener, handler http.Handler) error {
 	srv := &http.Server{
 		Handler:           handler,
@@ -190,7 +193,7 @@ func startServerGracefully(listener net.Listener, handler http.Handler) error {
 
 	quit := make(chan os.Signal, 1)
 
-	// in coverage mode we need to be able to terminate the server to collect the report
+	// In coverage mode we need to be able to terminate the server to collect the report.
 	if _, ok := os.LookupEnv("GOCOVERDIR"); ok {
 		router := handler.(*gin.Engine)
 		router.GET("/exit", func(c *gin.Context) {
@@ -220,4 +223,16 @@ func startServerGracefully(listener net.Listener, handler http.Handler) error {
 
 	helpers.Logger.Infow("Server exiting")
 	return nil
+}
+
+// checkErr panics on viper binding errors during init. These are programmer
+// errors (mismatched flag names) and should never occur at runtime.
+func checkErr(err error) {
+	if err != nil {
+		if helpers.Logger != nil {
+			helpers.Logger.Fatalw("fatal error", "error", err)
+		}
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

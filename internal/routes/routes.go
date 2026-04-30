@@ -12,6 +12,7 @@
 package routes
 
 import (
+	"errors"
 	"strings"
 
 	networkingv1 "k8s.io/api/networking/v1"
@@ -78,7 +79,7 @@ func FromString(routeStr string) Route {
 // Ingress, ingoring all other rules if they exist.
 func FromIngress(ingress networkingv1.Ingress) ([]Route, error) {
 	if len(ingress.Spec.Rules) == 0 {
-		return []Route{}, nil
+		return nil, errors.New("no Rules found on Ingress")
 	}
 
 	result := []Route{}

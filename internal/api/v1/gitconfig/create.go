@@ -18,8 +18,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/util/validation"
 

@@ -38,7 +38,7 @@ System_Boundary(kubernetes, "kubernetes cluster"){
     Container(serviceHelm, "Service helm release", "", $tags="helmrelease")
     Container(stagingJob, "Staging Job", "paketo")
     ContainerDb(cregistry, "Container registry", "", $tags="docker")
-    ContainerDb(s3, "SeaweedFS", "S3-compatible storage", $tags="s3")
+    ContainerDb(s3, "Minio", "min.io", $tags="s3")
 }
 
 ContainerDb(externalService, "External service", "", $tags="aws-aurora")

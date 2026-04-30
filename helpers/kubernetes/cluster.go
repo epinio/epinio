@@ -18,13 +18,13 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/epinio/epinio/helpers"
 	kubeconfig "github.com/epinio/epinio/helpers/kubernetes/config"
 	generic "github.com/epinio/epinio/helpers/kubernetes/platform/generic"
 	ibm "github.com/epinio/epinio/helpers/kubernetes/platform/ibm"
 	k3s "github.com/epinio/epinio/helpers/kubernetes/platform/k3s"
 	kind "github.com/epinio/epinio/helpers/kubernetes/platform/kind"
 	minikube "github.com/epinio/epinio/helpers/kubernetes/platform/minikube"
-	"github.com/epinio/epinio/internal/cli/termui"
 
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -87,7 +87,7 @@ type Cluster struct {
 }
 
 // GetHTTP1Client returns a clientset that is always using HTTP/1.1 (not HTTP2)
-// We need that when using the WebSocket protocol and UPGRADE requests which HTTP2
+// We need that when using the SPDY protocol and UPGRADE requests which HTTP2
 // doesn't understand:
 // https://github.com/golang/net/blob/183a9ca12b87817e0ced91cdd139606cbb193ef2/http2/transport.go#L1083-L1085
 func GetHTTP1Client(ctx context.Context) (*kubernetes.Clientset, error) {
@@ -326,12 +326,8 @@ func (c *Cluster) DeleteJob(ctx context.Context, namespace string, name string) 
 
 // Wait up to timeout for Namespace to be removed.
 // Returns an error if the Namespace is not removed within the allotted time.
-func (c *Cluster) WaitForNamespaceMissing(ctx context.Context, ui *termui.UI, namespace string, timeout time.Duration) error {
-	if ui != nil {
-		s := ui.Progressf("Waiting for namespace %s to be deleted", namespace)
-		defer s.Stop()
-	}
-
+func (c *Cluster) WaitForNamespaceMissing(ctx context.Context, namespace string, timeout time.Duration) error {
+	helpers.Logger.Infow("Waiting for namespace deletion", "namespace", namespace)
 	return wait.PollUntilContextTimeout(ctx, time.Second, timeout, true, c.NamespaceDoesNotExist(ctx, namespace))
 }
 

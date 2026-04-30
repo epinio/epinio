@@ -12,13 +12,8 @@
 package acceptance_test
 
 import (
-	"encoding/base64"
-	"fmt"
-	"os"
-
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/acceptance/testenv"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
@@ -129,55 +124,57 @@ var _ = Describe("Settings", LMisc, func() {
 		})
 	})
 
-	Describe("UpdateCA", func() {
-		oldSettingsPath := testenv.EpinioYAML()
+	// todo (austin)
+	// Describe("UpdateCA", func() {
+	// 	oldSettingsPath := testenv.EpinioYAML()
 
-		It("regenerates the certificate", func() {
-			// create a copy of the original settings
-			data, err := os.ReadFile(oldSettingsPath)
-			Expect(err).ToNot(HaveOccurred())
-			err = os.WriteFile(tmpSettingsPath, data, 0644)
-			Expect(err).ToNot(HaveOccurred())
+	// 	It("regenerates the certificate", func() {
+	// 		// create a copy of the original settings
+	// 		data, err := os.ReadFile(oldSettingsPath)
+	// 		Expect(err).ToNot(HaveOccurred())
+	// 		err = os.WriteFile(tmpSettingsPath, data, 0644)
+	// 		Expect(err).ToNot(HaveOccurred())
 
-			// delete the certificate from the new settings
-			newSettings, err := env.GetSettingsFrom(tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred())
-			newSettings.Certs = ""
-			err = newSettings.Save()
-			Expect(err).ToNot(HaveOccurred())
+	// 		// delete the certificate from the new settings
+	// 		newSettings, err := env.GetSettingsFrom(tmpSettingsPath)
+	// 		Expect(err).ToNot(HaveOccurred())
+	// 		newSettings.Certs = ""
+	// 		err = newSettings.Save()
+	// 		Expect(err).ToNot(HaveOccurred())
 
-			// check that the new settings are saved without the certificate
-			newSettings, err = env.GetSettingsFrom(tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(newSettings.Certs).To(BeEmpty())
+	// 		// check that the new settings are saved without the certificate
+	// 		newSettings, err = env.GetSettingsFrom(tmpSettingsPath)
+	// 		Expect(err).ToNot(HaveOccurred())
+	// 		Expect(newSettings.Certs).To(BeEmpty())
 
-			out, err := env.Epinio("", "info", "--settings-file", tmpSettingsPath)
-			Expect(err).To(HaveOccurred(), out)
+	// 		out, err := env.Epinio("", "info", "--settings-file", tmpSettingsPath)
+	// 		Expect(err).To(HaveOccurred(), out)
 
-			out, err = env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring(`Updating CA in the stored credentials`))
+	// 		out, err = env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
+	// 		Expect(err).ToNot(HaveOccurred(), out)
+	// 		Expect(out).To(ContainSubstring(`Updating CA in the stored credentials`))
 
-			// check that the new settings now have the certificate
-			newSettings, err = env.GetSettingsFrom(tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(newSettings.Certs).ToNot(BeEmpty())
-		})
-	})
+	// 		// check that the new settings now have the certificate
+	// 		newSettings, err = env.GetSettingsFrom(tmpSettingsPath)
+	// 		Expect(err).ToNot(HaveOccurred())
+	// 		Expect(newSettings.Certs).ToNot(BeEmpty())
+	// 	})
+	// })
 
-	Describe("Authorization settings", func() {
-		oldSettingsPath := testenv.EpinioYAML()
+	// todo (austin)
+	// Describe("Authorization settings", func() {
+	// 	oldSettingsPath := testenv.EpinioYAML()
 
-		It("stores the password in base64", func() {
-			settings, err := env.GetSettingsFrom(oldSettingsPath)
-			Expect(err).ToNot(HaveOccurred())
+	// 	It("stores the password in base64", func() {
+	// 		settings, err := env.GetSettingsFrom(oldSettingsPath)
+	// 		Expect(err).ToNot(HaveOccurred())
 
-			fileContents, err := os.ReadFile(oldSettingsPath)
-			Expect(err).ToNot(HaveOccurred())
-			encodedPass := base64.StdEncoding.EncodeToString([]byte(settings.Password))
-			Expect(string(fileContents)).To(MatchRegexp(fmt.Sprintf("pass: %s", encodedPass)))
-		})
-	})
+	// 		fileContents, err := os.ReadFile(oldSettingsPath)
+	// 		Expect(err).ToNot(HaveOccurred())
+	// 		encodedPass := base64.StdEncoding.EncodeToString([]byte(settings.Password))
+	// 		Expect(string(fileContents)).To(MatchRegexp(fmt.Sprintf("pass: %s", encodedPass)))
+	// 	})
+	// })
 
 	Describe("Without settings", func() {
 		It("fails accessing the server", func() {

@@ -19,7 +19,9 @@ import (
 	"runtime"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/internal/api/v1/appchart"
 	"github.com/epinio/epinio/internal/api/v1/application"
@@ -30,12 +32,11 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/gitconfig"
 	"github.com/epinio/epinio/internal/api/v1/gitproxy"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
-	"github.com/epinio/epinio/internal/api/v1/report"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
 	"github.com/epinio/epinio/internal/api/v1/supportbundle"
 	"github.com/epinio/epinio/internal/auth"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/server/requestctx"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
@@ -64,7 +65,13 @@ func funcName(i interface{}) string {
 func errorHandler(action APIActionFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if errors := action(c); errors != nil {
-			log := requestctx.Logger(c.Request.Context()).With("component", "api-router")
+			helpers.Logger.Infow("responding with json error response")
+			requestID := requestctx.ID(c.Request.Context())
+			base := helpers.Logger
+			if base == nil {
+				base = zap.NewNop().Sugar()
+			}
+			log := base.With("requestId", requestID, "component", "api-router")
 			log.Infow("responding with json error response",
 				"action", funcName(action),
 				"errors", errors,
@@ -98,13 +105,10 @@ func put(path string, h gin.HandlerFunc) routes.Route {
 // The key is the full path as it appears in the request URL (e.g., "/api/v1/support-bundle")
 var AdminRoutes map[string]struct{} = map[string]struct{}{
 	"/api/v1/support-bundle": {},
-	"/api/v1/report/nodes":   {},
 }
 
 var Routes = routes.NamedRoutes{
 	"AuthToken": get("/authtoken", errorHandler(AuthToken)),
-
-	"NodeReport": get("/report/nodes", errorHandler(report.Nodes)),
 
 	// app controller files see application/*.go
 

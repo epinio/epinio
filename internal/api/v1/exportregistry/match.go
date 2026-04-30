@@ -14,9 +14,9 @@ package exportregistry
 import (
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/gin-gonic/gin"
@@ -29,18 +29,17 @@ import (
 // It returns a list of all exportregistries matching the prefix pattern.
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
 	// user := requestctx.User(ctx)
 
-	log.Infow("match export registries")
-	defer log.Infow("return")
+	helpers.Logger.Infow("match export registries")
+	defer helpers.Logger.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	log.Infow("list export registries")
+	helpers.Logger.Infow("list export registries")
 
 	registries, err := registry.ExportRegistryNames(
 		cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
@@ -51,10 +50,10 @@ func Match(c *gin.Context) apierror.APIErrors {
 	// Filter accessible registries by user ?
 	// registries = auth.FilterResources(user, registries)
 
-	log.Infow("get exportregistry prefix")
+	helpers.Logger.Infow("get exportregistry prefix")
 	prefix := c.Param("pattern")
 
-	log.Infow("match prefix", "pattern", prefix)
+	helpers.Logger.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, registry := range registries {
 		if strings.HasPrefix(registry, prefix) {
@@ -62,7 +61,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	log.Infow("deliver matches", "found", matches)
+	helpers.Logger.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.ExportregistriesMatchResponse{
 		Names: matches,

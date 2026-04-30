@@ -16,11 +16,12 @@ import (
 	"mime/multipart"
 	"os"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/s3manager"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	"github.com/gin-gonic/gin"
 	"github.com/h2non/filetype"
 	"github.com/pkg/errors"
@@ -45,7 +46,7 @@ var validArchiveTypes = []string{
 // Then it creates the k8s resources needed for staging
 func Upload(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -95,24 +96,19 @@ func Upload(c *gin.Context) apierror.APIErrors {
 		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {
-		// Check if the error is due to quota exhaustion
-		if s3manager.IsQuotaExceededError(err) {
-			return apierror.NewQuotaExceededError("",
-				"uploading the application sources blob: "+err.Error())
-		}
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 
 	log.Infow("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
 	/*Delete the temporary file created by the multipart form if upload is
-		successful. If it fails the net/http package doesn't store the multipart file
-		in tmp directory and dumps it from memory/any partial file is not stored.*/
+	successful. If it fails the net/http package doesn't store the multipart file
+	in tmp directory and dumps it from memory/any partial file is not stored.*/
 	if tempFile, err := fileheader.Open(); err == nil {
 		if osFile, ok := tempFile.(*os.File); ok {
 			tempPath := osFile.Name()
 			log.Infow("Deleting multipart temp file", "path", tempPath)
-			fileRemoveError := os.Remove(tempPath) // nolint:gosec // path from multipart form temp file
+			fileRemoveError := os.Remove(tempPath)
 
 			if fileRemoveError != nil {
 				log.Errorw("Multipart failed to remove", "error", fileRemoveError)

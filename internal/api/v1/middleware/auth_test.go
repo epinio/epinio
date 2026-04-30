@@ -19,7 +19,7 @@ import (
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/middleware"
 	"github.com/epinio/epinio/internal/auth"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -53,8 +53,6 @@ var _ = Describe("Authorization Middleware", func() {
 		BeforeEach(func() {
 			userRole := auth.Role{
 				ID: "user",
-				// Namespace-scoped role to validate namespace restrictions.
-				Namespace: "workspace",
 				Actions: []auth.Action{
 					auth.ActionsMap["namespace"],
 				},

@@ -105,9 +105,7 @@ The [developer documentation](./docs) explains how to build and run Epinio from 
 
 ## License
 
-Copyright (c) 2020-2024 [SUSE, LLC](https://suse.com)
-
-Copyright (c) 2025-2026 [Krumware LLC](https://www.krum.io)
+Copyright (c) 2020-2023 [SUSE, LLC](https://suse.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

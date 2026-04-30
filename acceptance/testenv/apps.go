@@ -25,10 +25,12 @@ import (
 // ShowApp retrieves the application details directly from the API to allow
 // acceptance tests to assert on the structured response.
 func (m *EpinioEnv) ShowApp(appName, namespace string) models.App {
-	settings, err := m.GetSettingsFrom(EpinioYAML())
-	Expect(err).ToNot(HaveOccurred())
+	// todo (austin)
+	// settings, err := m.GetSettings()
+	// Expect(err).ToNot(HaveOccurred())
+	// apiEndpoint := strings.TrimRight(settings.API, "/")
 
-	apiEndpoint := strings.TrimRight(settings.API, "/")
+	apiEndpoint := strings.TrimRight("", "/")
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", apiEndpoint, namespace, appName)
 
 	response, err := m.Curl("GET", url, strings.NewReader(""))

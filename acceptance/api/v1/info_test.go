@@ -40,8 +40,7 @@ var _ = Describe("Info endpoint", LMisc, func() {
 		err = json.Unmarshal(bodyBytes, &info)
 		Expect(err).ToNot(HaveOccurred())
 
-		// May be set by helm/DEFAULT_BUILDER_IMAGE or empty when not configured
-		Expect(info.DefaultBuilderImage).To(Or(BeEmpty(), MatchRegexp(`paketobuildpacks/builder-jammy-full:[\d.]+`)))
+		Expect(info.DefaultBuilderImage).To(Equal("paketobuildpacks/builder-jammy-full:0.3.290"))
 	})
 
 	It("includes the epinio server version in a header", func() {

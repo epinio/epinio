@@ -299,8 +299,7 @@ type DeployRequest struct {
 
 // DeployResponse represents the server's response to a successful app deployment
 type DeployResponse struct {
-	Routes   []string `json:"routes,omitempty"`
-	Warnings []string `json:"warnings,omitempty"`
+	Routes []string `json:"routes,omitempty"`
 }
 
 // ApplicationDeleteRequest represents and contains the data needed to delete an application
@@ -311,7 +310,6 @@ type ApplicationDeleteRequest struct {
 // ApplicationDeleteResponse represents the server's response to a successful app deletion
 type ApplicationDeleteResponse struct {
 	UnboundConfigurations []string `json:"unboundconfigurations"`
-	Warnings              []string `json:"warnings,omitempty"`
 }
 
 // EnvMatchResponse contains the list of names for matching env variables

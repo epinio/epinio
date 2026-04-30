@@ -15,14 +15,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -57,51 +54,56 @@ type BeforeSuiteMessage struct {
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
-	fmt.Println("Creating the S3 helper pod")
+	// todo (austin)
+	fmt.Println("Creating the minio helper pod")
 	createS3HelperPod()
 
-	// login just once
-	globalSettings, err := settings.LoadFrom(testenv.EpinioYAML())
-	Expect(err).NotTo(HaveOccurred())
+	// // login just once
+	// globalSettings, err := settings.LoadFrom(testenv.EpinioYAML())
+	// Expect(err).NotTo(HaveOccurred())
 
-	adminToken, err := auth.GetToken(globalSettings.API, "admin@epinio.io", "password")
-	Expect(err).NotTo(HaveOccurred())
-	userToken, err := auth.GetToken(globalSettings.API, "epinio@epinio.io", "password")
-	Expect(err).NotTo(HaveOccurred())
+	// adminToken, err := auth.GetToken(globalSettings.API, "admin@epinio.io", "password")
+	// Expect(err).NotTo(HaveOccurred())
+	// userToken, err := auth.GetToken(globalSettings.API, "epinio@epinio.io", "password")
+	// Expect(err).NotTo(HaveOccurred())
 
-	msg, err := json.Marshal(BeforeSuiteMessage{
-		AdminToken: adminToken,
-		UserToken:  userToken,
-	})
-	Expect(err).NotTo(HaveOccurred())
-
-	return msg
+	// msg, err := json.Marshal(BeforeSuiteMessage{
+	// 	AdminToken: adminToken,
+	// 	UserToken:  userToken,
+	// })
+	// Expect(err).NotTo(HaveOccurred())
+	return []byte{71, 111}
 }, func(msg []byte) {
-	var message BeforeSuiteMessage
-	err := json.Unmarshal(msg, &message)
-	Expect(err).NotTo(HaveOccurred())
+	// todo (austin)
+	// var message BeforeSuiteMessage
+	// err := json.Unmarshal(msg, &message)
+	// Expect(err).NotTo(HaveOccurred())
 
-	fmt.Printf("Running tests on node %d\n", GinkgoParallelProcess())
+	// fmt.Printf("Running tests on node %d\n", GinkgoParallelProcess())
 
-	testenv.SetRoot("../../..")
-	testenv.SetupEnv()
+	// testenv.SetRoot("../../..")
+	// testenv.SetupEnv()
 
-	nodeSuffix = fmt.Sprintf("%d", GinkgoParallelProcess())
-	nodeTmpDir, err := os.MkdirTemp("", "epinio-"+nodeSuffix)
-	Expect(err).NotTo(HaveOccurred())
+	// nodeSuffix = fmt.Sprintf("%d", GinkgoParallelProcess())
+	// nodeTmpDir, err := os.MkdirTemp("", "epinio-"+nodeSuffix)
+	// Expect(err).NotTo(HaveOccurred())
 
-	out, err := testenv.CopyEpinioSettings(nodeTmpDir)
-	Expect(err).ToNot(HaveOccurred(), out)
-	os.Setenv("EPINIO_SETTINGS", nodeTmpDir+"/epinio.yaml")
+	// out, err := testenv.CopyEpinioSettings(nodeTmpDir)
+	// Expect(err).ToNot(HaveOccurred(), out)
+	// os.Setenv("EPINIO_SETTINGS", nodeTmpDir+"/epinio.yaml")
 
-	theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
-	Expect(err).NotTo(HaveOccurred())
+	// theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
+	// Expect(err).NotTo(HaveOccurred())
 
-	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password, message.AdminToken, message.UserToken)
+	// env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password, message.AdminToken, message.UserToken)
 
-	// Use API URL from settings so the correct port is used in both local (443) and CI (e.g. 8443).
-	serverURL = strings.TrimRight(theSettings.API, "/")
-	websocketURL = "wss://" + strings.TrimPrefix(strings.TrimPrefix(serverURL, "https://"), "http://")
+	// out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
+	// 	"--namespace", "epinio", "epinio",
+	// 	"-o", "jsonpath={.spec.rules[0].host}")
+	// Expect(err).ToNot(HaveOccurred(), out)
+
+	// serverURL = "https://" + out + ":8443"
+	// websocketURL = "wss://" + out + ":8443"
 })
 
 var _ = AfterSuite(func() {

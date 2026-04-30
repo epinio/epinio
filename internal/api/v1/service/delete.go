@@ -18,8 +18,8 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/gin-gonic/gin"
 
@@ -33,7 +33,7 @@ import (
 // It deletes the named service
 func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := requestctx.Logger(ctx).With("component", "ServiceDelete")
+	logger := helpers.Logger.With("component", "ServiceDelete")
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")

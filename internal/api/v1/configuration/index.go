@@ -97,6 +97,9 @@ func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][
 			}
 		}
 
+		// SECURITY: Mask configuration details to prevent secret exposure in API responses
+		// maskedDetails := mask.MaskMap(configurationDetails)
+
 		response = append(response, models.ConfigurationResponse{
 			Meta: models.ConfigurationRef{
 				Meta: models.Meta{

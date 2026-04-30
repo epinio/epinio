@@ -206,9 +206,8 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 
 			var data models.ConfigurationResponse
 			err = json.Unmarshal(bodyBytes, &data)
-			Expect(err).ToNot(HaveOccurred())
 			configuration := data.Configuration.Details
-			Expect(configuration).To(HaveKey("username"))
+			Expect(err).ToNot(HaveOccurred())
 			Expect(configuration["username"]).To(Equal("epinio-user"))
 		})
 
@@ -291,11 +290,10 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 
 			var data models.ConfigurationResponse
 			err = json.Unmarshal(bodyBytesGet, &data)
-			Expect(err).ToNot(HaveOccurred())
 			configuration := data.Configuration.Details
-			Expect(configuration).To(HaveKey("user"))
+
+			Expect(err).ToNot(HaveOccurred())
 			Expect(configuration["user"]).To(Equal("ci/cd"))
-			Expect(configuration).To(HaveKey("host"))
 			Expect(configuration["host"]).To(Equal("up"))
 			Expect(configuration).ToNot(HaveKey("username"))
 		})
@@ -328,8 +326,7 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 	Describe("PUT /api/v1/namespaces/:namespace/configurations/:configuration", func() {
 		var changeRequest string
 		BeforeEach(func() {
-			// API expects ConfigurationReplaceRequest with "data" key
-			changeRequest = `{"data": {"put_key1": "put_value"}}`
+			changeRequest = `{ "put_key1" : "put_value" }`
 		})
 
 		It("replace the configuration", func() {
@@ -362,9 +359,9 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 
 			var data models.ConfigurationResponse
 			err = json.Unmarshal(bodyBytesGet, &data)
-			Expect(err).ToNot(HaveOccurred())
 			configuration := data.Configuration.Details
-			Expect(configuration).To(HaveKey("put_key1"))
+
+			Expect(err).ToNot(HaveOccurred())
 			Expect(configuration["put_key1"]).To(Equal("put_value"))
 			Expect(configuration).ToNot(HaveKey("username"))
 		})

@@ -35,11 +35,10 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	var deleteRequest models.ApplicationDeleteRequest
-	// Only bind JSON when there is a body; empty body uses default (backward compatibility).
-	// Skipping binding for empty body avoids any 400 from the framework and allows
-	// returning 404 when the app does not exist.
-	if c.Request.ContentLength > 0 {
-		_ = c.ShouldBindJSON(&deleteRequest)
+	err := c.BindJSON(&deleteRequest)
+	if err != nil {
+		// If no body is provided, default to false (backward compatibility)
+		deleteRequest.DeleteImage = false
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -48,8 +47,6 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	boundConfigurations := []string{}
-	var warnings []string
-
 	for _, appName := range applicationNames {
 		appRef := models.NewAppRef(appName, namespace)
 
@@ -67,18 +64,14 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		}
 		boundConfigurations = append(boundConfigurations, configurations...)
 
-		deleteResult, err := application.Delete(ctx, cluster, appRef, deleteRequest.DeleteImage)
+		err = application.Delete(ctx, cluster, appRef, deleteRequest.DeleteImage)
 		if err != nil {
 			return apierror.InternalError(err)
-		}
-		if deleteResult != nil {
-			warnings = append(warnings, deleteResult.Warnings...)
 		}
 	}
 
 	resp := models.ApplicationDeleteResponse{
 		UnboundConfigurations: boundConfigurations,
-		Warnings:              warnings,
 	}
 
 	response.OKReturn(c, resp)

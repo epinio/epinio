@@ -15,7 +15,7 @@ import (
 	"time"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

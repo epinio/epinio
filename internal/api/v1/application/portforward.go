@@ -12,7 +12,6 @@
 package application
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -20,11 +19,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-var appPortForwardUpgrader = websocket.Upgrader{} // use default options
 
 func PortForward(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
@@ -77,38 +72,14 @@ func PortForward(c *gin.Context) apierror.APIErrors {
 		podToConnect = podNames[0]
 	}
 
-	pod, err := cluster.Kubectl.CoreV1().Pods(namespace).Get(ctx, podToConnect, metav1.GetOptions{})
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if pod.Status.PodIP == "" {
-		return apierror.NewAPIError("selected instance does not have a pod IP yet", http.StatusBadRequest)
-	}
+	// https://github.com/kubernetes/kubectl/blob/2acffc93b61e483bd26020df72b9aef64541bd56/pkg/cmd/portforward/portforward.go#L409
+	forwardURL := cluster.Kubectl.CoreV1().RESTClient().
+		Post().
+		Resource("pods").
+		Namespace(namespace).
+		Name(podToConnect).
+		SubResource("portforward").
+		URL()
 
-	remotePort := int32(8080)
-	for _, container := range pod.Spec.Containers {
-		if len(container.Ports) > 0 {
-			remotePort = container.Ports[0].ContainerPort
-			break
-		}
-	}
-
-	wconn, err := appPortForwardUpgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	defer func() {
-		_ = wconn.Close()
-	}()
-
-	target := fmt.Sprintf("%s:%d", pod.Status.PodIP, remotePort)
-	tcpProxy, err := proxy.NewTCPProxy(c, wconn.UnderlyingConn(), target)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if err := tcpProxy.Start(); err != nil {
-		return apierror.InternalError(err)
-	}
-
-	return nil
+	return proxy.RunProxy(ctx, c.Writer, c.Request, forwardURL)
 }

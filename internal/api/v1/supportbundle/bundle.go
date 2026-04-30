@@ -21,11 +21,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 const (
@@ -48,7 +50,12 @@ const (
 // It collects logs from all Epinio components and returns them as a tar archive
 func Bundle(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx).With("component", "support-bundle")
+	requestID := requestctx.ID(ctx)
+	base := helpers.Logger
+	if base == nil {
+		base = zap.NewNop().Sugar()
+	}
+	log := base.With("requestId", requestID, "component", "support-bundle")
 
 	log.Infow("starting support bundle collection")
 
@@ -110,9 +117,9 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 		log.Errorw("failed to collect staging job logs", "error", err)
 	}
 
-	log.Infow("collecting SeaweedFS logs")
-	if err := collector.CollectSeaweedFSLogs(ctx); err != nil {
-		log.Errorw("failed to collect SeaweedFS logs", "error", err)
+	log.Infow("collecting Minio logs")
+	if err := collector.CollectMinioLogs(ctx); err != nil {
+		log.Errorw("failed to collect Minio logs", "error", err)
 	}
 
 	log.Infow("collecting container registry logs")
@@ -154,7 +161,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	}()
 
 	// Get file info for content length
-	fileInfo, err := os.Stat(archivePath) // nolint:gosec // archivePath from os.MkdirTemp in same function
+	fileInfo, err := os.Stat(archivePath)
 	if err != nil {
 		return apierror.InternalError(errors.Wrap(err, "failed to get archive file info"))
 	}
@@ -174,7 +181,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 	filename := fmt.Sprintf("epinio-support-bundle-%s.tar.gz", time.Now().Format("20060102-150405"))
 
 	// Open the file for streaming
-	file, err := os.Open(archivePath) // nolint:gosec // archivePath from os.MkdirTemp in same function
+	file, err := os.Open(archivePath)
 	if err != nil {
 		return apierror.InternalError(errors.Wrap(err, "failed to open archive file"))
 	}
@@ -239,4 +246,3 @@ func hasCollectedLogs(bundleDir string) (bool, error) {
 	}
 	return hasFiles, err
 }
-

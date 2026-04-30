@@ -20,10 +20,10 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/routes"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -149,7 +149,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 		desired = *createRequest.Configuration.Instances
 	}
 
-	err = application.ScalingSetWithEventOnCreate(ctx, cluster, appRef, desired, username)
+	err = application.ScalingSet(ctx, cluster, appRef, desired)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

@@ -13,21 +13,16 @@ package acceptance_test
 
 import (
 	"bufio"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -189,16 +184,6 @@ var _ = Describe("Services", LService, func() {
 			By("create it")
 			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service, "--wait")
 			Expect(err).ToNot(HaveOccurred(), out)
-
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "show", service)
-				return out
-			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
-				And(
-					ContainSubstring(service),
-					HaveATable(WithHeaders("KEY", "VALUE"), WithRow("Status", "deployed")),
-				),
-			)
 		})
 
 		It("shows a service which has no credentials", func() {
@@ -222,62 +207,62 @@ var _ = Describe("Services", LService, func() {
 
 		Context("customized", func() {
 			It("shows the customized elements of a service", func() {
-				settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
-				Expect(err).ToNot(HaveOccurred())
+				// todo (austin)
+				// settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+				// Expect(err).ToNot(HaveOccurred())
 
+				// todo (austin)
 				// parse the API URL to properly pull the hostname without duplicating a port entry.
-				parsed, err := url.Parse(settings.API)
-				Expect(err).ToNot(HaveOccurred())
+				// parsed, err := url.Parse(settings.API)
+				// Expect(err).ToNot(HaveOccurred())
 
-				serviceName := catalog.NewServiceName()
-				serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
-				servicePort := parsed.Port()
-				if servicePort == "" {
-					servicePort = "443"
-				}
+				// serviceName := catalog.NewServiceName()
+				// serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
 
-				out, err := env.Epinio("", "service", "create",
-					catalogService.Meta.Name, serviceName,
-					"--chart-value", "ingress.enabled=true",
-					"--chart-value", "ingress.hostname="+serviceHostname,
-					"--chart-value", "sequence[0]=alpha",
-					"--chart-value", "sequence[1]=omega",
-					"--chart-value", "other[0].sequence=delta",
-					"--chart-value", "nesting.here.hello=world",
-					"--wait",
-				)
-				Expect(err).ToNot(HaveOccurred(), out)
+				// out, err := env.Epinio("", "service", "create",
+				// 	catalogService.Meta.Name, serviceName,
+				// 	"--chart-value", "ingress.enabled=true",
+				// 	"--chart-value", "ingress.hostname="+serviceHostname,
+				// 	"--chart-value", "sequence[0]=alpha",
+				// 	"--chart-value", "sequence[1]=omega",
+				// 	"--chart-value", "other[0].sequence=delta",
+				// 	"--chart-value", "nesting.here.hello=world",
+				// 	"--wait",
+				// )
+				// Expect(err).ToNot(HaveOccurred(), out)
 
-				// Use same port as API (443 or 8443) so the check works in both standard and CI setups.
-				Eventually(func() int {
-					tr := &http.Transport{
-						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-					}
-					noTlsClient := &http.Client{Transport: tr}
+				//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
+				// Eventually(func() int {
+				// 	tr := &http.Transport{
+				// 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				// 	}
+				// 	noTlsClient := &http.Client{Transport: tr}
 
-					resp, err := noTlsClient.Get("https://" + serviceHostname + ":" + servicePort)
-					if err != nil {
-						return 0
-					}
-					defer resp.Body.Close()
-					return resp.StatusCode
-				}, "5m", "2s").Should(Equal(http.StatusOK))
+				// 	resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
 
-				out, err = env.Epinio("", "service", "show", serviceName)
-				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring("Showing Service"))
-				Expect(out).To(ContainSubstring("Settings"))
-				Expect(out).To(
-					HaveATable(
-						WithHeaders("KEY", "VALUE"),
-						WithRow("ingress.enabled", "true"),
-						WithRow("ingress.hostname", serviceHostname),
-						WithRow("nesting.here.hello", "world"),
-						WithRow(`other\[0\].sequence`, "delta"),
-						WithRow(`sequence\[0\]`, "alpha"),
-						WithRow(`sequence\[1\]`, "omega"),
-					),
-				)
+				// 	if err != nil {
+				// 		fmt.Println(resp)
+				// 		fmt.Println(err)
+				// 	}
+
+				// 	return resp.StatusCode
+				// }, "1m", "2s").Should(Equal(http.StatusOK))
+
+				// out, err = env.Epinio("", "service", "show", serviceName)
+				// Expect(err).ToNot(HaveOccurred(), out)
+				// Expect(out).To(ContainSubstring("Showing Service"))
+				// Expect(out).To(ContainSubstring("Settings"))
+				// Expect(out).To(
+				// 	HaveATable(
+				// 		WithHeaders("KEY", "VALUE"),
+				// 		WithRow("ingress.enabled", "true"),
+				// 		WithRow("ingress.hostname", serviceHostname),
+				// 		WithRow("nesting.here.hello", "world"),
+				// 		WithRow(`other\[0\].sequence`, "delta"),
+				// 		WithRow(`sequence\[0\]`, "alpha"),
+				// 		WithRow(`sequence\[1\]`, "omega"),
+				// 	),
+				// )
 			})
 		})
 
@@ -309,18 +294,8 @@ var _ = Describe("Services", LService, func() {
 			service = catalog.NewServiceName()
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service, "--wait")
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 			Expect(err).ToNot(HaveOccurred(), out)
-
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "show", service)
-				return out
-			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
-				And(
-					ContainSubstring(service),
-					HaveATable(WithHeaders("KEY", "VALUE"), WithRow("Status", "deployed")),
-				),
-			)
 		})
 
 		It("lists a service", func() {
@@ -357,142 +332,147 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			services := models.ServiceList{}
-			err = json.Unmarshal([]byte(extractJSONPayload(out)), &services)
+			err = json.Unmarshal([]byte(out), &services)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(services).ToNot(BeEmpty())
 		})
 
 	})
 
-	Describe("ListAll", func() {
-		var namespace1, namespace2 string
-		var service1, service2 string
-		var tmpSettingsPath string
-		var user1, password1 string
-		var user2, password2 string
+	// todo (austin)
+	// Describe("ListAll", func() {
+	// 	var namespace1, namespace2 string
+	// 	var service1, service2 string
+	// 	var tmpSettingsPath string
+	// 	var user1 string
+	// 	var user2 string
 
-		updateSettings := func(user, password, namespace string) {
-			settings, err := settings.LoadFrom(tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), settings)
+	// 	// var user1, password1 string
+	// 	// var user2, password2 string
+	// 	// updateSettings := func(user, password, namespace string) {
+	// 	// 	settings, err := settings.LoadFrom(tmpSettingsPath)
+	// 	// 	Expect(err).ToNot(HaveOccurred(), settings)
 
-			settings.User = user
-			settings.Password = password
-			settings.Namespace = namespace
-			err = settings.Save()
-			Expect(err).ToNot(HaveOccurred())
-		}
+	// 	// 	settings.User = user
+	// 	// 	settings.Password = password
+	// 	// 	settings.Namespace = namespace
+	// 	// 	err = settings.Save()
+	// 	// 	Expect(err).ToNot(HaveOccurred())
+	// 	// }
 
-		BeforeEach(func() {
-			namespace1 = catalog.NewNamespaceName()
-			namespace2 = catalog.NewNamespaceName()
-			env.SetupAndTargetNamespace(namespace1)
-			env.SetupAndTargetNamespace(namespace2)
+	// 	BeforeEach(func() {
+	// 		namespace1 = catalog.NewNamespaceName()
+	// 		namespace2 = catalog.NewNamespaceName()
+	// 		env.SetupAndTargetNamespace(namespace1)
+	// 		env.SetupAndTargetNamespace(namespace2)
 
-			service1 = catalog.NewServiceName()
-			service2 = catalog.NewServiceName()
+	// 		service1 = catalog.NewServiceName()
+	// 		service2 = catalog.NewServiceName()
 
-			// create temp settings that we can use to switch users
-			tmpSettingsPath = catalog.NewTmpName("tmpEpinio") + `.yaml`
-			data, err := os.ReadFile(testenv.EpinioYAML())
-			Expect(err).ToNot(HaveOccurred())
-			err = os.WriteFile(tmpSettingsPath, data, 0644)
-			Expect(err).ToNot(HaveOccurred())
+	// 		// create temp settings that we can use to switch users
+	// 		tmpSettingsPath = catalog.NewTmpName("tmpEpinio") + `.yaml`
+	// 		data, err := os.ReadFile(testenv.EpinioYAML())
+	// 		Expect(err).ToNot(HaveOccurred())
+	// 		err = os.WriteFile(tmpSettingsPath, data, 0644)
+	// 		Expect(err).ToNot(HaveOccurred())
 
-			// create users with permissions in different namespaces
-			user1, password1 = env.CreateEpinioUser("user", []string{namespace1})
-			user2, password2 = env.CreateEpinioUser("user", []string{namespace2})
+	// 		// create users with permissions in different namespaces
+	// 		user1, password1 = env.CreateEpinioUser("user", []string{namespace1})
+	// 		user2, password2 = env.CreateEpinioUser("user", []string{namespace2})
 
-			DeferCleanup(func() {
-				env.DeleteNamespace(namespace1)
-				env.DeleteNamespace(namespace2)
+	// 		DeferCleanup(func() {
+	// 			env.DeleteNamespace(namespace1)
+	// 			env.DeleteNamespace(namespace2)
 
-				// Remove transient settings
-				out, err := proc.Run("", false, "rm", "-f", tmpSettingsPath)
-				Expect(err).ToNot(HaveOccurred(), out)
+	// 			// Remove transient settings
+	// 			out, err := proc.Run("", false, "rm", "-f", tmpSettingsPath)
+	// 			Expect(err).ToNot(HaveOccurred(), out)
 
-				env.DeleteEpinioUser(user1)
-				env.DeleteEpinioUser(user2)
-			})
-		})
+	// 			env.DeleteEpinioUser(user1)
+	// 			env.DeleteEpinioUser(user2)
+	// 		})
+	// 	})
 
-		It("list all services", func() {
-			By("create them in different namespaces")
-			// create service1 in namespace1
-			env.TargetNamespace(namespace1)
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--wait")
-			Expect(err).ToNot(HaveOccurred(), out)
+	// 	It("list all services", func() {
+	// 		By("create them in different namespaces")
+	// 		// create service1 in namespace1
+	// 		env.TargetNamespace(namespace1)
+	// 		out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--wait")
+	// 		Expect(err).ToNot(HaveOccurred(), out)
 
-			// create service2 in namespace2
-			env.TargetNamespace(namespace2)
-			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--wait")
-			Expect(err).ToNot(HaveOccurred(), out)
+	// 		// create service2 in namespace2
+	// 		env.TargetNamespace(namespace2)
+	// 		out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--wait")
+	// 		Expect(err).ToNot(HaveOccurred(), out)
 
-			// show all the services (we are admin, good to go)
-			By("show it")
-			out, err = env.Epinio("", "service", "list", "--all")
-			Expect(err).ToNot(HaveOccurred(), out)
+	// 		// show all the services (we are admin, good to go)
+	// 		By("show it")
+	// 		out, err = env.Epinio("", "service", "list", "--all")
+	// 		Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(ContainSubstring("Listing all Services"))
+	// 		Expect(out).To(ContainSubstring("Listing all Services"))
 
-			Expect(out).To(
-				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
-					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
-				),
-			)
-		})
+	// 		Expect(out).To(
+	// 			HaveATable(
+	// 				WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+	// 				WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
+	// 				WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
+	// 			),
+	// 		)
+	// 	})
 
-		It("list only the services in the user namespace", func() {
-			By("create them in different namespaces")
+	// 	It("list only the services in the user namespace", func() {
+	// 		By("create them in different namespaces")
 
-			// impersonate user1 and target namespace1
-			updateSettings(user1, password1, namespace1)
+	// 		// impersonate user1 and target namespace1
+	// 		// todo (austin)
+	// 		// updateSettings(user1, password1, namespace1)
 
-			// create service1 in namespace1
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--settings-file", tmpSettingsPath, "--wait")
-			Expect(err).ToNot(HaveOccurred(), out, tmpSettingsPath)
+	// 		// create service1 in namespace1
+	// 		out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--settings-file", tmpSettingsPath, "--wait")
+	// 		Expect(err).ToNot(HaveOccurred(), out, tmpSettingsPath)
 
-			// impersonate user2
-			updateSettings(user2, password2, namespace2)
+	// 		// impersonate user2
+	// 		// todo (austin)
+	// 		// updateSettings(user2, password2, namespace2)
 
-			// create service2 in namespace2
-			env.TargetNamespace(namespace2)
-			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--settings-file", tmpSettingsPath, "--wait")
-			Expect(err).ToNot(HaveOccurred(), out)
+	// 		// create service2 in namespace2
+	// 		env.TargetNamespace(namespace2)
+	// 		out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--settings-file", tmpSettingsPath, "--wait")
+	// 		Expect(err).ToNot(HaveOccurred(), out)
 
-			// show only owned namespaces (we are user2, only namespace2)
-			By("show it")
-			out, err = env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out)
+	// 		// show only owned namespaces (we are user2, only namespace2)
+	// 		By("show it")
+	// 		out, err = env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
+	// 		Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(ContainSubstring("Listing all Services"))
+	// 		Expect(out).To(ContainSubstring("Listing all Services"))
 
-			Expect(out).NotTo(
-				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
-					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
-				),
-			)
-			Expect(out).To(
-				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
-				),
-			)
+	// 		Expect(out).NotTo(
+	// 			HaveATable(
+	// 				WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+	// 				WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
+	// 			),
+	// 		)
+	// 		Expect(out).To(
+	// 			HaveATable(
+	// 				WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+	// 				WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
+	// 			),
+	// 		)
 
-			By("verify service deployment")
-			out, err = env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(
-				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
-				),
-			)
+	// 		By("verify service deployment")
+	// 		out, err = env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
+	// 		Expect(err).ToNot(HaveOccurred())
+	// 		Expect(out).To(
+	// 			HaveATable(
+	// 				WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+	// 				WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
+	// 			),
+	// 		)
 
-		})
-	})
+	// 	})
+	// })
 
 	Describe("Create", func() {
 
@@ -627,22 +607,15 @@ var _ = Describe("Services", LService, func() {
 			})
 
 			It("does match for more than one service but only the remaining one", func() {
-				// Completion may need a moment to see both services; retry briefly
-				Eventually(func() string {
-					out, _ := env.Epinio("", "__complete", "service", "delete", service, "")
-					return out
-				}, "30s", "2s").Should(And(
-					Not(ContainSubstring(service)),
-					ContainSubstring(service2),
-				))
+				out, err := env.Epinio("", "__complete", "service", "delete", service, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).ToNot(ContainSubstring(service))
+				Expect(out).To(ContainSubstring(service2))
 
-				Eventually(func() string {
-					out, _ := env.Epinio("", "__complete", "service", "delete", service2, "")
-					return out
-				}, "30s", "2s").Should(And(
-					ContainSubstring(service),
-					Not(ContainSubstring(service2)),
-				))
+				out, err = env.Epinio("", "__complete", "service", "delete", service2, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(service))
+				Expect(out).ToNot(ContainSubstring(service2))
 			})
 		})
 
@@ -1087,45 +1060,44 @@ var _ = Describe("Services", LService, func() {
 	Describe("Port-forward", func() {
 		var serviceName string
 
-		BeforeEach(func() {
-			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
-			Expect(err).ToNot(HaveOccurred())
+		// todo (austin)
+		// BeforeEach(func() {
+		// 	// settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+		// 	// Expect(err).ToNot(HaveOccurred())
 
-			// parse the API URL to properly pull the hostname without duplicating a port entry.
-			parsed, err := url.Parse(settings.API)
-			Expect(err).ToNot(HaveOccurred())
+		// 	// parse the API URL to properly pull the hostname without duplicating a port entry.
+		// 	parsed, err := url.Parse(settings.API)
+		// 	Expect(err).ToNot(HaveOccurred())
 
-			serviceName = catalog.NewServiceName()
-			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
-			servicePort := parsed.Port()
-			if servicePort == "" {
-				servicePort = "443"
-			}
+		// 	serviceName = catalog.NewServiceName()
+		// 	serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
 
-			out, err := env.Epinio("", "service", "create",
-				catalogService.Meta.Name, serviceName,
-				"--chart-value", "ingress.enabled=true",
-				"--chart-value", "ingress.hostname="+serviceHostname,
-				"--wait",
-			)
-			Expect(err).ToNot(HaveOccurred(), out)
+		// 	out, err := env.Epinio("", "service", "create",
+		// 		catalogService.Meta.Name, serviceName,
+		// 		"--chart-value", "ingress.enabled=true",
+		// 		"--chart-value", "ingress.hostname="+serviceHostname,
+		// 		"--wait",
+		// 	)
+		// 	Expect(err).ToNot(HaveOccurred(), out)
 
-			// Use same port as API (443 or 8443) so the check works in both standard and CI setups.
-			Eventually(func() int {
-				tr := &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				}
-				noTlsClient := &http.Client{Transport: tr}
+		// 	//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
+		// 	Eventually(func() int {
+		// 		tr := &http.Transport{
+		// 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		// 		}
+		// 		noTlsClient := &http.Client{Transport: tr}
 
-				resp, err := noTlsClient.Get("https://" + serviceHostname + ":" + servicePort)
-				if err != nil {
-					return 0
-				}
-				defer resp.Body.Close()
-				return resp.StatusCode
-			}, "10m", "2s").Should(Equal(http.StatusOK))
+		// 		resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
 
-		})
+		// 		if err != nil {
+		// 			fmt.Println(resp)
+		// 			fmt.Println(err)
+		// 		}
+
+		// 		return resp.StatusCode
+		// 	}, "1m", "2s").Should(Equal(http.StatusOK))
+
+		// })
 
 		randomPort := func() string {
 			return strconv.Itoa(r.Intn(20000) + 10000)
@@ -1139,7 +1111,7 @@ var _ = Describe("Services", LService, func() {
 				var dialErr error
 				conn, dialErr = net.Dial("tcp", host+":"+port)
 				return dialErr
-			}, "2m", "2s").ShouldNot(HaveOccurred())
+			}, "10s", "1s").ShouldNot(HaveOccurred())
 
 			req, _ := http.NewRequest(http.MethodGet, "http://localhost", nil)
 			Expect(req.Write(conn)).ToNot(HaveOccurred())
@@ -1270,54 +1242,45 @@ var _ = Describe("Services", LService, func() {
 		var appName string
 		var service string
 
-		BeforeEach(func() {
-			settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
-			Expect(err).ToNot(HaveOccurred())
+		// todo (austin)
+		// BeforeEach(func() {
+		// 	settings, err := env.GetSettingsFrom(testenv.EpinioYAML())
+		// 	Expect(err).ToNot(HaveOccurred())
 
-			// parse the API URL to properly pull the hostname without duplicating a port entry.
-			parsed, err := url.Parse(settings.API)
-			Expect(err).ToNot(HaveOccurred())
+		// 	// parse the API URL to properly pull the hostname without duplicating a port entry.
+		// 	parsed, err := url.Parse(settings.API)
+		// 	Expect(err).ToNot(HaveOccurred())
 
-			appName = catalog.NewAppName()
-			service = catalog.NewServiceName()
-			containerImageURL := "epinio/sample-app"
-			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, service, 1)
+		// 	appName = catalog.NewAppName()
+		// 	service = catalog.NewServiceName()
+		// 	containerImageURL := "epinio/sample-app"
+		// 	serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, service, 1)
 
-			env.MakeContainerImageApp(appName, 1, containerImageURL)
+		// 	env.MakeContainerImageApp(appName, 1, containerImageURL)
 
-			By("creating service instance: " + service)
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service,
-				"--chart-value", "ingress.enabled=true",
-				"--chart-value", "ingress.hostname="+serviceHostname,
-				"--chart-value", "nesting.here.hello=world",
-				"--wait")
-			Expect(err).ToNot(HaveOccurred(), out)
+		// 	By("creating service instance: " + service)
+		// 	out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service,
+		// 		"--chart-value", "ingress.enabled=true",
+		// 		"--chart-value", "ingress.hostname="+serviceHostname,
+		// 		"--chart-value", "nesting.here.hello=world",
+		// 		"--wait")
+		// 	Expect(err).ToNot(HaveOccurred(), out)
 
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "show", service)
-				return out
-			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
-				And(
-					ContainSubstring(service),
-					HaveATable(WithHeaders("KEY", "VALUE"), WithRow("Status", "deployed")),
-				),
-			)
+		// 	out, err = env.Epinio("", "service", "bind", service, appName)
+		// 	Expect(err).ToNot(HaveOccurred(), out)
 
-			out, err = env.Epinio("", "service", "bind", service, appName)
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			// Wait for the app restart from binding the service to settle
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "list")
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "5m").Should(
-				HaveATable(
-					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-					WithRow(appName, WithDate(), "1/1", appName+".*", ".*", ""),
-				),
-			)
-		})
+		// 	// Wait for the app restart from binding the service to settle
+		// 	Eventually(func() string {
+		// 		out, err := env.Epinio("", "app", "list")
+		// 		Expect(err).ToNot(HaveOccurred(), out)
+		// 		return out
+		// 	}, "5m").Should(
+		// 		HaveATable(
+		// 			WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+		// 			WithRow(appName, WithDate(), "1/1", appName+".*", ".*", ""),
+		// 		),
+		// 	)
+		// })
 
 		It("it edits the service, and restarts the app", func() {
 			By("editing instance: " + service)

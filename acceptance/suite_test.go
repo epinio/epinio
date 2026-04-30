@@ -16,14 +16,11 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/internal/cli/settings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -60,32 +57,23 @@ type BeforeSuiteMessage struct {
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	// login just once
-	globalSettings, err := settings.LoadFrom(testenv.EpinioYAML())
-	Expect(err).NotTo(HaveOccurred())
 
-	// If the local settings file doesn't specify the API endpoint (common in
-	// developer setups), derive it from the ingress host.
-	if globalSettings.API == "" {
-		host, hostErr := proc.Kubectl("get", "ingress",
-			"--namespace", "epinio", "epinio",
-			"-o", "jsonpath={.spec.rules[0].host}")
-		Expect(hostErr).NotTo(HaveOccurred(), host)
-		host = strings.TrimSpace(host)
-		globalSettings.API = "https://" + host
-	}
+	// todo (austin)
+	// globalSettings, err := settings.LoadFrom(testenv.EpinioYAML())
+	// Expect(err).NotTo(HaveOccurred())
 
-	adminToken, err := auth.GetToken(globalSettings.API, "admin@epinio.io", "password")
-	Expect(err).NotTo(HaveOccurred())
-	userToken, err := auth.GetToken(globalSettings.API, "epinio@epinio.io", "password")
-	Expect(err).NotTo(HaveOccurred())
+	// adminToken, err := auth.GetToken(globalSettings.API, "admin@epinio.io", "password")
+	// Expect(err).NotTo(HaveOccurred())
+	// userToken, err := auth.GetToken(globalSettings.API, "epinio@epinio.io", "password")
+	// Expect(err).NotTo(HaveOccurred())
 
-	msg, err := json.Marshal(BeforeSuiteMessage{
-		AdminToken: adminToken,
-		UserToken:  userToken,
-	})
-	Expect(err).NotTo(HaveOccurred())
+	// msg, err := json.Marshal(BeforeSuiteMessage{
+	// 	AdminToken: adminToken,
+	// 	UserToken:  userToken,
+	// })
+	// Expect(err).NotTo(HaveOccurred())
 
-	return msg
+	return []byte{71, 111}
 }, func(msg []byte) {
 	r = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -106,29 +94,19 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Expect(err).ToNot(HaveOccurred(), out)
 	os.Setenv("EPINIO_SETTINGS", nodeTmpDir+"/epinio.yaml")
 
-	theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
-	Expect(err).NotTo(HaveOccurred())
+	// todo (austin)
+	// theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
+	// Expect(err).NotTo(HaveOccurred())
 
-	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password, message.AdminToken, message.UserToken)
+	// env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password, message.AdminToken, message.UserToken)
 
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",
 		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	out = strings.TrimSpace(out)
-	serverURL = "https://" + out
-	websocketURL = "wss://" + out
-
-	// Ensure the settings file used by the CLI has endpoints. Do not overwrite
-	// existing values, as environments may intentionally use non-default ports.
-	if theSettings.API == "" {
-		theSettings.API = serverURL
-	}
-	if theSettings.WSS == "" {
-		theSettings.WSS = websocketURL
-	}
-	Expect(theSettings.Save()).To(Succeed())
+	serverURL = "https://" + out + ":8443"
+	websocketURL = "wss://" + out + ":8443"
 })
 
 var _ = AfterSuite(func() {

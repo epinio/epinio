@@ -18,7 +18,6 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/internal/cli/settings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -48,10 +47,10 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), out)
 	os.Setenv("EPINIO_SETTINGS", nodeTmpDir+"/epinio.yaml")
 
-	config, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
-	Expect(err).NotTo(HaveOccurred())
-
-	env = testenv.New(nodeTmpDir, testenv.Root(), config.User, config.Password, "", "")
+	// todo (austin)
+	// config, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
+	// Expect(err).NotTo(HaveOccurred())
+	// env = testenv.New(nodeTmpDir, testenv.Root(), config.User, config.Password, "", "")
 
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",

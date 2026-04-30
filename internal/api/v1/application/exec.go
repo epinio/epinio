@@ -99,19 +99,16 @@ func Exec(c *gin.Context) apierror.APIErrors {
 		Resource("pods").
 		Name(podToConnect).
 		SubResource("exec").
-		// TTY must stay false so non-terminal clients (CI, scripts, piped stdin) match
-		// remotecommand.StreamOptions.Tty when stdin is not a TTY. Otherwise the
-		// websocket exec protocol mismatches and the client exits with status 255.
-		// Interactive shells still work: `bash -i` is interactive without a pty.
 		VersionedParams(&v1.PodExecOptions{
 			Stdin:     true,
 			Stdout:    true,
 			Stderr:    true,
-			TTY:       false,
+			TTY:       true,
 			Container: appData.Name,
+			// https://github.com/rancher/dashboard/blob/37f40d7213ff32096bfefd02de77be6a0e7f40ab/components/nav/WindowManager/ContainerShell.vue#L22
 			Command: []string{
 				"/bin/sh",
-				"-c", "TERM=xterm-256color; export TERM; exec /bin/bash -i",
+				"-c", "TERM=xterm-256color; export TERM; exec /bin/bash",
 			},
 		}, scheme.ParameterCodec).URL()
 

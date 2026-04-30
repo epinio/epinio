@@ -12,6 +12,7 @@
 package v1_test
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -28,6 +29,8 @@ var _ = Describe("Me endpoint", LMisc, func() {
 
 			responseMe := fromJSON[models.MeResponse](bodyBytes)
 			Expect(responseMe.User).To(Equal(env.EpinioUser))
+
+			fmt.Println(string(bodyBytes))
 		})
 	})
 

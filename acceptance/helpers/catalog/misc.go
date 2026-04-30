@@ -30,24 +30,14 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const (
-	bitnamiRepoURL      = "https://charts.bitnami.com/bitnami"
-	dockerHubUserEnvVar = "DOCKERHUB_USERNAME"
-	bitnamiRepoAuthRef  = "bitnami-repo-auth"
-)
-
 func NginxCatalogService(name string) models.CatalogService {
-	values := `{
-		"service": {"type": "ClusterIP"},
-		"image": {"pullPolicy": "IfNotPresent"}
-	}`
+	values := `{"service": {"type": "ClusterIP"}}`
 
 	return models.CatalogService{
 		Meta: models.MetaLite{
 			Name: name,
 		},
-		HelmChart:    "nginx",
-		ChartVersion: "22.5.0",
+		HelmChart: "nginx",
 		HelmRepo: models.HelmRepo{
 			Name: "",
 			URL:  "https://charts.bitnami.com/bitnami",
@@ -83,11 +73,7 @@ func RedisCatalogService(name string) models.CatalogService {
 			Name: "",
 			URL:  "https://charts.bitnami.com/bitnami",
 		},
-		Values: `{
-			"architecture": "standalone",
-			"auth": {"enabled": false},
-			"image": {"pullPolicy": "IfNotPresent"}
-		}`,
+		Values: `{"architecture": "standalone", "auth": {"enabled": false}}`,
 	}
 }
 
@@ -108,8 +94,7 @@ func CreateCatalogService(catalogService models.CatalogService) {
 func CreateCatalogServiceInNamespace(namespace string, catalogService models.CatalogService) {
 	By("creating catalog entry in " + namespace + ": " + catalogService.Meta.Name)
 
-	helmRepoSecret := ensureHelmRepoAuthSecret(namespace, catalogService.HelmRepo.URL)
-	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService, helmRepoSecret)
+	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService)
 
 	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
 	Expect(err).ToNot(HaveOccurred(), out)
@@ -128,7 +113,7 @@ func DeleteCatalogServiceFromNamespace(namespace, name string) {
 }
 
 // Create temp file to hold the catalog service formatted as yaml, and return the path
-func SampleServiceTmpFile(namespace string, catalogService models.CatalogService, helmRepoSecret string) string {
+func SampleServiceTmpFile(namespace string, catalogService models.CatalogService) string {
 
 	// Convert from internal model to CRD structure
 	settings := map[string]epinioappv1.ServiceSetting{}
@@ -154,8 +139,7 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 			Name:        catalogService.Meta.Name,
 			Description: "A simple description of this service.",
 			HelmRepo: epinioappv1.HelmRepo{
-				URL:    catalogService.HelmRepo.URL,
-				Secret: helmRepoSecret,
+				URL: catalogService.HelmRepo.URL,
 			},
 			HelmChart: catalogService.HelmChart,
 			Values:    catalogService.Values,
@@ -185,49 +169,6 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	Expect(err).ToNot(HaveOccurred())
 
 	return filePath
-}
-
-func ensureHelmRepoAuthSecret(namespace, repoURL string) string {
-	if repoURL != bitnamiRepoURL {
-		return ""
-	}
-
-	username := os.Getenv(dockerHubUserEnvVar)
-	password := os.Getenv("DOCKERHUB_" + "PASSWORD")
-	if username == "" || password == "" {
-		By("docker hub credentials not configured in environment; using anonymous chart pulls")
-		return ""
-	}
-
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      bitnamiRepoAuthRef,
-			Namespace: namespace,
-		},
-		StringData: map[string]string{
-			"username": username,
-			"password": password,
-		},
-	}
-
-	secretBytes, err := json.Marshal(secret)
-	Expect(err).ToNot(HaveOccurred())
-
-	secretPath, err := helpers.CreateTmpFile(string(secretBytes))
-	Expect(err).ToNot(HaveOccurred())
-	defer func() {
-		Expect(os.Remove(secretPath)).ToNot(HaveOccurred())
-	}()
-
-	out, err := proc.Kubectl("apply", "-f", secretPath)
-	Expect(err).ToNot(HaveOccurred(), out)
-
-	return bitnamiRepoAuthRef
 }
 
 // Remove a service instance without going through epinio. Code is analogous though

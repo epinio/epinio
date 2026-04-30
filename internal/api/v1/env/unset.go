@@ -12,11 +12,12 @@
 package env
 
 import (
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	"github.com/gin-gonic/gin"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -33,7 +34,7 @@ func Unset(c *gin.Context) apierror.APIErrors {
 	appName := c.Param("app")
 	varName := c.Param("env")
 
-	requestctx.Logger(ctx).Infow("processing environment variable removal",
+	helpers.Logger.Infow("processing environment variable removal",
 		"namespace", namespaceName, "app", appName, "var", varName)
 
 	cluster, err := kubernetes.GetCluster(ctx)

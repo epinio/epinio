@@ -84,9 +84,9 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/s3manager"
+	"github.com/epinio/epinio/internal/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -102,7 +102,7 @@ import (
 // of the repo and puts it on S3.
 func ImportGit(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -187,11 +187,6 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {
-		// Check if the error is due to quota exhaustion
-		if s3manager.IsQuotaExceededError(err) {
-			return apierror.NewQuotaExceededError("",
-				"uploading the application sources blob: "+err.Error())
-		}
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 
@@ -230,7 +225,7 @@ var (
 // checkoutRepository will clone the repository and it will checkout the revision
 // It will also try to find the matching branch/reference, and if found this will be returned
 func checkoutRepository(ctx context.Context, gitRepo, url, revision string, gitconfig *gitbridge.Configuration) (*plumbing.Reference, error) {
-	log := requestctx.Logger(ctx)
+	log := helpers.Logger
 	cloneOptions := git.CloneOptions{URL: url}
 	cloneOptions = loadCloneOptions(cloneOptions, gitconfig)
 
