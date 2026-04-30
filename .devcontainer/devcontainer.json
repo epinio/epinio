@@ -2,7 +2,7 @@
   "name": "Epinio Development Environment",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
     "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
       "minikube": "none",
       "kubectl": "latest",
@@ -12,8 +12,8 @@
       "version": "1.24"
     }
   },
-  "forwardPorts": [443, 80, 8443],
-  // "appPort": ["443:443", "80:80", "8443:8443"], // nixos/linux only .. vscode on macos crashes with this
+  "runArgs": ["--privileged"],
+  "forwardPorts": [8443],
   "postCreateCommand": "bash .devcontainer/setup.sh",
   "postStartCommand": "bash .devcontainer/start.sh",
   "remoteEnv": {
