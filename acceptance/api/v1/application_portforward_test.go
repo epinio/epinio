@@ -80,25 +80,12 @@ var _ = Describe("AppPortForward Endpoint", LApplication, func() {
 
 		When("you specify a specific instance", func() {
 			var appName string
-			var instanceName string
 
 			BeforeEach(func() {
 				// Bug fix: Use separate application instead of the main of the suite
 				appName = "portforward"
 
 				env.MakeContainerImageApp(appName, 2, containerImageURL)
-
-				out, err := proc.Kubectl("get", "pods",
-					"-n", namespace,
-					"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
-					"-o", "name",
-				)
-				Expect(err).ToNot(HaveOccurred())
-
-				podNames := strings.Split(strings.TrimSpace(out), "\n")
-				Expect(len(podNames)).To(Equal(2))
-
-				instanceName = strings.Replace(podNames[1], "pod/", "", -1)
 			})
 
 			AfterEach(func() {
@@ -108,7 +95,14 @@ var _ = Describe("AppPortForward Endpoint", LApplication, func() {
 			It("runs a GET through the opened stream and gets the response back", func() {
 				// Keep this resilient for transient websocket/SPDY setup issues seen in CI.
 				var lastErr error
+				var instanceName string
 				Eventually(func() error {
+					var err error
+					instanceName, err = pickRunningInstance(namespace, appName)
+					if err != nil {
+						lastErr = err
+						return err
+					}
 					lastErr = runPortForwardGet(namespace, appName, instanceName)
 					return lastErr
 				}, "10m", "20s").Should(Succeed(), "AppPortForward GET (instance=%s) failed for namespace=%s app=%s: %v", instanceName, namespace, appName, lastErr)
@@ -184,4 +178,28 @@ func setupConnection(namespace, appName, instance string) (*websocket.Conn, erro
 	conn, _, err := websocket.DefaultDialer.Dial(portForwardURL.String(), nil)
 
 	return conn, err
+}
+
+func pickRunningInstance(namespace, appName string) (string, error) {
+	out, err := proc.Kubectl(
+		"get", "pods",
+		"-n", namespace,
+		"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
+		"--field-selector=status.phase=Running",
+		"-o", "name",
+	)
+	if err != nil {
+		return "", err
+	}
+
+	podNames := strings.Split(strings.TrimSpace(out), "\n")
+	for _, podName := range podNames {
+		podName = strings.TrimSpace(podName)
+		if podName == "" || !strings.HasPrefix(podName, "pod/") {
+			continue
+		}
+		return strings.TrimPrefix(podName, "pod/"), nil
+	}
+
+	return "", fmt.Errorf("no running instance found for app %s in namespace %s", appName, namespace)
 }

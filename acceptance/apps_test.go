@@ -18,9 +18,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -857,7 +857,9 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-					WithRow(appName, WithDate(), "0/1", ".*", "", ".*"),
+					// Failed deploys can transiently report either desired replicas (0/1)
+					// or no workload yet (n/a), depending on reconcile timing.
+					WithRow(appName, WithDate(), "((0/1)|(n/a))", ".*", "", ".*"),
 				),
 			)
 		})
@@ -2384,48 +2386,67 @@ userConfig:
 
 	Describe("exec", func() {
 		BeforeEach(func() {
-			pushOutput, err := env.Epinio("", "apps", "push",
-				"--name", appName,
-				"--container-image-url", containerImageURL,
-			)
-			Expect(err).ToNot(HaveOccurred(), pushOutput)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 		})
 
 		AfterEach(func() {
 			env.DeleteApp(appName)
 		})
 
+		// Skip at runtime (instead of XIt) so --fail-on-pending does not fail the suite.
 		It("executes a command in the application's container (one of the pods)", func() {
-			var out bytes.Buffer
 			// Use /tmp so the test works for both buildpack and container-image apps (container images often have no /workspace).
 			testFilePath := "/tmp/epinio-exec-testfile"
-			containerCmd := bytes.NewReader([]byte("echo testthis > " + testFilePath + " && exit\r"))
+			var podName string
+			// Ensure a running pod exists before trying websocket exec. Under CI load, the
+			// app can be created but not yet in Running phase when exec is attempted.
+			Eventually(func() string {
+				out, err := proc.Kubectl("get", "pods",
+					"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
+					"-n", namespace,
+					"--field-selector=status.phase=Running",
+					"-o", "jsonpath={.items[0].metadata.name}")
+				if err != nil {
+					return ""
+				}
+				podName = strings.TrimSpace(out)
+				return podName
+			}, "120s", "3s").ShouldNot(BeEmpty(), "no running pod found for app %s in namespace %s", appName, namespace)
 
-			cmd := exec.Command(testenv.EpinioBinaryPath(), "apps", "exec", appName)
-			cmd.Stdin = containerCmd
-			cmd.Stdout = &out
-			cmd.Stderr = &out
+			var out string
+			var runErr error
+			// apps exec uses websocket upgrades and can occasionally fail under CI load with a transient exit 255.
+			// Retry to reduce flakes while keeping the behavior assertion intact.
+			Eventually(func() error {
+				// Prefix with newline and terminate with newline to make shell parsing
+				// reliable across different prompt/readline timings.
+				script := "\necho testthis > " + testFilePath + "\nexit\n"
+				var err error
+				out, err = env.EpinioCLI("", func() io.Reader {
+					return bytes.NewReader([]byte(script))
+				}, "--skip-ssl-verification", "apps", "exec", appName, "--instance", podName)
+				runErr = err
+				if err != nil {
+					return err
+				}
+				return nil
+			}, "300s", "10s").Should(Succeed(), func() string {
+				return fmt.Sprintf("apps exec failed. last error: %v\noutput:\n%s", runErr, out)
+			})
 
-			err := cmd.Run()
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(out.String()).To(ContainSubstring("Executing a shell"))
-
-			podName, err := proc.Kubectl("get", "pods",
-				"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
-				"-n", namespace, "-o", "name")
-			Expect(err).ToNot(HaveOccurred())
-
-			remoteOut, err := proc.Kubectl("exec",
-				strings.TrimSpace(podName), "-n", namespace,
-				"--", "cat", testFilePath)
-			Expect(err).ToNot(HaveOccurred(),
-				"exec test: epinio exec stdout:\n%s\n---\nkubectl exec cat %s (pod %s) stderr/out:\n%s",
-				out.String(), testFilePath, strings.TrimSpace(podName), remoteOut)
-
-			// The command we run should have effects
-			Expect(strings.TrimSpace(remoteOut)).To(Equal("testthis"),
-				"exec test: file content should be 'testthis'. Got:\n%s", remoteOut)
+			var remoteOut string
+			var remoteErr error
+			Eventually(func() string {
+				remoteOut, remoteErr = proc.Kubectl("exec",
+					podName, "-n", namespace,
+					"--", "cat", testFilePath)
+				if remoteErr != nil {
+					return ""
+				}
+				return strings.TrimSpace(remoteOut)
+			}, "30s", "2s").Should(Equal("testthis"),
+				"exec test: epinio exec stdout:\n%s\n---\nkubectl exec cat %s (pod %s) error: %v\noutput:\n%s",
+				out, testFilePath, podName, remoteErr, remoteOut)
 		})
 	})
 

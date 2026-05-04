@@ -1,4 +1,4 @@
-issuer: https://auth.192.168.1.8.nip.io
+issuer: https://auth.192.168.1.6.nip.io
 web:
   allowedOrigins: ['localhost:8005']
 storage:
@@ -38,7 +38,8 @@ staticClients:
   secret: "uJfiOAOiK6fjEb3bj66O81I2Pdwsxihf"
   # Shouldn't be public, https://dexidp.io/docs/custom-scopes-claims-clients/#public-clients
   redirectURIs:
-  - "https://epinio.192.168.1.8.nip.io/auth/verify/"
+  - "https://epinio.192.168.1.6.nip.io/auth/verify/"
+  - "https://localhost:8005/auth/verify/"
 - id: rancher-dashboard
   name: 'Rancher Dashboard'
   public: true
@@ -53,7 +54,7 @@ connectors:
     config:
       clientID: Ov23liNWK2ljGs6VmXmY
       clientSecret: 232de3b3b26e2ecf4e1718ff4836e8858c82164e
-      redirectURI: https://auth.192.168.1.8.nip.io/callback
+      redirectURI: https://auth.192.168.1.6.nip.io/callback
       # Optional: restrict to specific GitHub orgs
       # orgs:
       #   - name: your-org-name
@@ -66,19 +67,19 @@ connectors:
     id: rancher
     name: Rancher
     config:
+      usePKCE: true
       issuer: https://rancher.192.168.49.2.nip.io/oidc
-      clientID: client-j8h9rrt78b
-      clientSecret: secret-2ghdjpdrmvszhpqgcc2f78j9twp5pxqn8gk4f4f2mc6jpwxwjl45vzh2
-      redirectURI: https://auth.192.168.1.8.nip.io/callback
+      clientID: client-8d4zlncq7k
+      clientSecret: secret-qmpqxzpxt5hthsjfpd9hgn5bvrh7h5hmd54h8slnxrkmvspfcpt6z5bz
+      redirectURI: https://auth.192.168.1.6.nip.io/callback
       insecureSkipVerify: true
       getUserInfo: true
+      userNameKey: username
       # Request specific scopes
       scopes:
         - openid
         - profile
-        - email
       # Claim mappings
       claimMapping:
-        preferred_username: preferred_username
-        email: email
-        groups: groups
+        email: preferred_username
+        preferred_username: username
