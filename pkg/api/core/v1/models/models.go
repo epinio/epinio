@@ -378,10 +378,11 @@ type MeResponse struct {
 }
 
 type Role struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Default   bool   `json:"default"`
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Namespace string   `json:"namespace"`
+	Default   bool     `json:"default"`
+	Actions   []string `json:"actions,omitempty"`
 }
 
 // AuthTokenResponse contains an auth token

@@ -92,6 +92,27 @@ func Exec(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// Opt-in TTY allocation. Browser-based clients (the dashboard ApplicationShell)
+	// pass ?tty=true and need a real PTY so bash gets job control and does not emit
+	// "cannot set terminal process group" / "no job control" warnings. CLI clients
+	// (epinio app exec) and other non-terminal callers leave it unset so the WS exec
+	// protocol matches remotecommand.StreamOptions.Tty=false; otherwise they exit 255.
+	wantTTY := false
+	switch c.Query("tty") {
+	case "1", "true", "TRUE", "True":
+		wantTTY = true
+	}
+
+	command := []string{
+		"/bin/sh",
+		"-c", "TERM=xterm-256color; export TERM; exec /bin/bash -i",
+	}
+	if wantTTY {
+		// With a real PTY, bash is interactive without -i and stderr is folded
+		// into stdout by the kernel — no need for the sh wrapper.
+		command = []string{"/bin/bash"}
+	}
+
 	// https://github.com/kubernetes/kubectl/blob/2acffc93b61e483bd26020df72b9aef64541bd56/pkg/cmd/exec/exec.go#L352
 	attachURL := cluster.Kubectl.CoreV1().RESTClient().
 		Post().
@@ -99,20 +120,13 @@ func Exec(c *gin.Context) apierror.APIErrors {
 		Resource("pods").
 		Name(podToConnect).
 		SubResource("exec").
-		// TTY must stay false so non-terminal clients (CI, scripts, piped stdin) match
-		// remotecommand.StreamOptions.Tty when stdin is not a TTY. Otherwise the
-		// websocket exec protocol mismatches and the client exits with status 255.
-		// Interactive shells still work: `bash -i` is interactive without a pty.
 		VersionedParams(&v1.PodExecOptions{
 			Stdin:     true,
 			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
+			Stderr:    !wantTTY, // kubelet rejects Stderr=true when TTY=true
+			TTY:       wantTTY,
 			Container: appData.Name,
-			Command: []string{
-				"/bin/sh",
-				"-c", "TERM=xterm-256color; export TERM; exec /bin/bash -i",
-			},
+			Command:   command,
 		}, scheme.ParameterCodec).URL()
 
 	return proxy.RunProxy(ctx, c.Writer, c.Request, attachURL)
