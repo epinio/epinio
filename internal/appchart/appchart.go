@@ -25,13 +25,19 @@ import (
 )
 
 // List returns a slice of all known app chart CRs.
-func List(ctx context.Context, cluster *kubernetes.Cluster) (models.AppChartList, error) {
+func List(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+) (models.AppChartList, error) {
 	client, err := cluster.ClientAppChart()
 	if err != nil {
 		return nil, err
 	}
 
-	list, err := client.Namespace(helmchart.Namespace()).List(ctx, metav1.ListOptions{})
+	list, err := client.Namespace(helmchart.Namespace()).List(
+		ctx,
+		metav1.ListOptions{},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +57,11 @@ func List(ctx context.Context, cluster *kubernetes.Cluster) (models.AppChartList
 }
 
 // Exists tests if the named app chart exists, or not.
-func Exists(ctx context.Context, cluster *kubernetes.Cluster, name string) (bool, error) {
+func Exists(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	name string,
+) (bool, error) {
 	_, err := Get(ctx, cluster, name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -63,7 +73,11 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, name string) (bool
 }
 
 // Lookup returns the named app chart, or nil
-func Lookup(ctx context.Context, cluster *kubernetes.Cluster, name string) (*models.AppChartFull, error) {
+func Lookup(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	name string,
+) (*models.AppChartFull, error) {
 	chartCR, err := Get(ctx, cluster, name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -78,44 +92,76 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, name string) (*mod
 // Get returns the app chart resource from the cluster.  This should be
 // changed to return a typed application struct, like epinioappv1.AppChartSpec if
 // needed in the future.
-func Get(ctx context.Context, cluster *kubernetes.Cluster, name string) (*unstructured.Unstructured, error) {
+func Get(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	name string,
+) (*unstructured.Unstructured, error) {
 	client, err := cluster.ClientAppChart()
 	if err != nil {
 		return nil, err
 	}
 
-	return client.Namespace(helmchart.Namespace()).Get(ctx, name, metav1.GetOptions{})
+	return client.Namespace(helmchart.Namespace()).Get(
+		ctx,
+		name,
+		metav1.GetOptions{},
+	)
 }
 
 // toChart converts the unstructured app chart CR into the proper model
 func toChart(chart *unstructured.Unstructured) (*models.AppChartFull, error) {
 
-	name, _, err := unstructured.NestedString(chart.UnstructuredContent(), "metadata", "name")
+	name, _, err := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"metadata",
+		"name",
+	)
 	if err != nil {
 		return nil, errors.New("chart should be string")
 	}
 
-	description, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "description")
+	description, _, err := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"spec",
+		"description",
+	)
 	if err != nil {
 		return nil, errors.New("description should be string")
 	}
 
-	short, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "shortDescription")
+	short, _, err := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"spec",
+		"shortDescription",
+	)
 	if err != nil {
 		return nil, errors.New("shortdescription should be string")
 	}
 
-	helmChart, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "helmChart")
+	helmChart, _, err := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"spec",
+		"helmChart",
+	)
 	if err != nil {
 		return nil, errors.New("helm chart should be string")
 	}
 
-	helmRepo, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "helmRepo")
+	helmRepo, _, err := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"spec",
+		"helmRepo",
+	)
 	if err != nil {
 		return nil, errors.New("helm repo should be string")
 	}
 
-	theValues, _, err := unstructured.NestedStringMap(chart.UnstructuredContent(), "spec", "values")
+	theValues, _, err := unstructured.NestedStringMap(
+		chart.UnstructuredContent(),
+		"spec",
+		"values",
+	)
 	if err != nil {
 		return nil, errors.New("spec values should be map")
 	}

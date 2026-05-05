@@ -213,6 +213,7 @@ var Routes = routes.NamedRoutes{
 		errorHandler(service.BatchBind)),
 
 	// App charts
+	"ChartCreate": post("/appcharts", errorHandler(appchart.Create)),
 	"ChartList":   get("/appcharts", errorHandler(appchart.Index)),
 	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Match)),
 	"ChartMatch0": get("/appchartsmatch", errorHandler(appchart.Match)),

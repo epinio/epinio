@@ -107,6 +107,7 @@
     - AppCreate
     - AppImportGit
     - AppUpload
+    - ChartCreate
 
 # App Delete
 - id: app_delete

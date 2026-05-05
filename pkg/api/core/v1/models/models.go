@@ -308,11 +308,11 @@ type DeployResponse struct {
 // For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
 // `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
 type AsyncDeployRequest struct {
-	App         AppRef            `json:"app,omitempty"`
-	BlobUID     string            `json:"blobuid,omitempty"`
-	BuilderImage string           `json:"builderimage,omitempty"`
-	ImageURL    string            `json:"image,omitempty"`
-	Origin      ApplicationOrigin `json:"origin,omitempty"`
+	App          AppRef            `json:"app,omitempty"`
+	BlobUID      string            `json:"blobuid,omitempty"`
+	BuilderImage string            `json:"builderimage,omitempty"`
+	ImageURL     string            `json:"image,omitempty"`
+	Origin       ApplicationOrigin `json:"origin,omitempty"`
 }
 
 // AsyncDeployStatus represents the status of an asynchronous deploy operation.
@@ -416,6 +416,20 @@ type AppChart struct {
 	ShortDescription string                  `json:"short_description,omitempty"`
 	HelmChart        string                  `json:"helm_chart,omitempty"`
 	HelmRepo         string                  `json:"helm_repo,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+}
+
+type AppChartRequest struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec AppChartRequestSpec `json:"spec,omitempty"`
+}
+
+type AppChartRequestSpec struct {
+	Description      string                  `json:"description,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
+	HelmChart        string                  `json:"helm_chart,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
 }
 
