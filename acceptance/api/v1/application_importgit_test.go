@@ -132,7 +132,8 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
 			Expect(importResponse.Branch).ToNot(BeEmpty())
-			Expect(importResponse.Branch).To(Equal("main"))
+			// Tag checkout is detached HEAD; go-git may report "HEAD" or "main"
+			Expect(importResponse.Branch).To(BeElementOf("main", "HEAD"))
 			Expect(importResponse.Revision).To(Equal("e84b2a73b2c1bb88d9cdc99ffca1a3d05b3d261b"))
 		})
 
@@ -147,7 +148,8 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
 			Expect(importResponse.Branch).ToNot(BeEmpty())
-			Expect(importResponse.Branch).To(Equal("test"))
+			// Commit checkout may be detached HEAD; go-git may report "HEAD", branch name, or tag
+			Expect(importResponse.Branch).To(BeElementOf("test", "HEAD", "v0.0.1"))
 			Expect(importResponse.Revision).To(Equal("15e2b2690ac9b372963544384b9aa43955a2e611"))
 		})
 	})

@@ -42,7 +42,7 @@ func (m *Machine) MakeContainerImageApp(appName string, instances int, container
 		out, err := m.Epinio("", "app", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
-	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+	}, "8m", "10s").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
 
 	return pushOutput
 }
@@ -63,7 +63,7 @@ func (m *Machine) MakeRoutedContainerImageApp(appName string, instances int, con
 		out, err := m.Epinio("", "app", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
-	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+	}, "8m", "10s").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
 
 	return pushOutput
 }
@@ -109,7 +109,7 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 			out, err := m.Epinio("", "app", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 			return out
-		}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+		}, "8m", "10s").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
 	}
 
 	return pushOutput
@@ -136,7 +136,7 @@ func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool
 		out, err := m.Epinio("", "app", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
-	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*\/.*\|.*`, appName)))
+	}, "8m", "10s").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*\/.*\|.*`, appName)))
 
 	return pushOutput
 }

@@ -15,9 +15,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apiapp "github.com/epinio/epinio/internal/api/v1/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
@@ -32,7 +32,7 @@ func Update(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
-	logger := helpers.Logger
+	logger := requestctx.Logger(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {

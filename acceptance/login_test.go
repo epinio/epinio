@@ -74,7 +74,7 @@ var _ = Describe("Login", LMisc, func() {
 		// login with a different user - name is specified interactively on stdin
 		var out bytes.Buffer
 		cmd := exec.Command(testenv.EpinioBinaryPath(), "login", "-p", env.EpinioPassword,
-			"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
+			"--trust-ca", "--settings-file", tmpSettingsPath, testenv.AppRouteWithPort(serverURL))
 		cmd.Stdin = bytes.NewReader([]byte("  epinio    \r\n"))
 		cmd.Stdout = &out
 		cmd.Stderr = &out
@@ -136,8 +136,9 @@ var _ = Describe("Login", LMisc, func() {
 
 		// login with a non existing user
 		out, err := env.Epinio("", "login", "-u", "unknown", "-p", env.EpinioPassword,
-			"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
+			"--trust-ca", "--settings-file", tmpSettingsPath, testenv.AppRouteWithPort(serverURL))
 		Expect(err).To(HaveOccurred(), out)
+		fmt.Fprintf(GinkgoWriter, "[login non-existing user] output:\n%s\n", out)
 		Expect(out).To(ContainSubstring(`error verifying credentials`))
 
 		// check that the settings are still empty

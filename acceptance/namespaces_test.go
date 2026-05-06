@@ -109,7 +109,7 @@ var _ = Describe("Namespaces", LNamespace, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			namespaces := models.NamespaceList{}
-			err = json.Unmarshal([]byte(out), &namespaces)
+			err = json.Unmarshal([]byte(extractJSONPayload(out)), &namespaces)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(namespaces).ToNot(BeEmpty())
 		})
@@ -194,7 +194,7 @@ var _ = Describe("Namespaces", LNamespace, func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				namespace := models.Namespace{}
-				err = json.Unmarshal([]byte(out), &namespace)
+				err = json.Unmarshal([]byte(extractJSONPayload(out)), &namespace)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(namespace.Meta.Name).To(Equal(namespaceName))
 			})

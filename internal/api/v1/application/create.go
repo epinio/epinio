@@ -149,7 +149,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 		desired = *createRequest.Configuration.Instances
 	}
 
-	err = application.ScalingSet(ctx, cluster, appRef, desired)
+	err = application.ScalingSetWithEventOnCreate(ctx, cluster, appRef, desired, username)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

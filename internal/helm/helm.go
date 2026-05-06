@@ -37,14 +37,11 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/registry"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 )
@@ -175,7 +172,7 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		// Note: We are backgrounding the action. The incoming context cannot be used, as it
 		// is linked to the request. We will get a `context canceled` error. To avoid this a
 		// background context is used instead.
-		go func() {
+		go func() { //nolint:gosec // Intentional background context
 			err = installOrUpgradeChartWithRetry(context.Background(), client, &chartSpec)
 			if err != nil {
 				logger.Errorw("installing or upgrading service ASYNC", "error", err)
@@ -322,7 +319,7 @@ type RouteParam struct {
 	Id     string `yaml:"id"`
 	Domain string `yaml:"domain"`
 	Path   string `yaml:"path"`
-	Secret string `yaml:"secret,omitempty"`
+	Secret string `yaml:"secret,omitempty"` // nolint:gosec // route secret for ingress, not credentials
 }
 type EpinioParam struct {
 	AppName        string               `yaml:"appName"`
@@ -433,68 +430,24 @@ func Release(ctx context.Context, cluster *kubernetes.Cluster,
 	return release, err
 }
 
-// Status will check for the readiness of the release returning an internal status instead of
-// the Helm release status (https://github.com/helm/helm/blob/main/pkg/release/status.go).
-// Helm is not checking for the actual status of the release and even if the resources are still
-// in deployment they will be marked as "deployed"
-func Status(ctx context.Context, cluster *kubernetes.Cluster,
+// Status maps the stored Helm release status to an internal ReleaseStatus.
+// This avoids fetching live resource states from the K8s API, which requires
+// one API call per resource in the release manifest and is expensive for list views.
+// The tradeoff is that Helm may report "deployed" briefly before all pods are fully
+// ready, but this is acceptable given the latency cost of per-resource checks.
+func Status(_ context.Context, _ *kubernetes.Cluster,
 	release *helmrelease.Release) (ReleaseStatus, error) {
-	logger := helpers.Logger.With("component", "helm-status")
-	resourceList := getResourceListFromRelease(release)
-	logger.Debugw("found resources for release",
-		"count", len(resourceList),
-		"release", release.Name,
-		"namespace", release.Namespace,
-	)
-
-	// Convert zap logger to logr for kube.NewReadyChecker which expects logr.Info function
-	logrInfo := func(msg string, keysAndValues ...interface{}) {
-		// Convert key-value pairs to zap fields
-		fields := make([]interface{}, 0, len(keysAndValues))
-		fields = append(fields, keysAndValues...)
-		logger.Infow(msg, fields...)
+	switch release.Info.Status {
+	case helmrelease.StatusDeployed:
+		return StatusReady, nil
+	case
+		helmrelease.StatusPendingInstall,
+		helmrelease.StatusPendingUpgrade,
+		helmrelease.StatusPendingRollback:
+		return StatusNotReady, nil
+	default:
+		return StatusUnknown, nil
 	}
-	checker := kube.NewReadyChecker(cluster.Kubectl, logrInfo, kube.PausedAsReady(true))
-	for _, v := range resourceList {
-		// IsReady checks if v is ready. It supports checking readiness for pods,
-		// deployments, persistent volume claims, services, daemon sets, custom
-		// resource definitions, stateful sets, replication controllers, and replica
-		// sets. All other resource kinds are always considered ready.
-		ready, err := checker.IsReady(ctx, v)
-
-		logger.Debugw("resource ready status", "resource", v.Name, "ready", ready)
-
-		if err != nil {
-			return StatusUnknown, errors.Wrapf(err,
-				"checking readiness of resource '%s' of release '%s'",
-				v.Name, release.Name)
-		}
-		if !ready {
-			return StatusNotReady, nil
-		}
-	}
-
-	return StatusReady, nil
-}
-
-// getResourcesFromRelease will look for Unstructured resources in the release and will return a list out of it
-func getResourceListFromRelease(release *helmrelease.Release) kube.ResourceList {
-	resourceList := make(kube.ResourceList, 0)
-
-	for _, objectList := range release.Info.Resources {
-		for _, obj := range objectList {
-			if v, ok := obj.(*unstructured.Unstructured); ok {
-				resourceList = append(resourceList, &resource.Info{
-					Object:    obj,
-					Name:      v.GetName(),
-					Namespace: v.GetNamespace(),
-				})
-			}
-
-		}
-	}
-
-	return resourceList
 }
 
 // syncNamespaceClientMap is holding a SynchronizedClient for each namespace
@@ -601,52 +554,52 @@ func ValidateField(key, value string, spec models.ChartSetting) (interface{}, er
 					return value, nil
 				}
 			}
-			return nil, fmt.Errorf(`setting "%s": Illegal string "%s"`, key, value)
+			return nil, fmt.Errorf(`setting "%s": illegal string "%s"`, key, value)
 		}
 		return value, nil
 	}
 	if spec.Type == "bool" {
 		flag, err := strconv.ParseBool(value)
 		if err != nil {
-			return nil, fmt.Errorf(`setting "%s": Expected boolean, got "%s"`, key, value)
+			return nil, fmt.Errorf(`setting "%s": expected boolean, got "%s"`, key, value)
 		}
 		return flag, nil
 	}
 	if spec.Type == "integer" {
 		ivalue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`setting "%s": Expected integer, got "%s"`, key, value)
+			return nil, fmt.Errorf(`setting "%s": expected integer, got "%s"`, key, value)
 		}
 		return ivalue, validateRange(float64(ivalue), key, value, spec.Minimum, spec.Maximum)
 	}
 	if spec.Type == "number" {
 		fvalue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`setting "%s": Expected number, got "%s"`, key, value)
+			return nil, fmt.Errorf(`setting "%s": expected number, got "%s"`, key, value)
 		}
 		return fvalue, validateRange(fvalue, key, value, spec.Minimum, spec.Maximum)
 	}
 
-	return nil, fmt.Errorf(`setting "%s": Bad spec: Unknown type "%s"`, key, spec.Type)
+	return nil, fmt.Errorf(`setting "%s": bad spec: unknown type "%s"`, key, spec.Type)
 }
 
 func validateRange(v float64, key, value, min, max string) error {
 	if min != "" {
 		minval, err := strconv.ParseFloat(min, 64)
 		if err != nil {
-			return fmt.Errorf(`setting "%s": Bad spec: Bad minimum "%s"`, key, min)
+			return fmt.Errorf(`setting "%s": bad spec: bad minimum "%s"`, key, min)
 		}
 		if v < minval {
-			return fmt.Errorf(`setting "%s": Out of bounds, "%s" too small`, key, value)
+			return fmt.Errorf(`setting "%s": out of bounds, "%s" too small`, key, value)
 		}
 	}
 	if max != "" {
 		maxval, err := strconv.ParseFloat(max, 64)
 		if err != nil {
-			return fmt.Errorf(`setting "%s": Bad spec: Bad maximum "%s"`, key, max)
+			return fmt.Errorf(`setting "%s": bad spec: bad maximum "%s"`, key, max)
 		}
 		if v > maxval {
-			return fmt.Errorf(`setting "%s": Out of bounds, "%s" too large`, key, value)
+			return fmt.Errorf(`setting "%s": out of bounds, "%s" too large`, key, value)
 		}
 	}
 	return nil

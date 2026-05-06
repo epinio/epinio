@@ -14,9 +14,9 @@ package service
 import (
 	"strings"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/gin-gonic/gin"
 
@@ -28,18 +28,19 @@ import (
 // It returns a list of all Epinio-controlled services matching the prefix pattern.
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 
-	helpers.Logger.Infow("match services")
-	defer helpers.Logger.Infow("return")
+	log.Infow("match services")
+	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Infow("list services")
+	log.Infow("list services")
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -50,10 +51,10 @@ func Match(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Infow("get service prefix")
+	log.Infow("get service prefix")
 	prefix := c.Param("pattern")
 
-	helpers.Logger.Infow("match prefix", "pattern", prefix)
+	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, service := range serviceList {
 		if strings.HasPrefix(service.Meta.Name, prefix) {
@@ -61,7 +62,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	helpers.Logger.Infow("deliver matches", "found", matches)
+	log.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.ServiceMatchResponse{
 		Names: matches,

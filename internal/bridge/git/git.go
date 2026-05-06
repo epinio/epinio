@@ -45,6 +45,8 @@ type Configuration struct {
 
 	// ID of the configuration (it maps to the kubernetes secret)
 	ID string
+	// CreatedAt is when the gitconfig (Secret) was created (from Secret.CreationTimestamp).
+	CreatedAt metav1.Time
 	// URL is the full url (schema/host/port) used to match a particular instance
 	URL      string
 	Provider models.GitProvider
@@ -52,7 +54,7 @@ type Configuration struct {
 	// For Github/Gitlab the username can be anything (see https://gitlab.com/gitlab-org/gitlab/-/issues/212953).
 	Username string
 	// The Personal Access Token
-	Password string
+	Password string // nolint:gosec // intentional auth field for git config
 	// UserOrg is used to specify the username/organization/project
 	UserOrg string
 	// Repository is used to specify the exact repository
@@ -106,6 +108,7 @@ func NewConfigurationsFromSecrets(secrets []v1.Secret) []Configuration {
 	for _, sec := range secrets {
 		config := &Configuration{
 			ID:          string(sec.Name),
+			CreatedAt:   sec.CreationTimestamp,
 			URL:         string(sec.Data["url"]),
 			Username:    string(sec.Data["username"]),
 			Password:    string(sec.Data["password"]),

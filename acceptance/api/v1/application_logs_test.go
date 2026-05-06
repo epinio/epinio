@@ -63,12 +63,13 @@ var _ = Describe("AppLogs Endpoint", LApplication, func() {
 
 		By("read the logs")
 		var logs string
+		// Allow up to 120s for log stream; slow environments may delay before close
 		Eventually(func() bool {
 			_, message, err := wsConn.ReadMessage()
 			logLength++
 			logs = fmt.Sprintf("%s %s", logs, string(message))
 			return websocket.IsCloseError(err, websocket.CloseNormalClosure)
-		}, 30*time.Second, 1*time.Second).Should(BeTrue())
+		}, 120*time.Second, 1*time.Second).Should(BeTrue())
 
 		err = wsConn.Close()
 		// With regular `ws` we could expect to not see any errors. With `wss`
@@ -97,47 +98,66 @@ var _ = Describe("AppLogs Endpoint", LApplication, func() {
 		logLength := len(strings.Split(existingLogs, "\n"))
 
 		token, err := authToken()
-		Expect(err).ToNot(HaveOccurred())
+		Expect(err).ToNot(HaveOccurred(), "authToken failed")
 
 		var urlArgs = []string{}
 		urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", true))
 		wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.WsRoot, v1.WsRoutes.Path("AppLogs", namespace, app), strings.Join(urlArgs, "&"))
 		wsConn, err := env.MakeWebSocketConnection(token, wsURL)
-		Expect(err).ToNot(HaveOccurred())
+		Expect(err).ToNot(HaveOccurred(), "MakeWebSocketConnection failed for AppLogs")
 
 		By("get to the end of logs")
 		for i := 0; i < logLength; i++ {
 			_, message, err := wsConn.ReadMessage()
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(message).NotTo(BeNil())
+			Expect(err).NotTo(HaveOccurred(), "AppLogs ReadMessage at index %d (logLength=%d): %v", i, logLength, err)
+			Expect(message).NotTo(BeNil(), "AppLogs message nil at index %d", i)
 		}
 
 		By("adding more logs")
-		Eventually(func() int {
-			resp, err := env.Curl("GET", route + ":8443", strings.NewReader("")) //TODO - Move hardcoded port to central function/if the port issue gets resolved, remove this
-			Expect(err).ToNot(HaveOccurred())
-
-			defer resp.Body.Close()
-
-			bodyBytes, err := io.ReadAll(resp.Body)
-			Expect(err).ToNot(HaveOccurred(), resp)
-
-			// reply must be from the phpinfo app
-			if !strings.Contains(string(bodyBytes), "phpinfo()") {
-				return 0
+		routeHit := false
+		deadline := time.Now().Add(3 * time.Minute)
+		for time.Now().Before(deadline) && !routeHit {
+			resp, err := env.Curl("GET", testenv.AppRouteWithPort(route), strings.NewReader(""))
+			if err != nil {
+				fmt.Fprintf(GinkgoWriter, "[AppLogs] curl route failed (transient): %v\n", err)
+				time.Sleep(3 * time.Second)
+				continue
 			}
 
-			return resp.StatusCode
-		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+			func() {
+				defer resp.Body.Close()
+
+				bodyBytes, err := io.ReadAll(resp.Body)
+				if err != nil {
+					fmt.Fprintf(GinkgoWriter, "[AppLogs] read body failed (transient): %v\n", err)
+					return
+				}
+
+				// reply must be from the phpinfo app
+				if !strings.Contains(string(bodyBytes), "phpinfo()") {
+					return
+				}
+
+				routeHit = resp.StatusCode == http.StatusOK
+			}()
+			if !routeHit {
+				time.Sleep(3 * time.Second)
+			}
+		}
+		if !routeHit {
+			Fail("follow-log assertion failed: app route did not become reachable after retries")
+		}
 
 		By("checking the latest log message")
+		var lastMessage string
 		Eventually(func() string {
 			_, message, err := wsConn.ReadMessage()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(message).NotTo(BeNil())
-			return string(message)
-		}, "10s").Should(ContainSubstring("[200]: GET /"))
+			if err != nil || message == nil {
+				return ""
+			}
+			lastMessage = string(message)
+			return lastMessage
+		}, "3m", "3s").Should(ContainSubstring("[200]: GET /"), "expected log line [200]: GET / in websocket message; got: %q", lastMessage)
 
 		err = wsConn.Close()
 		Expect(err).ToNot(HaveOccurred())

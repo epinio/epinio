@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/api/v1/proxy"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -28,7 +28,7 @@ var upgrader = websocket.Upgrader{} // use default option
 
 func PortForward(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := helpers.Logger.With("component", "PortForward")
+	logger := requestctx.Logger(ctx).With("component", "PortForward")
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
 

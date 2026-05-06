@@ -128,14 +128,24 @@ var _ = Describe("Service Batch Binding (CLI)", LService, func() {
 			nonExistentApp := "nonexistent-app"
 			out, err := env.Epinio("", "service", "bind", nonExistentApp, service1, service2)
 			Expect(err).To(HaveOccurred())
-			Expect(out).To(ContainSubstring("not found"))
+			// The API returns e.g. "application '<name>' does not exist" (404).
+			// Accept both legacy and current wording.
+			Expect(out).To(SatisfyAny(
+				ContainSubstring("not found"),
+				ContainSubstring("does not exist"),
+			))
 		})
 
 		It("returns error when a service doesn't exist", func() {
 			nonExistentService := "nonexistent-service"
 			out, err := env.Epinio("", "service", "bind", appName, service1, nonExistentService)
 			Expect(err).To(HaveOccurred())
-			Expect(out).To(ContainSubstring("not found"))
+			// The API returns: "service '<name>' does not exist" (404).
+			// Keep a loose match to avoid brittleness across server/CLI versions.
+			Expect(out).To(SatisfyAny(
+				ContainSubstring("not found"),
+				ContainSubstring("does not exist"),
+			))
 		})
 	})
 
@@ -182,8 +192,10 @@ var _ = Describe("Service Batch Binding (CLI)", LService, func() {
 			out, err := env.Epinio("", "service", "bind", service1, appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			// Then bind another with new format
-			out, err = env.Epinio("", "service", "bind", appName, service2)
+			// Then bind another with new format.
+			// Note: `epinio service bind` treats exactly 2 args as the old format
+			// (SERVICE APP). Therefore use 3+ args here to force the batch mode.
+			out, err = env.Epinio("", "service", "bind", appName, service1, service2)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// Verify both are bound

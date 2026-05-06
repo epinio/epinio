@@ -98,11 +98,11 @@ tag:
 ########################################################################
 # Acceptance tests
 
-FLAKE_ATTEMPTS ?= 2
 GINKGO_NODES ?= 2
 GINKGO_POLL_PROGRESS_AFTER ?= 200s
+GINKGO_TIMEOUT ?= 90m
 REGEX ?= ""
-STANDARD_TEST_OPTIONS= -v --nodes ${GINKGO_NODES} --poll-progress-after ${GINKGO_POLL_PROGRESS_AFTER} --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending
+STANDARD_TEST_OPTIONS= -v --nodes ${GINKGO_NODES} --poll-progress-after ${GINKGO_POLL_PROGRESS_AFTER} --timeout ${GINKGO_TIMEOUT} --randomize-all --fail-on-pending
 
 acceptance-cluster-delete:
 	k3d cluster delete epinio-acceptance
@@ -155,7 +155,7 @@ test-acceptance-upgrade: showfocus
 
 test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2
-	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} acceptance/install/.
+	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all acceptance/install/.
 
 test-acceptance-api-apps-critical-endpoints: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "application_exec_test.go" --label-filter "application" acceptance/api/v1/.

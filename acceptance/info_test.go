@@ -36,7 +36,7 @@ var _ = Describe("Info", LMisc, func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		info := &models.InfoResponse{}
-		err = json.Unmarshal([]byte(out), info)
+		err = json.Unmarshal([]byte(extractJSONPayload(out)), info)
 		Expect(err).ToNot(HaveOccurred(), out)
 		Expect(info.Platform).ToNot(BeEmpty())
 		Expect(info.Version).ToNot(BeEmpty())

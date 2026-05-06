@@ -145,7 +145,7 @@ var _ = Describe("ValidateField()", func() {
 			Type: "foofara",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
-		Expect(err.Error()).To(Equal(`setting "field": Bad spec: Unknown type "foofara"`))
+		Expect(err.Error()).To(Equal(`setting "field": bad spec: unknown type "foofara"`))
 	})
 
 	It("fails for an integer field with a bad minimum", func() {
@@ -154,7 +154,7 @@ var _ = Describe("ValidateField()", func() {
 			Minimum: "hello",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
-		Expect(err.Error()).To(Equal(`setting "field": Bad spec: Bad minimum "hello"`))
+		Expect(err.Error()).To(Equal(`setting "field": bad spec: bad minimum "hello"`))
 	})
 
 	It("fails for an integer field with a bad maximum", func() {
@@ -163,7 +163,7 @@ var _ = Describe("ValidateField()", func() {
 			Maximum: "hello",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
-		Expect(err.Error()).To(Equal(`setting "field": Bad spec: Bad maximum "hello"`))
+		Expect(err.Error()).To(Equal(`setting "field": bad spec: bad maximum "hello"`))
 	})
 
 	It("fails for a value out of range (< min)", func() {
@@ -172,7 +172,7 @@ var _ = Describe("ValidateField()", func() {
 			Minimum: "0",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
-		Expect(err.Error()).To(Equal(`setting "field": Out of bounds, "-2" too small`))
+		Expect(err.Error()).To(Equal(`setting "field": out of bounds, "-2" too small`))
 	})
 
 	It("fails for a value out of range (> max)", func() {
@@ -181,7 +181,7 @@ var _ = Describe("ValidateField()", func() {
 			Maximum: "100",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
-		Expect(err.Error()).To(Equal(`setting "field": Out of bounds, "1000" too large`))
+		Expect(err.Error()).To(Equal(`setting "field": out of bounds, "1000" too large`))
 	})
 
 	It("fails for a value out of range (not in enum)", func() {
@@ -193,7 +193,7 @@ var _ = Describe("ValidateField()", func() {
 			},
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
-		Expect(err.Error()).To(Equal(`setting "field": Illegal string "fox"`))
+		Expect(err.Error()).To(Equal(`setting "field": illegal string "fox"`))
 	})
 
 	It("fails for a non-integer value where integer required", func() {
@@ -201,7 +201,7 @@ var _ = Describe("ValidateField()", func() {
 			Type: "integer",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
-		Expect(err.Error()).To(Equal(`setting "field": Expected integer, got "hound"`))
+		Expect(err.Error()).To(Equal(`setting "field": expected integer, got "hound"`))
 	})
 
 	It("fails for a non-numeric value where numeric required", func() {
@@ -209,7 +209,7 @@ var _ = Describe("ValidateField()", func() {
 			Type: "number",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
-		Expect(err.Error()).To(Equal(`setting "field": Expected number, got "hound"`))
+		Expect(err.Error()).To(Equal(`setting "field": expected number, got "hound"`))
 	})
 
 	It("fails for a non-boolean value where boolean required", func() {
@@ -217,6 +217,6 @@ var _ = Describe("ValidateField()", func() {
 			Type: "bool",
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
-		Expect(err.Error()).To(Equal(`setting "field": Expected boolean, got "hound"`))
+		Expect(err.Error()).To(Equal(`setting "field": expected boolean, got "hound"`))
 	})
 })

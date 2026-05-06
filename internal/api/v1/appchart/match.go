@@ -14,10 +14,10 @@ package appchart
 import (
 	"strings"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -28,25 +28,26 @@ import (
 // It returns a list of all Epinio-controlled appcharts matching the prefix pattern.
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
 
-	helpers.Logger.Infow("match appcharts")
-	defer helpers.Logger.Infow("return")
+	log.Infow("match appcharts")
+	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Infow("list appcharts")
+	log.Infow("list appcharts")
 	appcharts, err := appchart.List(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Infow("get appchart prefix")
+	log.Infow("get appchart prefix")
 	prefix := c.Param("pattern")
 
-	helpers.Logger.Infow("match prefix", "pattern", prefix)
+	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, appchart := range appcharts {
 		if strings.HasPrefix(appchart.Meta.Name, prefix) {
@@ -54,7 +55,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	helpers.Logger.Infow("deliver matches", "found", matches)
+	log.Infow("deliver matches", "found", matches)
 
 	response.OKReturn(c, models.ChartMatchResponse{
 		Names: matches,

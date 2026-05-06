@@ -15,6 +15,7 @@ package authtoken
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -28,11 +29,30 @@ var (
 )
 
 const (
-	MaxExpiry = 30 * time.Second
+	// MaxExpiry is the maximum allowed expiry time for security (cap for configurable expiry)
+	MaxExpiry = 5 * time.Minute
 
-	// DefaultExpiry for the auth token
-	DefaultExpiry = MaxExpiry
+	// DefaultExpiry for the auth token when not configured
+	DefaultExpiry = 30 * time.Second
+
+	// AuthTokenDefaultExpiryEnv is the environment variable for configuring default token expiry
+	AuthTokenDefaultExpiryEnv = "AUTH_TOKEN_DEFAULT_EXPIRY" // nolint:gosec
 )
+
+// GetDefaultExpiry returns the configured default token expiry from AUTH_TOKEN_DEFAULT_EXPIRY
+// (e.g. "30s", "60s", "2m"), or DefaultExpiry if not set or invalid.
+// Values are capped at MaxExpiry for security.
+func GetDefaultExpiry() time.Duration {
+	if val := os.Getenv(AuthTokenDefaultExpiryEnv); val != "" {
+		if d, err := time.ParseDuration(val); err == nil && d > 0 {
+			if d > MaxExpiry {
+				return MaxExpiry
+			}
+			return d
+		}
+	}
+	return DefaultExpiry
+}
 
 // EpinioClaims are the values we store in the JWT
 type EpinioClaims struct {

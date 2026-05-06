@@ -12,9 +12,9 @@
 package service
 
 import (
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
@@ -28,7 +28,7 @@ import (
 // It creates a binding between the specified service and application
 func Bind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := helpers.Logger.With("component", "ServiceBind")
+	logger := requestctx.Logger(ctx).With("component", "ServiceBind")
 
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")

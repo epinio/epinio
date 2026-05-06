@@ -42,14 +42,20 @@ func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
 	out, err := m.Epinio("", "service", "create", catalogService, serviceName, "--wait")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	// And check presence and readiness
-	out, err = m.Epinio("", "service", "show", serviceName)
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(ContainSubstring(serviceName))
-	Expect(out).To(
-		HaveATable(
-			WithHeaders("KEY", "VALUE"),
-			WithRow("Status", "deployed"),
+	// Wait for deployment to be ready (--wait may return before status is "deployed" in busy clusters)
+	Eventually(func() string {
+		out, err := m.Epinio("", "service", "show", serviceName)
+		if err != nil {
+			return ""
+		}
+		return out
+	}, "5m", "5s").Should(
+		And(
+			ContainSubstring(serviceName),
+			HaveATable(
+				WithHeaders("KEY", "VALUE"),
+				WithRow("Status", "deployed"),
+			),
 		),
 	)
 

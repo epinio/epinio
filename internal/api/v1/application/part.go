@@ -12,21 +12,24 @@
 package application
 
 import (
+	"archive/zip"
 	"bufio"
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
@@ -39,7 +42,6 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/repo"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	restclient "k8s.io/client-go/rest"
@@ -47,6 +49,18 @@ import (
 )
 
 const imageExportVolume = "/image-export/"
+
+// validPartNames lists part names accepted by GetPart (manifest, values, chart, image, archive).
+var validPartNames = []string{"manifest", "values", "chart", "image", "archive"}
+
+func isValidPartName(part string) bool {
+	for _, p := range validPartNames {
+		if part == p {
+			return true
+		}
+	}
+	return false
+}
 
 // Has to match mount path of `image-export-volume` in templates/server.yaml of the chart
 // CONSIDER ? Templated, and name given to server through EV ?
@@ -60,11 +74,8 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 	appName := c.Param("app")
 	partName := c.Param("part")
 
-	switch partName {
-	case "manifest", "values", "chart", "image":
-		// valid parts, no error
-	default:
-		return apierror.NewBadRequestErrorf("unknown '%s' part, expected chart, manifest, image, or values", partName)
+	if !isValidPartName(partName) {
+		return apierror.NewBadRequestErrorf("unknown '%s' part, expected chart, manifest, image, values, or archive", partName)
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -99,6 +110,8 @@ func GetPart(c *gin.Context) apierror.APIErrors {
 		return fetchAppImage(c, ctx, cluster, app)
 	case "values":
 		return fetchAppValues(c, cluster, app.Meta)
+	case "archive":
+		return fetchAppArchive(c, ctx, cluster, app)
 	}
 
 	return apierror.InternalError(fmt.Errorf("should not be reached"))
@@ -112,6 +125,7 @@ func fetchAppChart(
 	cluster *kubernetes.Cluster,
 	theApp *models.App,
 ) apierror.APIErrors {
+	log := requestctx.Logger(ctx)
 	// Get the application's app chart
 	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
 	if err != nil {
@@ -126,7 +140,7 @@ func fetchAppChart(
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Infow("input", "chart archive", chartArchive)
+	log.Infow("input", "chart archive", chartArchive)
 
 	// Ensure presence of the chart archive as a local file.
 
@@ -135,30 +149,30 @@ func fetchAppChart(
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Infow("input", "local chart archive", chartArchive)
+	log.Infow("input", "local chart archive", chartArchive)
 
 	// Here the archive is surely a local file
 
-	file, err := os.Open(chartArchive)
+	file, err := os.Open(chartArchive) // nolint:gosec // path from urlcache under controlled export volume
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Infow("input is file")
+	log.Infow("input is file")
 
 	fileInfo, err := file.Stat()
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	helpers.Logger.Infow("input has stat")
+	log.Infow("input has stat")
 
 	contentLength := fileInfo.Size()
 	contentType := "application/x-gzip"
 
-	helpers.Logger.Infow("input, returning file")
+	log.Infow("input, returning file")
 
-	helpers.Logger.Infow("OK",
+	log.Infow("OK",
 		"origin", c.Request.URL.String(),
 		"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
 	)
@@ -173,7 +187,8 @@ func fetchAppImage(
 	cluster *kubernetes.Cluster,
 	theApp *models.App,
 ) apierror.APIErrors {
-	helpers.Logger.Infow("fetching app image")
+	log := requestctx.Logger(ctx)
+	log.Infow("fetching app image")
 
 	// Mixing in nanoseconds to prevent multiple requests for the same app to clash over the file name
 	now := strconv.Itoa(time.Now().Nanosecond())
@@ -185,17 +200,21 @@ func fetchAppImage(
 		now,
 	)
 
-	helpers.Logger.Infow("got app chart", "chart image", theApp.ImageURL)
+	log.Infow("got app chart", "chart image", theApp.ImageURL)
 
 	file, err := fetchAppImageFile(ctx, cluster, theApp, imageOutputFilename)
 	if err != nil {
 		return apierror.NewInternalError("failed to retrieve image", err.Error())
 	}
+	imageOutputPath, err := imageExportFilePath(imageOutputFilename)
+	if err != nil {
+		return apierror.NewInternalError("failed to resolve image output path", err.Error())
+	}
 
 	defer func() {
-		err := os.Remove(imageExportVolume + imageOutputFilename)
+		err := os.Remove(imageOutputPath)
 		if err != nil {
-			helpers.Logger.Infow(
+			log.Infow(
 				"error cleaning up image file",
 				"filename",
 				imageOutputFilename,
@@ -214,46 +233,200 @@ func fetchAppImage(
 	return nil
 }
 
+// fetchAppArchive streams a zip containing values.yaml, app-chart.tar.gz, and app-image.tar
+// so the client can download one archive instead of three parts and zipping in the browser.
+func fetchAppArchive(
+	c *gin.Context,
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	theApp *models.App,
+) apierror.APIErrors {
+	log := requestctx.Logger(ctx)
+	log.Infow("fetching app archive (chart and images)")
+
+	// 1. Values
+	valuesYAML, err := helm.Values(cluster, theApp.Meta)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	// 2. Chart (local path)
+	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if appChart == nil {
+		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
+	}
+	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	chartArchive, err = urlcache.Get(ctx, chartArchive)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	chartFile, err := os.Open(chartArchive) // nolint:gosec // path from urlcache under controlled export volume
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	defer func() { _ = chartFile.Close() }()
+	chartInfo, err := chartFile.Stat()
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	// 3. Image (job + file on PVC)
+	now := strconv.Itoa(time.Now().Nanosecond())
+	imageOutputFilename := fmt.Sprintf(
+		"%s-%s-%s-%s.tar",
+		theApp.Meta.Namespace,
+		theApp.Meta.Name,
+		theApp.StageID,
+		now,
+	)
+	imageFile, err := fetchAppImageFile(ctx, cluster, theApp, imageOutputFilename)
+	if err != nil {
+		return apierror.NewInternalError("failed to retrieve image", err.Error())
+	}
+	imageOutputPath, err := imageExportFilePath(imageOutputFilename)
+	if err != nil {
+		return apierror.NewInternalError("failed to resolve image output path", err.Error())
+	}
+	defer func() {
+		_ = imageFile.Close()
+		_ = os.Remove(imageOutputPath)
+	}()
+	imageInfo, err := imageFile.Stat()
+	if err != nil {
+		return apierror.NewInternalError("failed to get image file info", err.Error())
+	}
+
+	// Stream zip
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", theApp.Meta.Name+"-helm-chart.zip"))
+	zw := zip.NewWriter(c.Writer)
+	defer func() { _ = zw.Close() }()
+
+	// values.yaml
+	w, err := zw.CreateHeader(&zip.FileHeader{
+		Name:   "values.yaml",
+		Method: zip.Store,
+	})
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if _, err := w.Write(valuesYAML); err != nil {
+		return apierror.InternalError(err)
+	}
+
+	// app-chart.tar.gz
+	chartSize := chartInfo.Size()
+	if chartSize < 0 {
+		return apierror.InternalError(fmt.Errorf("invalid chart file size: %d", chartSize))
+	}
+	w, err = zw.CreateHeader(&zip.FileHeader{
+		Name:               "app-chart.tar.gz",
+		Method:             zip.Store,
+		UncompressedSize64: uint64(chartSize),
+	})
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if _, err := io.Copy(w, chartFile); err != nil {
+		return apierror.InternalError(err)
+	}
+
+	// app-image.tar
+	imageSize := imageInfo.Size()
+	if imageSize < 0 {
+		return apierror.InternalError(fmt.Errorf("invalid image file size: %d", imageSize))
+	}
+	w, err = zw.CreateHeader(&zip.FileHeader{
+		Name:               "app-image.tar",
+		Method:             zip.Store,
+		UncompressedSize64: uint64(imageSize),
+	})
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if _, err := io.Copy(w, imageFile); err != nil {
+		return apierror.InternalError(err)
+	}
+
+	return nil
+}
+
 func fetchAppImageFile(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	theApp *models.App,
 	imageOutputFilename string,
 ) (*os.File, error) {
-	// Mixing in nanoseconds to prevent multiple requests for the same app to clash over the job name
-
-	nano := strconv.Itoa(time.Now().Nanosecond())
-	jobName := names.GenerateResourceName(
-		"image-export-job",
-		theApp.Meta.Namespace,
-		theApp.Meta.Name,
-		theApp.StageID,
-		nano,
-	)
-
-	err := runDownloadImageJob(
-		ctx,
-		cluster,
-		jobName,
-		theApp.ImageURL,
-		imageOutputFilename,
-	)
+	log := requestctx.Logger(ctx)
+	imageOutputPath, err := imageExportFilePath(imageOutputFilename)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to create job")
+		return nil, errors.Wrap(err, "invalid image output filename")
+	}
+	// Try with source auth first, then retry without source auth in case the auth file
+	// does not contain credentials for external registries.
+	var lastErr error
+	for _, useSourceAuth := range []bool{true, false} {
+		//nolint:gosec // imageOutputPath is constrained by imageExportFilePath to imageExportVolume.
+		if removeErr := os.Remove(imageOutputPath); removeErr != nil && !os.IsNotExist(removeErr) {
+			log.Infow("unable to remove stale image export tar before retry", "error", removeErr, "file", imageOutputFilename)
+		}
+
+		nano := strconv.Itoa(time.Now().Nanosecond())
+		jobName := names.GenerateResourceName(
+			"image-export-job",
+			theApp.Meta.Namespace,
+			theApp.Meta.Name,
+			theApp.StageID,
+			nano,
+		)
+
+		err := runDownloadImageJob(
+			ctx,
+			cluster,
+			jobName,
+			theApp.ImageURL,
+			imageOutputFilename,
+			useSourceAuth,
+		)
+		if err != nil {
+			lastErr = errors.Wrap(err, "unable to create job")
+			continue
+		}
+
+		file, err := getFileImageAndJobCleanup(
+			ctx,
+			cluster,
+			jobName,
+			imageOutputFilename,
+		)
+		if err == nil {
+			return file, nil
+		}
+
+		log.Infow(
+			"image export attempt failed",
+			"job",
+			jobName,
+			"image",
+			theApp.ImageURL,
+			"useSourceAuth",
+			useSourceAuth,
+			"error",
+			err,
+		)
+		lastErr = errors.Wrap(err, "failed waiting for job completion")
 	}
 
-	file, err := getFileImageAndJobCleanup(
-		ctx,
-		cluster,
-		jobName,
-		imageOutputFilename,
-	)
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed waiting for job completion")
+	if lastErr == nil {
+		lastErr = errors.New("no image export attempts were executed")
 	}
-
-	return file, nil
+	return nil, lastErr
 }
 
 func runDownloadImageJob(
@@ -262,7 +435,9 @@ func runDownloadImageJob(
 	jobName,
 	imageURL,
 	imageOutputFilename string,
+	useSourceAuth bool,
 ) error {
+	log := requestctx.Logger(ctx)
 	appImageExporter := viper.GetString("app-image-exporter")
 
 	labels := map[string]string{
@@ -318,58 +493,15 @@ func runDownloadImageJob(
 		})
 	}
 
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        jobName,
-			Labels:      labels,
-			Annotations: map[string]string{},
-		},
-		Spec: batchv1.JobSpec{
-			BackoffLimit: ptr.To[int32](0),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels:      labels,
-					Annotations: map[string]string{},
-				},
-				Spec: corev1.PodSpec{
-					Affinity: &corev1.Affinity{
-						PodAffinity: &corev1.PodAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-								{
-									LabelSelector: &metav1.LabelSelector{
-										MatchExpressions: []metav1.LabelSelectorRequirement{
-											{
-												Key:      "app.kubernetes.io/name",
-												Operator: "In",
-												Values:   []string{"epinio-server"},
-											},
-										},
-									},
-									TopologyKey: "kubernetes.io/hostname",
-								},
-							},
-						},
-					},
-					Containers: []corev1.Container{
-						{
-							Name:    "skopeo",
-							Image:   appImageExporter,
-							Command: []string{"skopeo"},
-							Args: []string{
-								"copy",
-								"--src-authfile=/root/containers/auth.json",
-								"docker://" + imageURL,
-								"docker-archive:/tmp/" + imageOutputFilename,
-							},
-							VolumeMounts: mounts,
-						},
-					},
-					RestartPolicy: corev1.RestartPolicyNever,
-					Volumes:       volumes,
-				},
-			},
-		},
+	args := []string{"copy", "--retry-times=5"}
+	if useSourceAuth {
+		args = append(args, "--src-authfile=/root/containers/auth.json")
 	}
+	args = append(args, "docker://"+imageURL, "docker-archive:/tmp/"+imageOutputFilename)
+
+	job := newSkopeoJob(jobName, labels, appImageExporter, "skopeo", args, mounts, volumes)
+
+	log.Infow("image export job command", "job", jobName, "args", args)
 
 	return cluster.CreateJob(ctx, helmchart.Namespace(), job)
 }
@@ -380,16 +512,18 @@ func getFileImageAndJobCleanup(
 	jobName,
 	imageOutputFilename string,
 ) (*os.File, error) {
-	err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), jobName, time.Minute*2)
+	log := requestctx.Logger(ctx)
+	// Allow 15m for slow CI (image pull/skopeo copy can be slow on shared runners)
+	err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), jobName, time.Minute*15)
 	if err != nil {
-		helpers.Logger.Infow("export job wait error", "error", err, "job", jobName)
+		log.Infow("export job wait error", "error", err, "job", jobName)
 
 		if errors.Is(err, context.Canceled) {
-			helpers.Logger.Infow("delete job, canceled", "job", jobName)
+			log.Infow("delete job, canceled", "job", jobName)
 			// NOTE: Use bg context here, the regular once is canceled.
 			err := cluster.DeleteJob(context.Background(), helmchart.Namespace(), jobName)
 			if err != nil {
-				helpers.Logger.Infow(
+				log.Infow(
 					"export job delete error, in cancellation",
 					"error",
 					err,
@@ -402,28 +536,159 @@ func getFileImageAndJobCleanup(
 		return nil, errors.Wrapf(err, "error waiting for job done %s", jobName)
 	}
 
-	// check for file existence
-	file, err := os.Open(imageExportVolume + imageOutputFilename)
-	if err != nil {
-		// NOTE: job is kept, allows for debugging.
-
-		helpers.Logger.Infow(
-			"export job result error",
-			"error",
-			err,
-			"job",
-			jobName,
-		)
-		return nil, errors.Wrap(err, "failed to open tar file")
+	// Check for file existence (retry because PVC visibility may lag the job completion signal).
+	file, fileErr := openExportImageFileWithRetries(imageOutputFilename, 10, 2*time.Second)
+	if fileErr == nil {
+		fileInfo, statErr := file.Stat()
+		if statErr != nil {
+			_ = file.Close()
+			file = nil
+			fileErr = errors.Wrap(statErr, "failed to stat image tar file")
+		} else if fileInfo.Size() <= 0 {
+			_ = file.Close()
+			file = nil
+			fileErr = errors.New("image export tar file exists but is empty")
+		}
 	}
 
-	helpers.Logger.Infow("delete job, done", "job", jobName)
+	failed, err := cluster.IsJobFailed(ctx, jobName, helmchart.Namespace())
+	if err != nil {
+		if file != nil {
+			log.Infow("unable to check image export job status, but tar file was created", "job", jobName, "error", err)
+		} else {
+			return nil, errors.Wrapf(err, "error checking job status %s", jobName)
+		}
+	}
+	if failed && file == nil {
+		diag := imageExportJobDiagnostics(ctx, cluster, jobName)
+		log.Infow("image export job failed", "job", jobName, "diagnostics", diag)
+		_ = cluster.DeleteJob(ctx, helmchart.Namespace(), jobName)
+		return nil, errors.Errorf("image export job failed (skopeo copy did not produce the tar file): %s", diag)
+	}
+	if file == nil {
+		diag := imageExportJobDiagnostics(ctx, cluster, jobName)
+		log.Infow("image export tar missing after completed job", "job", jobName, "diagnostics", diag)
+		_ = cluster.DeleteJob(ctx, helmchart.Namespace(), jobName)
+		return nil, errors.Wrapf(fileErr, "failed to open tar file (%s)", diag)
+	}
+	if failed {
+		log.Infow("image export job reported failure but tar file exists; continuing with tar artifact", "job", jobName)
+	}
+
+	log.Infow("delete job, done", "job", jobName)
 
 	err = cluster.DeleteJob(ctx, helmchart.Namespace(), jobName)
 	if err != nil {
-		helpers.Logger.Infow("export job delete error", "error", err, "job", jobName)
+		log.Infow("export job delete error", "error", err, "job", jobName)
 	}
 	return file, errors.Wrapf(err, "error deleting job %s", jobName)
+}
+
+func openExportImageFileWithRetries(path string, attempts int, delay time.Duration) (*os.File, error) {
+	if attempts < 1 {
+		attempts = 1
+	}
+	filePath, err := imageExportFilePath(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid image export filename")
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		//nolint:gosec // filePath is constrained by imageExportFilePath to imageExportVolume.
+		file, err := os.Open(filePath)
+		if err == nil {
+			return file, nil
+		}
+		lastErr = err
+		if attempt < attempts {
+			time.Sleep(delay)
+		}
+	}
+
+	return nil, lastErr
+}
+
+func imageExportFilePath(filename string) (string, error) {
+	if filename == "" {
+		return "", errors.New("image export filename is empty")
+	}
+	if filepath.Base(filename) != filename || strings.Contains(filename, "..") {
+		return "", errors.Errorf("invalid image export filename %q", filename)
+	}
+
+	volumePath := filepath.Clean(imageExportVolume)
+	fullPath := filepath.Join(volumePath, filename)
+	rel, err := filepath.Rel(volumePath, fullPath)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return "", errors.Errorf("image export path escapes export volume: %q", filename)
+	}
+
+	return fullPath, nil
+}
+
+func imageExportJobDiagnostics(ctx context.Context, cluster *kubernetes.Cluster, jobName string) string {
+	namespace := helmchart.Namespace()
+	diagnostics := []string{}
+
+	job, err := cluster.Kubectl.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Sprintf("failed to get job %q: %v", jobName, err)
+	}
+
+	diagnostics = append(diagnostics, fmt.Sprintf("job counters: active=%d succeeded=%d failed=%d", job.Status.Active, job.Status.Succeeded, job.Status.Failed))
+	for _, cond := range job.Status.Conditions {
+		diagnostics = append(diagnostics,
+			fmt.Sprintf("job condition: type=%s status=%s reason=%s message=%q", cond.Type, cond.Status, cond.Reason, cond.Message))
+	}
+
+	pods, err := cluster.ListPods(ctx, namespace, fmt.Sprintf("job-name=%s", jobName))
+	if err != nil {
+		diagnostics = append(diagnostics, fmt.Sprintf("failed to list job pods: %v", err))
+		return strings.Join(diagnostics, " | ")
+	}
+	if len(pods.Items) == 0 {
+		diagnostics = append(diagnostics, "no pods found for job")
+		return strings.Join(diagnostics, " | ")
+	}
+
+	for _, pod := range pods.Items {
+		diagnostics = append(diagnostics,
+			fmt.Sprintf("pod %s phase=%s reason=%s message=%q", pod.Name, pod.Status.Phase, pod.Status.Reason, pod.Status.Message))
+		for _, st := range pod.Status.ContainerStatuses {
+			if st.State.Terminated != nil {
+				t := st.State.Terminated
+				diagnostics = append(diagnostics,
+					fmt.Sprintf("container %s terminated: exitCode=%d reason=%s message=%q", st.Name, t.ExitCode, t.Reason, t.Message))
+			} else if st.State.Waiting != nil {
+				w := st.State.Waiting
+				diagnostics = append(diagnostics,
+					fmt.Sprintf("container %s waiting: reason=%s message=%q", st.Name, w.Reason, w.Message))
+			}
+		}
+
+		logTail, logErr := cluster.Kubectl.CoreV1().Pods(namespace).GetLogs(
+			pod.Name,
+			&corev1.PodLogOptions{
+				Container: "skopeo",
+				TailLines: ptr.To[int64](40),
+			},
+		).DoRaw(ctx)
+		if logErr != nil {
+			diagnostics = append(diagnostics, fmt.Sprintf("failed to read skopeo logs from pod %s: %v", pod.Name, logErr))
+			continue
+		}
+
+		cleanLog := strings.ReplaceAll(strings.TrimSpace(string(logTail)), "\n", " || ")
+		if cleanLog != "" {
+			diagnostics = append(diagnostics, fmt.Sprintf("skopeo log tail from pod %s: %s", pod.Name, cleanLog))
+		}
+	}
+
+	return strings.Join(diagnostics, " | ")
 }
 
 func fetchAppValues(
@@ -506,7 +771,7 @@ func chartArchiveURL(
 	}
 
 	// Read index into memory
-	content, err := os.ReadFile("/tmp/.helmcache/" + name + "-index.yaml")
+	content, err := os.ReadFile("/tmp/.helmcache/" + name + "-index.yaml") // nolint:gosec // fixed prefix, name from app chart lookup
 	if err != nil {
 		return "", err
 	}

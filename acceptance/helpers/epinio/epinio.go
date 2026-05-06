@@ -14,6 +14,7 @@ package epinio
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
@@ -24,6 +25,20 @@ import (
 
 type Epinio struct {
 	EpinioBinaryPath string
+}
+
+func localChartPath() string {
+	// Prefer the workspace root chart when present, fallback to the bundled submodule path.
+	candidates := []string{
+		"../helm-charts/chart/epinio",
+		"helm-charts/chart/epinio",
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(filepath.Join(testenv.Root(), candidate)); err == nil {
+			return candidate
+		}
+	}
+	return "helm-charts/chart/epinio"
 }
 
 func NewEpinioHelper(epinioBinaryPath string) Epinio {
@@ -100,18 +115,19 @@ func (e *Epinio) Upgrade() {
 	// also: https://github.com/helm/helm/issues/8085
 
 	By("Get old Helm values")
-	prevValuesFile := "prev-values.yaml"
+	prevValuesFile := filepath.Join(testenv.Root(), "prev-values.yaml")
+	chart := localChartPath()
 
-	out, err = proc.RunW("helm", "get", "values", "epinio", "-n", "epinio", "-o", "yaml")
+	out, err = proc.Run(testenv.Root(), false, "helm", "get", "values", "epinio", "-n", "epinio", "-o", "yaml")
 	Expect(err).NotTo(HaveOccurred(), out)
 	By("Old values = ((" + out + "))")
 	err = os.WriteFile(prevValuesFile, []byte(out), 0600)
 	Expect(err).NotTo(HaveOccurred(), out)
 
 	By("Upgrading server side")
-	out, err = proc.RunW("helm", "upgrade", "epinio",
+	out, err = proc.Run(testenv.Root(), false, "helm", "upgrade", "epinio",
 		"-n", "epinio",
-		"../../helm-charts/chart/epinio",
+		chart,
 		"--values", prevValuesFile,
 		"--set", "image.epinio.registry=ghcr.io/",
 		"--set", fmt.Sprintf("image.epinio.tag=%s", tag),
@@ -126,7 +142,7 @@ func (e *Epinio) Upgrade() {
 func (e *Epinio) Install(args ...string) (string, error) {
 
 	// Default is install from local chart
-	chart := "helm-charts/chart/epinio"
+	chart := localChartPath()
 
 	// If requested by the environment, switch to latest release instead, which is older
 	released := os.Getenv("EPINIO_RELEASED")

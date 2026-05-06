@@ -12,7 +12,6 @@
 package env
 
 import (
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -34,7 +33,7 @@ func Set(c *gin.Context) apierror.APIErrors {
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
 
-	helpers.Logger.Infow("processing environment variable assignment",
+	requestctx.Logger(ctx).Infow("processing environment variable assignment",
 		"namespace", namespaceName, "app", appName)
 
 	cluster, err := kubernetes.GetCluster(ctx)

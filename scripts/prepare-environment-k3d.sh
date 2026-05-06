@@ -149,6 +149,15 @@ else
       { "backend": { "service": { "name": "epinio-server", "port": { "number": 80 } } }, "path": "/exit", "pathType": "ImplementationSpecific" } }]'
   fi
 fi
+
+# Increase ingress timeouts so slower namespace operations in CI don't hit nginx 504s.
+echo "Configuring Epinio ingress timeouts"
+kubectl annotate ingress -n epinio epinio \
+  nginx.ingress.kubernetes.io/proxy-read-timeout="600" \
+  nginx.ingress.kubernetes.io/proxy-send-timeout="600" \
+  nginx.ingress.kubernetes.io/proxy-connect-timeout="120" \
+  --overwrite || true
+
 echo "-------------------------------------"
 echo "Check for binary"
 ${EPINIO_BINARY} version

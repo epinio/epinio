@@ -20,8 +20,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/gin-gonic/gin"
@@ -78,7 +78,7 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 			}
 		}
 		if gitConfig == nil {
-			helpers.Logger.Infow("gitconfig not found", "id", proxyRequest.Gitconfig)
+			requestctx.Logger(ctx).Infow("gitconfig not found", "id", proxyRequest.Gitconfig)
 		}
 	}
 
@@ -283,7 +283,7 @@ func getProxyClient(gitConfig *gitbridge.Configuration) (*http.Client, error) {
 
 // doRequest will execute the proxied request copying the response and the headers in the ResponseWriter
 func doRequest(client *http.Client, req *http.Request, writer http.ResponseWriter) error {
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // nolint:gosec // git proxy, URL from request validated by caller
 	if err != nil {
 		return errors.Wrap(err, "executing proxied request")
 	}

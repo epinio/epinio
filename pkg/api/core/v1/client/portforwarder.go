@@ -183,13 +183,11 @@ func (pf *ServicePortForwarder) handleConnection(localConn net.Conn) error {
 		pf.Client.log.V(1).Error(err, "error dialing")
 		return err
 	}
-	if c != nil {
-		defer func() {
-			if err := c.Close(); err != nil {
-				pf.Client.log.Error(err, "failed to close websocket dialer")
-			}
-		}()
-	}
+	defer func() {
+		if err := c.Close(); err != nil {
+			pf.Client.log.Error(err, "failed to close websocket dialer")
+		}
+	}()
 
 	upgradedConnection := c.UnderlyingConn()
 

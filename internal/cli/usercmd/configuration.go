@@ -77,7 +77,7 @@ func (c *EpinioClient) Configurations(all bool) error {
 			msg = msg.WithTableRow(
 				configuration.Meta.Namespace,
 				configuration.Meta.Name,
-				configuration.Meta.CreatedAt.String(),
+				formatCreatedAt(configuration.Meta.CreatedAt),
 				configuration.Configuration.Type,
 				configuration.Configuration.Origin,
 				apps)
@@ -90,7 +90,7 @@ func (c *EpinioClient) Configurations(all bool) error {
 
 			msg = msg.WithTableRow(
 				configuration.Meta.Name,
-				configuration.Meta.CreatedAt.String(),
+				formatCreatedAt(configuration.Meta.CreatedAt),
 				configuration.Configuration.Type,
 				configuration.Configuration.Origin,
 				apps)
@@ -434,7 +434,7 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 	sort.Strings(siblings)
 
 	c.ui.Note().
-		WithStringValue("Created", resp.Meta.CreatedAt.String()).
+		WithStringValue("Created", formatCreatedAt(resp.Meta.CreatedAt)).
 		WithStringValue("User", resp.Configuration.Username).
 		WithStringValue("Type", resp.Configuration.Type).
 		WithStringValue("Origin", resp.Configuration.Origin).

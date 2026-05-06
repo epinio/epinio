@@ -25,8 +25,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"k8s.io/client-go/rest"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -148,7 +148,7 @@ func RunProxy(ctx context.Context, rw http.ResponseWriter, req *http.Request, de
 		FlushInterval: time.Millisecond * 100,
 	}
 
-	p.ServeHTTP(rw, req)
+	p.ServeHTTP(rw, req) // nolint:gosec // reverse proxy for port-forward, target from cluster config
 
 	return nil
 }
@@ -172,7 +172,7 @@ func NewTCPProxy(ctx context.Context, IncomingConn net.Conn, address string) (*T
 }
 
 func (p *TCPProxy) Start() error {
-	logger := helpers.Logger.With("component", "PortForward")
+	logger := requestctx.Logger(context.Background()).With("component", "PortForward")
 	var d net.Dialer
 	ctxT, cancel := context.WithTimeout(context.Background(), p.DialTimeout)
 	defer cancel()
@@ -187,7 +187,7 @@ func (p *TCPProxy) Start() error {
 }
 
 func (p *TCPProxy) handleConnections() error {
-	logger := helpers.Logger.With("component", "PortForward")
+	logger := requestctx.Logger(context.Background()).With("component", "PortForward")
 	defer func() {
 		if err := p.OutgoingConn.Close(); err != nil {
 			logger.Errorw("error closing the outgoing connection", "error", err)

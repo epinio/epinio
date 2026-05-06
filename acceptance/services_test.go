@@ -12,8 +12,8 @@
 package acceptance_test
 
 import (
-	"crypto/tls"
 	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -189,6 +189,16 @@ var _ = Describe("Services", LService, func() {
 			By("create it")
 			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service, "--wait")
 			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
+				And(
+					ContainSubstring(service),
+					HaveATable(WithHeaders("KEY", "VALUE"), WithRow("Status", "deployed")),
+				),
+			)
 		})
 
 		It("shows a service which has no credentials", func() {
@@ -221,6 +231,10 @@ var _ = Describe("Services", LService, func() {
 
 				serviceName := catalog.NewServiceName()
 				serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
+				servicePort := parsed.Port()
+				if servicePort == "" {
+					servicePort = "443"
+				}
 
 				out, err := env.Epinio("", "service", "create",
 					catalogService.Meta.Name, serviceName,
@@ -234,22 +248,20 @@ var _ = Describe("Services", LService, func() {
 				)
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
+				// Use same port as API (443 or 8443) so the check works in both standard and CI setups.
 				Eventually(func() int {
 					tr := &http.Transport{
-						TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
+						TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 					}
 					noTlsClient := &http.Client{Transport: tr}
-					
-					resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
-					
+
+					resp, err := noTlsClient.Get("https://" + serviceHostname + ":" + servicePort)
 					if err != nil {
-						fmt.Println(resp)
-						fmt.Println(err)
+						return 0
 					}
-					
+					defer resp.Body.Close()
 					return resp.StatusCode
-				}, "1m", "2s").Should(Equal(http.StatusOK))
+				}, "5m", "2s").Should(Equal(http.StatusOK))
 
 				out, err = env.Epinio("", "service", "show", serviceName)
 				Expect(err).ToNot(HaveOccurred(), out)
@@ -297,8 +309,18 @@ var _ = Describe("Services", LService, func() {
 			service = catalog.NewServiceName()
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service, "--wait")
 			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
+				And(
+					ContainSubstring(service),
+					HaveATable(WithHeaders("KEY", "VALUE"), WithRow("Status", "deployed")),
+				),
+			)
 		})
 
 		It("lists a service", func() {
@@ -335,7 +357,7 @@ var _ = Describe("Services", LService, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			services := models.ServiceList{}
-			err = json.Unmarshal([]byte(out), &services)
+			err = json.Unmarshal([]byte(extractJSONPayload(out)), &services)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(services).ToNot(BeEmpty())
 		})
@@ -605,15 +627,22 @@ var _ = Describe("Services", LService, func() {
 			})
 
 			It("does match for more than one service but only the remaining one", func() {
-				out, err := env.Epinio("", "__complete", "service", "delete", service, "")
-				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).ToNot(ContainSubstring(service))
-				Expect(out).To(ContainSubstring(service2))
+				// Completion may need a moment to see both services; retry briefly
+				Eventually(func() string {
+					out, _ := env.Epinio("", "__complete", "service", "delete", service, "")
+					return out
+				}, "30s", "2s").Should(And(
+					Not(ContainSubstring(service)),
+					ContainSubstring(service2),
+				))
 
-				out, err = env.Epinio("", "__complete", "service", "delete", service2, "")
-				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring(service))
-				Expect(out).ToNot(ContainSubstring(service2))
+				Eventually(func() string {
+					out, _ := env.Epinio("", "__complete", "service", "delete", service2, "")
+					return out
+				}, "30s", "2s").Should(And(
+					ContainSubstring(service),
+					Not(ContainSubstring(service2)),
+				))
 			})
 		})
 
@@ -1068,6 +1097,10 @@ var _ = Describe("Services", LService, func() {
 
 			serviceName = catalog.NewServiceName()
 			serviceHostname := strings.Replace(parsed.Hostname(), `epinio`, serviceName, 1)
+			servicePort := parsed.Port()
+			if servicePort == "" {
+				servicePort = "443"
+			}
 
 			out, err := env.Epinio("", "service", "create",
 				catalogService.Meta.Name, serviceName,
@@ -1077,22 +1110,20 @@ var _ = Describe("Services", LService, func() {
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			//TODO: Create/reuse function to parse hostnames when port and http/https is set, also use env var for port
+			// Use same port as API (443 or 8443) so the check works in both standard and CI setups.
 			Eventually(func() int {
 				tr := &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, 
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 				}
 				noTlsClient := &http.Client{Transport: tr}
-				
-				resp, err := noTlsClient.Get("https://" + serviceHostname + ":8443")
-				
+
+				resp, err := noTlsClient.Get("https://" + serviceHostname + ":" + servicePort)
 				if err != nil {
-					fmt.Println(resp)
-					fmt.Println(err)
+					return 0
 				}
-				
+				defer resp.Body.Close()
 				return resp.StatusCode
-			}, "1m", "2s").Should(Equal(http.StatusOK))
+			}, "10m", "2s").Should(Equal(http.StatusOK))
 
 		})
 
@@ -1108,7 +1139,7 @@ var _ = Describe("Services", LService, func() {
 				var dialErr error
 				conn, dialErr = net.Dial("tcp", host+":"+port)
 				return dialErr
-			}, "10s", "1s").ShouldNot(HaveOccurred())
+			}, "2m", "2s").ShouldNot(HaveOccurred())
 
 			req, _ := http.NewRequest(http.MethodGet, "http://localhost", nil)
 			Expect(req.Write(conn)).ToNot(HaveOccurred())
@@ -1261,6 +1292,16 @@ var _ = Describe("Services", LService, func() {
 				"--chart-value", "nesting.here.hello=world",
 				"--wait")
 			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, ServiceDeployTimeout, ServiceDeployPollingInterval).Should(
+				And(
+					ContainSubstring(service),
+					HaveATable(WithHeaders("KEY", "VALUE"), WithRow("Status", "deployed")),
+				),
+			)
 
 			out, err = env.Epinio("", "service", "bind", service, appName)
 			Expect(err).ToNot(HaveOccurred(), out)

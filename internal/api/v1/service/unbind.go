@@ -14,7 +14,6 @@ package service
 import (
 	"context"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -32,7 +31,7 @@ import (
 // It removes the binding between the specified service and application
 func Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	logger := helpers.Logger.With("component", "ServiceUnbind")
+	logger := requestctx.Logger(ctx).With("component", "ServiceUnbind")
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
@@ -96,7 +95,7 @@ func UnbindService(
 	namespace, serviceName, appName, userName string,
 	serviceConfigurations []v1.Secret,
 ) apierror.APIErrors {
-	logger := helpers.Logger.With("component", "ServiceUnbind")
+	logger := requestctx.Logger(ctx).With("component", "ServiceUnbind")
 	logger.Infow("unbinding service configurations", "service", serviceName, "app", appName, "count", len(serviceConfigurations))
 
 	// Collect all configuration names to unbind them in a single operation

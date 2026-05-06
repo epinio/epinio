@@ -12,11 +12,11 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -45,19 +45,25 @@ func RoleAuthorization(c *gin.Context) {
 	}
 }
 
+// NamespaceAuthorization ensures the user is allowed to access the requested namespace.
+// Only admins may access any namespace; all other users are restricted to namespaces
+// listed in their Secret's "namespaces" field.
 func NamespaceAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
 	authorization(c, "namespace", user.Namespaces)
 }
 
+// GitconfigAuthorization ensures the user is allowed to access the requested gitconfig.
+// Only admins may access any gitconfig; all other users are restricted to user.Gitconfigs.
 func GitconfigAuthorization(c *gin.Context) {
 	user := requestctx.User(c.Request.Context())
 	authorization(c, "gitconfig", user.Gitconfigs)
 }
 
 func authorization(c *gin.Context, label string, allowed []string) {
-	logger := helpers.Logger.With("component", "AuthorizationMiddleware")
-	user := requestctx.User(c.Request.Context())
+	ctx := c.Request.Context()
+	logger := requestctx.Logger(ctx).With("component", "AuthorizationMiddleware")
+	user := requestctx.User(ctx)
 
 	method := c.Request.Method
 	path := c.Request.URL.Path
@@ -76,7 +82,7 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	}
 
 	// not an admin, check if path is restricted
-	if restrictedPath(path) {
+	if restrictedPath(ctx, path) {
 		err := apierrors.NewAPIError("user unauthorized, path restricted", http.StatusForbidden)
 		response.Error(c, err)
 		c.Abort()
@@ -92,7 +98,7 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	}
 
 	for _, rsrc := range resourceNames {
-		authorized := authorizeUser(label, rsrc, allowed)
+		authorized := authorizeUser(ctx, label, rsrc, allowed)
 
 		roleIDs := strings.Join(user.Roles.IDs(), ",")
 		logger.Infow("authorization result",
@@ -112,8 +118,8 @@ func authorization(c *gin.Context, label string, allowed []string) {
 	}
 }
 
-func authorizeUser(label, resource string, allowed []string) bool {
-	logger := helpers.Logger.With("component", "authorizeUser")
+func authorizeUser(ctx context.Context, label, resource string, allowed []string) bool {
+	logger := requestctx.Logger(ctx).With("component", "authorizeUser")
 
 	// check if the user has permission on the requested resource
 	if resource == "" {
@@ -134,8 +140,8 @@ func authorizeUser(label, resource string, allowed []string) bool {
 	return false
 }
 
-func restrictedPath(path string) bool {
-	logger := helpers.Logger.With("component", "unrestrictedPath")
+func restrictedPath(ctx context.Context, path string) bool {
+	logger := requestctx.Logger(ctx).With("component", "unrestrictedPath")
 
 	// check if the requested path is restricted
 	if _, found := v1.AdminRoutes[path]; found {

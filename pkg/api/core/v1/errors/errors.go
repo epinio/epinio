@@ -199,3 +199,21 @@ func ConfigurationAlreadyKnown(configuration string) APIError {
 func ServiceAlreadyKnown(service string) APIError {
 	return NewConflictError("service", service)
 }
+
+/////////////////////////
+//
+// Insufficient Storage (507) errors
+//
+/////////////////////////
+
+// NewQuotaExceededError constructs an API error for storage quota issues
+func NewQuotaExceededError(msg string, details ...string) APIError {
+	if msg == "" {
+		msg = "Storage quota exceeded in s3gw. Please delete unused applications or ask your admin to increase s3gw storage size."
+	}
+	joinedDetails := strings.Join(details, ", ")
+	if joinedDetails != "" {
+		return NewAPIError(msg, http.StatusInsufficientStorage).WithDetails(joinedDetails)
+	}
+	return NewAPIError(msg, http.StatusInsufficientStorage)
+}

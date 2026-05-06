@@ -15,9 +15,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/services"
@@ -102,7 +102,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 // WhenFullyDeployed is invoked when the helm chart for a service is deployed and running. At that
 // point the secrets created by the service can be published as Epinio configurations.
 func WhenFullyDeployed(ctx context.Context, cluster *kubernetes.Cluster, namespace, name string) error {
-	logger := helpers.Logger.With("component", "serviceDeploy")
+	logger := requestctx.Logger(ctx).With("component", "serviceDeploy")
 	logger.Infow("when fully deployed entry")
 
 	// Called when the service is fully deployed. The context is provided as an argument

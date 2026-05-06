@@ -82,8 +82,14 @@ var _ = Describe("apps env", LApplication, func() {
 				out, err := env.Epinio("", "apps", "env", "list", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				Expect(out).To(HaveATable(WithHeaders("VARIABLE", "VALUE")))
-				Expect(out).ToNot(HaveATable(WithRow("MYVAR", "myvalue")))
+				// CLI shows either a VARIABLE/VALUE table (when vars exist) or
+				// "No user-provided environment variables" when the list is empty.
+				Expect(out).To(SatisfyAny(
+					HaveATable(WithHeaders("VARIABLE", "VALUE")),
+					ContainSubstring("No user-provided environment variables"),
+				), "env list output:\n---\n%s\n---", out)
+				Expect(out).ToNot(ContainSubstring("myvalue"),
+					"after unset, MYVAR value should not appear. env list output:\n---\n%s\n---", out)
 			})
 
 			It("is retrieved as empty string with show", func() {

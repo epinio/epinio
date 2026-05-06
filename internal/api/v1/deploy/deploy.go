@@ -18,15 +18,16 @@ import (
 	"sort"
 	"time"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -34,20 +35,27 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
+// DeployResult contains the result of a deploy operation
+type DeployResult struct {
+	Routes   []string
+	Warnings []string
+}
+
 // DeployApp deploys the referenced application via helm, based on the state held by CRD and associated secrets.
 // It is the backend for the API deploypoint, as well as all the mutating endpoints,
 // i.e. configuration and app changes (bindings, environment, scaling).
-func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) ([]string, apierror.APIErrors) {
+func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) (*DeployResult, apierror.APIErrors) {
 	return deployApp(ctx, cluster, app, username, expectedStageID, false)
 }
 
 // DeployAppWithRestart is the same as DeployApp but it will also force Helm to perform a restart of the deployment
-func DeployAppWithRestart(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) ([]string, apierror.APIErrors) {
+func DeployAppWithRestart(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string) (*DeployResult, apierror.APIErrors) {
 	return deployApp(ctx, cluster, app, username, expectedStageID, true)
 }
 
-func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, restart bool) ([]string, apierror.APIErrors) {
-	log := helpers.Logger
+func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, restart bool) (*DeployResult, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
+	result := &DeployResult{}
 
 	appObj, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
 	if err != nil {
@@ -163,12 +171,20 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	if stageID != "" {
 		log.Infow("app staging drop", "namespace", app.Namespace, "app", app.Name, "stage id", stageID)
 
-		if err := application.Unstage(ctx, cluster, app, stageID); err != nil {
+		unstageResult, err := application.Unstage(ctx, cluster, app, stageID)
+		if err != nil {
 			return nil, apierror.InternalError(err)
+		}
+		if unstageResult != nil && unstageResult.HasIncompleteCleanup() {
+			warning := fmt.Sprintf("blob cleanup incomplete for app %s/%s: %d blob(s) could not be deleted due to storage quota issues",
+				app.Namespace, app.Name, len(unstageResult.FailedBlobCleanups))
+			result.Warnings = append(result.Warnings, warning)
+			log.Info("warning: "+warning, "failedBlobs", unstageResult.FailedBlobCleanups)
 		}
 	}
 
-	return routes, nil
+	result.Routes = routes
+	return result, nil
 }
 
 // replaceInternalRegistry replaces the registry part of ImageURL with the localhost
@@ -221,10 +237,6 @@ func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, i
 }
 
 func UpdateImageURL(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, imageURL string) error {
-	if err := unstructured.SetNestedField(app.Object, imageURL, "spec", "imageurl"); err != nil {
-		return err
-	}
-
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -234,8 +246,32 @@ func UpdateImageURL(ctx context.Context, cluster *kubernetes.Cluster, app *unstr
 	if err != nil {
 		return err
 	}
+	name, _, err := unstructured.NestedString(app.UnstructuredContent(), "metadata", "name")
+	if err != nil {
+		return err
+	}
 
-	_, err = client.Namespace(namespace).Update(ctx, app, metav1.UpdateOptions{})
+	// App status and staging updates can race with this write.
+	// Retry with the latest resource version on conflict.
+	current := app
+	for i := 0; i < 3; i++ {
+		if err := unstructured.SetNestedField(current.Object, imageURL, "spec", "imageurl"); err != nil {
+			return err
+		}
 
-	return err
+		_, err = client.Namespace(namespace).Update(ctx, current, metav1.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+		if !apierrors.IsConflict(err) || i == 2 {
+			return err
+		}
+
+		current, err = client.Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

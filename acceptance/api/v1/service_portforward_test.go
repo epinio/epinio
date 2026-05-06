@@ -86,13 +86,10 @@ var _ = Describe("ServicePortForward Endpoint", LService, func() {
 					noTlsClient := &http.Client{Transport: tr}
 					
 					resp, err := noTlsClient.Get(catalogServiceURL)
-					
 					if err != nil {
-						fmt.Println(resp)
-						fmt.Println(err)
+						return 0
 					}
-					
-					Expect(err).ToNot(HaveOccurred())
+					defer resp.Body.Close()
 					return resp.StatusCode
 				}, "1m", "1s").Should(Equal(http.StatusOK))
 

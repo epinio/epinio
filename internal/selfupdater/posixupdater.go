@@ -71,7 +71,7 @@ func (u PosixUpdater) Update(targetVersion string) error {
 			if err != nil {
 				return errors.Wrapf(err, "Error reading temporary file %s", tmpFile)
 			}
-			err = os.WriteFile(binaryInfo.Path, tempInput, binaryInfo.Permissions)
+			err = os.WriteFile(binaryInfo.Path, tempInput, binaryInfo.Permissions) //nolint:gosec // Path is trusted (current binary path)
 			if err != nil {
 				return errors.Wrap(err, "copying new binary to its destination")
 			}

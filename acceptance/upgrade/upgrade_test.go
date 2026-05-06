@@ -58,7 +58,7 @@ var _ = Describe("<Upgrade1> Epinio upgrade with running app", func() {
 
 		// Deploy a simple application before upgrading Epinio
 		out := env.MakeGolangApp(appName, 1, true)
-		routeRegexp := regexp.MustCompile(`https:\/\/.*sslip.io`)
+		routeRegexp := regexp.MustCompile(`https:\/\/[^\s]+(sslip\.io|nip\.io)`)
 		route := string(routeRegexp.Find([]byte(out)))
 
 		// Check that the app is reachable
