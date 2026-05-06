@@ -45,6 +45,8 @@
 # App Read
 - id: app_read
   name: App Read
+  dependsOn:
+    - chart_read
   routes:
     # app read endpoints
     - AllApps
@@ -63,11 +65,6 @@
     # app env autocomplete
     - EnvMatch
     - EnvMatch0
-    # app chart endpoints
-    - ChartList
-    - ChartShow
-    - ChartMatch
-    - ChartMatch0
 
 # Allow users to restart an app without write permissions
 - id: app_restart
@@ -107,7 +104,6 @@
     - AppCreate
     - AppImportGit
     - AppUpload
-    - ChartCreate
 
 # App Delete
 - id: app_delete
@@ -223,6 +219,32 @@
   name: App PortForward
   wsRoutes:
     - AppPortForward
+
+# App Chart related actions
+- id: chart
+  name: Chart
+  dependsOn:
+    - chart_read
+    - chart_write
+
+# Chart Read
+- id: chart_read
+  name: Chart Read
+  routes:
+    - ChartList
+    - ChartShow
+    - ChartMatch
+    - ChartMatch0
+
+# Chart Write
+- id: chart_write
+  name: Chart Write
+  dependsOn:
+    - chart_read
+  routes:
+    - ChartCreate
+    - ChartUpdate
+    - ChartDelete
 
 # Configuration related actions
 - id: configuration

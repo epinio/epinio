@@ -218,6 +218,8 @@ var Routes = routes.NamedRoutes{
 	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Match)),
 	"ChartMatch0": get("/appchartsmatch", errorHandler(appchart.Match)),
 	"ChartShow":   get("/appcharts/:name", errorHandler(appchart.Show)),
+	"ChartUpdate": patch("/appcharts/:name", errorHandler(appchart.Update)),
+	"ChartDelete": delete("/appcharts/:name", errorHandler(appchart.Delete)),
 
 	// Git configurations (auth for private git repos) - List, create, delete, and show.
 	"Gitconfigs":           get("/gitconfigs", errorHandler(gitconfig.Index)),

@@ -423,14 +423,26 @@ type AppChartRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec AppChartRequestSpec `json:"spec,omitempty"`
+	Spec AppChartCreateRequest `json:"spec,omitempty"`
 }
 
-type AppChartRequestSpec struct {
+type AppChartCreateRequest struct {
+	Name             string                  `json:"name,omitempty"`
 	Description      string                  `json:"description,omitempty"`
-	ShortDescription string                  `json:"short_description,omitempty"`
-	HelmChart        string                  `json:"helm_chart,omitempty"`
+	ShortDescription string                  `json:"shortDescription,omitempty"`
+	HelmChart        string                  `json:"helmChart,omitempty"`
+	HelmRepo         string                  `json:"helmRepo,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	Values           map[string]string       `json:"values,omitempty"`
+}
+
+type AppChartUpdateRequest struct {
+	Description      string                  `json:"description,omitempty"`
+	ShortDescription string                  `json:"shortDescription,omitempty"`
+	HelmChart        string                  `json:"helmChart,omitempty"`
+	HelmRepo         string                  `json:"helmRepo,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	Values           map[string]string       `json:"values,omitempty"`
 }
 
 type AppChartFull struct {

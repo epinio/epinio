@@ -200,6 +200,11 @@ func ServiceAlreadyKnown(service string) APIError {
 	return NewConflictError("service", service)
 }
 
+// AppChartAlreadyKnown constructs an API error for when we have a conflict with an existing app chart
+func AppChartAlreadyKnown(appChart string) APIError {
+	return NewConflictError("appchart", appChart)
+}
+
 /////////////////////////
 //
 // Insufficient Storage (507) errors
