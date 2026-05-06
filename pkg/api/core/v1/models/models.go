@@ -141,15 +141,16 @@ type ApplicationStage struct {
 
 // ApplicationConfiguration is the part of the manifest describing the configuration of the application
 type ApplicationConfiguration struct {
-	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
-	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
-	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
-	ReplaceEnv     *bool              `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
-	Services       []string           `json:"services,omitempty" yaml:"services,omitempty"`
-	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
-	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
-	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
-	Ignore         []string           `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
+	Instances           *int32                      `json:"instances"            yaml:"instances,omitempty"`
+	Configurations      []string                    `json:"configurations"     yaml:"configurations,omitempty"`
+	Environment        EnvVariableMap               `json:"environment"        yaml:"environment,omitempty"`
+	EnvironmentGrouped *EnvVariableGroupedResponse `json:"environment_grouped,omitempty" yaml:"environment_grouped,omitempty"`
+	ReplaceEnv         *bool                       `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
+	Services           []string                    `json:"services,omitempty" yaml:"services,omitempty"`
+	Routes             []string                    `json:"routes"             yaml:"routes,omitempty"`
+	AppChart           string                      `json:"appchart,omitempty" yaml:"appchart,omitempty"`
+	Settings           ChartValueSettings          `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Ignore             []string                    `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
