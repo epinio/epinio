@@ -28,11 +28,22 @@ func Me(c *gin.Context) APIErrors {
 
 	roles := []models.Role{}
 	for _, r := range user.Roles {
+		actions := make([]string, 0, len(r.Actions))
+		for _, a := range r.Actions {
+			// "default" is a synthetic action covering routes every authenticated
+			// user gets (see auth.NewRole) — not a permission to expose to clients.
+			if a.ID == "" || a.ID == "default" {
+				continue
+			}
+			actions = append(actions, a.ID)
+		}
+
 		roles = append(roles, models.Role{
 			ID:        r.ID,
 			Name:      r.Name,
 			Namespace: r.Namespace,
 			Default:   r.Default,
+			Actions:   actions,
 		})
 	}
 

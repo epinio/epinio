@@ -26,11 +26,10 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 const (
-	// SupportBundleNamespace is the namespace where Epinio components are deployed
-	SupportBundleNamespace = "epinio"
 	// RecentStagingJobsWindow is the time window for collecting recent staging jobs
 	RecentStagingJobsWindow = 24 * time.Hour
 	// DefaultTailLines is the default number of lines to tail from each component
@@ -91,7 +90,7 @@ func Bundle(c *gin.Context) apierror.APIErrors {
 		}
 	}()
 
-	collector := NewCollector(cluster, tmpDir, tailLines, log)
+	collector := NewCollector(cluster, tmpDir, tailLines, log, viper.GetString("namespace"))
 
 	// Collect logs from all components
 	log.Infow("collecting Epinio server logs")
