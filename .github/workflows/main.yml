@@ -101,7 +101,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -183,7 +183,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -270,7 +270,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -357,7 +357,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -439,7 +439,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -519,7 +519,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -644,7 +644,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -732,7 +732,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
