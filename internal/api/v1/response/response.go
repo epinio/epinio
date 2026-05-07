@@ -67,6 +67,11 @@ func OKReturn(c *gin.Context, response interface{}) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetSearchParam returns the optional "search" query parameter for name filtering.
+func GetSearchParam(c *gin.Context) string {
+	return c.Query("search")
+}
+
 // PaginatedResponse represents a generic paginated response payload.
 // It wraps a slice of items with pagination metadata.
 type PaginatedResponse[T any] struct {

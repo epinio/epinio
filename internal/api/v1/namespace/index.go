@@ -13,6 +13,7 @@ package namespace
 
 import (
 	"context"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -45,6 +46,17 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 	namespaceList = auth.FilterResources(user, namespaceList)
+
+	if search := response.GetSearchParam(c); search != "" {
+		lower := strings.ToLower(search)
+		var filtered []namespaces.Namespace
+		for _, ns := range namespaceList {
+			if strings.Contains(strings.ToLower(ns.Name), lower) {
+				filtered = append(filtered, ns)
+			}
+		}
+		namespaceList = filtered
+	}
 
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
 		total := len(namespaceList)

@@ -507,6 +507,7 @@ func ListPaginated(
 	cluster *kubernetes.Cluster,
 	namespace string,
 	page, pageSize int,
+	search string,
 ) (models.AppList, int, error) {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -518,7 +519,19 @@ func ListPaginated(
 		return nil, 0, err
 	}
 
-	totalCount := len(appCRList.Items)
+	allCRs := appCRList.Items
+	if search != "" {
+		lower := strings.ToLower(search)
+		var matched []unstructured.Unstructured
+		for _, cr := range allCRs {
+			if strings.Contains(strings.ToLower(cr.GetName()), lower) {
+				matched = append(matched, cr)
+			}
+		}
+		allCRs = matched
+	}
+
+	totalCount := len(allCRs)
 
 	if page < 1 {
 		page = 1
@@ -534,7 +547,7 @@ func ListPaginated(
 	if end > totalCount {
 		end = totalCount
 	}
-	pageCRs := appCRList.Items[start:end]
+	pageCRs := allCRs[start:end]
 
 	pageAppNames := make([]string, 0, len(pageCRs))
 	for _, cr := range pageCRs {
