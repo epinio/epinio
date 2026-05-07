@@ -22,7 +22,7 @@ import (
 
 var _ = Describe("Token", func() {
 	It("returns a valid JWT token and accepts it", func() {
-		token := authtoken.Create("armin", authtoken.DefaultExpiry)
+		token := authtoken.Create("armin", authtoken.GetDefaultExpiry())
 		Expect(token).ToNot(BeEmpty())
 
 		claims, err := authtoken.Validate(token)
