@@ -120,12 +120,10 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		if len(updateRequest.Settings) > 0 {
 			issues := application.ValidateCV(updateRequest.Settings, appChart.Settings)
 			if issues != nil {
-				// Treating all validation failures as internal errors.  I can't
-				// find something better at the moment.
-
+				// Validation failures are user-actionable request issues.
 				var apiIssues []apierror.APIError
 				for _, err := range issues {
-					apiIssues = append(apiIssues, apierror.InternalError(err))
+					apiIssues = append(apiIssues, apierror.NewBadRequestError(err.Error()))
 				}
 
 				return apierror.NewMultiError(apiIssues)
