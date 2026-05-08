@@ -47,7 +47,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -91,7 +91,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -173,7 +173,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -260,7 +260,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -347,7 +347,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -429,7 +429,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -509,7 +509,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -634,7 +634,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -722,7 +722,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
