@@ -3,12 +3,12 @@ package builderimage
 import (
 	"context"
 
-	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 )
 
 const KIND = "BuilderImage"
@@ -18,7 +18,7 @@ const NAMESPACE = "epinio"
 // Create lands a new BuilderImage CR in the cluster.
 func Create(
 	ctx context.Context,
-	cluster *kubernetes.Cluster,
+	client dynamic.NamespaceableResourceInterface,
 	bp models.BuilderImageCreateRequest,
 ) (*unstructured.Unstructured, error) {
 
@@ -26,11 +26,11 @@ func Create(
 		Spec: bp,
 	}
 
-	content, err := runtime.
+	content, contentError := runtime.
 		DefaultUnstructuredConverter.
 		ToUnstructured(request)
-	if err != nil {
-		return nil, err
+	if contentError != nil {
+		return nil, contentError
 	}
 
 	final := &unstructured.Unstructured{Object: content}
@@ -45,18 +45,11 @@ func Create(
 		"epinio.io/area":               NAMESPACE,
 	})
 
-	client, err := cluster.ClientBuilderImage()
-	if err != nil {
-		return nil, err
-	}
-
-	created, err := client.Namespace(helmchart.Namespace()).Create(
-		ctx,
-		final,
-		metav1.CreateOptions{},
-	)
-	if err != nil {
-		return nil, err
+	created, createError := client.
+		Namespace(helmchart.Namespace()).
+		Create(ctx, final, metav1.CreateOptions{})
+	if createError != nil {
+		return nil, createError
 	}
 
 	return created, nil

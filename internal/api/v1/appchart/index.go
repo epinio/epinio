@@ -30,15 +30,20 @@ func Index(c *gin.Context) apierror.APIErrors {
 	log.Infow("list appcharts")
 	defer log.Infow("return")
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError)
+	}
+
+	client, clientError := cluster.ClientAppChart()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
 	}
 
 	log.Infow("fetch appcharts")
-	allApps, err := appchart.List(ctx, cluster)
-	if err != nil {
-		return apierror.InternalError(err)
+	allApps, listError := appchart.List(ctx, client)
+	if listError != nil {
+		return apierror.InternalError(listError)
 	}
 
 	// Apply optional pagination when page parameters are provided.

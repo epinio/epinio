@@ -37,8 +37,13 @@ func Match(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clusterError)
 	}
 
+	client, clientError := cluster.ClientBuilderImage()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
 	log.Infow("list builderimages")
-	builderimageList, listError := builderimage.List(ctx, cluster)
+	builderimageList, listError := builderimage.List(ctx, client)
 	if listError != nil {
 		return apierror.InternalError(listError)
 	}

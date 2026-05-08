@@ -23,8 +23,13 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clusterError)
 	}
 
+	client, clientError := cluster.ClientAppChart()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
 	log.Infow("check existence", "name", chartName)
-	exists, existsError := appchart.Exists(ctx, cluster, chartName)
+	exists, existsError := appchart.Exists(ctx, client, chartName)
 	if existsError != nil {
 		return apierror.InternalError(existsError)
 	}
@@ -33,7 +38,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Infow("delete appchart resource", "name", chartName)
-	deleteError := appchart.Delete(ctx, cluster, chartName)
+	deleteError := appchart.Delete(ctx, client, chartName)
 
 	if deleteError != nil {
 		return apierror.InternalError(deleteError)

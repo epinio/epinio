@@ -19,22 +19,28 @@ func Update(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clusterError)
 	}
 
-	exists, existsErr := builderimage.Exists(ctx, cluster, name)
-	if existsErr != nil {
-		return apierror.InternalError(existsErr)
+	client, clientError := cluster.ClientBuilderImage()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
+	exists, existsError := builderimage.Exists(ctx, client, name)
+	if existsError != nil {
+		return apierror.InternalError(existsError)
 	}
 	if !exists {
 		return apierror.BuilderImageIsNotKnown(name)
 	}
 
 	var updateRequest models.BuilderImageUpdateRequest
-	if bindErr := c.BindJSON(&updateRequest); bindErr != nil {
-		return apierror.NewBadRequestError(bindErr.Error())
+	bindError := c.BindJSON(&updateRequest)
+	if bindError != nil {
+		return apierror.NewBadRequestError(bindError.Error())
 	}
 
-	updateErr := builderimage.Update(ctx, cluster, name, updateRequest)
-	if updateErr != nil {
-		return apierror.InternalError(updateErr)
+	updateError := builderimage.Update(ctx, client, name, updateRequest)
+	if updateError != nil {
+		return apierror.InternalError(updateError)
 	}
 
 	response.OK(c)

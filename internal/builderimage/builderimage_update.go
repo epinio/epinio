@@ -3,30 +3,25 @@ package builderimage
 import (
 	"context"
 
-	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 )
 
 // Update applies a partial update to an existing BuilderImage CR. Empty fields
 // in the request are left untouched.
 func Update(
 	ctx context.Context,
-	cluster *kubernetes.Cluster,
+	client dynamic.NamespaceableResourceInterface,
 	name string,
 	req models.BuilderImageUpdateRequest,
 ) error {
-	client, err := cluster.ClientBuilderImage()
-	if err != nil {
-		return err
-	}
-
-	existing, err := client.
+	existing, getError := client.
 		Namespace(helmchart.Namespace()).
 		Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return err
+	if getError != nil {
+		return getError
 	}
 
 	spec, ok := existing.Object["spec"].(map[string]interface{})
@@ -45,9 +40,9 @@ func Update(
 		spec["shortDescription"] = req.ShortDescription
 	}
 
-	_, err = client.
+	_, updateError := client.
 		Namespace(helmchart.Namespace()).
 		Update(ctx, existing, metav1.UpdateOptions{})
 
-	return err
+	return updateError
 }

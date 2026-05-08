@@ -13,22 +13,27 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	name := c.Param("name")
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError)
 	}
 
-	exists, existsErr := builderimage.Exists(ctx, cluster, name)
-	if existsErr != nil {
-		return apierror.InternalError(existsErr)
+	client, clientError := cluster.ClientBuilderImage()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
+	exists, existsError := builderimage.Exists(ctx, client, name)
+	if existsError != nil {
+		return apierror.InternalError(existsError)
 	}
 	if !exists {
 		return apierror.BuilderImageIsNotKnown(name)
 	}
 
-	deleteErr := builderimage.Delete(ctx, cluster, name)
-	if deleteErr != nil {
-		return apierror.InternalError(deleteErr)
+	deleteError := builderimage.Delete(ctx, client, name)
+	if deleteError != nil {
+		return apierror.InternalError(deleteError)
 	}
 
 	response.OK(c)

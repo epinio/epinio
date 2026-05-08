@@ -13,14 +13,20 @@ import (
 func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError)
+	}
+
+	client, clientError := cluster.ClientBuilderImage()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
 	}
 
 	var createRequest models.BuilderImageCreateRequest
-	if bindErr := c.BindJSON(&createRequest); bindErr != nil {
-		return apierror.NewBadRequestError(bindErr.Error())
+	bindError := c.BindJSON(&createRequest)
+	if bindError != nil {
+		return apierror.NewBadRequestError(bindError.Error())
 	}
 
 	if createRequest.Name == "" {
@@ -30,17 +36,17 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError("image is required")
 	}
 
-	exists, existsErr := builderimage.Exists(ctx, cluster, createRequest.Name)
-	if existsErr != nil {
-		return apierror.InternalError(existsErr)
+	exists, existsError := builderimage.Exists(ctx, client, createRequest.Name)
+	if existsError != nil {
+		return apierror.InternalError(existsError)
 	}
 	if exists {
 		return apierror.BuilderImageAlreadyKnown(createRequest.Name)
 	}
 
-	_, createErr := builderimage.Create(ctx, cluster, createRequest)
-	if createErr != nil {
-		return apierror.InternalError(createErr)
+	_, createError := builderimage.Create(ctx, client, createRequest)
+	if createError != nil {
+		return apierror.InternalError(createError)
 	}
 
 	response.Created(c)

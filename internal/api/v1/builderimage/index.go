@@ -24,14 +24,19 @@ import (
 func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError)
 	}
 
-	all, err := builderimage.List(ctx, cluster)
-	if err != nil {
-		return apierror.InternalError(err)
+	client, clientError := cluster.ClientBuilderImage()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
+	all, listError := builderimage.List(ctx, client)
+	if listError != nil {
+		return apierror.InternalError(listError)
 	}
 
 	page, pageSize, ok := response.GetPaginationParams(c, 1, 25)

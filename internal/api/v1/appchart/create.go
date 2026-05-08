@@ -22,6 +22,11 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clusterError)
 	}
 
+	client, clientError := cluster.ClientAppChart()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
 	var createRequest models.AppChartCreateRequest
 	bindError := c.BindJSON(&createRequest)
 	if bindError != nil {
@@ -29,16 +34,16 @@ func Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Infow("check existence", "name", createRequest.Name)
-	exists, existsErr := appchart.Exists(ctx, cluster, createRequest.Name)
-	if existsErr != nil {
-		return apierror.InternalError(existsErr)
+	exists, existsError := appchart.Exists(ctx, client, createRequest.Name)
+	if existsError != nil {
+		return apierror.InternalError(existsError)
 	}
 	if exists {
 		return apierror.AppChartAlreadyKnown(createRequest.Name)
 	}
 
 	log.Infow("create appchart resource", "name", createRequest.Name)
-	_, appChartError := appchart.Create(ctx, cluster, createRequest)
+	_, appChartError := appchart.Create(ctx, client, createRequest)
 
 	if appChartError != nil {
 		return apierror.InternalError(appChartError)

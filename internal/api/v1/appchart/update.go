@@ -24,8 +24,13 @@ func Update(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clusterError)
 	}
 
+	client, clientError := cluster.ClientAppChart()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
 	log.Infow("check existence", "name", chartName)
-	exists, existsError := appchart.Exists(ctx, cluster, chartName)
+	exists, existsError := appchart.Exists(ctx, client, chartName)
 	if existsError != nil {
 		return apierror.InternalError(existsError)
 	}
@@ -40,7 +45,7 @@ func Update(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Infow("apply update", "name", chartName)
-	updateError := appchart.Update(ctx, cluster, chartName, updateRequest)
+	updateError := appchart.Update(ctx, client, chartName, updateRequest)
 	if updateError != nil {
 		return apierror.InternalError(updateError)
 	}

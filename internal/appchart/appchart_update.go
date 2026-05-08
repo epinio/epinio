@@ -3,34 +3,32 @@ package appchart
 import (
 	"context"
 
-	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 )
 
 func Update(
 	ctx context.Context,
-	cluster *kubernetes.Cluster,
+	client dynamic.NamespaceableResourceInterface,
 	name string,
 	req models.AppChartUpdateRequest,
 ) error {
-	client, err := cluster.ClientAppChart()
-	if err != nil {
-		return err
-	}
-
-	existing, existsError := client.
+	existing, getError := client.
 		Namespace(helmchart.Namespace()).
 		Get(ctx, name, metav1.GetOptions{})
-
-	if existsError != nil {
-		return err
+	if getError != nil {
+		return getError
 	}
 
-	spec := existing.Object["spec"].(map[string]interface{})
+	spec, ok := existing.Object["spec"].(map[string]interface{})
+	if !ok {
+		spec = map[string]interface{}{}
+		existing.Object["spec"] = spec
+	}
 
 	if req.Description != "" {
 		spec["description"] = req.Description
@@ -45,8 +43,14 @@ func Update(
 		spec["helmRepo"] = req.HelmRepo
 	}
 	if req.Values != nil {
-		if err := unstructured.SetNestedStringMap(existing.Object, req.Values, "spec", "values"); err != nil {
-			return err
+		valuesError := unstructured.SetNestedStringMap(
+			existing.Object,
+			req.Values,
+			"spec",
+			"values",
+		)
+		if valuesError != nil {
+			return valuesError
 		}
 	}
 	if req.Settings != nil {
@@ -73,7 +77,6 @@ func patchSettings(
 		converted, convertError := runtime.
 			DefaultUnstructuredConverter.
 			ToUnstructured(&value)
-
 		if convertError != nil {
 			return convertError
 		}

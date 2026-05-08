@@ -30,15 +30,20 @@ func Show(c *gin.Context) apierror.APIErrors {
 	log.Infow("show appchart", "name", chartName)
 	defer log.Infow("return")
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError)
+	}
+
+	client, clientError := cluster.ClientAppChart()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
 	}
 
 	log.Infow("lookup appchart", "name", chartName)
-	app, err := appchart.Lookup(ctx, cluster, chartName)
-	if err != nil {
-		return apierror.InternalError(err)
+	app, lookupError := appchart.Lookup(ctx, client, chartName)
+	if lookupError != nil {
+		return apierror.InternalError(lookupError)
 	}
 
 	if app == nil {

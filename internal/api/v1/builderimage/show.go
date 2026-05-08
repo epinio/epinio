@@ -29,7 +29,12 @@ func Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clusterError)
 	}
 
-	builderimage, builderimageError := builderimage.Lookup(ctx, cluster, name)
+	client, clientError := cluster.ClientBuilderImage()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
+	builderimage, builderimageError := builderimage.Lookup(ctx, client, name)
 	if builderimageError != nil {
 		return apierror.InternalError(builderimageError)
 	}
