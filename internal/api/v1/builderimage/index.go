@@ -9,45 +9,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package appchart
+package builderimage
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/appchart"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/builderimage"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+
 	"github.com/gin-gonic/gin"
 )
 
-// Show handles the API endpoint GET /appcharts/:name
-// It returns the details of the specified appchart.
-func Show(c *gin.Context) apierror.APIErrors {
+// Index handles GET /builderimages — lists all known builderimages.
+func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
-	chartName := c.Param("name")
-
-	log.Infow("show appchart", "name", chartName)
-	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	log.Infow("lookup appchart", "name", chartName)
-	app, err := appchart.Lookup(ctx, cluster, chartName)
+	all, err := builderimage.List(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	if app == nil {
-		return apierror.AppChartIsNotKnown(chartName)
+	page, pageSize, ok := response.GetPaginationParams(c, 1, 25)
+	if ok {
+		paged := response.PaginateSlice(all, page, pageSize)
+		response.OKReturn(c, paged)
+		return nil
 	}
 
-	log.Infow("deliver appchart", "name", chartName)
-	// Note: Returning only the public parts. The local config
-	// data is not handed to the user. Only the setting specs.
-	response.OKReturn(c, app.AppChart)
+	response.OKReturn(c, all)
 	return nil
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/internal/api/v1/appchart"
 	"github.com/epinio/epinio/internal/api/v1/application"
+	"github.com/epinio/epinio/internal/api/v1/builderimage"
 	"github.com/epinio/epinio/internal/api/v1/configuration"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/env"
@@ -175,8 +176,11 @@ var Routes = routes.NamedRoutes{
 	"ConfigurationMatch0": get("/namespaces/:namespace/configurationsmatches", errorHandler(configuration.Match)),
 
 	// Service Catalog
-	"ServiceCatalog":     get("/catalogservices", errorHandler(service.Catalog)),
-	"ServiceCatalogShow": get("/catalogservices/:catalogservice", errorHandler(service.CatalogShow)),
+	"ServiceCatalog":       get("/catalogservices", errorHandler(service.Catalog)),
+	"ServiceCatalogShow":   get("/catalogservices/:catalogservice", errorHandler(service.CatalogShow)),
+	"ServiceCatalogCreate": post("/catalogservices", errorHandler(service.CatalogCreate)),
+	"ServiceCatalogUpdate": patch("/catalogservices/:catalogservice", errorHandler(service.CatalogUpdate)),
+	"ServiceCatalogDelete": delete("/catalogservices/:catalogservice", errorHandler(service.CatalogDelete)),
 
 	// Note, the second registration catches calls with an empty pattern!
 	"ServiceCatalogMatch":  get("catalogservicesmatches/:pattern", errorHandler(service.CatalogMatch)),
@@ -220,6 +224,15 @@ var Routes = routes.NamedRoutes{
 	"ChartShow":   get("/appcharts/:name", errorHandler(appchart.Show)),
 	"ChartUpdate": patch("/appcharts/:name", errorHandler(appchart.Update)),
 	"ChartDelete": delete("/appcharts/:name", errorHandler(appchart.Delete)),
+
+	// Builder Images
+	"BuilderImageCreate": post("/builderimages", errorHandler(builderimage.Create)),
+	"BuilderImageList":   get("/builderimages", errorHandler(builderimage.Index)),
+	"BuilderImageMatch":  get("/builderimagesmatch/:pattern", errorHandler(builderimage.Match)),
+	"BuilderImageMatch0": get("/builderimagesmatch", errorHandler(builderimage.Match)),
+	"BuilderImageShow":   get("/builderimages/:name", errorHandler(builderimage.Show)),
+	"BuilderImageUpdate": patch("/builderimages/:name", errorHandler(builderimage.Update)),
+	"BuilderImageDelete": delete("/builderimages/:name", errorHandler(builderimage.Delete)),
 
 	// Git configurations (auth for private git repos) - List, create, delete, and show.
 	"Gitconfigs":           get("/gitconfigs", errorHandler(gitconfig.Index)),

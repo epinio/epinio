@@ -246,6 +246,32 @@
     - ChartUpdate
     - ChartDelete
 
+# Builder Image related actions
+- id: builderimage
+  name: Builder Image
+  dependsOn:
+    - builderimage_read
+    - builderimage_write
+
+# Builder Image Read
+- id: builderimage_read
+  name: Builder Image Read
+  routes:
+    - BuilderImageList
+    - BuilderImageShow
+    - BuilderImageMatch
+    - BuilderImageMatch0
+
+# Builder Image Write
+- id: builderimage_write
+  name: Builder Image Write
+  dependsOn:
+    - builderimage_read
+  routes:
+    - BuilderImageCreate
+    - BuilderImageUpdate
+    - BuilderImageDelete
+
 # Configuration related actions
 - id: configuration
   name: Configuration
@@ -310,6 +336,10 @@
   dependsOn:
     - service_read
   routes:
+    # service catalog write endpoints
+    - ServiceCatalogCreate
+    - ServiceCatalogUpdate
+    - ServiceCatalogDelete
     # service write endpoints
     - ServiceCreate
     - ServiceDelete

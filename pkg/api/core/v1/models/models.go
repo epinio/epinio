@@ -477,6 +477,52 @@ type ChartMatchResponse struct {
 	Names []string `json:"names,omitempty"`
 }
 
+// BuilderImage is the REST DTO for the BuilderImage CRD
+// (application.epinio.io/v1, kind BuilderImage). The CRD shape is intentionally
+// not re-exported here — we keep a domain wrapper so CRD revisions do not
+// become breaking client changes.
+type BuilderImage struct {
+	Meta             MetaLite `json:"meta,omitempty"`
+	Image            string   `json:"image,omitempty"`
+	Description      string   `json:"description,omitempty"`
+	ShortDescription string   `json:"short_description,omitempty"`
+}
+
+// BuilderImageRequest is the unstructured-friendly wrapper used when creating
+// a BuilderImage CR.
+type BuilderImageRequest struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec BuilderImageCreateRequest `json:"spec,omitempty"`
+}
+
+// BuilderImageCreateRequest carries the fields a client supplies when creating
+// a builder image. Name is required and lands in metadata.name; the remainder
+// land under spec.
+type BuilderImageCreateRequest struct {
+	Name             string `json:"name,omitempty"`
+	Image            string `json:"image,omitempty"`
+	Description      string `json:"description,omitempty"`
+	ShortDescription string `json:"shortDescription,omitempty"`
+}
+
+// BuilderImageUpdateRequest carries optional field updates. Empty fields are
+// ignored — name is taken from the URL, not the body.
+type BuilderImageUpdateRequest struct {
+	Image            string `json:"image,omitempty"`
+	Description      string `json:"description,omitempty"`
+	ShortDescription string `json:"shortDescription,omitempty"`
+}
+
+// BuilderImageList is a collection of builder images
+type BuilderImageList []BuilderImage
+
+// BuilderImageMatchResponse contains the list of names for matching builder images
+type BuilderImageMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
+
 // ExportregistriesListResponse contains the list of all known export registries
 type ExportregistriesListResponse []ExportregistryResponse
 

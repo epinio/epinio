@@ -15,6 +15,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
 	"github.com/gin-gonic/gin"
@@ -24,12 +25,17 @@ import (
 // It lists all the known appcharts in all namespaces
 func Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
+
+	log.Infow("list appcharts")
+	defer log.Infow("return")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
+	log.Infow("fetch appcharts")
 	allApps, err := appchart.List(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -37,11 +43,13 @@ func Index(c *gin.Context) apierror.APIErrors {
 
 	// Apply optional pagination when page parameters are provided.
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		log.Infow("paginate", "page", page, "pageSize", pageSize, "total", len(allApps))
 		paged := response.PaginateSlice(allApps, page, pageSize)
 		response.OKReturn(c, paged)
 		return nil
 	}
 
+	log.Infow("deliver appcharts", "count", len(allApps))
 	// Backwards-compatible: return full list when no page params are set.
 	response.OKReturn(c, allApps)
 	return nil

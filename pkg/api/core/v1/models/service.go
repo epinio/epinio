@@ -146,3 +146,45 @@ type HelmAuth struct {
 	Username string `json:"-"`
 	Password string `json:"-"`
 }
+
+// HelmRepoRequest mirrors the on-cluster CR HelmRepo, including the Secret
+// reference used to resolve credentials. Used by catalog service write
+// requests; auth values themselves are never accepted in the request body.
+type HelmRepoRequest struct {
+	Name   string `json:"name,omitempty"`
+	URL    string `json:"url,omitempty"`
+	Secret string `json:"secret,omitempty"`
+}
+
+// CatalogServiceCreateRequest carries the fields a client supplies when
+// creating a catalog service. Name is required and lands in metadata.name;
+// the remainder land under spec.
+type CatalogServiceCreateRequest struct {
+	Name             string                  `json:"name,omitempty"`
+	ShortDescription string                  `json:"shortDescription,omitempty"`
+	Description      string                  `json:"description,omitempty"`
+	HelmChart        string                  `json:"chart,omitempty"`
+	ChartVersion     string                  `json:"chartVersion,omitempty"`
+	AppVersion       string                  `json:"appVersion,omitempty"`
+	ServiceIcon      string                  `json:"serviceIcon,omitempty"`
+	Values           string                  `json:"values,omitempty"`
+	HelmRepo         HelmRepoRequest         `json:"helmRepo,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	SecretTypes      []string                `json:"secretTypes,omitempty"`
+}
+
+// CatalogServiceUpdateRequest carries optional field updates. Empty string
+// fields are ignored — name is taken from the URL, not the body. Settings
+// and SecretTypes are replaced when non-nil; pass nil to leave untouched.
+type CatalogServiceUpdateRequest struct {
+	ShortDescription string                  `json:"shortDescription,omitempty"`
+	Description      string                  `json:"description,omitempty"`
+	HelmChart        string                  `json:"chart,omitempty"`
+	ChartVersion     string                  `json:"chartVersion,omitempty"`
+	AppVersion       string                  `json:"appVersion,omitempty"`
+	ServiceIcon      string                  `json:"serviceIcon,omitempty"`
+	Values           string                  `json:"values,omitempty"`
+	HelmRepo         *HelmRepoRequest        `json:"helmRepo,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	SecretTypes      []string                `json:"secretTypes,omitempty"`
+}
