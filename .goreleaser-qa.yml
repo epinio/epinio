@@ -10,8 +10,6 @@
 # limitations under the License.
 
 ---
-version: 2
-
 # This file builds and pushes draft binaries to make smoke tests
 # like upgrade
 
@@ -24,10 +22,10 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end -}}
-    formats: [binary]
+    format: binary
     format_overrides:
       - goos: windows
-        formats: [zip]
+        format: zip
 
 before:
   hooks:
@@ -62,7 +60,7 @@ builds:
 
 changelog:
   ## Delegate Changelog to release-drafter
-  disable: true
+  skip: true
 
 env:
   - CGO_ENABLED=0

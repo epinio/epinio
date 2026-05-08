@@ -10,8 +10,6 @@
 # limitations under the License.
 
 ---
-version: 2
-
 project_name: epinio
 
 archives:
@@ -21,10 +19,10 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end -}}
-    formats: [binary]
+    format: binary
     format_overrides:
       - goos: windows
-        formats: [zip]
+        format: zip
 
 before:
   hooks:
@@ -59,7 +57,7 @@ builds:
 
 changelog:
   ## Delegate Changelog to release-drafter
-  disable: true
+  skip: true
 
 env:
   - CGO_ENABLED=0
@@ -291,7 +289,7 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.COMMITTER_TOKEN }}"
 
-    directory: Formula
+    folder: Formula
     url_template: "https://github.com/epinio/epinio/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
 
     test: |
