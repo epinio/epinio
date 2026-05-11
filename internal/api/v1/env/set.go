@@ -60,11 +60,13 @@ func Set(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	if app.Workload != nil {
+	if app.Workload != nil && app.Status == models.ApplicationRunning {
 		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 		if apierr != nil {
 			return apierr
 		}
+	} else if app.Workload != nil {
+		requestctx.Logger(ctx).Infow("environment variables were saved, but restart was skipped because application is not running", "status", app.Status)
 	}
 
 	response.OK(c)
