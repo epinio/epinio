@@ -204,8 +204,25 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	// backward compatibility: if no flag provided then restart the app
 	restart := updateRequest.Restart == nil || *updateRequest.Restart
 	if restart {
-		if app.Workload != nil || desired > 0 {
+		instancesChanged := appInstancesChanged(app, updateRequest.Instances)
+
+		if instancesChanged {
+			log.Infow("updating app -- deploying instance change")
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+			if apierr != nil {
+				return apierr
+			}
+		} else if app.Workload != nil && app.Status == models.ApplicationRunning {
 			log.Infow("updating app -- restarting")
+
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+			if apierr != nil {
+				return apierr
+			}
+		} else if app.Workload != nil {
+			log.Infow("updating app -- restart skipped because application is not running", "status", app.Status)
+		} else if desired > 0 {
+			log.Infow("updating app -- deploying")
 
 			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 			if apierr != nil {
@@ -216,6 +233,16 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	response.OK(c)
 	return nil
+}
+
+func appInstancesChanged(app *models.App, requested *int32) bool {
+	if requested == nil {
+		return false
+	}
+	if app.Configuration.Instances == nil {
+		return true
+	}
+	return *requested != *app.Configuration.Instances
 }
 
 func envReplaceFlag(replace *bool) bool {
