@@ -302,6 +302,7 @@ signs:
     - sign-blob
     - '--output-certificate=${certificate}'
     - '--output-signature=${signature}'
+    - '--bundle=${artifact}.bundle'
     - '${artifact}'
     - "--yes" # needed on cosign 2.0.0+
   artifacts: checksum
