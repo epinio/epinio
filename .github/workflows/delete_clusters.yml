@@ -94,7 +94,7 @@ jobs:
 
       - name: Setup gcloud
         if: ${{ github.event.inputs.pcp == 'GKE' }}
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Install gcloud kubectl version
         if: ${{ github.event.inputs.pcp == 'GKE' }}
