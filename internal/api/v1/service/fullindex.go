@@ -67,12 +67,21 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 			pageNamespaces = append(pageNamespaces, ns)
 		}
 
-		appsOf, err := application.ServicesBoundAppsNamesForNamespaces(ctx, cluster, pageNamespaces)
+		appsOf, err := application.ServicesBoundAppsNamesForNamespaces(
+			ctx,
+			cluster,
+			pageNamespaces,
+		)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 
-		response.OKReturn(c, response.BuildPaginatedResponse(extendWithBoundApps(pageServices, appsOf), page, pageSize, total))
+		response.OKReturn(c, response.BuildPaginatedResponse(
+			extendWithBoundApps(pageServices, appsOf),
+			page,
+			pageSize,
+			total,
+		))
 		return nil
 	}
 
@@ -85,7 +94,10 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func extendWithBoundApps(services models.ServiceList, appsOf map[string][]string) models.ServiceList {
+func extendWithBoundApps(
+	services models.ServiceList,
+	appsOf map[string][]string,
+) models.ServiceList {
 	theServices := models.ServiceList{}
 	for _, service := range services {
 		key := application.ServiceKey(service.Meta.Name, service.Meta.Namespace)

@@ -553,12 +553,24 @@ func ListPaginated(
 
 	appAuxiliary := makeAuxiliaryMap(secrets.Items)
 
-	appAuxiliary, err = AddApplicationPods(appAuxiliary, ctx, cluster, namespace, pageAppNames)
+	appAuxiliary, err = AddApplicationPods(
+		appAuxiliary,
+		ctx,
+		cluster,
+		namespace,
+		pageAppNames,
+	)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	appAuxiliary, err = AddActualApplicationRoutes(appAuxiliary, ctx, cluster, namespace, pageAppNames)
+	appAuxiliary, err = AddActualApplicationRoutes(
+		appAuxiliary,
+		ctx,
+		cluster,
+		namespace,
+		pageAppNames,
+	)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -568,11 +580,19 @@ func ListPaginated(
 		helpers.Logger.Errorw("metrics not available", "error", err)
 	}
 
-	stagingStatuses, err := StagingStatusesForApps(ctx, cluster, namespace, pageAppNames)
+	stagingStatuses, err := StagingStatusesForApps(
+		ctx,
+		cluster,
+		namespace,
+		pageAppNames,
+	)
 	if err != nil {
 		return nil, 0, err
 	}
-	appAuxiliary = updateAppDataMapWithStagingJobStatus(appAuxiliary, stagingStatuses)
+	appAuxiliary = updateAppDataMapWithStagingJobStatus(
+		appAuxiliary,
+		stagingStatuses,
+	)
 
 	result := models.AppList{}
 	for _, appCR := range pageCRs {

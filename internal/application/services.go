@@ -97,10 +97,15 @@ func ServicesBoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster,
 	return result, nil
 }
 
-// ServicesBoundAppsNamesForNamespaces is a scoped variant of ServicesBoundAppsNames that limits
-// the binding secret lookup to a specific set of namespaces. Used by paginated list handlers to
-// avoid loading binding data for namespaces not on the current page.
-func ServicesBoundAppsNamesForNamespaces(ctx context.Context, cluster *kubernetes.Cluster, namespaces []string) (map[string][]string, error) {
+// ServicesBoundAppsNamesForNamespaces is a scoped variant of
+// ServicesBoundAppsNames that limits the binding secret lookup to a specific
+// set of namespaces. Used by paginated list handlers to avoid loading binding
+// data for namespaces not on the current page.
+func ServicesBoundAppsNamesForNamespaces(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespaces []string,
+) (map[string][]string, error) {
 	result := map[string][]string{}
 	if len(namespaces) == 0 {
 		return result, nil

@@ -101,7 +101,11 @@ func BoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster, namespa
 // BoundAppsNamesForNamespaces is a scoped variant of BoundAppsNames that limits the binding
 // secret lookup to a specific set of namespaces. Used by paginated list handlers to avoid loading
 // binding data for namespaces not on the current page.
-func BoundAppsNamesForNamespaces(ctx context.Context, cluster *kubernetes.Cluster, namespaces []string) (map[ConfigurationKey][]string, error) {
+func BoundAppsNamesForNamespaces(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespaces []string,
+) (map[ConfigurationKey][]string, error) {
 	result := map[ConfigurationKey][]string{}
 	if len(namespaces) == 0 {
 		return result, nil

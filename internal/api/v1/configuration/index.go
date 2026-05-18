@@ -56,21 +56,36 @@ func Index(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][]string, configs configurations.ConfigurationList) (models.ConfigurationResponseList, error) {
+func makeResponse(
+	ctx context.Context,
+	appsOf map[application.ConfigurationKey][]string,
+	configs configurations.ConfigurationList,
+) (models.ConfigurationResponseList, error) {
 	return makeResponseFrom(ctx, appsOf, configs, configs)
 }
 
-// makeResponseFrom builds the sibling map from allConfigs (so cross-page siblings remain visible)
-// but only calls Details() for processConfigs. Paginated callers pass the full filtered list as
-// allConfigs and only the current page as processConfigs.
-func makeResponseFrom(ctx context.Context, appsOf map[application.ConfigurationKey][]string, allConfigs configurations.ConfigurationList, processConfigs configurations.ConfigurationList) (models.ConfigurationResponseList, error) {
+// makeResponseFrom builds the sibling map from allConfigs
+// (so cross-page siblings remain visible) but only calls Details() for
+// processConfigs. Paginated callers pass the full filtered list as allConfigs
+// and only the current page as processConfigs.
+func makeResponseFrom(
+	ctx context.Context,
+	appsOf map[application.ConfigurationKey][]string,
+	allConfigs configurations.ConfigurationList,
+	processConfigs configurations.ConfigurationList,
+) (models.ConfigurationResponseList, error) {
 	result := models.ConfigurationResponseList{}
 
-	// Build sibling map from all configs so service-based siblings on other pages are visible.
+	// Build sibling map from all configs so service-based siblings on other
+	// pages are visible.
 	siblingMap := map[string][]string{}
 	for _, configuration := range allConfigs {
 		if configuration.Origin != "" {
-			key := fmt.Sprintf("n%s/o%s", configuration.Namespace(), configuration.Origin)
+			key := fmt.Sprintf(
+				"n%s/o%s",
+				configuration.Namespace(),
+				configuration.Origin,
+			)
 			siblingMap[key] = append(siblingMap[key], configuration.Name)
 		}
 	}

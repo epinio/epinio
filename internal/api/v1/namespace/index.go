@@ -71,7 +71,10 @@ func Index(c *gin.Context) apierror.APIErrors {
 		appNamesMap := map[string][]string{}
 		for _, ref := range allAppRefs {
 			if pageNsSet[ref.Namespace] {
-				appNamesMap[ref.Namespace] = append(appNamesMap[ref.Namespace], ref.Name)
+				appNamesMap[ref.Namespace] = append(
+					appNamesMap[ref.Namespace],
+					ref.Name,
+				)
 			}
 		}
 
@@ -82,7 +85,10 @@ func Index(c *gin.Context) apierror.APIErrors {
 		configNamesMap := map[string][]string{}
 		for _, cfg := range allConfigs {
 			if pageNsSet[cfg.Namespace()] {
-				configNamesMap[cfg.Namespace()] = append(configNamesMap[cfg.Namespace()], cfg.Name)
+				configNamesMap[cfg.Namespace()] = append(
+					configNamesMap[cfg.Namespace()],
+					cfg.Name,
+				)
 			}
 		}
 
@@ -95,7 +101,12 @@ func Index(c *gin.Context) apierror.APIErrors {
 			})
 		}
 
-		response.OKReturn(c, response.BuildPaginatedResponse(nsModels, page, pageSize, total))
+		response.OKReturn(c, response.BuildPaginatedResponse(
+			nsModels,
+			page,
+			pageSize,
+			total,
+		))
 		return nil
 	}
 
@@ -125,7 +136,10 @@ func Index(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func getAppNamesByNamespaceMap(ctx context.Context, cluster *kubernetes.Cluster) (map[string][]string, error) {
+func getAppNamesByNamespaceMap(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+) (map[string][]string, error) {
 	// Retrieve app references for all namespaces, and map their name by namespace
 	allAppNamesMap := make(map[string][]string)
 
@@ -138,13 +152,19 @@ func getAppNamesByNamespaceMap(ctx context.Context, cluster *kubernetes.Cluster)
 		if _, ok := allAppNamesMap[appRef.Namespace]; !ok {
 			allAppNamesMap[appRef.Namespace] = make([]string, 0)
 		}
-		allAppNamesMap[appRef.Namespace] = append(allAppNamesMap[appRef.Namespace], appRef.Name)
+		allAppNamesMap[appRef.Namespace] = append(
+			allAppNamesMap[appRef.Namespace],
+			appRef.Name,
+		)
 	}
 
 	return allAppNamesMap, nil
 }
 
-func getConfigurationNamesByNamespaceMap(ctx context.Context, cluster *kubernetes.Cluster) (map[string][]string, error) {
+func getConfigurationNamesByNamespaceMap(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+) (map[string][]string, error) {
 	configurationNamesMap := make(map[string][]string)
 
 	// Retrieve configurations for all namespaces, and map their name by namespace
@@ -157,7 +177,10 @@ func getConfigurationNamesByNamespaceMap(ctx context.Context, cluster *kubernete
 		if _, ok := configurationNamesMap[config.Namespace()]; !ok {
 			configurationNamesMap[config.Namespace()] = make([]string, 0)
 		}
-		configurationNamesMap[config.Namespace()] = append(configurationNamesMap[config.Namespace()], config.Name)
+		configurationNamesMap[config.Namespace()] = append(
+			configurationNamesMap[config.Namespace()],
+			config.Name,
+		)
 	}
 
 	return configurationNamesMap, nil

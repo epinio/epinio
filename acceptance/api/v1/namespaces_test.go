@@ -71,6 +71,37 @@ var _ = Describe("Namespaces API Application Endpoints", LNamespace, func() {
 				// See global BeforeEach for where this namespace is set up.
 				Expect(namespaceNames).Should(ContainElements(namespace))
 			})
+			It("returns a paginated response when page params are provided", func() {
+				ns2 := catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(ns2)
+				defer env.DeleteNamespace(ns2)
+
+				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces?page=1&pageSize=1",
+					serverURL, api.Root), strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := io.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				var paged struct {
+					Items      models.NamespaceList `json:"items"`
+					Page       int                  `json:"page"`
+					PageSize   int                  `json:"pageSize"`
+					TotalItems int                  `json:"totalItems"`
+					TotalPages int                  `json:"totalPages"`
+				}
+				err = json.Unmarshal(bodyBytes, &paged)
+				Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+				Expect(paged.Page).To(Equal(1))
+				Expect(paged.PageSize).To(Equal(1))
+				Expect(paged.TotalItems).To(BeNumerically(">=", 2))
+				Expect(paged.TotalPages).To(BeNumerically(">=", 2))
+				Expect(paged.Items).To(HaveLen(1))
+			})
+
 			When("basic auth credentials are not provided", func() {
 				It("returns a 401 response", func() {
 					request, err := http.NewRequest("GET", fmt.Sprintf("%s%s/namespaces",
