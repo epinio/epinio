@@ -46,6 +46,59 @@ func Index(c *gin.Context) apierror.APIErrors {
 	}
 	namespaceList = auth.FilterResources(user, namespaceList)
 
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		total := len(namespaceList)
+		start := (page - 1) * pageSize
+		if start >= total {
+			start = total
+		}
+		end := start + pageSize
+		if end > total {
+			end = total
+		}
+		pageNsList := namespaceList[start:end]
+
+		// Single cross-namespace API calls; filter in-memory to page namespaces.
+		pageNsSet := make(map[string]bool, len(pageNsList))
+		for _, ns := range pageNsList {
+			pageNsSet[ns.Name] = true
+		}
+
+		allAppRefs, err := application.ListAppRefs(ctx, cluster, "")
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		appNamesMap := map[string][]string{}
+		for _, ref := range allAppRefs {
+			if pageNsSet[ref.Namespace] {
+				appNamesMap[ref.Namespace] = append(appNamesMap[ref.Namespace], ref.Name)
+			}
+		}
+
+		allConfigs, err := configurations.List(ctx, cluster, "")
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		configNamesMap := map[string][]string{}
+		for _, cfg := range allConfigs {
+			if pageNsSet[cfg.Namespace()] {
+				configNamesMap[cfg.Namespace()] = append(configNamesMap[cfg.Namespace()], cfg.Name)
+			}
+		}
+
+		nsModels := make(models.NamespaceList, 0, len(pageNsList))
+		for _, ns := range pageNsList {
+			nsModels = append(nsModels, models.Namespace{
+				Meta:           models.MetaLite{Name: ns.Name, CreatedAt: ns.CreatedAt},
+				Apps:           appNamesMap[ns.Name],
+				Configurations: configNamesMap[ns.Name],
+			})
+		}
+
+		response.OKReturn(c, response.BuildPaginatedResponse(nsModels, page, pageSize, total))
+		return nil
+	}
+
 	appNamesMap, err := getAppNamesByNamespaceMap(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -56,9 +109,9 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	namespaces := make(models.NamespaceList, 0, len(namespaceList))
+	nsList := make(models.NamespaceList, 0, len(namespaceList))
 	for _, namespace := range namespaceList {
-		namespaces = append(namespaces, models.Namespace{
+		nsList = append(nsList, models.Namespace{
 			Meta: models.MetaLite{
 				Name:      namespace.Name,
 				CreatedAt: namespace.CreatedAt,
@@ -68,15 +121,7 @@ func Index(c *gin.Context) apierror.APIErrors {
 		})
 	}
 
-	// Apply optional pagination when page parameters are provided.
-	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
-		paged := response.PaginateSlice(namespaces, page, pageSize)
-		response.OKReturn(c, paged)
-		return nil
-	}
-
-	// Backwards-compatible: return full list when no page params are set.
-	response.OKReturn(c, namespaces)
+	response.OKReturn(c, nsList)
 	return nil
 }
 

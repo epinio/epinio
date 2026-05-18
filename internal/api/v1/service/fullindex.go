@@ -43,24 +43,45 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	filteredServices := auth.FilterResources(user, serviceList)
+
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		total := len(filteredServices)
+		start := (page - 1) * pageSize
+		if start >= total {
+			start = total
+		}
+		end := start + pageSize
+		if end > total {
+			end = total
+		}
+		pageServices := filteredServices[start:end]
+
+		// Scope the binding lookup to just the namespaces on this page.
+		nsSet := map[string]struct{}{}
+		for _, svc := range pageServices {
+			nsSet[svc.Meta.Namespace] = struct{}{}
+		}
+		pageNamespaces := make([]string, 0, len(nsSet))
+		for ns := range nsSet {
+			pageNamespaces = append(pageNamespaces, ns)
+		}
+
+		appsOf, err := application.ServicesBoundAppsNamesForNamespaces(ctx, cluster, pageNamespaces)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		response.OKReturn(c, response.BuildPaginatedResponse(extendWithBoundApps(pageServices, appsOf), page, pageSize, total))
+		return nil
+	}
+
 	appsOf, err := application.ServicesBoundAppsNames(ctx, cluster, "")
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	filteredServices := auth.FilterResources(user, serviceList)
-
-	servicesWithApps := extendWithBoundApps(filteredServices, appsOf)
-
-	// Apply optional pagination when page parameters are provided.
-	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
-		paged := response.PaginateSlice(servicesWithApps, page, pageSize)
-		response.OKReturn(c, paged)
-		return nil
-	}
-
-	// Backwards-compatible: return full list when no page params are set.
-	response.OKReturn(c, servicesWithApps)
+	response.OKReturn(c, extendWithBoundApps(filteredServices, appsOf))
 	return nil
 }
 

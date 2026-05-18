@@ -115,12 +115,10 @@ func (b AppConfigurationBindList) ToNames() []string {
 // namespace into memory, indexes them by namespace and application, and returns the resulting map
 // of pod lists.
 // ATTENTION: Using an empty string for the namespace loads the information from all namespaces.
-func AddApplicationPods(auxiliary map[ConfigurationKey]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[ConfigurationKey]AppData, error) {
+func AddApplicationPods(auxiliary map[ConfigurationKey]AppData, ctx context.Context, cluster *kubernetes.Cluster, namespace string, appNames []string) (map[ConfigurationKey]AppData, error) {
 	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
 		ctx, metav1.ListOptions{
-			LabelSelector: labels.Set(map[string]string{
-				"app.kubernetes.io/component": "application",
-			}).String(),
+			LabelSelector: appNamesInSelector("app.kubernetes.io/component=application", appNames),
 		})
 	if err != nil {
 		return nil, err
@@ -301,7 +299,7 @@ func (a *Workload) AssembleFromParts(
 // lists. The user, List, selects the metrics it needs for an application based on the application's
 // pods.
 // ATTENTION: Using an empty string for the namespace loads the information from all namespaces.
-func GetPodMetrics(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]metricsv1beta1.PodMetrics, error) {
+func GetPodMetrics(ctx context.Context, cluster *kubernetes.Cluster, namespace string, appNames []string) (map[string]metricsv1beta1.PodMetrics, error) {
 	result := make(map[string]metricsv1beta1.PodMetrics)
 
 	metricsClient, err := metrics.NewForConfig(cluster.RestConfig)
@@ -311,7 +309,7 @@ func GetPodMetrics(ctx context.Context, cluster *kubernetes.Cluster, namespace s
 
 	podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(namespace).
 		List(ctx, metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/managed-by=epinio",
+			LabelSelector: appNamesInSelector("app.kubernetes.io/managed-by=epinio", appNames),
 		})
 	if err != nil {
 		return nil, err
