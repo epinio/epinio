@@ -219,13 +219,6 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 			log.Infow("updating app -- restart skipped because application is not running", "status", app.Status)
 		} else if desired > 0 {
 			log.Infow("updating app -- deploying")
-			if apierr := deployAppIfImageReady(ctx, cluster, app, username); apierr != nil {
-				return apierr
-			}
-		} else if app.Workload != nil {
-			log.Infow("updating app -- restart skipped because application is not running", "status", app.Status)
-		} else if desired > 0 {
-			log.Infow("updating app -- deploying")
 
 			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 			if apierr != nil {
