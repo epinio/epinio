@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -39,6 +41,7 @@ import (
 	"github.com/pkg/errors"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -619,6 +622,70 @@ func ListPaginated(
 	}
 
 	return result, totalCount, nil
+}
+
+// NamespaceAppsResult holds a paginated app list for a single namespace.
+type NamespaceAppsResult struct {
+	Items      models.AppList
+	TotalItems int
+}
+
+// ListPaginatedByNamespace fetches the requested page of apps for every Epinio namespace
+// concurrently. All per-namespace queries run in parallel, so total latency is bounded
+// by the slowest namespace rather than by the number of namespaces.
+func ListPaginatedByNamespace(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	page, pageSize int,
+	search string,
+) (map[string]NamespaceAppsResult, error) {
+	nsList, err := namespaces.List(ctx, cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	type entry struct {
+		ns    string
+		items models.AppList
+		total int
+	}
+
+	entries := make([]entry, len(nsList))
+
+	errorGroup, groupCtx := errgroup.WithContext(ctx)
+	for index, namespace := range nsList {
+		index, namespaceName := index, namespace.Name
+		errorGroup.Go(func() error {
+			apps, total, listError := ListPaginated(
+				groupCtx,
+				cluster,
+				namespaceName,
+				page,
+				pageSize,
+				search,
+			)
+			if listError != nil {
+				return listError
+			}
+			entries[index] = entry{ns: namespaceName, items: apps, total: total}
+			return nil
+		})
+	}
+
+	waitError := errorGroup.Wait()
+	if waitError != nil {
+		return nil, waitError
+	}
+
+	result := make(map[string]NamespaceAppsResult, len(nsList))
+	for _, namespaceEntry := range entries {
+		result[namespaceEntry.ns] = NamespaceAppsResult{
+			Items:      namespaceEntry.items,
+			TotalItems: namespaceEntry.total,
+		}
+	}
+
+	return result, nil
 }
 
 // DeleteResult contains the result of a delete operation, including

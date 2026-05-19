@@ -48,6 +48,7 @@
   routes:
     # app read endpoints
     - AllApps
+    - AllAppsGrouped
     - Apps
     - AppShow
     - StagingComplete

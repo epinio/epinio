@@ -28,6 +28,9 @@ import (
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+
+	kubernetesPkg "github.com/epinio/epinio/helpers/kubernetes"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -493,6 +496,46 @@ var _ = Describe("application", func() {
 				Expect(failed).To(BeEmpty())
 				Expect(mockS3.deletedObjects).To(BeEmpty())
 			})
+		})
+	})
+})
+
+var _ = Describe("ListPaginatedByNamespace", func() {
+	var ctx context.Context
+
+	BeforeEach(func() {
+		ctx = context.Background()
+	})
+
+	When("there are no epinio-labeled namespaces", func() {
+		It("returns an empty map without error", func() {
+			cluster := &kubernetesPkg.Cluster{
+				Kubectl: k8sfake.NewSimpleClientset(),
+			}
+
+			result, err := application.ListPaginatedByNamespace(ctx, cluster, 1, 10, "")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(BeEmpty())
+		})
+	})
+
+	When("the namespace list succeeds but a namespace app fetch fails", func() {
+		It("propagates the error", func() {
+			ns := &v1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "broken-ns",
+					Labels: map[string]string{
+						kubernetesPkg.EpinioNamespaceLabelKey: kubernetesPkg.EpinioNamespaceLabelValue,
+					},
+				},
+			}
+			cluster := &kubernetesPkg.Cluster{
+				// No RestConfig → ClientApp() fails → ListPaginated returns an error.
+				Kubectl: k8sfake.NewSimpleClientset(ns),
+			}
+
+			_, err := application.ListPaginatedByNamespace(ctx, cluster, 1, 10, "")
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })
