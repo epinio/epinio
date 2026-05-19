@@ -102,6 +102,31 @@ var _ = Describe("Namespaces API Application Endpoints", LNamespace, func() {
 				Expect(paged.Items).To(HaveLen(1))
 			})
 
+			It("filters namespaces by search term", func() {
+				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces?search=%s",
+					serverURL, api.Root, namespace), strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := io.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				var namespaceList models.NamespaceList
+				err = json.Unmarshal(bodyBytes, &namespaceList)
+				Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+				Expect(namespaceList).ToNot(BeEmpty())
+				found := false
+				for _, ns := range namespaceList {
+					Expect(ns.Meta.Name).To(ContainSubstring(namespace))
+					if ns.Meta.Name == namespace {
+						found = true
+					}
+				}
+				Expect(found).To(BeTrue(), "expected search results to contain %q", namespace)
+			})
+
 			When("basic auth credentials are not provided", func() {
 				It("returns a 401 response", func() {
 					request, err := http.NewRequest("GET", fmt.Sprintf("%s%s/namespaces",

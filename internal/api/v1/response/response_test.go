@@ -95,6 +95,38 @@ func TestBuildPaginatedResponse(t *testing.T) {
 	}
 }
 
+func TestGetSearchParam(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	makeCtx := func(query string) *gin.Context {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		req, _ := http.NewRequest("GET", "/test?"+query, nil)
+		c.Request = req
+		return c
+	}
+
+	tests := []struct {
+		name  string
+		query string
+		want  string
+	}{
+		{name: "no search param", query: "", want: ""},
+		{name: "search param with value", query: "search=foo", want: "foo"},
+		{name: "empty search param", query: "search=", want: ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := makeCtx(tc.query)
+			got := response.GetSearchParam(c)
+			if got != tc.want {
+				t.Errorf("GetSearchParam: got %q want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestGetPaginationParams(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
