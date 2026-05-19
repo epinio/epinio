@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -195,74 +196,88 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 		// Nothing to upload (nor stage)
 	}
 
-	// AppStage
-	stageID := ""
-	var stageResponse *models.StageResponse
-	if manifest.Origin.Kind != models.OriginContainer {
-		c.ui.Normal().Msg("Staging application with code...")
-		c.ui.ProgressNote().Msg("Running staging")
-
-		req := models.StageRequest{
-			App:          appRef,
-			BlobUID:      blobUID,
-			BuilderImage: manifest.Staging.Builder,
-		}
-		details.Info("staging code", "Blob", blobUID)
-		stageResponse, err = c.API.AppStage(req)
-		if err != nil {
-			return err
-		}
-		stageID = stageResponse.Stage.ID
-		log.V(3).Info("stage response", "response", stageResponse)
-
-		details.Info("start tailing logs", "StageID", stageResponse.Stage.ID)
-		c.stageLogs(appRef, stageResponse.Stage.ID)
-
-		details.Info("wait for job", "StageID", stageID)
-
-		// blocking function that wait until the staging is done
-		err = stagingWithRetry(log.V(1), c.API, appRef.Namespace, stageID)
-		if err != nil {
-			c.ui.Note().Msgf(
-				"You can access the staging logs at any time, either in the UI or with the CLI using this command:\n\nepinio app logs --staging %s",
-				appRef.Name)
-			return errors.Wrap(err, "waiting for staging failed")
-		}
-	}
-
-	// AppDeploy
-	c.ui.Normal().Msg("Deploying application ...")
-	deployRequest := models.DeployRequest{
+	// Async stage/build/deploy (same endpoint as the UI) — avoids long blocking POST timeouts.
+	asyncReq := models.AsyncDeployRequest{
 		App:    appRef,
 		Origin: manifest.Origin,
 	}
-	// If container param is specified, then we just take it into ImageURL
-	// If not, we take the one from the staging response
 	if manifest.Origin.Kind == models.OriginContainer {
-		deployRequest.ImageURL = manifest.Origin.Container
+		asyncReq.ImageURL = manifest.Origin.Container
 	} else {
-		deployRequest.ImageURL = stageResponse.ImageURL
-		deployRequest.Stage = models.StageRef{ID: stageID}
+		asyncReq.BlobUID = blobUID
+		asyncReq.BuilderImage = manifest.Staging.Builder
+	}
+
+	c.ui.Normal().Msg("Building and deploying application on the server ...")
+	c.ui.ProgressNote().Msg("Build and deploy")
+
+	details.Info("async deploy start", "app", appRef)
+	startStatus, err := c.API.AppDeploymentsStart(asyncReq)
+	if err != nil {
+		return errors.Wrap(err, "starting async deployment")
+	}
+	if startStatus == nil || startStatus.ID == "" {
+		return errors.New("async deployment did not return a deployment id")
 	}
 
 	s := c.ui.Progress("Waiting for deployment")
 	defer s.Stop()
 
-	deployResponse, err := c.API.AppDeploy(deployRequest)
+	finalStatus, err := c.waitAsyncDeployment(ctx, appRef, startStatus.ID, details)
 	if err != nil {
-		return err
+		c.ui.Note().Msgf(
+			"You can access the staging logs at any time, either in the UI or with the CLI using this command:\n\nepinio app logs --staging %s",
+			appRef.Name)
+		return errors.Wrap(err, "async deployment failed")
 	}
 
-	details.Info("wait for application resources")
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
+	details.Info("deployment finished", "status", finalStatus.Status)
 
 	routes := []string{}
-	for _, d := range deployResponse.Routes {
+	for _, d := range finalStatus.Routes {
 		routes = append(routes, fmt.Sprintf("https://%s", d))
 	}
 
 	c.reportOK(appRef, manifest.Staging.Builder, routes)
 	return nil
+}
+
+func (c *EpinioClient) waitAsyncDeployment(ctx context.Context, appRef models.AppRef, deploymentID string, details logr.Logger) (*models.AsyncDeployStatus, error) {
+	deadline := time.Now().Add(duration.ToAppBuilt())
+	stagingLogsStarted := false
+
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		status, err := c.API.AppDeploymentStatus(appRef.Namespace, appRef.Name, deploymentID)
+		if err != nil {
+			return nil, err
+		}
+
+		if status.StageID != "" && !stagingLogsStarted {
+			stagingLogsStarted = true
+			details.Info("start tailing logs", "StageID", status.StageID)
+			c.stageLogs(appRef, status.StageID)
+		}
+
+		switch status.Status {
+		case "succeeded":
+			return &status, nil
+		case "failed":
+			if status.Error != "" {
+				return nil, errors.New(status.Error)
+			}
+			return nil, errors.New("async deployment failed")
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
+	return nil, errors.New("timed out waiting for async deployment")
 }
 
 func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, source string, manifest models.ApplicationManifest) (string, error) {

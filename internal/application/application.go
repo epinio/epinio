@@ -53,6 +53,19 @@ import (
 
 const EpinioApplicationAreaLabel = "epinio.io/area"
 
+// appNamesInSelector appends an "in" label requirement for app names to a base selector string.
+// Returns base unchanged when names is empty.
+func appNamesInSelector(base string, names []string) string {
+	if len(names) == 0 {
+		return base
+	}
+	in := "app.kubernetes.io/name in (" + strings.Join(names, ",") + ")"
+	if base == "" {
+		return in
+	}
+	return base + "," + in
+}
+
 type JobLister interface {
 	ListJobs(
 		ctx context.Context,
@@ -219,7 +232,7 @@ func IsCurrentlyStaging(
 	namespace,
 	appName string,
 ) (bool, error) {
-	staging, err := stagingStatus(ctx, cluster, namespace, appName)
+	staging, err := stagingStatus(ctx, cluster, namespace, []string{appName})
 	if err != nil {
 		return false, err
 	}
@@ -233,35 +246,48 @@ func StagingStatuses(
 	cluster JobLister,
 	namespace string,
 ) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
-	return stagingStatus(ctx, cluster, namespace, "")
+	return stagingStatus(ctx, cluster, namespace, nil)
+}
+
+// StagingStatusesForApps returns staging statuses scoped to the given app names.
+func StagingStatusesForApps(
+	ctx context.Context,
+	cluster JobLister,
+	namespace string,
+	appNames []string,
+) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
+	return stagingStatus(ctx, cluster, namespace, appNames)
 }
 
 /*
 stagingStatus is a utility function loading a map of the status of the
-application's staging jobs (active, done, error).  If no appName is specified
-it will load a complete map, otherwise the map will contain only the status
-of the job of the specified app
+application's staging jobs (active, done, error). If appNames is empty it loads
+a complete map for the namespace; otherwise it scopes the query to the named apps.
 */
 func stagingStatus(
 	ctx context.Context,
 	cluster JobLister,
-	namespace,
-	appName string,
+	namespace string,
+	appNames []string,
 ) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
 	stagingJobsMap := make(map[ConfigurationKey]models.ApplicationStagingStatus)
 
-	// filter the jobs in the namespace
 	labelsMap := make(map[string]string)
-
 	if namespace != "" {
 		labelsMap["app.kubernetes.io/part-of"] = namespace
 	}
 
-	if appName != "" {
-		labelsMap["app.kubernetes.io/name"] = appName
+	base := labels.Set(labelsMap).AsSelector().String()
+	var selector string
+	switch len(appNames) {
+	case 0:
+		selector = base
+	case 1:
+		labelsMap["app.kubernetes.io/name"] = appNames[0]
+		selector = labels.Set(labelsMap).AsSelector().String()
+	default:
+		selector = appNamesInSelector(base, appNames)
 	}
-
-	selector := labels.Set(labelsMap).AsSelector().String()
 	jobList, err := cluster.ListJobs(ctx, helmchart.Namespace(), selector)
 	if err != nil {
 		return nil, err
@@ -417,7 +443,7 @@ func List(
 
 	// III. The pods for the deployed apps.
 
-	appAuxiliary, err = AddApplicationPods(appAuxiliary, ctx, cluster, namespace)
+	appAuxiliary, err = AddApplicationPods(appAuxiliary, ctx, cluster, namespace, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -429,6 +455,7 @@ func List(
 		ctx,
 		cluster,
 		namespace,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -436,7 +463,7 @@ func List(
 
 	// V. Pod metrics and replica information
 
-	metrics, err := GetPodMetrics(ctx, cluster, namespace)
+	metrics, err := GetPodMetrics(ctx, cluster, namespace, nil)
 	if err != nil {
 		// While the error is ignored, as the server can operate without metrics, and while
 		// the missing metrics will be noted in the data shown to the user, it is logged so
@@ -470,6 +497,128 @@ func List(
 	}
 
 	return result, nil
+}
+
+// ListPaginated fetches only the apps for the requested page, scoping the expensive
+// Kubernetes queries (pods, ingresses, metrics, staging jobs) to just those app names.
+// Returns the paged app list and the total app count (for building pagination metadata).
+func ListPaginated(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+	page, pageSize int,
+	search string,
+) (models.AppList, int, error) {
+	client, err := cluster.ClientApp()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	appCRList, err := client.Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	allCRs := appCRList.Items
+	if search != "" {
+		lower := strings.ToLower(search)
+		var matched []unstructured.Unstructured
+		for _, cr := range allCRs {
+			if strings.Contains(strings.ToLower(cr.GetName()), lower) {
+				matched = append(matched, cr)
+			}
+		}
+		allCRs = matched
+	}
+
+	totalCount := len(allCRs)
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 25
+	}
+	start := (page - 1) * pageSize
+	if start >= totalCount {
+		return models.AppList{}, totalCount, nil
+	}
+	end := start + pageSize
+	if end > totalCount {
+		end = totalCount
+	}
+	pageCRs := allCRs[start:end]
+
+	pageAppNames := make([]string, 0, len(pageCRs))
+	for _, cr := range pageCRs {
+		pageAppNames = append(pageAppNames, cr.GetName())
+	}
+
+	secrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(
+		ctx,
+		metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/managed-by=epinio",
+		},
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	appAuxiliary := makeAuxiliaryMap(secrets.Items)
+
+	appAuxiliary, err = AddApplicationPods(
+		appAuxiliary,
+		ctx,
+		cluster,
+		namespace,
+		pageAppNames,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	appAuxiliary, err = AddActualApplicationRoutes(
+		appAuxiliary,
+		ctx,
+		cluster,
+		namespace,
+		pageAppNames,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	pageMetrics, err := GetPodMetrics(ctx, cluster, namespace, pageAppNames)
+	if err != nil {
+		helpers.Logger.Errorw("metrics not available", "error", err)
+	}
+
+	stagingStatuses, err := StagingStatusesForApps(
+		ctx,
+		cluster,
+		namespace,
+		pageAppNames,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	appAuxiliary = updateAppDataMapWithStagingJobStatus(
+		appAuxiliary,
+		stagingStatuses,
+	)
+
+	result := models.AppList{}
+	for _, appCR := range pageCRs {
+		app, err := aggregate(ctx, cluster, appCR, appAuxiliary, pageMetrics)
+		if err != nil {
+			return result, totalCount, err
+		}
+		if app != nil {
+			result = append(result, *app)
+		}
+	}
+
+	return result, totalCount, nil
 }
 
 // DeleteResult contains the result of a delete operation, including
@@ -1428,6 +1577,25 @@ func aggregate(ctx context.Context,
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
+func loadEnvironmentData(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app *models.App,
+) (models.EnvVariableMap, models.EnvVariableGroupedResponse, error) {
+	environment, err := Environment(ctx, cluster, app.Meta)
+	if err != nil {
+		return nil, models.EnvVariableGroupedResponse{}, errors.Wrap(err, "finding env")
+	}
+
+	groupedEnv, err := GroupedEnvironment(ctx, cluster, app.Meta)
+	if err != nil {
+		return nil, models.EnvVariableGroupedResponse{}, errors.Wrap(err, "finding grouped env")
+	}
+
+	return environment, groupedEnv, nil
+}
+
+// fetch is a helper for Lookup. It fetches all information about an application from the cluster.
 func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
 	// Consider delayed loading, i.e. on first access, or for transfer (API response).
 	// Consider objects for the information which hide the defered loading.  These
@@ -1465,9 +1633,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	environment, err := Environment(ctx, cluster, app.Meta)
+	environment, groupedEnv, err := loadEnvironmentData(ctx, cluster, app)
 	if err != nil {
-		err = errors.Wrap(err, "finding env")
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
 		return err
@@ -1542,6 +1709,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Instances = &instances
 	app.Configuration.Configurations = configurations
 	app.Configuration.Environment = environment
+	app.Configuration.EnvironmentGrouped = &groupedEnv
 	app.Configuration.Services = services
 	app.Configuration.Routes = desiredRoutes
 	app.Configuration.AppChart = chartName
@@ -1562,7 +1730,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	staging, err := stagingStatus(ctx, cluster, app.Meta.Namespace, app.Meta.Name)
+	staging, err := stagingStatus(ctx, cluster, app.Meta.Namespace, []string{app.Meta.Name})
 	if err != nil {
 		err = errors.Wrap(err, "staging app")
 		app.StatusMessage = err.Error()

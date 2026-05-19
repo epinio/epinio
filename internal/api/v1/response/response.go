@@ -14,7 +14,9 @@ package response
 
 import (
 	"fmt"
+	"math"
 	"net/http"
+	"strconv"
 
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
@@ -63,6 +65,114 @@ func OKReturn(c *gin.Context, response interface{}) {
 	)
 
 	c.JSON(http.StatusOK, response)
+}
+
+// GetSearchParam returns the optional "search" query parameter for name filtering.
+func GetSearchParam(c *gin.Context) string {
+	return c.Query("search")
+}
+
+// PaginatedResponse represents a generic paginated response payload.
+// It wraps a slice of items with pagination metadata.
+type PaginatedResponse[T any] struct {
+	Items      []T `json:"items"`
+	Page       int `json:"page"`
+	PageSize   int `json:"pageSize"`
+	TotalItems int `json:"totalItems"`
+	TotalPages int `json:"totalPages"`
+}
+
+// GetPaginationParams parses optional "page" and "pageSize" query parameters.
+// It returns enabled=false when neither parameter is present, so existing
+// callers can keep returning the full list by default.
+func GetPaginationParams(c *gin.Context, defaultPage, defaultPageSize int) (page, pageSize int, enabled bool) {
+	pageStr := c.Query("page")
+	pageSizeStr := c.Query("pageSize")
+
+	if pageStr == "" && pageSizeStr == "" {
+		return 0, 0, false
+	}
+
+	page = defaultPage
+	pageSize = defaultPageSize
+	enabled = true
+
+	if pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	if pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 {
+			pageSize = ps
+		}
+	}
+
+	return page, pageSize, enabled
+}
+
+// BuildPaginatedResponse builds a PaginatedResponse from an already-paged slice and total count.
+// Use this when pagination happened before enrichment (e.g. ListPaginated), so the caller
+// already holds only the page items and knows the total independently.
+func BuildPaginatedResponse[T any](items []T, page, pageSize, totalItems int) PaginatedResponse[T] {
+	totalPages := 1
+	if pageSize > 0 {
+		totalPages = int(math.Ceil(float64(totalItems) / float64(pageSize)))
+	}
+	if totalPages == 0 {
+		totalPages = 1
+	}
+	return PaginatedResponse[T]{
+		Items:      items,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalItems: totalItems,
+		TotalPages: totalPages,
+	}
+}
+
+// PaginateSlice applies simple page/pageSize slicing over a slice and returns
+// a PaginatedResponse with metadata.
+func PaginateSlice[T any](items []T, page, pageSize int) PaginatedResponse[T] {
+	total := len(items)
+
+	if pageSize <= 0 {
+		pageSize = total
+	}
+
+	totalPages := 1
+	if pageSize > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(pageSize)))
+	}
+
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+
+	start := (page - 1) * pageSize
+	if start > total {
+		start = total
+	}
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+
+	return PaginatedResponse[T]{
+		Items:      items[start:end],
+		Page:       page,
+		PageSize:   pageSize,
+		TotalItems: total,
+		TotalPages: totalPages,
+	}
 }
 
 // Created reports successful creation of a resource.

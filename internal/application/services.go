@@ -97,6 +97,43 @@ func ServicesBoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster,
 	return result, nil
 }
 
+// ServicesBoundAppsNamesForNamespaces is a scoped variant of
+// ServicesBoundAppsNames that limits the binding secret lookup to a specific
+// set of namespaces. Used by paginated list handlers to avoid loading binding
+// data for namespaces not on the current page.
+func ServicesBoundAppsNamesForNamespaces(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespaces []string,
+) (map[string][]string, error) {
+	result := map[string][]string{}
+	if len(namespaces) == 0 {
+		return result, nil
+	}
+
+	selector := EpinioApplicationAreaLabel + "=service"
+	selector += ",app.kubernetes.io/component=application"
+	selector += ",app.kubernetes.io/managed-by=epinio"
+	selector += ",app.kubernetes.io/part-of in (" + strings.Join(namespaces, ",") + ")"
+
+	appBindings, err := cluster.Kubectl.CoreV1().Secrets("").List(ctx,
+		metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return result, err
+	}
+
+	for _, binding := range appBindings.Items {
+		appName := binding.Labels["app.kubernetes.io/name"]
+		namespace := binding.Labels["app.kubernetes.io/part-of"]
+		for serviceName := range binding.Data {
+			key := ServiceKey(serviceName, namespace)
+			result[key] = append(result[key], appName)
+		}
+	}
+
+	return result, nil
+}
+
 // ServicesBoundAppsNames returns a map from the names of services in the specified namespace, to
 // the names of the applications they are bound to. The keys of the map are always a combination of
 // namespace name and service name, to distinguish same-named services in different namespaces (See

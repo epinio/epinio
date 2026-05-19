@@ -34,7 +34,7 @@ func (k *IBM) Describe() string {
 func (k *IBM) String() string { return "ibm" }
 
 // Detect detects if it is a ibm platform.
-func (k *IBM) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
+func (k *IBM) Detect(ctx context.Context, kube kubernetes.Interface) bool {
 	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false

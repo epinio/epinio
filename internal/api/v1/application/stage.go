@@ -35,6 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -1007,16 +1008,6 @@ func findPreviousBlobUID(app *unstructured.Unstructured) (string, error) {
 }
 
 func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
-	if err := unstructured.SetNestedField(app.Object, params.BlobUID, "spec", "blobuid"); err != nil {
-		return err
-	}
-	if err := unstructured.SetNestedField(app.Object, params.Stage.ID, "spec", "stageid"); err != nil {
-		return err
-	}
-	if err := unstructured.SetNestedField(app.Object, params.BuilderImage, "spec", "builderimage"); err != nil {
-		return err
-	}
-
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -1026,9 +1017,30 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 	if err != nil {
 		return err
 	}
+	name, _, err := unstructured.NestedString(app.UnstructuredContent(), "metadata", "name")
+	if err != nil {
+		return err
+	}
 
-	_, err = client.Namespace(namespace).Update(ctx, app, metav1.UpdateOptions{})
+	// Merge patch avoids resourceVersion update conflicts for these spec fields.
+	patchBody, err := json.Marshal(map[string]any{
+		"spec": map[string]any{
+			"blobuid":      params.BlobUID,
+			"stageid":      params.Stage.ID,
+			"builderimage": params.BuilderImage,
+		},
+	})
+	if err != nil {
+		return err
+	}
 
+	_, err = client.Namespace(namespace).Patch(
+		ctx,
+		name,
+		types.MergePatchType,
+		patchBody,
+		metav1.PatchOptions{},
+	)
 	return err
 }
 

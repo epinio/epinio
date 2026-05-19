@@ -171,6 +171,51 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 			))
 		})
 
+		It("returns a paginated response when page params are provided", func() {
+			response, err := env.Curl("GET", fmt.Sprintf("%s%s/configurations?page=1&pageSize=1",
+				serverURL, api.Root), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var paged struct {
+				Items      models.ConfigurationResponseList `json:"items"`
+				Page       int                              `json:"page"`
+				PageSize   int                              `json:"pageSize"`
+				TotalItems int                              `json:"totalItems"`
+				TotalPages int                              `json:"totalPages"`
+			}
+			err = json.Unmarshal(bodyBytes, &paged)
+			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+			Expect(paged.Page).To(Equal(1))
+			Expect(paged.PageSize).To(Equal(1))
+			Expect(paged.TotalItems).To(BeNumerically(">=", 3))
+			Expect(paged.TotalPages).To(BeNumerically(">=", 3))
+			Expect(paged.Items).To(HaveLen(1))
+		})
+
+		It("filters configurations by search term", func() {
+			response, err := env.Curl("GET", fmt.Sprintf("%s%s/configurations?search=%s",
+				serverURL, api.Root, configuration2), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var configurations models.ConfigurationResponseList
+			err = json.Unmarshal(bodyBytes, &configurations)
+			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+			Expect(configurations).To(HaveLen(1))
+			Expect(configurations[0].Meta.Name).To(Equal(configuration2))
+		})
+
 		It("doesn't list configurations belonging to non-accessible namespaces", func() {
 			endpoint := fmt.Sprintf("%s%s/configurations", serverURL, api.Root)
 			request, err := http.NewRequest(http.MethodGet, endpoint, nil)
@@ -208,9 +253,8 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 			err = json.Unmarshal(bodyBytes, &data)
 			Expect(err).ToNot(HaveOccurred())
 			configuration := data.Configuration.Details
-			// API masks secret values; assert key exists and value is masked
 			Expect(configuration).To(HaveKey("username"))
-			Expect(configuration["username"]).To(Equal("****"))
+			Expect(configuration["username"]).To(Equal("epinio-user"))
 		})
 
 		It("returns a 404 when the namespace does not exist", func() {
@@ -294,11 +338,10 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 			err = json.Unmarshal(bodyBytesGet, &data)
 			Expect(err).ToNot(HaveOccurred())
 			configuration := data.Configuration.Details
-			// API masks secret values; assert keys exist with masked values, removed key is gone
 			Expect(configuration).To(HaveKey("user"))
-			Expect(configuration["user"]).To(Equal("****"))
+			Expect(configuration["user"]).To(Equal("ci/cd"))
 			Expect(configuration).To(HaveKey("host"))
-			Expect(configuration["host"]).To(Equal("****"))
+			Expect(configuration["host"]).To(Equal("up"))
 			Expect(configuration).ToNot(HaveKey("username"))
 		})
 
@@ -366,9 +409,8 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 			err = json.Unmarshal(bodyBytesGet, &data)
 			Expect(err).ToNot(HaveOccurred())
 			configuration := data.Configuration.Details
-			// API masks secret values; assert put_key1 exists with masked value, old keys are gone
 			Expect(configuration).To(HaveKey("put_key1"))
-			Expect(configuration["put_key1"]).To(Equal("****"))
+			Expect(configuration["put_key1"]).To(Equal("put_value"))
 			Expect(configuration).ToNot(HaveKey("username"))
 		})
 

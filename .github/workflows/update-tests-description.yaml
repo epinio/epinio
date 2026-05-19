@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # A token is needed to be able to push on main, maybe this can be changed later
           # with another GHA or with some webhook?
@@ -30,7 +30,7 @@ jobs:
           if [[ "${NEW_CHK}" != "${OLD_CHK}" ]]; then
             echo "generate=needed" >> ${GITHUB_OUTPUT}
           fi
-      - uses: EndBug/add-and-commit@v9
+      - uses: EndBug/add-and-commit@v10
         if: steps.readme_generator.outputs.generate == 'needed'
         with:
           default_author: github_actions

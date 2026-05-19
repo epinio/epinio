@@ -116,6 +116,8 @@ var Routes = routes.NamedRoutes{
 	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Delete)),
 	"AppBatchDelete":  delete("/namespaces/:namespace/applications", errorHandler(application.Delete)),
 	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Deploy)),
+	"AppDeployments":  post("/namespaces/:namespace/applications/:app/deployments", errorHandler(application.DeploymentsStart)),
+	"AppDeployment":   get("/namespaces/:namespace/applications/:app/deployments/:deployment_id", errorHandler(application.DeploymentsStatus)),
 	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.ImportGit)),
 	"AppPart":         get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.GetPart)),
 	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),

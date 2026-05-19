@@ -98,6 +98,42 @@ func BoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster, namespa
 	return result, nil
 }
 
+// BoundAppsNamesForNamespaces is a scoped variant of BoundAppsNames that limits the binding
+// secret lookup to a specific set of namespaces. Used by paginated list handlers to avoid loading
+// binding data for namespaces not on the current page.
+func BoundAppsNamesForNamespaces(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespaces []string,
+) (map[ConfigurationKey][]string, error) {
+	result := map[ConfigurationKey][]string{}
+	if len(namespaces) == 0 {
+		return result, nil
+	}
+
+	selector := EpinioApplicationAreaLabel + "=configuration"
+	selector += ",app.kubernetes.io/component=application"
+	selector += ",app.kubernetes.io/managed-by=epinio"
+	selector += ",app.kubernetes.io/part-of in (" + strings.Join(namespaces, ",") + ")"
+
+	appBindings, err := cluster.Kubectl.CoreV1().Secrets("").List(ctx,
+		metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return result, err
+	}
+
+	for _, binding := range appBindings.Items {
+		appName := binding.Labels["app.kubernetes.io/name"]
+		namespace := binding.Labels["app.kubernetes.io/part-of"]
+		for configurationName := range binding.Data {
+			key := EncodeConfigurationKey(configurationName, namespace)
+			result[key] = append(result[key], appName)
+		}
+	}
+
+	return result, nil
+}
+
 // BoundAppsNames returns a map from the names of configurations in the specified namespace, to the
 // names of the applications they are bound to. The keys of the map are always a combination of
 // namespace name and configuration name, to distinguish same-named configurations in different
