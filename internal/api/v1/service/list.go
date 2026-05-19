@@ -12,11 +12,14 @@
 package service
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,6 +48,26 @@ func List(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, extendWithBoundApps(serviceList, appsOf))
+	servicesWithApps := extendWithBoundApps(serviceList, appsOf)
+
+	if search := response.GetSearchParam(c); search != "" {
+		lower := strings.ToLower(search)
+		var filtered models.ServiceList
+		for _, svc := range servicesWithApps {
+			if strings.Contains(strings.ToLower(svc.Meta.Name), lower) {
+				filtered = append(filtered, svc)
+			}
+		}
+		servicesWithApps = filtered
+	}
+
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		paged := response.PaginateSlice(servicesWithApps, page, pageSize)
+		response.OKReturn(c, paged)
+		return nil
+	}
+
+	// Backwards-compatible: return full list when no page params are set.
+	response.OKReturn(c, servicesWithApps)
 	return nil
 }

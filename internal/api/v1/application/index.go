@@ -30,15 +30,22 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	search := response.GetSearchParam(c)
+	page, pageSize, paginated := response.GetPaginationParams(c, 1, 25)
+	if paginated || search != "" {
+		apps, total, err := application.ListPaginated(
+			ctx, cluster, namespace, page, pageSize, search,
+		)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		response.OKReturn(c, response.BuildPaginatedResponse(apps, page, pageSize, total))
+		return nil
+	}
+
 	apps, err := application.List(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
-	}
-
-	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
-		paged := response.PaginateSlice(apps, page, pageSize)
-		response.OKReturn(c, paged)
-		return nil
 	}
 
 	response.OKReturn(c, apps)

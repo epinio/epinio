@@ -201,6 +201,77 @@ var _ = Describe("application", func() {
 		})
 	})
 
+	Describe("StagingStatusesForApps", func() {
+		When("called with a single app name", func() {
+			It("returns the staging status for that app", func() {
+				app := appName()
+
+				stagingJobs := &apibatchv1.JobList{
+					Items: []apibatchv1.Job{
+						makeJob(app, namespace, v1.ConditionFalse, apibatchv1.JobComplete),
+					},
+				}
+				fake.ListJobsReturns(stagingJobs, nil)
+
+				isStagingMap, err := application.StagingStatusesForApps(context.Background(), fake, namespace, []string{app})
+				Expect(err).To(BeNil())
+				Expect(isStagingMap).To(HaveLen(1))
+				Expect(string(isStagingMap[application.EncodeConfigurationKey(app, namespace)])).To(Equal(models.ApplicationStagingActive))
+			})
+		})
+
+		When("called with multiple app names", func() {
+			It("uses an in-selector and returns a status for each app", func() {
+				app1, app2 := appName(), appName()
+
+				stagingJobs := &apibatchv1.JobList{
+					Items: []apibatchv1.Job{
+						makeJob(app1, namespace, v1.ConditionFalse, apibatchv1.JobComplete),
+						makeJob(app2, namespace, v1.ConditionTrue, apibatchv1.JobComplete),
+					},
+				}
+				fake.ListJobsReturns(stagingJobs, nil)
+
+				isStagingMap, err := application.StagingStatusesForApps(context.Background(), fake, namespace, []string{app1, app2})
+				Expect(err).To(BeNil())
+				Expect(isStagingMap).To(HaveLen(2))
+
+				_, _, selector := fake.ListJobsArgsForCall(0)
+				Expect(selector).To(ContainSubstring("app.kubernetes.io/name in ("))
+			})
+		})
+
+		When("called with empty app names", func() {
+			It("returns statuses for all apps in the namespace", func() {
+				app1, app2 := appName(), appName()
+
+				stagingJobs := &apibatchv1.JobList{
+					Items: []apibatchv1.Job{
+						makeJob(app1, namespace, v1.ConditionFalse, apibatchv1.JobComplete),
+						makeJob(app2, namespace, v1.ConditionTrue, apibatchv1.JobComplete),
+					},
+				}
+				fake.ListJobsReturns(stagingJobs, nil)
+
+				isStagingMap, err := application.StagingStatusesForApps(context.Background(), fake, namespace, nil)
+				Expect(err).To(BeNil())
+				Expect(isStagingMap).To(HaveLen(2))
+
+				_, _, selector := fake.ListJobsArgsForCall(0)
+				Expect(selector).ToNot(ContainSubstring("in ("))
+			})
+		})
+
+		When("ListJobs returns an error", func() {
+			It("propagates the error", func() {
+				fake.ListJobsReturns(nil, errors.New("k8s unavailable"))
+
+				_, err := application.StagingStatusesForApps(context.Background(), fake, namespace, []string{appName()})
+				Expect(err).NotTo(BeNil())
+			})
+		})
+	})
+
 	Describe("UnstageResult", func() {
 		Describe("HasIncompleteCleanup", func() {
 			When("no failed blob cleanups", func() {

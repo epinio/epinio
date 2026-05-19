@@ -14,6 +14,7 @@ package configuration
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -52,31 +53,66 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	if search := response.GetSearchParam(c); search != "" {
+		lower := strings.ToLower(search)
+		var filtered models.ConfigurationResponseList
+		for _, cfg := range responseData {
+			if strings.Contains(strings.ToLower(cfg.Meta.Name), lower) {
+				filtered = append(filtered, cfg)
+			}
+		}
+		responseData = filtered
+	}
+
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		paged := response.PaginateSlice(responseData, page, pageSize)
+		response.OKReturn(c, paged)
+		return nil
+	}
+
+	// Backwards-compatible: return full list when no page params are set.
 	response.OKReturn(c, responseData)
 	return nil
 }
 
-func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][]string, configurations configurations.ConfigurationList) (models.ConfigurationResponseList, error) {
+func makeResponse(
+	ctx context.Context,
+	appsOf map[application.ConfigurationKey][]string,
+	configs configurations.ConfigurationList,
+) (models.ConfigurationResponseList, error) {
+	return makeResponseFrom(ctx, appsOf, configs, configs)
+}
 
-	response := models.ConfigurationResponseList{}
+// makeResponseFrom builds the sibling map from allConfigs
+// (so cross-page siblings remain visible) but only calls Details() for
+// processConfigs. Paginated callers pass the full filtered list as allConfigs
+// and only the current page as processConfigs.
+func makeResponseFrom(
+	ctx context.Context,
+	appsOf map[application.ConfigurationKey][]string,
+	allConfigs configurations.ConfigurationList,
+	processConfigs configurations.ConfigurationList,
+) (models.ConfigurationResponseList, error) {
+	result := models.ConfigurationResponseList{}
 
-	// All the possible siblings of a configuration are present in the configuration list.
-	//
-	// Simply iterate and sort them into buckets by service origin. Note that the namespace has
-	// to be part of the key. Non-service configurations are ignored.
-
+	// Build sibling map from all configs so service-based siblings on other
+	// pages are visible.
 	siblingMap := map[string][]string{}
-	for _, configuration := range configurations {
+	for _, configuration := range allConfigs {
 		if configuration.Origin != "" {
-			key := fmt.Sprintf("n%s/o%s", configuration.Namespace(), configuration.Origin)
+			key := fmt.Sprintf(
+				"n%s/o%s",
+				configuration.Namespace(),
+				configuration.Origin,
+			)
 			siblingMap[key] = append(siblingMap[key], configuration.Name)
 		}
 	}
 
-	// Fetch details for each configuration concurrently.
-	results := make([]*models.ConfigurationResponse, len(configurations))
+	// Fetch details concurrently for processConfigs only.
+	results := make([]*models.ConfigurationResponse, len(processConfigs))
 	group, groupCtx := errgroup.WithContext(ctx)
-	for i, configuration := range configurations {
+	for i, configuration := range processConfigs {
 		i, configuration := i, configuration
 		group.Go(func() error {
 			configurationDetails, err := configuration.Details(groupCtx)
@@ -93,7 +129,6 @@ func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][
 			)
 			appNames := appsOf[key]
 
-			// For service-based configuration, pull siblings out of the map
 			siblings := []string{}
 			if configuration.Origin != "" {
 				key := fmt.Sprintf(
@@ -101,7 +136,6 @@ func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][
 					configuration.Namespace(),
 					configuration.Origin,
 				)
-
 				for _, maybeSibling := range siblingMap[key] {
 					if maybeSibling != configuration.Name {
 						siblings = append(siblings, maybeSibling)
@@ -136,9 +170,9 @@ func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][
 
 	for _, r := range results {
 		if r != nil {
-			response = append(response, *r)
+			result = append(result, *r)
 		}
 	}
 
-	return response, nil
+	return result, nil
 }
