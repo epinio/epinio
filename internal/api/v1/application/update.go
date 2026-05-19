@@ -120,12 +120,10 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		if len(updateRequest.Settings) > 0 {
 			issues := application.ValidateCV(updateRequest.Settings, appChart.Settings)
 			if issues != nil {
-				// Treating all validation failures as internal errors.  I can't
-				// find something better at the moment.
-
+				// Validation failures are user-actionable request issues.
 				var apiIssues []apierror.APIError
 				for _, err := range issues {
-					apiIssues = append(apiIssues, apierror.InternalError(err))
+					apiIssues = append(apiIssues, apierror.NewBadRequestError(err.Error()))
 				}
 
 				return apierror.NewMultiError(apiIssues)
@@ -208,7 +206,8 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 		if instancesChanged {
 			log.Infow("updating app -- deploying instance change")
-			if apierr := deployAppIfImageReady(ctx, cluster, app, username); apierr != nil {
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+			if apierr != nil {
 				return apierr
 			}
 		} else if app.Workload != nil && app.Status == models.ApplicationRunning {
@@ -220,7 +219,9 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 			log.Infow("updating app -- restart skipped because application is not running", "status", app.Status)
 		} else if desired > 0 {
 			log.Infow("updating app -- deploying")
-			if apierr := deployAppIfImageReady(ctx, cluster, app, username); apierr != nil {
+
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+			if apierr != nil {
 				return apierr
 			}
 		}
