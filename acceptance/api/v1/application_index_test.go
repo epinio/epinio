@@ -110,6 +110,41 @@ var _ = Describe("Apps Endpoint", LApplication, func() {
 		Expect(paged.Items).To(HaveLen(1))
 	})
 
+	It("filters applications by search term", func() {
+		app1 := catalog.NewAppName()
+		env.MakeContainerImageApp(app1, 1, containerImageURL)
+		defer env.DeleteApp(app1)
+		app2 := catalog.NewAppName()
+		env.MakeContainerImageApp(app2, 1, containerImageURL)
+		defer env.DeleteApp(app2)
+
+		response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications?search=%s",
+			serverURL, v1.Root, namespace, app1), strings.NewReader(""))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+		defer response.Body.Close()
+		bodyBytes, err := io.ReadAll(response.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+		var paged struct {
+			Items []models.App `json:"items"`
+		}
+		err = json.Unmarshal(bodyBytes, &paged)
+		Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+		Expect(paged.Items).ToNot(BeEmpty())
+		for _, app := range paged.Items {
+			Expect(strings.Contains(app.Meta.Name, app1)).To(BeTrue(),
+				"expected app name %q to contain search term %q", app.Meta.Name, app1)
+		}
+		names := make([]string, 0, len(paged.Items))
+		for _, app := range paged.Items {
+			names = append(names, app.Meta.Name)
+		}
+		Expect(names).To(ContainElement(app1))
+	})
+
 	It("returns a 404 when the namespace does not exist", func() {
 		response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/idontexist/applications",
 			serverURL, v1.Root), strings.NewReader(""))

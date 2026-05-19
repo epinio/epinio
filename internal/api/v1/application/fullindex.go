@@ -12,12 +12,15 @@
 package application
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,6 +42,17 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 	}
 
 	filteredApps := auth.FilterResources(user, allApps)
+
+	if search := response.GetSearchParam(c); search != "" {
+		lower := strings.ToLower(search)
+		var searched models.AppList
+		for _, a := range filteredApps {
+			if strings.Contains(strings.ToLower(a.Meta.Name), lower) {
+				searched = append(searched, a)
+			}
+		}
+		filteredApps = searched
+	}
 
 	// Apply optional pagination when page parameters are provided.
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {

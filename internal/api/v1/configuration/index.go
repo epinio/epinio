@@ -14,6 +14,7 @@ package configuration
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -52,6 +53,24 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	if search := response.GetSearchParam(c); search != "" {
+		lower := strings.ToLower(search)
+		var filtered models.ConfigurationResponseList
+		for _, cfg := range responseData {
+			if strings.Contains(strings.ToLower(cfg.Meta.Name), lower) {
+				filtered = append(filtered, cfg)
+			}
+		}
+		responseData = filtered
+	}
+
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		paged := response.PaginateSlice(responseData, page, pageSize)
+		response.OKReturn(c, paged)
+		return nil
+	}
+
+	// Backwards-compatible: return full list when no page params are set.
 	response.OKReturn(c, responseData)
 	return nil
 }

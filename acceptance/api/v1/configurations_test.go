@@ -198,6 +198,24 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 			Expect(paged.Items).To(HaveLen(1))
 		})
 
+		It("filters configurations by search term", func() {
+			response, err := env.Curl("GET", fmt.Sprintf("%s%s/configurations?search=%s",
+				serverURL, api.Root, configuration2), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var configurations models.ConfigurationResponseList
+			err = json.Unmarshal(bodyBytes, &configurations)
+			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+			Expect(configurations).To(HaveLen(1))
+			Expect(configurations[0].Meta.Name).To(Equal(configuration2))
+		})
+
 		It("doesn't list configurations belonging to non-accessible namespaces", func() {
 			endpoint := fmt.Sprintf("%s%s/configurations", serverURL, api.Root)
 			request, err := http.NewRequest(http.MethodGet, endpoint, nil)
