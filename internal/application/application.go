@@ -25,8 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -41,7 +39,6 @@ import (
 	"github.com/pkg/errors"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
-	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -401,6 +398,68 @@ type AppData struct {
 	staging  models.ApplicationStagingStatus
 }
 
+// loadEnrichmentData fetches the auxiliary data needed to build full App structs.
+// Pass namespace="" and appNames=nil to load across all namespaces without filtering.
+func loadEnrichmentData(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+	appNames []string,
+) (map[ConfigurationKey]AppData, map[string]metricsv1beta1.PodMetrics, error) {
+	secrets, secretsError := cluster.Kubectl.CoreV1().Secrets(namespace).List(
+		ctx,
+		metav1.ListOptions{LabelSelector: "app.kubernetes.io/managed-by=epinio"},
+	)
+	if secretsError != nil {
+		return nil, nil, secretsError
+	}
+
+	appAuxiliary := makeAuxiliaryMap(secrets.Items)
+
+	appAuxiliary, podsError := AddApplicationPods(
+		appAuxiliary,
+		ctx,
+		cluster,
+		namespace,
+		appNames,
+	)
+	if podsError != nil {
+		return nil, nil, podsError
+	}
+
+	appAuxiliary, routesError := AddActualApplicationRoutes(
+		appAuxiliary,
+		ctx,
+		cluster,
+		namespace,
+		appNames,
+	)
+	if routesError != nil {
+		return nil, nil, routesError
+	}
+
+	pageMetrics, metricsError := GetPodMetrics(ctx, cluster, namespace, appNames)
+	if metricsError != nil {
+		helpers.Logger.Errorw("metrics not available", "error", metricsError)
+	}
+
+	stagingStatuses, stagingError := StagingStatusesForApps(
+		ctx,
+		cluster,
+		namespace,
+		appNames,
+	)
+	if stagingError != nil {
+		return nil, nil, stagingError
+	}
+	appAuxiliary = updateAppDataMapWithStagingJobStatus(
+		appAuxiliary,
+		stagingStatuses,
+	)
+
+	return appAuxiliary, pageMetrics, nil
+}
+
 /*
 List returns a list of all available apps in the specified namespace.
 If no namespace	is specified (empty string) then apps across all namespaces
@@ -411,88 +470,39 @@ func List(
 	cluster *kubernetes.Cluster,
 	namespace string,
 ) (models.AppList, error) {
-
-	// Verify namespace, if specified
-	// This is actually handled by `NamespaceMiddleware`.
-
-	// Fast batch queries to load all relevant resources in as few kube calls as
-	// possible.
-
-	// I. Get the application resources for all apps, deployed or not
-
-	client, err := cluster.ClientApp()
-	if err != nil {
-		return nil, err
+	appClient, clientError := cluster.ClientApp()
+	if clientError != nil {
+		return nil, clientError
 	}
-	appCRList, err := client.Namespace(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	// II. Load the auxiliary application data found in adjacent kube Secret
-	// resources (environment, scaling, bound configs).
-
-	secrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(
+	appCRList, listError := appClient.Namespace(namespace).List(
 		ctx,
-		metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/managed-by=epinio",
-		},
+		metav1.ListOptions{},
 	)
-	if err != nil {
-		return nil, err
+	if listError != nil {
+		return nil, listError
 	}
 
-	appAuxiliary := makeAuxiliaryMap(secrets.Items)
-
-	// III. The pods for the deployed apps.
-
-	appAuxiliary, err = AddApplicationPods(appAuxiliary, ctx, cluster, namespace, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// IV. Actual application routes from the ingresses
-
-	appAuxiliary, err = AddActualApplicationRoutes(
-		appAuxiliary,
+	appAuxiliary, appMetrics, enrichError := loadEnrichmentData(
 		ctx,
 		cluster,
 		namespace,
 		nil,
 	)
-	if err != nil {
-		return nil, err
+	if enrichError != nil {
+		return nil, enrichError
 	}
-
-	// V. Pod metrics and replica information
-
-	metrics, err := GetPodMetrics(ctx, cluster, namespace, nil)
-	if err != nil {
-		// While the error is ignored, as the server can operate without metrics, and while
-		// the missing metrics will be noted in the data shown to the user, it is logged so
-		// that the operator can see this as well.
-		helpers.Logger.Errorw("metrics not available", "error", err)
-	}
-
-	// VI. load the statuses of all staging jobs
-
-	stagingStatuses, err := StagingStatuses(ctx, cluster, namespace)
-	if err != nil {
-		return nil, err
-	}
-	appAuxiliary = updateAppDataMapWithStagingJobStatus(
-		appAuxiliary,
-		stagingStatuses,
-	)
-
-	// Fuse the loaded resources into full application structures.
 
 	result := models.AppList{}
-
 	for _, appCR := range appCRList.Items {
-		app, err := aggregate(ctx, cluster, appCR, appAuxiliary, metrics)
-		if err != nil {
-			return result, err
+		app, aggregateError := aggregate(
+			ctx,
+			cluster,
+			appCR,
+			appAuxiliary,
+			appMetrics,
+		)
+		if aggregateError != nil {
+			return result, aggregateError
 		}
 		if app != nil {
 			result = append(result, *app)
@@ -512,14 +522,17 @@ func ListPaginated(
 	page, pageSize int,
 	search string,
 ) (models.AppList, int, error) {
-	client, err := cluster.ClientApp()
-	if err != nil {
-		return nil, 0, err
+	appClient, clientError := cluster.ClientApp()
+	if clientError != nil {
+		return nil, 0, clientError
 	}
 
-	appCRList, err := client.Namespace(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, 0, err
+	appCRList, listError := appClient.Namespace(namespace).List(
+		ctx,
+		metav1.ListOptions{},
+	)
+	if listError != nil {
+		return nil, 0, listError
 	}
 
 	allCRs := appCRList.Items
@@ -557,64 +570,27 @@ func ListPaginated(
 		pageAppNames = append(pageAppNames, cr.GetName())
 	}
 
-	secrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(
-		ctx,
-		metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/managed-by=epinio",
-		},
-	)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	appAuxiliary := makeAuxiliaryMap(secrets.Items)
-
-	appAuxiliary, err = AddApplicationPods(
-		appAuxiliary,
+	appAuxiliary, pageMetrics, enrichError := loadEnrichmentData(
 		ctx,
 		cluster,
 		namespace,
 		pageAppNames,
 	)
-	if err != nil {
-		return nil, 0, err
+	if enrichError != nil {
+		return nil, 0, enrichError
 	}
-
-	appAuxiliary, err = AddActualApplicationRoutes(
-		appAuxiliary,
-		ctx,
-		cluster,
-		namespace,
-		pageAppNames,
-	)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	pageMetrics, err := GetPodMetrics(ctx, cluster, namespace, pageAppNames)
-	if err != nil {
-		helpers.Logger.Errorw("metrics not available", "error", err)
-	}
-
-	stagingStatuses, err := StagingStatusesForApps(
-		ctx,
-		cluster,
-		namespace,
-		pageAppNames,
-	)
-	if err != nil {
-		return nil, 0, err
-	}
-	appAuxiliary = updateAppDataMapWithStagingJobStatus(
-		appAuxiliary,
-		stagingStatuses,
-	)
 
 	result := models.AppList{}
 	for _, appCR := range pageCRs {
-		app, err := aggregate(ctx, cluster, appCR, appAuxiliary, pageMetrics)
-		if err != nil {
-			return result, totalCount, err
+		app, aggregateError := aggregate(
+			ctx,
+			cluster,
+			appCR,
+			appAuxiliary,
+			pageMetrics,
+		)
+		if aggregateError != nil {
+			return result, totalCount, aggregateError
 		}
 		if app != nil {
 			result = append(result, *app)
@@ -630,58 +606,100 @@ type NamespaceAppsResult struct {
 	TotalItems int
 }
 
-// ListPaginatedByNamespace fetches the requested page of apps for every Epinio namespace
-// concurrently. All per-namespace queries run in parallel, so total latency is bounded
-// by the slowest namespace rather than by the number of namespaces.
+// ListPaginatedByNamespace fetches the requested page of apps for every Epinio namespace.
+// All enrichment data is loaded in bulk cross-namespace calls (same as the original List),
+// then grouped and paginated in memory -- keeping total k8s API calls constant regardless
+// of namespace count.
 func ListPaginatedByNamespace(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	page, pageSize int,
 	search string,
 ) (map[string]NamespaceAppsResult, error) {
-	nsList, err := namespaces.List(ctx, cluster)
-	if err != nil {
-		return nil, err
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 25
 	}
 
-	type entry struct {
-		ns    string
-		items models.AppList
-		total int
+	// I. List all app CRs across every namespace in one k8s call.
+	appClient, clientError := cluster.ClientApp()
+	if clientError != nil {
+		return nil, clientError
+	}
+	allCRList, listError := appClient.Namespace("").List(ctx, metav1.ListOptions{})
+	if listError != nil {
+		return nil, listError
 	}
 
-	entries := make([]entry, len(nsList))
+	// II. Group by namespace and apply optional search filter in memory.
+	nsCRs := make(map[string][]unstructured.Unstructured)
+	for _, cr := range allCRList.Items {
+		namespaceName := cr.GetNamespace()
+		if search != "" && !strings.Contains(strings.ToLower(cr.GetName()), strings.ToLower(search)) {
+			continue
+		}
+		nsCRs[namespaceName] = append(nsCRs[namespaceName], cr)
+	}
 
-	errorGroup, groupCtx := errgroup.WithContext(ctx)
-	for index, namespace := range nsList {
-		index, namespaceName := index, namespace.Name
-		errorGroup.Go(func() error {
-			apps, total, listError := ListPaginated(
-				groupCtx,
+	// III. Determine page slice per namespace in memory.
+	type nsSlice struct {
+		pageCRs    []unstructured.Unstructured
+		totalCount int
+	}
+	nsSlices := make(map[string]nsSlice, len(nsCRs))
+	for namespaceName, crs := range nsCRs {
+		totalCount := len(crs)
+		start := (page - 1) * pageSize
+		if start >= totalCount {
+			nsSlices[namespaceName] = nsSlice{pageCRs: nil, totalCount: totalCount}
+			continue
+		}
+		end := start + pageSize
+		if end > totalCount {
+			end = totalCount
+		}
+		nsSlices[namespaceName] = nsSlice{
+			pageCRs:    crs[start:end],
+			totalCount: totalCount,
+		}
+	}
+
+	// IV. Bulk-load all enrichment data cross-namespace, one k8s call per
+	// resource type.
+	appAuxiliary, pageMetrics, enrichError := loadEnrichmentData(
+		ctx,
+		cluster,
+		"",
+		nil,
+	)
+	if enrichError != nil {
+		return nil, enrichError
+	}
+
+	// V. Assemble final result per namespace.
+	result := make(map[string]NamespaceAppsResult, len(nsSlices))
+	for namespaceName, slice := range nsSlices {
+		appList := models.AppList{}
+		for _, appCR := range slice.pageCRs {
+			app, aggregateError := aggregate(
+				ctx,
 				cluster,
-				namespaceName,
-				page,
-				pageSize,
-				search,
+				appCR,
+				appAuxiliary,
+				pageMetrics,
 			)
-			if listError != nil {
-				return listError
+			if aggregateError != nil {
+				return nil, aggregateError
 			}
-			entries[index] = entry{ns: namespaceName, items: apps, total: total}
-			return nil
-		})
-	}
-
-	waitError := errorGroup.Wait()
-	if waitError != nil {
-		return nil, waitError
-	}
-
-	result := make(map[string]NamespaceAppsResult, len(nsList))
-	for _, namespaceEntry := range entries {
-		result[namespaceEntry.ns] = NamespaceAppsResult{
-			Items:      namespaceEntry.items,
-			TotalItems: namespaceEntry.total,
+			if app != nil {
+				appList = append(appList, *app)
+			}
+		}
+		result[namespaceName] = NamespaceAppsResult{
+			Items:      appList,
+			TotalItems: slice.totalCount,
 		}
 	}
 
