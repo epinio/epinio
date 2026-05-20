@@ -109,6 +109,7 @@ var Routes = routes.NamedRoutes{
 	// app controller files see application/*.go
 
 	"AllApps":         get("/applications", errorHandler(application.FullIndex)),
+	"AllAppsGrouped":  get("/applications/grouped", errorHandler(application.GroupedIndex)),
 	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Index)),
 	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Create)),
 	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),
