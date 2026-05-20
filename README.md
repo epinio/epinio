@@ -76,7 +76,7 @@ Our [QuickStart Tutorial](https://docs.epinio.io/tutorials/quickstart) works thr
 
 `Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues.
 
-Find more information in the [Contribution Guide](./CONTRIBUTING.md).
+Find more information in the [Contribution Guide](https://docs.epinio.io/contribute).
 
 The [developer documentation](./docs) explains how to build and run Epinio from a git source checkout.
 
