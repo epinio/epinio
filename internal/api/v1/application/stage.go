@@ -234,35 +234,11 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	blobUID, blobError := getBlobUID(ctx, s3ConnectionDetails, req, app)
-	if blobError != nil {
-		log.Infow("blob lookup failed, checking for git origin fallback",
-			"namespace", namespace, "app", name, "error", blobError,
-		)
-		origin, originError := application.Origin(app)
-		if originError == nil && origin.Git != nil {
-			log.Infow("git origin found, re-cloning to S3",
-				"namespace", namespace, "app", name,
-				"url", origin.Git.URL, "revision", origin.Git.Revision,
-			)
-			blobUID, _, _, blobError = cloneAndUpload(
-				ctx, cluster,
-				origin.Git.URL, origin.Git.Revision,
-				namespace, name, username,
-			)
-			if blobError == nil {
-				log.Infow("git fallback clone succeeded",
-					"namespace", namespace, "app", name, "blobUID", blobUID,
-				)
-			}
-		} else {
-			log.Infow("no git origin available for fallback",
-				"namespace", namespace, "app", name,
-			)
-		}
-		if blobError != nil {
-			return blobError
-		}
+	blobUID, blobErr := resolveBlobUID(
+		ctx, cluster, s3ConnectionDetails, req, app, username,
+	)
+	if blobErr != nil {
+		return blobErr
 	}
 
 	// Create uid identifying the staging job to be
@@ -299,13 +275,10 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "getting the Epinio registry public URL")
 	}
 
-	registryCertificateSecret := viper.GetString("registry-certificate-secret")
-	registryCertificateHash := ""
-	if registryCertificateSecret != "" {
-		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.Namespace(), registryCertificateSecret)
-		if err != nil {
-			return apierror.InternalError(err, "cannot calculate Certificate hash")
-		}
+	registryCertificateSecret, registryCertificateHash, err :=
+		resolveRegistryCertHash(ctx, cluster)
+	if err != nil {
+		return apierror.InternalError(err, "cannot calculate Certificate hash")
 	}
 
 	// merge buildpack and general EV, i.e. `config.Env`, and `environment`.
@@ -338,32 +311,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		HelmValues:          config.HelmValues,
 	}
 
-	if !params.HelmValues.Storage.Cache.EmptyDir {
-		pvcError := ensurePVC(
-			ctx, cluster,
-			params.HelmValues.Storage.Cache,
-			req.App.MakeCachePVCName(),
-		)
-		if pvcError != nil {
-			return apierror.InternalError(
-				pvcError,
-				"failed to ensure a PersistentVolumeClaim for the application cache",
-			)
-		}
-	}
-
-	if !params.HelmValues.Storage.SourceBlobs.EmptyDir {
-		err = ensurePVC(
-			ctx, cluster,
-			params.HelmValues.Storage.SourceBlobs,
-			req.App.MakeSourceBlobsPVCName(),
-		)
-		if err != nil {
-			return apierror.InternalError(
-				err,
-				"failed to ensure a PersistentVolumeClaim for the application source blobs",
-			)
-		}
+	if pvcErr := ensureStagingPVCs(ctx, cluster, req, params.HelmValues); pvcErr != nil {
+		return pvcErr
 	}
 
 	job, jobenv := newJobRun(params)
@@ -1050,6 +999,111 @@ func findPreviousBlobUID(app *unstructured.Unstructured) (string, error) {
 	}
 
 	return blobUID, nil
+}
+
+// resolveBlobUID returns the blob to stage. When the stored blob is missing
+// and the app has a git origin, it re-clones and uploads a fresh blob.
+func resolveBlobUID(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	s3ConnectionDetails s3manager.ConnectionDetails,
+	req models.StageRequest,
+	app *unstructured.Unstructured,
+	username string,
+) (string, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
+	namespace := req.App.Namespace
+	name := req.App.Name
+
+	blobUID, blobError := getBlobUID(ctx, s3ConnectionDetails, req, app)
+	if blobError == nil {
+		return blobUID, nil
+	}
+
+	log.Infow("blob lookup failed, checking for git origin fallback",
+		"namespace", namespace, "app", name, "error", blobError,
+	)
+	origin, originError := application.Origin(app)
+	if originError != nil || origin.Git == nil {
+		log.Infow("no git origin available for fallback",
+			"namespace", namespace, "app", name,
+		)
+		return "", blobError
+	}
+
+	log.Infow("git origin found, re-cloning to S3",
+		"namespace", namespace, "app", name,
+		"url", origin.Git.URL, "revision", origin.Git.Revision,
+	)
+	blobUID, _, _, cloneError := cloneAndUpload(
+		ctx, cluster,
+		origin.Git.URL, origin.Git.Revision,
+		namespace, name, username,
+	)
+	if cloneError != nil {
+		return "", cloneError
+	}
+	log.Infow("git fallback clone succeeded",
+		"namespace", namespace, "app", name, "blobUID", blobUID,
+	)
+	return blobUID, nil
+}
+
+// ensureStagingPVCs creates persistent volume claims for the staging job
+// when the helm values do not use emptyDir for cache or source blobs.
+func ensureStagingPVCs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	req models.StageRequest,
+	helmValues HelmValuesMap,
+) apierror.APIErrors {
+	if !helmValues.Storage.Cache.EmptyDir {
+		cacheErr := ensurePVC(
+			ctx, cluster,
+			helmValues.Storage.Cache,
+			req.App.MakeCachePVCName(),
+		)
+		if cacheErr != nil {
+			return apierror.InternalError(
+				cacheErr,
+				"failed to ensure a PersistentVolumeClaim for the application cache",
+			)
+		}
+	}
+	if !helmValues.Storage.SourceBlobs.EmptyDir {
+		blobsErr := ensurePVC(
+			ctx, cluster,
+			helmValues.Storage.SourceBlobs,
+			req.App.MakeSourceBlobsPVCName(),
+		)
+		if blobsErr != nil {
+			return apierror.InternalError(
+				blobsErr,
+				"failed to ensure a PersistentVolumeClaim for the application source blobs",
+			)
+		}
+	}
+	return nil
+}
+
+// resolveRegistryCertHash reads the registry certificate secret name from
+// config and returns the secret name and its hash. Returns empty strings when
+// no secret is configured.
+func resolveRegistryCertHash(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+) (string, string, error) {
+	secret := viper.GetString("registry-certificate-secret")
+	if secret == "" {
+		return "", "", nil
+	}
+	hash, hashErr := getRegistryCertificateHash(
+		ctx, cluster, helmchart.Namespace(), secret,
+	)
+	if hashErr != nil {
+		return "", "", hashErr
+	}
+	return secret, hash, nil
 }
 
 func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
