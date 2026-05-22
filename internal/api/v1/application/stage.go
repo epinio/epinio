@@ -70,7 +70,7 @@ type stageParam struct {
 	UserID              int64
 	GroupID             int64
 	Scripts             string
-	HelmValues          HelmValuesMap // Helm Values configuring the staging workload
+	HelmValues          HelmValuesMap
 }
 
 type HelmValuesMap struct {
@@ -234,9 +234,35 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	blobUID, blobErr := getBlobUID(ctx, s3ConnectionDetails, req, app)
-	if blobErr != nil {
-		return blobErr
+	blobUID, blobError := getBlobUID(ctx, s3ConnectionDetails, req, app)
+	if blobError != nil {
+		log.Infow("blob lookup failed, checking for git origin fallback",
+			"namespace", namespace, "app", name, "error", blobError,
+		)
+		origin, originError := application.Origin(app)
+		if originError == nil && origin.Git != nil {
+			log.Infow("git origin found, re-cloning to S3",
+				"namespace", namespace, "app", name,
+				"url", origin.Git.URL, "revision", origin.Git.Revision,
+			)
+			blobUID, _, _, blobError = cloneAndUpload(
+				ctx, cluster,
+				origin.Git.URL, origin.Git.Revision,
+				namespace, name, username,
+			)
+			if blobError == nil {
+				log.Infow("git fallback clone succeeded",
+					"namespace", namespace, "app", name, "blobUID", blobUID,
+				)
+			}
+		} else {
+			log.Infow("no git origin available for fallback",
+				"namespace", namespace, "app", name,
+			)
+		}
+		if blobError != nil {
+			return blobError
+		}
 	}
 
 	// Create uid identifying the staging job to be
@@ -294,9 +320,9 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
+		BlobUID:             blobUID,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
-		BlobUID:             blobUID,
 		Environment:         environment.List(),
 		Owner:               owner,
 		RegistryURL:         registryPublicURL,
@@ -313,16 +339,30 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	}
 
 	if !params.HelmValues.Storage.Cache.EmptyDir {
-		err = ensurePVC(ctx, cluster, params.HelmValues.Storage.Cache, req.App.MakeCachePVCName())
-		if err != nil {
-			return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application cache")
+		pvcError := ensurePVC(
+			ctx, cluster,
+			params.HelmValues.Storage.Cache,
+			req.App.MakeCachePVCName(),
+		)
+		if pvcError != nil {
+			return apierror.InternalError(
+				pvcError,
+				"failed to ensure a PersistentVolumeClaim for the application cache",
+			)
 		}
 	}
 
 	if !params.HelmValues.Storage.SourceBlobs.EmptyDir {
-		err = ensurePVC(ctx, cluster, params.HelmValues.Storage.SourceBlobs, req.App.MakeSourceBlobsPVCName())
+		err = ensurePVC(
+			ctx, cluster,
+			params.HelmValues.Storage.SourceBlobs,
+			req.App.MakeSourceBlobsPVCName(),
+		)
 		if err != nil {
-			return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application source blobs")
+			return apierror.InternalError(
+				err,
+				"failed to ensure a PersistentVolumeClaim for the application source blobs",
+			)
 		}
 	}
 
@@ -798,6 +838,31 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		},
 	}
 
+	initContainers := []corev1.Container{
+		{
+			Name:         "download-s3-blob",
+			Image:        app.DownloadImage,
+			VolumeMounts: volumeMounts,
+			Command:      []string{"/bin/bash"},
+			Args: []string{
+				"-c",
+				awsScript,
+			},
+			Env: stageEnv,
+		},
+		{
+			Name:         "unpack-blob",
+			Image:        app.UnpackImage,
+			VolumeMounts: volumeMounts,
+			Command:      []string{"bash"},
+			Args: []string{
+				"-c",
+				unpackScript,
+			},
+			Env: stageEnv,
+		},
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: jobName,
@@ -836,30 +901,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: app.HelmValues.ServiceAccountName,
-					InitContainers: []corev1.Container{
-						{
-							Name:         "download-s3-blob",
-							Image:        app.DownloadImage,
-							VolumeMounts: volumeMounts,
-							Command:      []string{"/bin/bash"},
-							Args: []string{
-								"-c",
-								awsScript,
-							},
-							Env: stageEnv,
-						},
-						{
-							Name:         "unpack-blob",
-							Image:        app.UnpackImage,
-							VolumeMounts: volumeMounts,
-							Command:      []string{"bash"},
-							Args: []string{
-								"-c",
-								unpackScript,
-							},
-							Env: stageEnv,
-						},
-					},
+					InitContainers:     initContainers,
 					Containers: []corev1.Container{
 						{
 							Name:    "buildpack",
@@ -969,30 +1011,33 @@ func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (s
 	return builderImage, nil
 }
 
-func getBlobUID(ctx context.Context, s3ConnectionDetails s3manager.ConnectionDetails, req models.StageRequest, app *unstructured.Unstructured) (string, apierror.APIErrors) {
+func getBlobUID(
+	ctx context.Context,
+	s3ConnectionDetails s3manager.ConnectionDetails,
+	req models.StageRequest,
+	app *unstructured.Unstructured,
+) (string, apierror.APIErrors) {
 	var blobUID string
-	var err error
-	var returnErr apierror.APIErrors
 
 	if req.BlobUID != "" {
 		blobUID = req.BlobUID
 	} else {
-		blobUID, err = findPreviousBlobUID(app)
-		if err != nil {
-			returnErr = apierror.InternalError(err, "looking up the previous blod UID")
-			return "", returnErr
+		previousUID, lookupError := findPreviousBlobUID(app)
+		if lookupError != nil {
+			return "", apierror.InternalError(lookupError, "looking up the previous blob UID")
 		}
+		blobUID = previousUID
 	}
 
 	if blobUID == "" {
-		returnErr = apierror.NewBadRequestError("request didn't provide a blobUID and a previous one doesn't exist")
-		return "", returnErr
+		return "", apierror.NewBadRequestError(
+			"request didn't provide a blobUID and a previous one doesn't exist",
+		)
 	}
 
-	// Validate incoming blob id before attempting to stage
-	apierr := validateBlob(ctx, blobUID, req.App, s3ConnectionDetails)
-	if apierr != nil {
-		return "", apierr
+	validateError := validateBlob(ctx, blobUID, req.App, s3ConnectionDetails)
+	if validateError != nil {
+		return "", validateError
 	}
 
 	return blobUID, nil
@@ -1022,14 +1067,14 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 		return err
 	}
 
+	specPatch := map[string]any{
+		"stageid":      params.Stage.ID,
+		"builderimage": params.BuilderImage,
+		"blobuid":      params.BlobUID,
+	}
+
 	// Merge patch avoids resourceVersion update conflicts for these spec fields.
-	patchBody, err := json.Marshal(map[string]any{
-		"spec": map[string]any{
-			"blobuid":      params.BlobUID,
-			"stageid":      params.Stage.ID,
-			"builderimage": params.BuilderImage,
-		},
-	})
+	patchBody, err := json.Marshal(map[string]any{"spec": specPatch})
 	if err != nil {
 		return err
 	}
@@ -1099,7 +1144,7 @@ type StagingScriptConfig struct {
 	Name          string                // config name. Needed to mount the resource in the pod
 	Builder       string                // glob pattern for builders supported by this resource
 	UserID        int64                 // user id to run the build phase with (`cnb` user)
-	GroupID       int64                 // group id to run the build hase with
+	GroupID       int64                 // group id to run the build phase with
 	Base          string                // optional, name of resource to pull the other parts from
 	DownloadImage string                // image to run the download phase with
 	UnpackImage   string                // image to run the unpack phase with
