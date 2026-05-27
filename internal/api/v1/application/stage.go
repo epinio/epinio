@@ -67,10 +67,11 @@ type stageParam struct {
 	PreviousStageID     string
 	RegistryCASecret    string
 	RegistryCAHash      string
+	RegistryCACertKey   string // "ca.crt" or "tls.crt"
 	UserID              int64
 	GroupID             int64
 	Scripts             string
-	HelmValues          HelmValuesMap // Helm Values configuring the staging workload
+	HelmValues          HelmValuesMap
 }
 
 type HelmValuesMap struct {
@@ -234,7 +235,9 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	blobUID, blobErr := getBlobUID(ctx, s3ConnectionDetails, req, app)
+	blobUID, blobErr := resolveBlobUID(
+		ctx, cluster, s3ConnectionDetails, req, app, username,
+	)
 	if blobErr != nil {
 		return blobErr
 	}
@@ -273,13 +276,10 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "getting the Epinio registry public URL")
 	}
 
-	registryCertificateSecret := viper.GetString("registry-certificate-secret")
-	registryCertificateHash := ""
-	if registryCertificateSecret != "" {
-		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.Namespace(), registryCertificateSecret)
-		if err != nil {
-			return apierror.InternalError(err, "cannot calculate Certificate hash")
-		}
+	registryCertificateSecret, registryCACertKey, registryCertificateHash, err :=
+		resolveRegistryCertHash(ctx, cluster)
+	if err != nil {
+		return apierror.InternalError(err, "cannot calculate Certificate hash")
 	}
 
 	// merge buildpack and general EV, i.e. `config.Env`, and `environment`.
@@ -294,9 +294,9 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
+		BlobUID:             blobUID,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
-		BlobUID:             blobUID,
 		Environment:         environment.List(),
 		Owner:               owner,
 		RegistryURL:         registryPublicURL,
@@ -306,24 +306,15 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		Username:            username,
 		RegistryCAHash:      registryCertificateHash,
 		RegistryCASecret:    registryCertificateSecret,
+		RegistryCACertKey:   registryCACertKey,
 		UserID:              config.UserID,
 		GroupID:             config.GroupID,
 		Scripts:             config.Name,
 		HelmValues:          config.HelmValues,
 	}
 
-	if !params.HelmValues.Storage.Cache.EmptyDir {
-		err = ensurePVC(ctx, cluster, params.HelmValues.Storage.Cache, req.App.MakeCachePVCName())
-		if err != nil {
-			return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application cache")
-		}
-	}
-
-	if !params.HelmValues.Storage.SourceBlobs.EmptyDir {
-		err = ensurePVC(ctx, cluster, params.HelmValues.Storage.SourceBlobs, req.App.MakeSourceBlobsPVCName())
-		if err != nil {
-			return apierror.InternalError(err, "failed to ensure a PersistentVolumeClaim for the application source blobs")
-		}
+	if pvcErr := ensureStagingPVCs(ctx, cluster, req, params.HelmValues); pvcErr != nil {
+		return pvcErr
 	}
 
 	job, jobenv := newJobRun(params)
@@ -798,6 +789,31 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		},
 	}
 
+	initContainers := []corev1.Container{
+		{
+			Name:         "download-s3-blob",
+			Image:        app.DownloadImage,
+			VolumeMounts: volumeMounts,
+			Command:      []string{"/bin/bash"},
+			Args: []string{
+				"-c",
+				awsScript,
+			},
+			Env: stageEnv,
+		},
+		{
+			Name:         "unpack-blob",
+			Image:        app.UnpackImage,
+			VolumeMounts: volumeMounts,
+			Command:      []string{"bash"},
+			Args: []string{
+				"-c",
+				unpackScript,
+			},
+			Env: stageEnv,
+		},
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: jobName,
@@ -836,30 +852,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: app.HelmValues.ServiceAccountName,
-					InitContainers: []corev1.Container{
-						{
-							Name:         "download-s3-blob",
-							Image:        app.DownloadImage,
-							VolumeMounts: volumeMounts,
-							Command:      []string{"/bin/bash"},
-							Args: []string{
-								"-c",
-								awsScript,
-							},
-							Env: stageEnv,
-						},
-						{
-							Name:         "unpack-blob",
-							Image:        app.UnpackImage,
-							VolumeMounts: volumeMounts,
-							Command:      []string{"bash"},
-							Args: []string{
-								"-c",
-								unpackScript,
-							},
-							Env: stageEnv,
-						},
-					},
+					InitContainers:     initContainers,
 					Containers: []corev1.Container{
 						{
 							Name:    "buildpack",
@@ -928,26 +921,40 @@ func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, e
 }
 
 // The equivalent of:
-// kubectl get secret -n (helmchart.Namespace()) epinio-registry-tls -o json | jq -r '.["data"]["tls.crt"]' | base64 -d | openssl x509 -hash -noout
+// kubectl get secret -n (helmchart.Namespace()) epinio-registry-tls -o json | jq -r '.["data"]["ca.crt"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
-func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, error) {
+// Returns (certKey, hash, error). Prefers ca.crt (the CA root) over tls.crt
+// (the server leaf cert). When cert-manager issues the registry cert with a
+// separate CA, mounting the leaf cert as a trusted CA does not work; the CA
+// cert must be used instead. Falls back to tls.crt for self-signed certs where
+// ca.crt is absent.
+func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	// cert-manager doesn't add the CA for ACME certificates:
-	// https://github.com/jetstack/cert-manager/issues/2111
-	if _, found := secret.Data["tls.crt"]; !found {
-		return "", nil
+	// Prefer ca.crt (CA root) so staging jobs trust the registry regardless of
+	// whether the cert is self-signed or issued by an internal CA. Fall back to
+	// tls.crt for self-signed setups where ca.crt is absent.
+	certKey := "ca.crt"
+	certData, found := secret.Data["ca.crt"]
+	if !found || len(certData) == 0 {
+		// cert-manager doesn't add the CA for ACME certificates:
+		// https://github.com/jetstack/cert-manager/issues/2111
+		certKey = "tls.crt"
+		certData, found = secret.Data["tls.crt"]
+		if !found {
+			return "", "", nil
+		}
 	}
 
-	hash, err := cahash.GenerateHash(secret.Data["tls.crt"])
+	hash, err := cahash.GenerateHash(certData)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return hash, nil
+	return certKey, hash, nil
 }
 
 // getBuilderImage returns the builder image defined on the request. If that
@@ -969,30 +976,33 @@ func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (s
 	return builderImage, nil
 }
 
-func getBlobUID(ctx context.Context, s3ConnectionDetails s3manager.ConnectionDetails, req models.StageRequest, app *unstructured.Unstructured) (string, apierror.APIErrors) {
+func getBlobUID(
+	ctx context.Context,
+	s3ConnectionDetails s3manager.ConnectionDetails,
+	req models.StageRequest,
+	app *unstructured.Unstructured,
+) (string, apierror.APIErrors) {
 	var blobUID string
-	var err error
-	var returnErr apierror.APIErrors
 
 	if req.BlobUID != "" {
 		blobUID = req.BlobUID
 	} else {
-		blobUID, err = findPreviousBlobUID(app)
-		if err != nil {
-			returnErr = apierror.InternalError(err, "looking up the previous blod UID")
-			return "", returnErr
+		previousUID, lookupError := findPreviousBlobUID(app)
+		if lookupError != nil {
+			return "", apierror.InternalError(lookupError, "looking up the previous blob UID")
 		}
+		blobUID = previousUID
 	}
 
 	if blobUID == "" {
-		returnErr = apierror.NewBadRequestError("request didn't provide a blobUID and a previous one doesn't exist")
-		return "", returnErr
+		return "", apierror.NewBadRequestError(
+			"request didn't provide a blobUID and a previous one doesn't exist",
+		)
 	}
 
-	// Validate incoming blob id before attempting to stage
-	apierr := validateBlob(ctx, blobUID, req.App, s3ConnectionDetails)
-	if apierr != nil {
-		return "", apierr
+	validateError := validateBlob(ctx, blobUID, req.App, s3ConnectionDetails)
+	if validateError != nil {
+		return "", validateError
 	}
 
 	return blobUID, nil
@@ -1005,6 +1015,111 @@ func findPreviousBlobUID(app *unstructured.Unstructured) (string, error) {
 	}
 
 	return blobUID, nil
+}
+
+// resolveBlobUID returns the blob to stage. When the stored blob is missing
+// and the app has a git origin, it re-clones and uploads a fresh blob.
+func resolveBlobUID(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	s3ConnectionDetails s3manager.ConnectionDetails,
+	req models.StageRequest,
+	app *unstructured.Unstructured,
+	username string,
+) (string, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
+	namespace := req.App.Namespace
+	name := req.App.Name
+
+	blobUID, blobError := getBlobUID(ctx, s3ConnectionDetails, req, app)
+	if blobError == nil {
+		return blobUID, nil
+	}
+
+	log.Infow("blob lookup failed, checking for git origin fallback",
+		"namespace", namespace, "app", name, "error", blobError,
+	)
+	origin, originError := application.Origin(app)
+	if originError != nil || origin.Git == nil {
+		log.Infow("no git origin available for fallback",
+			"namespace", namespace, "app", name,
+		)
+		return "", blobError
+	}
+
+	log.Infow("git origin found, re-cloning to S3",
+		"namespace", namespace, "app", name,
+		"url", origin.Git.URL, "revision", origin.Git.Revision,
+	)
+	blobUID, _, _, cloneError := cloneAndUpload(
+		ctx, cluster,
+		origin.Git.URL, origin.Git.Revision,
+		namespace, name, username,
+	)
+	if cloneError != nil {
+		return "", cloneError
+	}
+	log.Infow("git fallback clone succeeded",
+		"namespace", namespace, "app", name, "blobUID", blobUID,
+	)
+	return blobUID, nil
+}
+
+// ensureStagingPVCs creates persistent volume claims for the staging job
+// when the helm values do not use emptyDir for cache or source blobs.
+func ensureStagingPVCs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	req models.StageRequest,
+	helmValues HelmValuesMap,
+) apierror.APIErrors {
+	if !helmValues.Storage.Cache.EmptyDir {
+		cacheErr := ensurePVC(
+			ctx, cluster,
+			helmValues.Storage.Cache,
+			req.App.MakeCachePVCName(),
+		)
+		if cacheErr != nil {
+			return apierror.InternalError(
+				cacheErr,
+				"failed to ensure a PersistentVolumeClaim for the application cache",
+			)
+		}
+	}
+	if !helmValues.Storage.SourceBlobs.EmptyDir {
+		blobsErr := ensurePVC(
+			ctx, cluster,
+			helmValues.Storage.SourceBlobs,
+			req.App.MakeSourceBlobsPVCName(),
+		)
+		if blobsErr != nil {
+			return apierror.InternalError(
+				blobsErr,
+				"failed to ensure a PersistentVolumeClaim for the application source blobs",
+			)
+		}
+	}
+	return nil
+}
+
+// resolveRegistryCertHash reads the registry certificate secret name from
+// config and returns the secret name and its hash. Returns empty strings when
+// no secret is configured.
+func resolveRegistryCertHash(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+) (string, string, string, error) {
+	secret := viper.GetString("registry-certificate-secret")
+	if secret == "" {
+		return "", "", "", nil
+	}
+	certKey, hash, hashErr := getRegistryCertificateHash(
+		ctx, cluster, helmchart.Namespace(), secret,
+	)
+	if hashErr != nil {
+		return "", "", "", hashErr
+	}
+	return secret, certKey, hash, nil
 }
 
 func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
@@ -1022,14 +1137,14 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 		return err
 	}
 
+	specPatch := map[string]any{
+		"stageid":      params.Stage.ID,
+		"builderimage": params.BuilderImage,
+		"blobuid":      params.BlobUID,
+	}
+
 	// Merge patch avoids resourceVersion update conflicts for these spec fields.
-	patchBody, err := json.Marshal(map[string]any{
-		"spec": map[string]any{
-			"blobuid":      params.BlobUID,
-			"stageid":      params.Stage.ID,
-			"builderimage": params.BuilderImage,
-		},
-	})
+	patchBody, err := json.Marshal(map[string]any{"spec": specPatch})
 	if err != nil {
 		return err
 	}
@@ -1082,7 +1197,7 @@ func mountRegistryCerts(app stageParam, volumes []corev1.Volume, volumeMounts []
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "registry-certs",
 			MountPath: fmt.Sprintf("/etc/ssl/certs/%s", app.RegistryCAHash),
-			SubPath:   "tls.crt",
+			SubPath:   app.RegistryCACertKey,
 			ReadOnly:  true,
 		})
 	}
@@ -1099,7 +1214,7 @@ type StagingScriptConfig struct {
 	Name          string                // config name. Needed to mount the resource in the pod
 	Builder       string                // glob pattern for builders supported by this resource
 	UserID        int64                 // user id to run the build phase with (`cnb` user)
-	GroupID       int64                 // group id to run the build hase with
+	GroupID       int64                 // group id to run the build phase with
 	Base          string                // optional, name of resource to pull the other parts from
 	DownloadImage string                // image to run the download phase with
 	UnpackImage   string                // image to run the unpack phase with
