@@ -9,7 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package catalog
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -21,8 +21,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CatalogCreate handles POST /catalogservices
-func CatalogCreate(c *gin.Context) apierror.APIErrors {
+// Create handles POST /catalogservices
+func Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
@@ -53,10 +53,7 @@ func CatalogCreate(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Infow("check existence", "name", createRequest.Name)
-	exists, existsError := kubeServiceClient.CatalogServiceExists(
-		ctx,
-		createRequest.Name,
-	)
+	exists, existsError := kubeServiceClient.CatalogServiceExists(ctx, createRequest.Name)
 	if existsError != nil {
 		return apierror.InternalError(existsError)
 	}

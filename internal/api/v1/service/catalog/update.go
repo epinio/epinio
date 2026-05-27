@@ -9,7 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package catalog
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -17,16 +17,17 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
-// CatalogDelete handles DELETE /catalogservices/:catalogservice
-func CatalogDelete(c *gin.Context) apierror.APIErrors {
+// Update handles PATCH /catalogservices/:catalogservice
+func Update(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 	name := c.Param("catalogservice")
 
-	log.Infow("delete catalog service", "name", name)
+	log.Infow("update catalog service", "name", name)
 	defer log.Infow("return")
 
 	cluster, clusterError := kubernetes.GetCluster(ctx)
@@ -48,13 +49,19 @@ func CatalogDelete(c *gin.Context) apierror.APIErrors {
 		return apierror.CatalogServiceIsNotKnown(name)
 	}
 
-	log.Infow("delete catalog service resource", "name", name)
-	deleteError := kubeServiceClient.DeleteCatalogService(ctx, name)
-	if deleteError != nil {
-		return apierror.InternalError(deleteError)
+	var updateRequest models.CatalogServiceUpdateRequest
+	bindError := c.BindJSON(&updateRequest)
+	if bindError != nil {
+		return apierror.NewBadRequestError(bindError.Error())
 	}
 
-	log.Infow("catalog service deleted", "name", name)
+	log.Infow("apply update", "name", name)
+	updateError := kubeServiceClient.UpdateCatalogService(ctx, name, updateRequest)
+	if updateError != nil {
+		return apierror.InternalError(updateError)
+	}
+
+	log.Infow("catalog service updated", "name", name)
 	response.OK(c)
 	return nil
 }

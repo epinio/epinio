@@ -34,6 +34,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/report"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
+	"github.com/epinio/epinio/internal/api/v1/service/catalog"
 	"github.com/epinio/epinio/internal/api/v1/supportbundle"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -176,15 +177,15 @@ var Routes = routes.NamedRoutes{
 	"ConfigurationMatch0": get("/namespaces/:namespace/configurationsmatches", errorHandler(configuration.Match)),
 
 	// Service Catalog
-	"ServiceCatalog":       get("/catalogservices", errorHandler(service.Catalog)),
-	"ServiceCatalogShow":   get("/catalogservices/:catalogservice", errorHandler(service.CatalogShow)),
-	"ServiceCatalogCreate": post("/catalogservices", errorHandler(service.CatalogCreate)),
-	"ServiceCatalogUpdate": patch("/catalogservices/:catalogservice", errorHandler(service.CatalogUpdate)),
-	"ServiceCatalogDelete": delete("/catalogservices/:catalogservice", errorHandler(service.CatalogDelete)),
+	"ServiceCatalog":       get("/catalogservices", errorHandler(catalog.Index)),
+	"ServiceCatalogShow":   get("/catalogservices/:catalogservice", errorHandler(catalog.Show)),
+	"ServiceCatalogCreate": post("/catalogservices", errorHandler(catalog.Create)),
+	"ServiceCatalogUpdate": patch("/catalogservices/:catalogservice", errorHandler(catalog.Update)),
+	"ServiceCatalogDelete": delete("/catalogservices/:catalogservice", errorHandler(catalog.Delete)),
 
 	// Note, the second registration catches calls with an empty pattern!
-	"ServiceCatalogMatch":  get("catalogservicesmatches/:pattern", errorHandler(service.CatalogMatch)),
-	"ServiceCatalogMatch0": get("catalogservicesmatches", errorHandler(service.CatalogMatch)),
+	"ServiceCatalogMatch":  get("catalogservicesmatches/:pattern", errorHandler(catalog.Match)),
+	"ServiceCatalogMatch0": get("catalogservicesmatches", errorHandler(catalog.Match)),
 
 	// Services
 	"ServiceApps": get("/namespaces/:namespace/serviceapps", errorHandler(service.ServiceApps)),
