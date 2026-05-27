@@ -23,6 +23,27 @@
             "$ref": "#/responses/AppChartsResponse"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "appcharts"
+        ],
+        "summary": "Create a new appchart.",
+        "operationId": "ChartCreate",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/AppChartCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "$ref": "#/responses/ChartCreateResponse"
+          }
+        }
       }
     },
     "/appcharts/{Chart}": {
@@ -43,6 +64,53 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ChartShowResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "appcharts"
+        ],
+        "summary": "Delete the named `Chart`.",
+        "operationId": "ChartDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Chart",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ChartDeleteResponse"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "appcharts"
+        ],
+        "summary": "Update fields on the named `Chart`.",
+        "operationId": "ChartUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Chart",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/AppChartUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ChartUpdateResponse"
           }
         }
       }
@@ -97,6 +165,146 @@
         }
       }
     },
+    "/builderimages": {
+      "get": {
+        "tags": [
+          "builderimages"
+        ],
+        "summary": "Return list of builderimages.",
+        "operationId": "BuilderImageList",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/BuilderImagesResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "builderimages"
+        ],
+        "summary": "Create a new builderimage.",
+        "operationId": "BuilderImageCreate",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/BuilderImageCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "$ref": "#/responses/BuilderImageCreateResponse"
+          }
+        }
+      }
+    },
+    "/builderimages/{BuilderImage}": {
+      "get": {
+        "tags": [
+          "builderimages"
+        ],
+        "summary": "Return details of the named `BuilderImage`.",
+        "operationId": "BuilderImageShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "BuilderImage",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/BuilderImageShowResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "builderimages"
+        ],
+        "summary": "Delete the named `BuilderImage`.",
+        "operationId": "BuilderImageDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "BuilderImage",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/BuilderImageDeleteResponse"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "builderimages"
+        ],
+        "summary": "Update fields on the named `BuilderImage`.",
+        "operationId": "BuilderImageUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "BuilderImage",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/BuilderImageUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/BuilderImageUpdateResponse"
+          }
+        }
+      }
+    },
+    "/builderimagesmatch": {
+      "get": {
+        "description": "Return all builderimage names. (Empty prefix == all match)",
+        "tags": [
+          "builderimages"
+        ],
+        "operationId": "BuilderImageMatch0",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/BuilderImageMatchResponse"
+          }
+        }
+      }
+    },
+    "/builderimagesmatch/{Pattern}": {
+      "get": {
+        "tags": [
+          "builderimages"
+        ],
+        "summary": "Return the builderimage names with prefix `Pattern`.",
+        "operationId": "BuilderImageMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/BuilderImageMatchResponse"
+          }
+        }
+      }
+    },
     "/catalogservices": {
       "get": {
         "tags": [
@@ -107,6 +315,27 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceCatalogResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Create a new catalog service.",
+        "operationId": "ServiceCatalogCreate",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/CatalogServiceCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "$ref": "#/responses/ServiceCatalogCreateResponse"
           }
         }
       }
@@ -129,6 +358,53 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceCatalogShowResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Delete the named `CatalogService`.",
+        "operationId": "ServiceCatalogDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "CatalogService",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceCatalogDeleteResponse"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Update fields on the named `CatalogService`.",
+        "operationId": "ServiceCatalogUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "CatalogService",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/CatalogServiceUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceCatalogUpdateResponse"
           }
         }
       }
@@ -1113,9 +1389,6 @@
         ],
         "summary": "Store the named `App` from a Git repo in the `Namespace`.",
         "operationId": "AppImportGit",
-        "consumes": [
-          "application/x-www-form-urlencoded"
-        ],
         "parameters": [
           {
             "type": "string",
@@ -1131,13 +1404,13 @@
           },
           {
             "type": "string",
-            "name": "giturl",
-            "in": "formData"
+            "name": "GitUrl",
+            "in": "query"
           },
           {
             "type": "string",
-            "name": "gitrev",
-            "in": "formData"
+            "name": "GitRev",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1166,6 +1439,48 @@
             "name": "App",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Follow",
+            "description": "Stream logs in real-time (true/false)",
+            "name": "follow",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Tail",
+            "description": "Limit to last N lines",
+            "name": "tail",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Since",
+            "description": "Show logs from duration ago (e.g. \"1h\", \"30m\")",
+            "name": "since",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "SinceTime",
+            "description": "Show logs since RFC3339 timestamp",
+            "name": "since_time",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "IncludeContainers",
+            "description": "Comma-separated container names/patterns to include",
+            "name": "include_containers",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "ExcludeContainers",
+            "description": "Comma-separated container names/patterns to exclude",
+            "name": "exclude_containers",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1924,10 +2239,10 @@
     "/namespaces/{Namespace}/staging/{StageID}/complete": {
       "get": {
         "tags": [
-          "application"
+          "websocket"
         ],
-        "summary": "Waits for the completion of the staging process identified by `StageID` in the `Namespace`.",
-        "operationId": "StagingComplete",
+        "summary": "Stream staging completion status for the specified `StageID` in the `Namespace` over a websocket.",
+        "operationId": "StagingCompleteWs",
         "parameters": [
           {
             "type": "string",
@@ -1944,7 +2259,7 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/StagingCompleteResponse"
+            "$ref": "#/responses/StagingCompleteWsResponse"
           }
         }
       }
@@ -1968,11 +2283,67 @@
             "name": "StageID",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Follow",
+            "description": "Stream logs in real-time (true/false)",
+            "name": "follow",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Tail",
+            "description": "Limit to last N lines",
+            "name": "tail",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Since",
+            "description": "Show logs from duration ago (e.g. \"1h\", \"30m\")",
+            "name": "since",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "SinceTime",
+            "description": "Show logs since RFC3339 timestamp",
+            "name": "since_time",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "IncludeContainers",
+            "description": "Comma-separated container names/patterns to include",
+            "name": "include_containers",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "ExcludeContainers",
+            "description": "Comma-separated container names/patterns to exclude",
+            "name": "exclude_containers",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
             "$ref": "#/responses/StagingLogsResponse"
+          }
+        }
+      }
+    },
+    "/report/nodes": {
+      "get": {
+        "description": "Return a rancher-like node report",
+        "tags": [
+          "report"
+        ],
+        "operationId": "NodeReport",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/NodeReportResponse"
           }
         }
       }
@@ -2068,11 +2439,87 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "AppChartCreateRequest": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "helmChart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
+        "helmRepo": {
+          "type": "string",
+          "x-go-name": "HelmRepo"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ChartSetting"
+          },
+          "x-go-name": "Settings"
+        },
+        "shortDescription": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Values"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "AppChartList": {
       "description": "AppChartList is a collection of app charts",
       "type": "array",
       "items": {
         "$ref": "#/definitions/AppChart"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppChartUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "helmChart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
+        "helmRepo": {
+          "type": "string",
+          "x-go-name": "HelmRepo"
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ChartSetting"
+          },
+          "x-go-name": "Settings"
+        },
+        "shortDescription": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Values"
+        }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
@@ -2185,7 +2632,51 @@
       "type": "object",
       "properties": {
         "createdAt": {
-          "$ref": "#/definitions/Time"
+          "type": "string",
+          "x-go-name": "CreatedAt",
+          "x-go-type": "k8s.io/apimachinery/pkg/apis/meta/v1.Time"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "namespace": {
+          "type": "string",
+          "x-go-name": "Namespace"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppScaleReport": {
+      "type": "object",
+      "title": "AppScaleReport represents app creation and scaling metadata.",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "x-go-name": "CreatedAt"
+        },
+        "desiredInstances": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "DesiredInstances"
+        },
+        "lastScaleAt": {
+          "type": "string",
+          "x-go-name": "LastScaleAt"
+        },
+        "lastScaleBy": {
+          "type": "string",
+          "x-go-name": "LastScaleBy"
+        },
+        "lastScaleFrom": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "LastScaleFrom"
+        },
+        "lastScaleTo": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "LastScaleTo"
         },
         "name": {
           "type": "string",
@@ -2216,10 +2707,21 @@
         "environment": {
           "$ref": "#/definitions/EnvVariableMap"
         },
+        "ignore": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Ignore"
+        },
         "instances": {
           "type": "integer",
           "format": "int32",
           "x-go-name": "Instances"
+        },
+        "replace_env": {
+          "type": "boolean",
+          "x-go-name": "ReplaceEnv"
         },
         "routes": {
           "type": "array",
@@ -2227,6 +2729,13 @@
             "type": "string"
           },
           "x-go-name": "Routes"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Services"
         },
         "settings": {
           "$ref": "#/definitions/ChartValueSettings"
@@ -2258,6 +2767,13 @@
             "type": "string"
           },
           "x-go-name": "UnboundConfigurations"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Warnings"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2331,6 +2847,10 @@
           "format": "int32",
           "x-go-name": "Instances"
         },
+        "replace_env": {
+          "type": "boolean",
+          "x-go-name": "ReplaceEnv"
+        },
         "restart": {
           "type": "boolean",
           "x-go-name": "Restart"
@@ -2372,6 +2892,92 @@
             "type": "string"
           },
           "x-go-name": "WasBound"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "BuilderImage": {
+      "description": "BuilderImage is the REST DTO for the BuilderImage CRD\n(application.epinio.io/v1, kind BuilderImage). The CRD shape is intentionally\nnot re-exported here — we keep a domain wrapper so CRD revisions do not\nbecome breaking client changes.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "image": {
+          "type": "string",
+          "x-go-name": "Image"
+        },
+        "meta": {
+          "$ref": "#/definitions/MetaLite"
+        },
+        "short_description": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "BuilderImageCreateRequest": {
+      "description": "BuilderImageCreateRequest carries the fields a client supplies when creating\na builder image. Name is required and lands in metadata.name; the remainder\nland under spec.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "image": {
+          "type": "string",
+          "x-go-name": "Image"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "shortDescription": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "BuilderImageList": {
+      "description": "BuilderImageList is a collection of builder images",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/BuilderImage"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "BuilderImageMatchResponse": {
+      "description": "BuilderImageMatchResponse contains the list of names for matching builder images",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "BuilderImageUpdateRequest": {
+      "description": "BuilderImageUpdateRequest carries optional field updates. Empty fields are\nignored — name is taken from the URL, not the body.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "image": {
+          "type": "string",
+          "x-go-name": "Image"
+        },
+        "shortDescription": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2445,6 +3051,114 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "CatalogServiceCreateRequest": {
+      "description": "CatalogServiceCreateRequest carries the fields a client supplies when\ncreating a catalog service. Name is required and lands in metadata.name;\nthe remainder land under spec.",
+      "type": "object",
+      "properties": {
+        "appVersion": {
+          "type": "string",
+          "x-go-name": "AppVersion"
+        },
+        "chart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
+        "chartVersion": {
+          "type": "string",
+          "x-go-name": "ChartVersion"
+        },
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "helmRepo": {
+          "$ref": "#/definitions/HelmRepoRequest"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "secretTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "SecretTypes"
+        },
+        "serviceIcon": {
+          "type": "string",
+          "x-go-name": "ServiceIcon"
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ChartSetting"
+          },
+          "x-go-name": "Settings"
+        },
+        "shortDescription": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
+        },
+        "values": {
+          "type": "string",
+          "x-go-name": "Values"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "CatalogServiceUpdateRequest": {
+      "description": "CatalogServiceUpdateRequest carries optional field updates. Empty string\nfields are ignored — name is taken from the URL, not the body. Settings\nand SecretTypes are replaced when non-nil; pass nil to leave untouched.",
+      "type": "object",
+      "properties": {
+        "appVersion": {
+          "type": "string",
+          "x-go-name": "AppVersion"
+        },
+        "chart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
+        "chartVersion": {
+          "type": "string",
+          "x-go-name": "ChartVersion"
+        },
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "helmRepo": {
+          "$ref": "#/definitions/HelmRepoRequest"
+        },
+        "secretTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "SecretTypes"
+        },
+        "serviceIcon": {
+          "type": "string",
+          "x-go-name": "ServiceIcon"
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ChartSetting"
+          },
+          "x-go-name": "Settings"
+        },
+        "shortDescription": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
+        },
+        "values": {
+          "type": "string",
+          "x-go-name": "Values"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "CatalogServices": {
       "description": "CatalogServices is a list of catalog service elements",
       "type": "array",
@@ -2502,6 +3216,45 @@
       "type": "object",
       "additionalProperties": {
         "type": "string"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ClusterReport": {
+      "type": "object",
+      "title": "ClusterReport represents a cluster section in the report.",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "x-go-name": "CreatedAt"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "ID"
+        },
+        "kubeVersion": {
+          "type": "string",
+          "x-go-name": "KubeVersion"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "nodeCount": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "NodeCount"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NodeReport"
+          },
+          "x-go-name": "Nodes"
+        },
+        "provider": {
+          "type": "string",
+          "x-go-name": "Provider"
+        }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
@@ -2567,7 +3320,9 @@
       "type": "object",
       "properties": {
         "createdAt": {
-          "$ref": "#/definitions/Time"
+          "type": "string",
+          "x-go-name": "CreatedAt",
+          "x-go-type": "k8s.io/apimachinery/pkg/apis/meta/v1.Time"
         },
         "name": {
           "type": "string",
@@ -2583,8 +3338,18 @@
     "ConfigurationReplaceRequest": {
       "description": "ConfigurationReplaceRequest represents and contains the data needed to\nreplace a configuration instance",
       "type": "object",
-      "additionalProperties": {
-        "type": "string"
+      "properties": {
+        "data": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Data"
+        },
+        "restart": {
+          "type": "boolean",
+          "x-go-name": "Restart"
+        }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
@@ -2666,6 +3431,10 @@
             "type": "string"
           },
           "x-go-name": "Remove"
+        },
+        "restart": {
+          "type": "boolean",
+          "x-go-name": "Restart"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2700,6 +3469,13 @@
             "type": "string"
           },
           "x-go-name": "Routes"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Warnings"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2726,6 +3502,9 @@
           "type": "string",
           "x-go-name": "Name"
         },
+        "origin": {
+          "$ref": "#/definitions/EnvVariableOrigin"
+        },
         "value": {
           "type": "string",
           "x-go-name": "Value"
@@ -2739,6 +3518,11 @@
       "additionalProperties": {
         "type": "string"
       },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "EnvVariableOrigin": {
+      "description": "EnvVariableOrigin represents the source of an environment variable",
+      "type": "string",
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "ExportregistriesListResponse": {
@@ -2918,6 +3702,25 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "HelmRepoRequest": {
+      "description": "HelmRepoRequest mirrors the on-cluster CR HelmRepo, including the Secret\nreference used to resolve credentials. Used by catalog service write\nrequests; auth values themselves are never accepted in the request body.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "secret": {
+          "type": "string",
+          "x-go-name": "Secret"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ImportGitResponse": {
       "type": "object",
       "properties": {
@@ -2968,7 +3771,9 @@
       "type": "object",
       "properties": {
         "createdAt": {
-          "$ref": "#/definitions/Time"
+          "type": "string",
+          "x-go-name": "CreatedAt",
+          "x-go-type": "k8s.io/apimachinery/pkg/apis/meta/v1.Time"
         },
         "name": {
           "type": "string",
@@ -2987,7 +3792,9 @@
       "title": "MetaLite holds the information needed to reference a non-namespaced resource (name),",
       "properties": {
         "createdAt": {
-          "$ref": "#/definitions/Time"
+          "type": "string",
+          "x-go-name": "CreatedAt",
+          "x-go-type": "k8s.io/apimachinery/pkg/apis/meta/v1.Time"
         },
         "name": {
           "type": "string",
@@ -3053,6 +3860,57 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "NodeReport": {
+      "type": "object",
+      "title": "NodeReport represents a single node row in the report.",
+      "properties": {
+        "address": {
+          "type": "string",
+          "x-go-name": "Address"
+        },
+        "containerRuntimeVersion": {
+          "type": "string",
+          "x-go-name": "ContainerRuntimeVersion"
+        },
+        "controlPlane": {
+          "type": "boolean",
+          "x-go-name": "ControlPlane"
+        },
+        "cpu": {
+          "type": "string",
+          "x-go-name": "CPU"
+        },
+        "createdAt": {
+          "type": "string",
+          "x-go-name": "CreatedAt"
+        },
+        "etcd": {
+          "type": "boolean",
+          "x-go-name": "Etcd"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "ID"
+        },
+        "os": {
+          "type": "string",
+          "x-go-name": "OS"
+        },
+        "ram": {
+          "type": "string",
+          "x-go-name": "RAM"
+        },
+        "vCPU": {
+          "type": "string",
+          "x-go-name": "VCPU"
+        },
+        "worker": {
+          "type": "boolean",
+          "x-go-name": "Worker"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "PodInfo": {
       "type": "object",
       "properties": {
@@ -3086,6 +3944,59 @@
           "type": "integer",
           "format": "int32",
           "x-go-name": "Restarts"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ReportResponse": {
+      "type": "object",
+      "title": "ReportResponse represents a rancher-like node report.",
+      "properties": {
+        "applications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AppScaleReport"
+          },
+          "x-go-name": "Applications"
+        },
+        "clusters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ClusterReport"
+          },
+          "x-go-name": "Clusters"
+        },
+        "epinioVersion": {
+          "type": "string",
+          "x-go-name": "EpinioVersion"
+        },
+        "generatedAt": {
+          "type": "string",
+          "x-go-name": "GeneratedAt"
+        },
+        "generatedAtHuman": {
+          "type": "string",
+          "x-go-name": "GeneratedAtHuman"
+        },
+        "kubernetesVersion": {
+          "type": "string",
+          "x-go-name": "KubernetesVersion"
+        },
+        "platform": {
+          "type": "string",
+          "x-go-name": "Platform"
+        },
+        "systemPods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SystemPodReport"
+          },
+          "x-go-name": "SystemPods"
+        },
+        "totalNodeCount": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TotalNodeCount"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -3233,6 +4144,10 @@
       "description": "ServiceReplaceRequest represents and contains the data needed to\nreplace a service instance (i.e. the custom value keys)",
       "type": "object",
       "properties": {
+        "restart": {
+          "type": "boolean",
+          "x-go-name": "Restart"
+        },
         "settings": {
           "$ref": "#/definitions/ChartValueSettings"
         },
@@ -3270,6 +4185,10 @@
             "type": "string"
           },
           "x-go-name": "Remove"
+        },
+        "restart": {
+          "type": "boolean",
+          "x-go-name": "Restart"
         },
         "wait": {
           "type": "boolean",
@@ -3321,11 +4240,33 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "Time": {
-      "description": "+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false",
+    "SystemPodReport": {
       "type": "object",
-      "title": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.",
-      "x-go-package": "k8s.io/apimachinery/pkg/apis/meta/v1"
+      "title": "SystemPodReport represents a pod entry in the report header.",
+      "properties": {
+        "age": {
+          "type": "string",
+          "x-go-name": "Age"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "ready": {
+          "type": "string",
+          "x-go-name": "Ready"
+        },
+        "restarts": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Restarts"
+        },
+        "status": {
+          "type": "string",
+          "x-go-name": "Status"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "UploadResponse": {
       "description": "UploadResponse represents the server's response to a successful app sources upload",
@@ -3449,11 +4390,44 @@
         "$ref": "#/definitions/AppList"
       }
     },
+    "BuilderImageCreateResponse": {
+      "description": ""
+    },
+    "BuilderImageDeleteResponse": {
+      "description": ""
+    },
+    "BuilderImageMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/BuilderImageMatchResponse"
+      }
+    },
+    "BuilderImageShowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/BuilderImage"
+      }
+    },
+    "BuilderImageUpdateResponse": {
+      "description": ""
+    },
+    "BuilderImagesResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/BuilderImageList"
+      }
+    },
     "CatalogMatchResponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/CatalogMatchResponse"
       }
+    },
+    "ChartCreateResponse": {
+      "description": ""
+    },
+    "ChartDeleteResponse": {
+      "description": ""
     },
     "ChartMatchResponse": {
       "description": "",
@@ -3466,6 +4440,9 @@
       "schema": {
         "$ref": "#/definitions/AppChart"
       }
+    },
+    "ChartUpdateResponse": {
+      "description": ""
     },
     "ConfigurationAppsResponse": {
       "description": "",
@@ -3638,6 +4615,12 @@
         "$ref": "#/definitions/NamespaceList"
       }
     },
+    "NodeReportResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ReportResponse"
+      }
+    },
     "ServiceAppsResponse": {
       "description": "",
       "schema": {
@@ -3653,6 +4636,12 @@
         "$ref": "#/definitions/Response"
       }
     },
+    "ServiceCatalogCreateResponse": {
+      "description": ""
+    },
+    "ServiceCatalogDeleteResponse": {
+      "description": ""
+    },
     "ServiceCatalogResponse": {
       "description": "",
       "schema": {
@@ -3664,6 +4653,9 @@
       "schema": {
         "$ref": "#/definitions/CatalogService"
       }
+    },
+    "ServiceCatalogUpdateResponse": {
+      "description": ""
     },
     "ServiceCreateResponse": {
       "description": "",
@@ -3721,6 +4713,9 @@
       "schema": {
         "$ref": "#/definitions/Response"
       }
+    },
+    "StagingCompleteWsResponse": {
+      "description": ""
     },
     "StagingLogsResponse": {
       "description": ""
