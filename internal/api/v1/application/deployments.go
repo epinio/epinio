@@ -347,8 +347,9 @@ func stageForAsyncDeploy(
 
 	registryCertificateSecret := viper.GetString("registry-certificate-secret")
 	registryCertificateHash := ""
+	registryCACertKey := ""
 	if registryCertificateSecret != "" {
-		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.Namespace(), registryCertificateSecret)
+		registryCACertKey, registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.Namespace(), registryCertificateSecret)
 		if err != nil {
 			return nil, apierror.InternalError(err, "cannot calculate Certificate hash")
 		}
@@ -376,6 +377,7 @@ func stageForAsyncDeploy(
 		Username:            username,
 		RegistryCAHash:      registryCertificateHash,
 		RegistryCASecret:    registryCertificateSecret,
+		RegistryCACertKey:   registryCACertKey,
 		UserID:              config.UserID,
 		GroupID:             config.GroupID,
 		Scripts:             config.Name,

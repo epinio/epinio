@@ -67,6 +67,7 @@ type stageParam struct {
 	PreviousStageID     string
 	RegistryCASecret    string
 	RegistryCAHash      string
+	RegistryCACertKey   string // "ca.crt" or "tls.crt"
 	UserID              int64
 	GroupID             int64
 	Scripts             string
@@ -275,7 +276,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "getting the Epinio registry public URL")
 	}
 
-	registryCertificateSecret, registryCertificateHash, err :=
+	registryCertificateSecret, registryCACertKey, registryCertificateHash, err :=
 		resolveRegistryCertHash(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err, "cannot calculate Certificate hash")
@@ -305,6 +306,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		Username:            username,
 		RegistryCAHash:      registryCertificateHash,
 		RegistryCASecret:    registryCertificateSecret,
+		RegistryCACertKey:   registryCACertKey,
 		UserID:              config.UserID,
 		GroupID:             config.GroupID,
 		Scripts:             config.Name,
@@ -919,26 +921,40 @@ func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, e
 }
 
 // The equivalent of:
-// kubectl get secret -n (helmchart.Namespace()) epinio-registry-tls -o json | jq -r '.["data"]["tls.crt"]' | base64 -d | openssl x509 -hash -noout
+// kubectl get secret -n (helmchart.Namespace()) epinio-registry-tls -o json | jq -r '.["data"]["ca.crt"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
-func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, error) {
+// Returns (certKey, hash, error). Prefers ca.crt (the CA root) over tls.crt
+// (the server leaf cert). When cert-manager issues the registry cert with a
+// separate CA, mounting the leaf cert as a trusted CA does not work; the CA
+// cert must be used instead. Falls back to tls.crt for self-signed certs where
+// ca.crt is absent.
+func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	// cert-manager doesn't add the CA for ACME certificates:
-	// https://github.com/jetstack/cert-manager/issues/2111
-	if _, found := secret.Data["tls.crt"]; !found {
-		return "", nil
+	// Prefer ca.crt (CA root) so staging jobs trust the registry regardless of
+	// whether the cert is self-signed or issued by an internal CA. Fall back to
+	// tls.crt for self-signed setups where ca.crt is absent.
+	certKey := "ca.crt"
+	certData, found := secret.Data["ca.crt"]
+	if !found || len(certData) == 0 {
+		// cert-manager doesn't add the CA for ACME certificates:
+		// https://github.com/jetstack/cert-manager/issues/2111
+		certKey = "tls.crt"
+		certData, found = secret.Data["tls.crt"]
+		if !found {
+			return "", "", nil
+		}
 	}
 
-	hash, err := cahash.GenerateHash(secret.Data["tls.crt"])
+	hash, err := cahash.GenerateHash(certData)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return hash, nil
+	return certKey, hash, nil
 }
 
 // getBuilderImage returns the builder image defined on the request. If that
@@ -1092,18 +1108,18 @@ func ensureStagingPVCs(
 func resolveRegistryCertHash(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
-) (string, string, error) {
+) (string, string, string, error) {
 	secret := viper.GetString("registry-certificate-secret")
 	if secret == "" {
-		return "", "", nil
+		return "", "", "", nil
 	}
-	hash, hashErr := getRegistryCertificateHash(
+	certKey, hash, hashErr := getRegistryCertificateHash(
 		ctx, cluster, helmchart.Namespace(), secret,
 	)
 	if hashErr != nil {
-		return "", "", hashErr
+		return "", "", "", hashErr
 	}
-	return secret, hash, nil
+	return secret, certKey, hash, nil
 }
 
 func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
@@ -1181,7 +1197,7 @@ func mountRegistryCerts(app stageParam, volumes []corev1.Volume, volumeMounts []
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "registry-certs",
 			MountPath: fmt.Sprintf("/etc/ssl/certs/%s", app.RegistryCAHash),
-			SubPath:   "tls.crt",
+			SubPath:   app.RegistryCACertKey,
 			ReadOnly:  true,
 		})
 	}
