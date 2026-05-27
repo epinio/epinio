@@ -53,6 +53,6 @@ func Show(c *gin.Context) apierror.APIErrors {
 	log.Infow("deliver appchart", "name", chartName)
 	// Note: Returning only the public parts. The local config
 	// data is not handed to the user. Only the setting specs.
-	response.OKReturn(c, app.AppChart)
+	response.OKReturn(c, app)
 	return nil
 }

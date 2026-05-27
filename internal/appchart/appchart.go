@@ -75,7 +75,7 @@ func List(
 		if convertError != nil {
 			return nil, convertError
 		}
-		apps = append(apps, converted.AppChart)
+		apps = append(apps, *converted)
 	}
 
 	return apps, nil

@@ -447,7 +447,7 @@ type AppChartUpdateRequest struct {
 
 type AppChartFull struct {
 	AppChart
-	Values map[string]string
+	Values map[string]string `json:"values,omitempty"`
 }
 
 // ChartSetting matches github.com/epinio/application/api/v1 ChartSetting
@@ -470,7 +470,7 @@ type ChartSetting struct {
 }
 
 // AppChartList is a collection of app charts
-type AppChartList []AppChart
+type AppChartList []AppChartFull
 
 // ChartMatchResponse contains the list of names for matching application charts
 type ChartMatchResponse struct {

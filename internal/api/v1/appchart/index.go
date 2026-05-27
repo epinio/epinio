@@ -48,7 +48,15 @@ func Index(c *gin.Context) apierror.APIErrors {
 
 	// Apply optional pagination when page parameters are provided.
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
-		log.Infow("paginate", "page", page, "pageSize", pageSize, "total", len(allApps))
+		log.Infow(
+			"paginate",
+			"page",
+			page,
+			"pageSize",
+			pageSize,
+			"total",
+			len(allApps),
+		)
 		paged := response.PaginateSlice(allApps, page, pageSize)
 		response.OKReturn(c, paged)
 		return nil
