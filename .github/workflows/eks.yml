@@ -31,7 +31,7 @@ on:
         - Keep
 
 env:
-  SETUP_GO_VERSION: '1.22.1'
+  SETUP_GO_VERSION: '1.25.0'
   GOLANGCI_LINT_VERSION: v1.56
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
@@ -46,19 +46,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -85,13 +85,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}

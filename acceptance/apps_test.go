@@ -605,6 +605,54 @@ var _ = Describe("Apps", LApplication, func() {
 			})
 		})
 
+		When("restaging a git-origin app whose S3 blob has been deleted", func() {
+			const gitFallbackURL = "https://github.com/epinio/example-12factor"
+
+			BeforeEach(func() {
+				By("pushing from git to establish origin and blobuid on the app CR")
+				pushLog, err := env.EpinioPush("", appName,
+					"--name", appName,
+					"--git", gitFallbackURL)
+				Expect(err).ToNot(HaveOccurred(), pushLog)
+
+				Eventually(func() string {
+					out, listErr := env.Epinio("", "app", "list")
+					Expect(listErr).ToNot(HaveOccurred(), out)
+					return out
+				}, "5m").Should(
+					HaveATable(
+						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES",
+							"CONFIGURATIONS", "STATUS DETAILS"),
+						WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+					),
+				)
+
+				By("reading blobuid from app CR")
+				blobUID, kubectlErr := proc.Kubectl(
+					"get", "apps.application.epinio.io", appName,
+					"--namespace", namespace,
+					"-o", "jsonpath={.spec.blobuid}",
+				)
+				Expect(kubectlErr).ToNot(HaveOccurred(), blobUID)
+				Expect(blobUID).ToNot(BeEmpty())
+
+				By("deleting the S3 blob to simulate storage loss")
+				createS3HelperPod()
+				deleteS3Blob(blobUID)
+			})
+
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
+
+			It("re-clones from git and stages successfully", func() {
+				restageLogs, err := env.Epinio("", "app", "restage", appName)
+				Expect(err).ToNot(HaveOccurred(), restageLogs)
+				Expect(restageLogs).To(ContainSubstring("Restaging and restarting application"))
+				Expect(restageLogs).To(ContainSubstring("Restarting application"))
+			})
+		})
+
 	})
 
 	When("pushing as a stateful app", func() {

@@ -28,6 +28,9 @@ import (
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+
+	kubernetesPkg "github.com/epinio/epinio/helpers/kubernetes"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -197,6 +200,77 @@ var _ = Describe("application", func() {
 				Expect(isStagingMap).To(HaveLen(2))
 				Expect(string(isStagingMap[application.EncodeConfigurationKey(app1, namespace)])).To(Equal(models.ApplicationStagingActive))
 				Expect(string(isStagingMap[application.EncodeConfigurationKey(app2, namespace)])).To(Equal(models.ApplicationStagingDone))
+			})
+		})
+	})
+
+	Describe("StagingStatusesForApps", func() {
+		When("called with a single app name", func() {
+			It("returns the staging status for that app", func() {
+				app := appName()
+
+				stagingJobs := &apibatchv1.JobList{
+					Items: []apibatchv1.Job{
+						makeJob(app, namespace, v1.ConditionFalse, apibatchv1.JobComplete),
+					},
+				}
+				fake.ListJobsReturns(stagingJobs, nil)
+
+				isStagingMap, err := application.StagingStatusesForApps(context.Background(), fake, namespace, []string{app})
+				Expect(err).To(BeNil())
+				Expect(isStagingMap).To(HaveLen(1))
+				Expect(string(isStagingMap[application.EncodeConfigurationKey(app, namespace)])).To(Equal(models.ApplicationStagingActive))
+			})
+		})
+
+		When("called with multiple app names", func() {
+			It("uses an in-selector and returns a status for each app", func() {
+				app1, app2 := appName(), appName()
+
+				stagingJobs := &apibatchv1.JobList{
+					Items: []apibatchv1.Job{
+						makeJob(app1, namespace, v1.ConditionFalse, apibatchv1.JobComplete),
+						makeJob(app2, namespace, v1.ConditionTrue, apibatchv1.JobComplete),
+					},
+				}
+				fake.ListJobsReturns(stagingJobs, nil)
+
+				isStagingMap, err := application.StagingStatusesForApps(context.Background(), fake, namespace, []string{app1, app2})
+				Expect(err).To(BeNil())
+				Expect(isStagingMap).To(HaveLen(2))
+
+				_, _, selector := fake.ListJobsArgsForCall(0)
+				Expect(selector).To(ContainSubstring("app.kubernetes.io/name in ("))
+			})
+		})
+
+		When("called with empty app names", func() {
+			It("returns statuses for all apps in the namespace", func() {
+				app1, app2 := appName(), appName()
+
+				stagingJobs := &apibatchv1.JobList{
+					Items: []apibatchv1.Job{
+						makeJob(app1, namespace, v1.ConditionFalse, apibatchv1.JobComplete),
+						makeJob(app2, namespace, v1.ConditionTrue, apibatchv1.JobComplete),
+					},
+				}
+				fake.ListJobsReturns(stagingJobs, nil)
+
+				isStagingMap, err := application.StagingStatusesForApps(context.Background(), fake, namespace, nil)
+				Expect(err).To(BeNil())
+				Expect(isStagingMap).To(HaveLen(2))
+
+				_, _, selector := fake.ListJobsArgsForCall(0)
+				Expect(selector).ToNot(ContainSubstring("in ("))
+			})
+		})
+
+		When("ListJobs returns an error", func() {
+			It("propagates the error", func() {
+				fake.ListJobsReturns(nil, errors.New("k8s unavailable"))
+
+				_, err := application.StagingStatusesForApps(context.Background(), fake, namespace, []string{appName()})
+				Expect(err).NotTo(BeNil())
 			})
 		})
 	})
@@ -422,6 +496,46 @@ var _ = Describe("application", func() {
 				Expect(failed).To(BeEmpty())
 				Expect(mockS3.deletedObjects).To(BeEmpty())
 			})
+		})
+	})
+})
+
+var _ = Describe("ListPaginatedByNamespace", func() {
+	var ctx context.Context
+
+	BeforeEach(func() {
+		ctx = context.Background()
+	})
+
+	When("there are no epinio-labeled namespaces", func() {
+		It("returns an empty map without error", func() {
+			cluster := &kubernetesPkg.Cluster{
+				Kubectl: k8sfake.NewSimpleClientset(),
+			}
+
+			result, err := application.ListPaginatedByNamespace(ctx, cluster, 1, 10, "")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(BeEmpty())
+		})
+	})
+
+	When("the namespace list succeeds but a namespace app fetch fails", func() {
+		It("propagates the error", func() {
+			ns := &v1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "broken-ns",
+					Labels: map[string]string{
+						kubernetesPkg.EpinioNamespaceLabelKey: kubernetesPkg.EpinioNamespaceLabelValue,
+					},
+				},
+			}
+			cluster := &kubernetesPkg.Cluster{
+				// No RestConfig → ClientApp() fails → ListPaginated returns an error.
+				Kubectl: k8sfake.NewSimpleClientset(ns),
+			}
+
+			_, err := application.ListPaginatedByNamespace(ctx, cluster, 1, 10, "")
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

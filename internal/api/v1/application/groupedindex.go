@@ -15,39 +15,40 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
 	"github.com/gin-gonic/gin"
 )
 
-// Index handles the API endpoint GET /namespaces/:namespace/applications
-// It lists all the known applications in the specified namespace, with and without workload.
-func Index(c *gin.Context) apierror.APIErrors {
+// GroupedIndex handles GET /applications/grouped
+// Returns a paginated app list per namespace in a single call, with each namespace
+// queried concurrently. Replaces N per-namespace calls on the applications list page.
+func GroupedIndex(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	namespace := c.Param("namespace")
+	user := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
+	page, pageSize, _ := response.GetPaginationParams(c, 1, 10)
 	search := response.GetSearchParam(c)
-	page, pageSize, paginated := response.GetPaginationParams(c, 1, 25)
-	if paginated || search != "" {
-		apps, total, err := application.ListPaginated(
-			ctx, cluster, namespace, page, pageSize, search,
-		)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-		response.OKReturn(c, response.BuildPaginatedResponse(apps, page, pageSize, total))
-		return nil
-	}
 
-	apps, err := application.List(ctx, cluster, namespace)
+	grouped, err := application.ListPaginatedByNamespace(ctx, cluster, page, pageSize, search)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, apps)
+	result := make(map[string]response.PaginatedResponse[models.App], len(grouped))
+	for ns, nsResult := range grouped {
+		filtered := auth.FilterResources(user, nsResult.Items)
+		result[ns] = response.BuildPaginatedResponse(filtered, page, pageSize, nsResult.TotalItems)
+	}
+
+	response.OKReturn(c, result)
 	return nil
 }

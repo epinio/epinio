@@ -12,6 +12,8 @@
 package configuration
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -40,6 +42,54 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 	}
 	filteredConfigurations := auth.FilterResources(user, allConfigurations)
 
+	if search := response.GetSearchParam(c); search != "" {
+		lower := strings.ToLower(search)
+		var searched configurations.ConfigurationList
+		for _, cfg := range filteredConfigurations {
+			if strings.Contains(strings.ToLower(cfg.Name), lower) {
+				searched = append(searched, cfg)
+			}
+		}
+		filteredConfigurations = searched
+	}
+
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		total := len(filteredConfigurations)
+		start := (page - 1) * pageSize
+		if start >= total {
+			start = total
+		}
+		end := start + pageSize
+		if end > total {
+			end = total
+		}
+		pageConfigurations := filteredConfigurations[start:end]
+
+		// Scope the binding lookup to just the namespaces on this page.
+		nsSet := map[string]struct{}{}
+		for _, cfg := range pageConfigurations {
+			nsSet[cfg.Namespace()] = struct{}{}
+		}
+		pageNamespaces := make([]string, 0, len(nsSet))
+		for ns := range nsSet {
+			pageNamespaces = append(pageNamespaces, ns)
+		}
+
+		appsOf, err := application.BoundAppsNamesForNamespaces(ctx, cluster, pageNamespaces)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		// Use all filtered configs for sibling map; Details() called only for page configs.
+		responseData, err := makeResponseFrom(ctx, appsOf, filteredConfigurations, pageConfigurations)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		response.OKReturn(c, response.BuildPaginatedResponse(responseData, page, pageSize, total))
+		return nil
+	}
+
 	appsOf, err := application.BoundAppsNames(ctx, cluster, "")
 	if err != nil {
 		return apierror.InternalError(err)
@@ -50,14 +100,6 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	// Apply optional pagination when page parameters are provided.
-	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
-		paged := response.PaginateSlice(responseData, page, pageSize)
-		response.OKReturn(c, paged)
-		return nil
-	}
-
-	// Backwards-compatible: return full list when no page params are set.
 	response.OKReturn(c, responseData)
 	return nil
 }

@@ -63,6 +63,8 @@ type AppCreateResponse struct {
 
 // swagger:route GET /namespaces/{Namespace}/applications/{App} application AppShow
 // Return details of the named `App` in the `Namespace`.
+// The response includes `configuration.environment` (user-set variables only) and
+// `configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).
 // responses:
 //   200: AppShowResponse
 

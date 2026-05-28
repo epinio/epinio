@@ -2707,12 +2707,18 @@
         "environment": {
           "$ref": "#/definitions/EnvVariableMap"
         },
+<<<<<<< HEAD
         "ignore": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "x-go-name": "Ignore"
+=======
+        "environment_grouped": {
+          "description": "Environment variables grouped by origin (user-set vs service-provided). Same structure as GET .../environment?grouped=true.",
+          "$ref": "#/definitions/EnvVariableGroupedResponse"
+>>>>>>> ad3160bd64d5a9a5e0c1e84df04df5442bbfe441
         },
         "instances": {
           "type": "integer",
@@ -3508,6 +3514,19 @@
         "value": {
           "type": "string",
           "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "EnvVariableGroupedResponse": {
+      "description": "Environment variables grouped by their origin (user vs service-provided)",
+      "type": "object",
+      "properties": {
+        "user": {
+          "$ref": "#/definitions/EnvVariableMap"
+        },
+        "service": {
+          "$ref": "#/definitions/EnvVariableMap"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"

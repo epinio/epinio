@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
@@ -66,7 +66,7 @@ jobs:
 
       - name: Bump Homebrew formula
         if: steps.check_rc.outputs.is_rc == 'false'
-        uses: mislav/bump-homebrew-formula-action@v2
+        uses: mislav/bump-homebrew-formula-action@v4
         with:
           download-url: https://github.com/epinio/epinio/archive/refs/tags/${{ steps.get_tag.outputs.TAG }}.tar.gz
           commit-message: |

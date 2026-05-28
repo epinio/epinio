@@ -18,5 +18,5 @@ https://documentation.divio.com/structure.
 
 Practical Guides to solving practical problems.
 
-- [Development Guidelines](howtos/development.md)
+- [Development Guidelines](https://docs.epinio.io/contribute/platform)
 - [Run acceptance test suites](howtos/acceptance_tests.md)
