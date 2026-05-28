@@ -15,6 +15,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
@@ -49,6 +50,12 @@ func Show(c *gin.Context) apierror.APIErrors {
 	if app == nil {
 		return apierror.AppChartIsNotKnown(chartName)
 	}
+
+	inUse, inUseError := application.ChartsInUse(ctx, cluster)
+	if inUseError != nil {
+		return apierror.InternalError(inUseError)
+	}
+	app.BoundApps = inUse[chartName]
 
 	log.Infow("deliver appchart", "name", chartName)
 	// Note: Returning only the public parts. The local config

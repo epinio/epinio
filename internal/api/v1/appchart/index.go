@@ -15,6 +15,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
@@ -44,6 +45,14 @@ func Index(c *gin.Context) apierror.APIErrors {
 	allApps, listError := appchart.List(ctx, client)
 	if listError != nil {
 		return apierror.InternalError(listError)
+	}
+
+	inUse, inUseError := application.ChartsInUse(ctx, cluster)
+	if inUseError != nil {
+		return apierror.InternalError(inUseError)
+	}
+	for i := range allApps {
+		allApps[i].BoundApps = inUse[allApps[i].Meta.Name]
 	}
 
 	// Apply optional pagination when page parameters are provided.

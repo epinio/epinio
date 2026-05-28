@@ -449,7 +449,8 @@ type AppChartUpdateRequest struct {
 
 type AppChartFull struct {
 	AppChart
-	Values map[string]string `json:"values,omitempty"`
+	Values    map[string]string `json:"values,omitempty"`
+	BoundApps bool              `json:"boundApps,omitempty"`
 }
 
 // ChartSetting matches github.com/epinio/application/api/v1 ChartSetting
