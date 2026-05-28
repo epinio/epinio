@@ -48,9 +48,11 @@
   routes:
     # app read endpoints
     - AllApps
+    - AllAppsGrouped
     - Apps
     - AppShow
     - StagingComplete
+    - AppDeployment
     - AppRunning
     - AppValidateCV
     # app autocomplete
@@ -191,6 +193,7 @@
     - app_logs
   routes:
     - AppDeploy
+    - AppDeployments
 
 # App Export
 - id: app_export

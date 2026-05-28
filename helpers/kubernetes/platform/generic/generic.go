@@ -29,11 +29,11 @@ func (k *Generic) Describe() string {
 
 func (k *Generic) String() string { return "generic" }
 
-func (k *Generic) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
+func (k *Generic) Detect(ctx context.Context, kube kubernetes.Interface) bool {
 	return false
 }
 
-func (k *Generic) Load(ctx context.Context, kube *kubernetes.Clientset) error {
+func (k *Generic) Load(ctx context.Context, kube kubernetes.Interface) error {
 	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err

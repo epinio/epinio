@@ -102,108 +102,146 @@ import (
 // of the repo and puts it on S3.
 func ImportGit(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
-
 	giturl := c.PostForm("giturl")
 	revision := c.PostForm("gitrev")
 
-	errGitURL := validateGitURL(giturl)
-	if errGitURL != nil {
-		return errGitURL
+	if apiErr := validateGitURL(giturl); apiErr != nil {
+		return apiErr
 	}
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err, "failed to get access to a kube client")
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError, "failed to get access to a kube client")
 	}
 
-	gitManager, err := gitbridge.NewManager(cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
-	if err != nil {
-		return apierror.InternalError(err, "creating git configuration manager")
+	username := requestctx.User(ctx).Username
+	blobUID, branch, resolvedRevision, uploadError := cloneAndUpload(
+		ctx, cluster, giturl, revision, namespace, name, username,
+	)
+	if uploadError != nil {
+		return uploadError
 	}
 
-	gitRepo, err := os.MkdirTemp("", "epinio-app")
-	if err != nil {
-		return apierror.InternalError(err, "can't create temp directory")
+	response.OKReturn(c, models.ImportGitResponse{
+		BlobUID:  blobUID,
+		Branch:   branch,
+		Revision: resolvedRevision,
+	})
+	return nil
+}
+
+// cloneAndUpload clones the git repository, tarballs it, uploads to S3,
+// and returns the blobUID plus resolved branch and revision.
+func cloneAndUpload(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	gitURL, revision, namespace, appName, username string,
+) (string, string, string, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
+
+	gitManager, managerError := gitbridge.NewManager(
+		cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
+	)
+	if managerError != nil {
+		return "", "", "", apierror.InternalError(
+			managerError, "creating git configuration manager",
+		)
 	}
 
+	gitRepo, mkdirError := os.MkdirTemp("", "epinio-app")
+	if mkdirError != nil {
+		return "", "", "", apierror.InternalError(mkdirError, "can't create temp directory")
+	}
 	defer func() {
-		if err := os.RemoveAll(gitRepo); err != nil {
-			log.Errorw("failed to remove git repo", "error", err)
+		removeError := os.RemoveAll(gitRepo)
+		if removeError != nil {
+			log.Errorw("failed to remove git repo", "error", removeError)
 		}
 	}()
-	gitConfig, err := gitManager.FindConfiguration(giturl)
-	if err != nil {
-		errMsg := fmt.Sprintf("finding git configuration for gitURL [%s]", giturl)
-		return apierror.InternalError(err, errMsg)
+
+	gitConfig, configError := gitManager.FindConfiguration(gitURL)
+	if configError != nil {
+		return "", "", "", apierror.InternalError(
+			configError,
+			fmt.Sprintf("finding git configuration for gitURL [%s]", gitURL),
+		)
 	}
 
 	if gitConfig != nil {
 		log.Infow("loaded git config", "gitConfig", gitConfig.ID)
 	} else {
-		log.Infow("git config not found for giturl", "giturl", giturl)
+		log.Infow("git config not found for giturl", "giturl", gitURL)
 	}
 
-	// clone/fetch/checkout
-	ref, err := checkoutRepository(ctx, gitRepo, giturl, revision, gitConfig)
-	if err != nil {
-		errMsg := fmt.Sprintf("cloning the git repository: %s @ %s", giturl, revision)
-		return apierror.InternalError(err, errMsg)
+	ref, checkoutError := checkoutRepository(ctx, gitRepo, gitURL, revision, gitConfig)
+	if checkoutError != nil {
+		return "", "", "", apierror.InternalError(
+			checkoutError,
+			fmt.Sprintf("cloning the git repository: %s @ %s", gitURL, revision),
+		)
 	}
 
 	var branch string
+	resolvedRevision := revision
 	if ref != nil {
 		branch = ref.Name().Short()
-		revision = ref.Hash().String()
-		log.Infow("resolved branch and revision", "branch", branch, "revision", revision)
+		resolvedRevision = ref.Hash().String()
+		log.Infow(
+			"resolved branch and revision",
+			"branch", branch,
+			"revision", resolvedRevision,
+		)
 	}
 
-	// Create a tarball
-	tmpDir, tarball, err := helpers.Tar(gitRepo, nil)
+	tmpDir, tarball, tarError := helpers.Tar(gitRepo, nil)
 	defer func() {
 		if tmpDir != "" {
-			_ = os.RemoveAll(tmpDir)
+			cleanupError := os.RemoveAll(tmpDir)
+			if cleanupError != nil {
+				log.Errorw("failed to remove tarball temp dir", "error", cleanupError)
+			}
 		}
 	}()
-	if err != nil {
-		return apierror.InternalError(err, "create a tarball from the git repository")
+	if tarError != nil {
+		return "", "", "", apierror.InternalError(
+			tarError, "create a tarball from the git repository",
+		)
 	}
 
-	// Upload to S3
-	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), "epinio-s3-connection-details")
-	if err != nil {
-		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
-	}
-	manager, err := s3manager.New(connectionDetails)
-	if err != nil {
-		return apierror.InternalError(err, "creating an S3 manager")
+	connectionDetails, detailsError := s3manager.GetConnectionDetails(
+		ctx, cluster, helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName,
+	)
+	if detailsError != nil {
+		return "", "", "", apierror.InternalError(
+			detailsError, "fetching the S3 connection details",
+		)
 	}
 
-	username := requestctx.User(ctx).Username
-	blobUID, err := manager.Upload(ctx, tarball, map[string]string{
-		"app": name, "namespace": namespace, "username": username,
+	s3Manager, s3Error := s3manager.New(connectionDetails)
+	if s3Error != nil {
+		return "", "", "", apierror.InternalError(s3Error, "creating an S3 manager")
+	}
+
+	blobUID, uploadError := s3Manager.Upload(ctx, tarball, map[string]string{
+		"app": appName, "namespace": namespace, "username": username,
 	})
-	if err != nil {
-		// Check if the error is due to quota exhaustion
-		if s3manager.IsQuotaExceededError(err) {
-			return apierror.NewQuotaExceededError("",
-				"uploading the application sources blob: "+err.Error())
+	if uploadError != nil {
+		if s3manager.IsQuotaExceededError(uploadError) {
+			return "", "", "", apierror.NewQuotaExceededError(
+				"",
+				"uploading the application sources blob: "+uploadError.Error(),
+			)
 		}
-		return apierror.InternalError(err, "uploading the application sources blob")
+		return "", "", "", apierror.InternalError(
+			uploadError, "uploading the application sources blob",
+		)
 	}
 
-	log.Infow("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
-
-	// Return the id of the new blob
-	response.OKReturn(c, models.ImportGitResponse{
-		BlobUID:  blobUID,
-		Branch:   branch,
-		Revision: revision,
-	})
-	return nil
+	log.Infow("uploaded app", "namespace", namespace, "app", appName, "blobUID", blobUID)
+	return blobUID, branch, resolvedRevision, nil
 }
 
 func validateGitURL(gitURL string) apierror.APIErrors {

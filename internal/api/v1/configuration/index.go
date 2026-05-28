@@ -14,6 +14,7 @@ package configuration
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -22,6 +23,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -51,70 +53,126 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	if search := response.GetSearchParam(c); search != "" {
+		lower := strings.ToLower(search)
+		var filtered models.ConfigurationResponseList
+		for _, cfg := range responseData {
+			if strings.Contains(strings.ToLower(cfg.Meta.Name), lower) {
+				filtered = append(filtered, cfg)
+			}
+		}
+		responseData = filtered
+	}
+
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		paged := response.PaginateSlice(responseData, page, pageSize)
+		response.OKReturn(c, paged)
+		return nil
+	}
+
+	// Backwards-compatible: return full list when no page params are set.
 	response.OKReturn(c, responseData)
 	return nil
 }
 
-func makeResponse(ctx context.Context, appsOf map[application.ConfigurationKey][]string, configurations configurations.ConfigurationList) (models.ConfigurationResponseList, error) {
+func makeResponse(
+	ctx context.Context,
+	appsOf map[application.ConfigurationKey][]string,
+	configs configurations.ConfigurationList,
+) (models.ConfigurationResponseList, error) {
+	return makeResponseFrom(ctx, appsOf, configs, configs)
+}
 
-	response := models.ConfigurationResponseList{}
+// makeResponseFrom builds the sibling map from allConfigs
+// (so cross-page siblings remain visible) but only calls Details() for
+// processConfigs. Paginated callers pass the full filtered list as allConfigs
+// and only the current page as processConfigs.
+func makeResponseFrom(
+	ctx context.Context,
+	appsOf map[application.ConfigurationKey][]string,
+	allConfigs configurations.ConfigurationList,
+	processConfigs configurations.ConfigurationList,
+) (models.ConfigurationResponseList, error) {
+	result := models.ConfigurationResponseList{}
 
-	// All the possible siblings of a configuration are present in the configuration list.
-	//
-	// Simply iterate and sort them into buckets by service origin. Note that the namespace has
-	// to be part of the key. Non-service configurations are ignored.
-
+	// Build sibling map from all configs so service-based siblings on other
+	// pages are visible.
 	siblingMap := map[string][]string{}
-	for _, configuration := range configurations {
+	for _, configuration := range allConfigs {
 		if configuration.Origin != "" {
-			key := fmt.Sprintf("n%s/o%s", configuration.Namespace(), configuration.Origin)
+			key := fmt.Sprintf(
+				"n%s/o%s",
+				configuration.Namespace(),
+				configuration.Origin,
+			)
 			siblingMap[key] = append(siblingMap[key], configuration.Name)
 		}
 	}
 
-	for _, configuration := range configurations {
-		configurationDetails, err := configuration.Details(ctx)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				continue // Configuration was deleted, ignore it
-			} else {
-				return models.ConfigurationResponseList{}, err
+	// Fetch details concurrently for processConfigs only.
+	results := make([]*models.ConfigurationResponse, len(processConfigs))
+	group, groupCtx := errgroup.WithContext(ctx)
+	for i, configuration := range processConfigs {
+		i, configuration := i, configuration
+		group.Go(func() error {
+			configurationDetails, err := configuration.Details(groupCtx)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil // leave results[i] nil, filtered below
+				}
+				return err
 			}
-		}
 
-		key := application.EncodeConfigurationKey(configuration.Name, configuration.Namespace())
-		appNames := appsOf[key]
+			key := application.EncodeConfigurationKey(
+				configuration.Name,
+				configuration.Namespace(),
+			)
+			appNames := appsOf[key]
 
-		// For service-based configuration, pull siblings out of the map. Itself excluded, of course.
-
-		siblings := []string{}
-		if configuration.Origin != "" {
-			key := fmt.Sprintf("n%s/o%s", configuration.Namespace(), configuration.Origin)
-			for _, maybeSibling := range siblingMap[key] {
-				if maybeSibling != configuration.Name {
-					siblings = append(siblings, maybeSibling)
+			siblings := []string{}
+			if configuration.Origin != "" {
+				key := fmt.Sprintf(
+					"n%s/o%s",
+					configuration.Namespace(),
+					configuration.Origin,
+				)
+				for _, maybeSibling := range siblingMap[key] {
+					if maybeSibling != configuration.Name {
+						siblings = append(siblings, maybeSibling)
+					}
 				}
 			}
-		}
 
-		response = append(response, models.ConfigurationResponse{
-			Meta: models.ConfigurationRef{
-				Meta: models.Meta{
-					CreatedAt: configuration.CreatedAt,
-					Name:      configuration.Name,
-					Namespace: configuration.Namespace(),
+			results[i] = &models.ConfigurationResponse{
+				Meta: models.ConfigurationRef{
+					Meta: models.Meta{
+						CreatedAt: configuration.CreatedAt,
+						Name:      configuration.Name,
+						Namespace: configuration.Namespace(),
+					},
 				},
-			},
-			Configuration: models.ConfigurationShowResponse{
-				Username:  configuration.User(),
-				Details:   configurationDetails,
-				BoundApps: appNames,
-				Type:      configuration.Type,
-				Origin:    configuration.Origin,
-				Siblings:  siblings,
-			},
+				Configuration: models.ConfigurationShowResponse{
+					Username:  configuration.User(),
+					Details:   configurationDetails,
+					BoundApps: appNames,
+					Type:      configuration.Type,
+					Origin:    configuration.Origin,
+					Siblings:  siblings,
+				},
+			}
+			return nil
 		})
 	}
 
-	return response, nil
+	if err := group.Wait(); err != nil {
+		return models.ConfigurationResponseList{}, err
+	}
+
+	for _, r := range results {
+		if r != nil {
+			result = append(result, *r)
+		}
+	}
+
+	return result, nil
 }

@@ -154,7 +154,7 @@ func createS3HelperPod() {
 
 	// SeaweedFS S3 endpoint (service name and port from helm values)
 	out, err = proc.Kubectl("exec", s3HelperPod, "--", "mc", "--insecure", "alias", "set", "s3",
-		"https://seaweedfs-s3.epinio.svc.cluster.local:8333", string(accessKey), string(secretKey))
+		"http://seaweedfs-s3.epinio.svc.cluster.local:8333", string(accessKey), string(secretKey))
 	Expect(err).ToNot(HaveOccurred(), out)
 }
 

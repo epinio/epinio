@@ -148,11 +148,13 @@ func CreateConfigurationBinding(
 		logger.Infow("DeployApp")
 
 		// Update the workload, if there is any.
-		if app.Workload != nil {
+		if app.Workload != nil && app.Status == models.ApplicationRunning {
 			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, requestctx.User(ctx).Username, "")
 			if apierr != nil {
 				return nil, apierr
 			}
+		} else if app.Workload != nil {
+			logger.Infow("configuration binding was saved, but restart was skipped because application is not running", "status", app.Status)
 		}
 	}
 

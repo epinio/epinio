@@ -28,9 +28,9 @@ on:
 
 env:
   SETUP_GO_VERSION: '1.25.0'
-  GOLANGCI_LINT_VERSION: v2.3.0
+  GOLANGCI_LINT_VERSION: v2.4.0
   GINKGO_NODES: 8
-  GINKGO_VERSION: v2.25.1
+  GINKGO_VERSION: v2.27.2
   INGRESS_CONTROLLER: nginx
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -41,13 +41,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -67,7 +67,7 @@ jobs:
       - name: Unit Tests
         run: make test
       
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: unittests
           path: ./coverprofile.out
@@ -85,13 +85,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -101,13 +101,13 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -140,7 +140,7 @@ jobs:
           make test-acceptance-cli-other
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acceptance-cli
           path: ./coverprofile.out
@@ -167,13 +167,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -183,13 +183,13 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -228,7 +228,7 @@ jobs:
           make test-acceptance-cli-apps
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acceptance-cli-apps
           path: ./coverprofile.out
@@ -254,13 +254,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -270,13 +270,13 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -314,7 +314,7 @@ jobs:
           make test-acceptance-cli-services
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acceptance-cli-services
           path: ./coverprofile.out
@@ -341,13 +341,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -357,13 +357,13 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -396,7 +396,7 @@ jobs:
           make test-acceptance-api-other
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acceptance-api
           path: ./coverprofile.out
@@ -423,13 +423,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -439,13 +439,13 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -478,7 +478,7 @@ jobs:
           make test-acceptance-api-apps
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acceptance-api-apps
           path: ./coverprofile.out
@@ -503,13 +503,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -519,13 +519,13 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -565,7 +565,7 @@ jobs:
           done
           make test-acceptance-api-apps-critical-endpoints
           scripts/collect-coverage.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acceptance-api-cep-different-k8s
           path: ./coverprofile.out
@@ -602,7 +602,7 @@ jobs:
           done
           make test-acceptance-api-apps-critical-endpoints
           scripts/collect-coverage.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acceptance-api-apps-oldest-k3s
           path: ./coverprofile.out
@@ -628,13 +628,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -644,13 +644,13 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -690,7 +690,7 @@ jobs:
           make test-acceptance-api-services
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acceptance-api-services
           path: ./coverprofile.out
@@ -716,13 +716,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
@@ -732,13 +732,13 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -778,7 +778,7 @@ jobs:
           make test-acceptance-apps
           scripts/collect-coverage.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: acceptance-apps
           path: ./coverprofile.out
@@ -793,7 +793,7 @@ jobs:
           docker exec k3d-epinio-acceptance-server-0 sh -c 'cd /var/log/containers; grep -r "." .' > tmp/containers.log
 
       - name: Upload Logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: acceptance-logs-${{ github.sha }}-${{ github.run_id }}
@@ -822,10 +822,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
 
       - name: Upload unittests coverage to Codecov
         uses: codecov/codecov-action@v3

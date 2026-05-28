@@ -15,6 +15,7 @@ package tracelog
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/go-logr/logr"
@@ -113,7 +114,12 @@ func NewZapLogger() logr.Logger {
 		cfg.Encoding = "console"
 	}
 
-	cfg.Level = zap.NewAtomicLevelAt(zapcore.Level(level * -1)) //nolint:gosec
+	int8Level := int8(0)
+	if level >= math.MinInt8 && level <= math.MaxInt8 {
+		int8Level = int8(level)
+	}
+
+	cfg.Level = zap.NewAtomicLevelAt(zapcore.Level(int8Level))
 
 	traceFilePath := TraceFile()
 	if traceFilePath != "" {

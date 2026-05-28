@@ -28,6 +28,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
@@ -54,11 +55,47 @@ func (c *Client) createRestConfigForWebSocket() (*rest.Config, error) {
 		APIPath: baseURL.Path,
 	}
 
-	// Set TLS config from default transport
+	// Determine whether TLS verification should be skipped. The side-effect of
+	// settings.LoadFrom sets InsecureSkipVerify on http.DefaultTransport's
+	// TLSClientConfig, but be defensive: also consult viper and env so the flag
+	// works even if the default transport wasn't mutated (e.g. when a process
+	// replaces http.DefaultTransport, or if the rest.Config path races the
+	// settings side-effect). See settings.LoadFrom for the authoritative logic.
+	insecure := false
+	var serverName string
 	if httpTransport, ok := http.DefaultTransport.(*http.Transport); ok && httpTransport.TLSClientConfig != nil {
+		insecure = httpTransport.TLSClientConfig.InsecureSkipVerify
+		serverName = httpTransport.TLSClientConfig.ServerName
+	}
+	if !insecure {
+		if viper.GetBool("skip-ssl-verification") {
+			insecure = true
+		} else if v := os.Getenv("EPINIO_SKIP_SSL_VERIFICATION"); v == "true" || v == "1" {
+			insecure = true
+		} else if v := os.Getenv("SKIP_SSL_VERIFICATION"); v == "true" || v == "1" {
+			insecure = true
+		}
+	}
+
+	if insecure {
+		// Insecure and CAData are mutually exclusive in rest.Config.
 		restConfig.TLSClientConfig = rest.TLSClientConfig{
-			Insecure:   httpTransport.TLSClientConfig.InsecureSkipVerify,
-			ServerName: httpTransport.TLSClientConfig.ServerName,
+			Insecure:   true,
+			ServerName: serverName,
+		}
+	} else if c.Settings != nil && c.Settings.Certs != "" {
+		// Propagate the CA the user trusted during login. Without this the
+		// websocket executor builds a transport that does not inherit the CA
+		// pool set up via auth.ExtendLocalTrust on http.DefaultTransport, so a
+		// self-signed Epinio ingress cert fails verification even though
+		// regular API calls succeed.
+		restConfig.TLSClientConfig = rest.TLSClientConfig{
+			CAData:     []byte(c.Settings.Certs),
+			ServerName: serverName,
+		}
+	} else {
+		restConfig.TLSClientConfig = rest.TLSClientConfig{
+			ServerName: serverName,
 		}
 	}
 
@@ -207,6 +244,23 @@ func (c *Client) AppDeploy(request models.DeployRequest) (*models.DeployResponse
 	endpoint := api.Routes.Path("AppDeploy", request.App.Namespace, request.App.Name)
 
 	return Post(c, endpoint, request, response)
+}
+
+// AppDeploymentsStart starts an asynchronous stage/build/deploy (or image-only deploy).
+// The server returns 202 Accepted with an AsyncDeployStatus containing the deployment id.
+func (c *Client) AppDeploymentsStart(request models.AsyncDeployRequest) (*models.AsyncDeployStatus, error) {
+	response := &models.AsyncDeployStatus{}
+	endpoint := api.Routes.Path("AppDeployments", request.App.Namespace, request.App.Name)
+
+	return Post(c, endpoint, request, response)
+}
+
+// AppDeploymentStatus returns the current status of an asynchronous deployment.
+func (c *Client) AppDeploymentStatus(namespace, appName, deploymentID string) (models.AsyncDeployStatus, error) {
+	response := models.AsyncDeployStatus{}
+	endpoint := api.Routes.Path("AppDeployment", namespace, appName, deploymentID)
+
+	return Get(c, endpoint, response)
 }
 
 // LogOptions represents the optional filters for retrieving application logs.
@@ -401,12 +455,14 @@ func (c *Client) AppExec(ctx context.Context, namespace string, appName, instanc
 	}
 
 	fn := func() error {
+		// Must match application.Exec PodExecOptions.TTY (false). A mismatch between
+		// this flag and the attach URL the server builds breaks the exec websocket
+		// protocol (often exit status 255 with no useful stderr).
 		options := remotecommand.StreamOptions{
-			Stdin:             tty.In,
-			Stdout:            tty.Out,
-			Stderr:            tty.Out, // Not used when tty. Check `exec.Stream` docs.
-			Tty:               tty.Raw,
-			TerminalSizeQueue: tty.MonitorSize(tty.GetSize()),
+			Stdin:  tty.In,
+			Stdout: tty.Out,
+			Stderr: tty.Out,
+			Tty:    false,
 		}
 
 		return exec.StreamWithContext(ctx, options)

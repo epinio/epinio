@@ -13,7 +13,7 @@ name: golangci-lint
 
 env:
   SETUP_GO_VERSION: '1.25.0'
-  GOLANGCI_LINT_VERSION: v2.3.0
+  GOLANGCI_LINT_VERSION: v2.4.0
 
 on:
   workflow_dispatch:
@@ -28,12 +28,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
           cache: false
           go-version: ${{ env.SETUP_GO_VERSION }}
