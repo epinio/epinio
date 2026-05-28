@@ -174,6 +174,16 @@ func AppChartIsNotKnown(appChart string) APIError {
 	return NewNotFoundError("application chart", appChart)
 }
 
+// BuilderImageIsNotKnown constructs an API error for when the desired builder image does not exist
+func BuilderImageIsNotKnown(builderImage string) APIError {
+	return NewNotFoundError("builder image", builderImage)
+}
+
+// CatalogServiceIsNotKnown constructs an API error for when the desired catalog service does not exist
+func CatalogServiceIsNotKnown(catalogService string) APIError {
+	return NewNotFoundError("catalog service", catalogService)
+}
+
 /////////////////////////
 //
 // Conflict (409) errors
@@ -198,6 +208,21 @@ func ConfigurationAlreadyKnown(configuration string) APIError {
 // ServiceAlreadyKnown constructs an API error for when we have a conflict with an existing service instance
 func ServiceAlreadyKnown(service string) APIError {
 	return NewConflictError("service", service)
+}
+
+// AppChartAlreadyKnown constructs an API error for when we have a conflict with an existing app chart
+func AppChartAlreadyKnown(appChart string) APIError {
+	return NewConflictError("appchart", appChart)
+}
+
+// BuilderImageAlreadyKnown constructs an API error for when we have a conflict with an existing builder image
+func BuilderImageAlreadyKnown(builderImage string) APIError {
+	return NewConflictError("builder image", builderImage)
+}
+
+// CatalogServiceAlreadyKnown constructs an API error for when we have a conflict with an existing catalog service
+func CatalogServiceAlreadyKnown(catalogService string) APIError {
+	return NewConflictError("catalog service", catalogService)
 }
 
 /////////////////////////

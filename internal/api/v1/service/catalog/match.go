@@ -9,61 +9,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package appchart
+package catalog
 
 import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/gin-gonic/gin"
-
+	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
 )
 
-// Match handles the API endpoint /appchartsmatch/:pattern (GET)
-// It returns a list of all Epinio-controlled appcharts matching the prefix pattern.
+// Match handles GET /catalogservicesmatches/:pattern
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
-	log.Infow("match appcharts")
+	log.Infow("match catalog services")
 	defer log.Infow("return")
 
-	cluster, clusterError := kubernetes.GetCluster(ctx)
-	if clusterError != nil {
-		return apierror.InternalError(clusterError)
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
-	client, clientError := cluster.ClientAppChart()
-	if clientError != nil {
-		return apierror.InternalError(clientError)
+	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
-	log.Infow("list appcharts")
-	appcharts, listError := appchart.List(ctx, client)
-	if listError != nil {
-		return apierror.InternalError(listError)
+	serviceList, err := kubeServiceClient.ListCatalogServices(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
-	log.Infow("get appchart prefix")
 	prefix := c.Param("pattern")
 
 	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
-	for _, appchart := range appcharts {
-		if strings.HasPrefix(appchart.Meta.Name, prefix) {
-			matches = append(matches, appchart.Meta.Name)
+	for _, svc := range serviceList {
+		if strings.HasPrefix(svc.Meta.Name, prefix) {
+			matches = append(matches, svc.Meta.Name)
 		}
 	}
 
 	log.Infow("deliver matches", "found", matches)
-
-	response.OKReturn(c, models.ChartMatchResponse{
-		Names: matches,
-	})
+	response.OKReturn(c, models.CatalogMatchResponse{Names: matches})
 	return nil
 }

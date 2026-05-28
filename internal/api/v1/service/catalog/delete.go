@@ -9,28 +9,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package appchart
+package catalog
 
 import (
-	"strings"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/gin-gonic/gin"
-
+	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
 )
 
-// Match handles the API endpoint /appchartsmatch/:pattern (GET)
-// It returns a list of all Epinio-controlled appcharts matching the prefix pattern.
-func Match(c *gin.Context) apierror.APIErrors {
+// Delete handles DELETE /catalogservices/:catalogservice
+func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
+	name := c.Param("catalogservice")
 
-	log.Infow("match appcharts")
+	log.Infow("delete catalog service", "name", name)
 	defer log.Infow("return")
 
 	cluster, clusterError := kubernetes.GetCluster(ctx)
@@ -38,32 +34,27 @@ func Match(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clusterError)
 	}
 
-	client, clientError := cluster.ClientAppChart()
+	kubeServiceClient, clientError := services.NewKubernetesServiceClient(cluster)
 	if clientError != nil {
 		return apierror.InternalError(clientError)
 	}
 
-	log.Infow("list appcharts")
-	appcharts, listError := appchart.List(ctx, client)
-	if listError != nil {
-		return apierror.InternalError(listError)
+	log.Infow("check existence", "name", name)
+	exists, existsError := kubeServiceClient.CatalogServiceExists(ctx, name)
+	if existsError != nil {
+		return apierror.InternalError(existsError)
+	}
+	if !exists {
+		return apierror.CatalogServiceIsNotKnown(name)
 	}
 
-	log.Infow("get appchart prefix")
-	prefix := c.Param("pattern")
-
-	log.Infow("match prefix", "pattern", prefix)
-	matches := []string{}
-	for _, appchart := range appcharts {
-		if strings.HasPrefix(appchart.Meta.Name, prefix) {
-			matches = append(matches, appchart.Meta.Name)
-		}
+	log.Infow("delete catalog service resource", "name", name)
+	deleteError := kubeServiceClient.DeleteCatalogService(ctx, name)
+	if deleteError != nil {
+		return apierror.InternalError(deleteError)
 	}
 
-	log.Infow("deliver matches", "found", matches)
-
-	response.OKReturn(c, models.ChartMatchResponse{
-		Names: matches,
-	})
+	log.Infow("catalog service deleted", "name", name)
+	response.OK(c)
 	return nil
 }

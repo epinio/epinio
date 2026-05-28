@@ -9,57 +9,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package appchart
+package builderimage
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/appchart"
-	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/builderimage"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 )
 
-// Show handles the API endpoint GET /appcharts/:name
-// It returns the details of the specified appchart.
+// Show handles GET /builderimages/:name — returns details of the named builderimage.
 func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
-	chartName := c.Param("name")
-
-	log.Infow("show appchart", "name", chartName)
-	defer log.Infow("return")
+	name := c.Param("name")
 
 	cluster, clusterError := kubernetes.GetCluster(ctx)
 	if clusterError != nil {
 		return apierror.InternalError(clusterError)
 	}
 
-	client, clientError := cluster.ClientAppChart()
+	client, clientError := cluster.ClientBuilderImage()
 	if clientError != nil {
 		return apierror.InternalError(clientError)
 	}
 
-	log.Infow("lookup appchart", "name", chartName)
-	app, lookupError := appchart.Lookup(ctx, client, chartName)
-	if lookupError != nil {
-		return apierror.InternalError(lookupError)
+	builderimage, builderimageError := builderimage.Lookup(ctx, client, name)
+	if builderimageError != nil {
+		return apierror.InternalError(builderimageError)
 	}
 
-	if app == nil {
-		return apierror.AppChartIsNotKnown(chartName)
+	if builderimage == nil {
+		return apierror.BuilderImageIsNotKnown(name)
 	}
 
-	inUse, inUseError := application.ChartsInUse(ctx, cluster)
-	if inUseError != nil {
-		return apierror.InternalError(inUseError)
-	}
-	app.BoundApps = inUse[chartName]
-
-	log.Infow("deliver appchart", "name", chartName)
-	// Note: Returning only the public parts. The local config
-	// data is not handed to the user. Only the setting specs.
-	response.OKReturn(c, app)
+	response.OKReturn(c, builderimage)
 	return nil
 }
