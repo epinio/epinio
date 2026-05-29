@@ -19,6 +19,10 @@ on:
       # this will skip the pre-releases
       - released
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to process (e.g. v1.14.0)'
+        required: true
 
 jobs:
   release:
@@ -69,17 +73,17 @@ jobs:
         id: sha256
         if: steps.check_rc.outputs.is_rc == 'false'
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
-          SHA=$(curl -fsSL "https://github.com/epinio/epinio/archive/refs/tags/${TAG}.tar.gz" | sha256sum | awk '{print $1}')
+          SHA=$(curl -fsSL "https://github.com/epinio/epinio/archive/refs/tags/${TAG}.tar.gz" |sha256sum | awk '{print $1}')
           echo "value=${SHA}" >> $GITHUB_OUTPUT
 
       - name: Bump Homebrew formula
         if: steps.check_rc.outputs.is_rc == 'false'
         uses: mislav/bump-homebrew-formula-action@v4
         with:
-          tag-name: ${{ github.event.release.tag_name }}
-          download-url: https://github.com/epinio/epinio/archive/refs/tags/${{github.event.release.tag_name }}.tar.gz
+          tag-name: ${{ github.event.release.tag_name || inputs.tag }}
+          download-url: https://github.com/epinio/epinio/archive/refs/tags/${{github.event.release.tag_name || inputs.tag }}.tar.gz
           download-sha256: ${{ steps.sha256.outputs.value }}
           homebrew-tap: epinio/homebrew-tap
           commit-message: |
