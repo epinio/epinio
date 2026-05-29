@@ -183,6 +183,9 @@ func (c *Cluster) ClientAppChart() (dynamic.NamespaceableResourceInterface, erro
 
 // ClientApp returns a dynamic namespaced client for the app resource
 func (c *Cluster) ClientApp() (dynamic.NamespaceableResourceInterface, error) {
+	if c.RestConfig == nil {
+		return nil, fmt.Errorf("cluster has no REST config")
+	}
 	cs, err := dynamic.NewForConfig(c.RestConfig)
 	if err != nil {
 		return nil, err

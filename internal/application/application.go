@@ -32,6 +32,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -621,6 +622,15 @@ func ListPaginatedByNamespace(
 	}
 	if pageSize < 1 {
 		pageSize = 25
+	}
+
+	// Short-circuit: no epinio namespaces means no apps — avoid the ClientApp call entirely.
+	epinioNsList, nsErr := namespaces.List(ctx, cluster)
+	if nsErr != nil {
+		return nil, nsErr
+	}
+	if len(epinioNsList) == 0 {
+		return map[string]NamespaceAppsResult{}, nil
 	}
 
 	// I. List all app CRs across every namespace in one k8s call.
