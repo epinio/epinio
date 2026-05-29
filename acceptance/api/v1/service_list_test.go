@@ -239,4 +239,45 @@ var _ = Describe("ServiceList Endpoint", LService, func() {
 			})
 		})
 	})
+
+	Describe("GET /api/v1/services search", func() {
+		var serviceName1, serviceName2 string
+
+		BeforeEach(func() {
+			serviceName1 = catalog.NewServiceName()
+			serviceName2 = catalog.NewServiceName()
+
+			env.TargetNamespace(namespace1)
+			env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
+
+			env.TargetNamespace(namespace2)
+			env.MakeServiceInstance(serviceName2, catalogService.Meta.Name)
+		})
+
+		AfterEach(func() {
+			catalog.DeleteService(serviceName1, namespace1)
+			catalog.DeleteService(serviceName2, namespace2)
+		})
+
+		It("filters services by search term", func() {
+			endpoint := fmt.Sprintf("%s%s/services?search=%s", serverURL, v1.Root, serviceName1)
+			response, err := env.Curl("GET", endpoint, strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			var serviceListResponse models.ServiceList
+			err = json.NewDecoder(response.Body).Decode(&serviceListResponse)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(serviceListResponse).ToNot(BeEmpty())
+			found := false
+			for _, svc := range serviceListResponse {
+				Expect(svc.Meta.Name).To(ContainSubstring(serviceName1))
+				if svc.Meta.Name == serviceName1 {
+					found = true
+				}
+			}
+			Expect(found).To(BeTrue(), "expected search results to contain %q", serviceName1)
+		})
+	})
 })

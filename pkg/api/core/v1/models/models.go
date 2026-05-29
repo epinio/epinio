@@ -141,15 +141,16 @@ type ApplicationStage struct {
 
 // ApplicationConfiguration is the part of the manifest describing the configuration of the application
 type ApplicationConfiguration struct {
-	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
-	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
-	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
-	ReplaceEnv     *bool              `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
-	Services       []string           `json:"services,omitempty" yaml:"services,omitempty"`
-	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
-	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
-	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
-	Ignore         []string           `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
+	Instances           *int32                      `json:"instances"            yaml:"instances,omitempty"`
+	Configurations      []string                    `json:"configurations"     yaml:"configurations,omitempty"`
+	Environment        EnvVariableMap               `json:"environment"        yaml:"environment,omitempty"`
+	EnvironmentGrouped *EnvVariableGroupedResponse `json:"environment_grouped,omitempty" yaml:"environment_grouped,omitempty"`
+	ReplaceEnv         *bool                       `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
+	Services           []string                    `json:"services,omitempty" yaml:"services,omitempty"`
+	Routes             []string                    `json:"routes"             yaml:"routes,omitempty"`
+	AppChart           string                      `json:"appchart,omitempty" yaml:"appchart,omitempty"`
+	Settings           ChartValueSettings          `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Ignore             []string                    `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
@@ -303,6 +304,32 @@ type DeployResponse struct {
 	Warnings []string `json:"warnings,omitempty"`
 }
 
+// AsyncDeployRequest represents and contains the data needed to stage/build and deploy an application asynchronously.
+//
+// For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
+// `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
+type AsyncDeployRequest struct {
+	App         AppRef            `json:"app,omitempty"`
+	BlobUID     string            `json:"blobuid,omitempty"`
+	BuilderImage string           `json:"builderimage,omitempty"`
+	ImageURL    string            `json:"image,omitempty"`
+	Origin      ApplicationOrigin `json:"origin,omitempty"`
+}
+
+// AsyncDeployStatus represents the status of an asynchronous deploy operation.
+type AsyncDeployStatus struct {
+	ID         string   `json:"id"`
+	App        AppRef   `json:"app"`
+	Status     string   `json:"status"` // pending, staging, deploying, succeeded, failed
+	StageID    string   `json:"stage_id,omitempty"`
+	ImageURL   string   `json:"image,omitempty"`
+	Error      string   `json:"error,omitempty"`
+	Routes     []string `json:"routes,omitempty"`
+	Warnings   []string `json:"warnings,omitempty"`
+	StartedAt  string   `json:"startedAt,omitempty"`
+	FinishedAt string   `json:"finishedAt,omitempty"`
+}
+
 // ApplicationDeleteRequest represents and contains the data needed to delete an application
 type ApplicationDeleteRequest struct {
 	DeleteImage bool `json:"deleteImage"`
@@ -352,10 +379,11 @@ type MeResponse struct {
 }
 
 type Role struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Default   bool   `json:"default"`
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Namespace string   `json:"namespace"`
+	Default   bool     `json:"default"`
+	Actions   []string `json:"actions,omitempty"`
 }
 
 // AuthTokenResponse contains an auth token

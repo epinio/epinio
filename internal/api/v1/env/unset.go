@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 // Unset handles the API endpoint /namespaces/:namespace/applications/:app/environment/:env (DELETE)
@@ -54,11 +55,13 @@ func Unset(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	if app.Workload != nil {
+	if app.Workload != nil && app.Status == models.ApplicationRunning {
 		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 		if apierr != nil {
 			return apierr
 		}
+	} else if app.Workload != nil {
+		requestctx.Logger(ctx).Infow("environment variable was removed, but restart was skipped because application is not running", "status", app.Status)
 	}
 
 	response.OK(c)

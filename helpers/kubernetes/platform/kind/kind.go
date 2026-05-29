@@ -32,7 +32,7 @@ func (k *Kind) Describe() string {
 
 func (k *Kind) String() string { return "kind" }
 
-func (k *Kind) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
+func (k *Kind) Detect(ctx context.Context, kube kubernetes.Interface) bool {
 	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false

@@ -29,7 +29,7 @@ func AuthToken(c *gin.Context) APIErrors {
 	user := requestctx.User(requestContext).Username
 
 	response.OKReturn(c, models.AuthTokenResponse{
-		Token: authtoken.Create(user, authtoken.DefaultExpiry),
+		Token: authtoken.Create(user, authtoken.GetDefaultExpiry()),
 	})
 	return nil
 }
