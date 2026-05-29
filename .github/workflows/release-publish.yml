@@ -70,15 +70,16 @@ jobs:
         if: steps.check_rc.outputs.is_rc == 'false'
         run: |
           echo "value=$(curl -fsSL \
-            "https://github.com/epinio/epinio/archive/refs/tags/${{ steps.get_tag.outputs.TAG }}.tar.gz" \
+            "https://github.com/epinio/epinio/archive/refs/tags/${{ github.ref_name }}.tar.gz" \
             | sha256sum | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Bump Homebrew formula
         if: steps.check_rc.outputs.is_rc == 'false'
         uses: mislav/bump-homebrew-formula-action@v4
         with:
-          download-url: https://github.com/epinio/epinio/archive/refs/tags/${{ steps.get_tag.outputs.TAG}}.tar.gz
+          download-url: https://github.com/epinio/epinio/archive/refs/tags/${{ github.ref_name }}.tar.gz
           download-sha256: ${{ steps.sha256.outputs.value }}
+          homebrew-tap: epinio/homebrew-tap
           commit-message: |
             {{formulaName}} {{version}}
 
