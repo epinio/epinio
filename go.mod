@@ -54,7 +54,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.50.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.42.0
 	gopkg.in/ini.v1 v1.67.0
