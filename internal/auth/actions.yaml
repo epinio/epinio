@@ -184,6 +184,7 @@
     - app_logs
   routes:
     - AppStage
+    - AppSourcePatch
 
 # App Deploy
 - id: app_deploy
