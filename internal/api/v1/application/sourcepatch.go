@@ -17,6 +17,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -39,7 +40,9 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 
 	file, _, err := c.Request.FormFile("file")
 	if err != nil {
-		return apierror.NewBadRequestError(err.Error()).WithDetails("can't read multipart file input")
+		return apierror.
+			NewBadRequestError(err.Error()).
+			WithDetails("can't read multipart file input")
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
@@ -232,8 +235,21 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 		}
 		bgLog.Infow("step:updateImageURL", "ms", time.Since(t).Milliseconds())
 
+		// Transform public registry URL (cluster-internal DNS) to the NodePort URL
+		// that the kubelet can resolve when pulling the image.
+		registryDetails, rdErr := registry.GetConnectionDetails(bgCtx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
+		if rdErr != nil {
+			bgLog.Errorw("failed to get registry connection details", "error", rdErr)
+			return
+		}
+		deployImageURL, rdErr := registryDetails.ReplaceWithInternalRegistry(stageResponse.ImageURL)
+		if rdErr != nil {
+			bgLog.Errorw("failed to replace registry URL", "error", rdErr)
+			return
+		}
+
 		t = time.Now()
-		if err := swapPodImage(bgCtx, cluster, appRef, stageResponse.ImageURL); err != nil {
+		if err := swapPodImage(bgCtx, cluster, appRef, deployImageURL, params.UserID, params.GroupID); err != nil {
 			bgLog.Errorw("pod image swap failed", "error", err)
 			return
 		}
@@ -246,9 +262,11 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-// swapPodImage bypasses Helm: patches the deployment image directly then deletes
-// the running pod so k8s immediately recreates it with the new image (~2s vs ~4s for Helm).
-func swapPodImage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, imageURL string) error {
+// swapPodImage bypasses Helm: patches the deployment image and securityContext directly
+// then deletes the running pod so k8s immediately recreates it. The securityContext is set
+// to the build UID/GID so that subsequent file syncs (kubectl exec tar) can write to
+// /workspace/source/app, which is owned by the build user.
+func swapPodImage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, imageURL string, userID, groupID int64) error {
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name)
 
 	// Patch the deployment image
@@ -264,9 +282,24 @@ func swapPodImage(ctx context.Context, cluster *kubernetes.Cluster, appRef model
 	}
 	containerName := d.Spec.Template.Spec.Containers[0].Name
 
+	// The wrapper command checks for a dev binary in the epinio-sync emptyDir volume first,
+	// falling back to the normal Paketo launcher. This enables binary swap for compiled
+	// languages without requiring changes after the dev session ends -- any pod restart
+	// with an empty emptyDir will transparently use the original image binary.
+	// Supervisor loop always runs as PID 1 so k8s never sees a container restart.
+	// Each iteration picks /epinio-sync/app if present, else falls back to /cnb/process/web.
+	// The child PID is written to /epinio-sync/pid on every iteration so the sync script
+	// can kill just the child to trigger a hot reload without restarting the container.
+	const wrapperCmd = `while true; do if [ -f /epinio-sync/app ]; then /epinio-sync/app & else /cnb/process/web & fi; echo $! > /epinio-sync/pid; wait; sleep 0.1; done`
 	patch := []byte(fmt.Sprintf(
-		`{"spec":{"template":{"spec":{"containers":[{"name":%q,"image":%q}]}}}}`,
-		containerName, imageURL,
+		`{"spec":{"template":{"spec":{`+
+			`"securityContext":{"runAsUser":%d,"runAsGroup":%d},`+
+			`"volumes":[{"name":"epinio-sync","emptyDir":{}}],`+
+			`"containers":[{"name":%q,"image":%q,`+
+			`"command":["sh","-c",%q],`+
+			`"volumeMounts":[{"name":"epinio-sync","mountPath":"/epinio-sync"}]}]`+
+			`}}}}`,
+		userID, groupID, containerName, imageURL, wrapperCmd,
 	))
 	if _, err := cluster.Kubectl.AppsV1().Deployments(appRef.Namespace).Patch(
 		ctx, d.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{},

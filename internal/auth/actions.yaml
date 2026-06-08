@@ -185,6 +185,7 @@
   routes:
     - AppStage
     - AppSourcePatch
+    - AppSync
 
 # App Deploy
 - id: app_deploy

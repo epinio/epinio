@@ -125,6 +125,7 @@ var Routes = routes.NamedRoutes{
 	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Running)),
 	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)), // See stage.go
 	"AppSourcePatch":  patch("/namespaces/:namespace/applications/:app/source", errorHandler(application.SourcePatch)), // See sourcepatch.go
+	"AppSync":         post("/namespaces/:namespace/applications/:app/sync", errorHandler(application.Sync)),           // See sync.go
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
 	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
 	"AppValidateCV":   get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),

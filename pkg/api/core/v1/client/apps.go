@@ -207,6 +207,39 @@ func (c *Client) AppUpload(namespace string, name string, file FormFile) (models
 	return DoWithHandlers(c, endpoint, http.MethodPost, requestHandler, responseHandler)
 }
 
+// AppSourcePatch uploads a source patch tar and triggers a buildpack stage + swapPodImage.
+// Used by the watch feature startup mode. Returns the stage response for polling.
+func (c *Client) AppSourcePatch(namespace, name string, file FormFile) (*models.StageResponse, error) {
+	response := &models.StageResponse{}
+	endpoint := api.Routes.Path("AppSourcePatch", namespace, name)
+
+	requestHandler := NewFileUploadRequestHandler(file)
+	responseHandler := NewJSONResponseHandler(c.log, response)
+
+	return DoWithHandlers(c, endpoint, http.MethodPatch, requestHandler, responseHandler)
+}
+
+// AppSync streams a tar of changed files or a compiled binary into the running pod
+// via server-side exec. mode must be "files" or "binary". dest overrides the
+// default destination path inside the pod (empty = use server default).
+// binaryName is the basename of the binary file inside the tar (binary mode only).
+func (c *Client) AppSync(namespace, name string, file FormFile, mode, dest, binaryName string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("AppSync", namespace, name)
+
+	fields := map[string]string{"mode": mode}
+	if dest != "" {
+		fields["dest"] = dest
+	}
+	if binaryName != "" {
+		fields["binary_name"] = binaryName
+	}
+	requestHandler := NewFileUploadWithFieldsRequestHandler(file, fields)
+	responseHandler := NewJSONResponseHandler(c.log, response)
+
+	return DoWithHandlers(c, endpoint, http.MethodPost, requestHandler, responseHandler)
+}
+
 // AppValidateCV validates the chart values of the specified app against its appchart
 func (c *Client) AppValidateCV(namespace string, name string) (models.Response, error) {
 	response := models.Response{}

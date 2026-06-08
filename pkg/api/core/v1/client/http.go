@@ -226,6 +226,41 @@ func NewFileUploadRequestHandler(file FormFile) RequestHandler {
 	}
 }
 
+// NewFileUploadWithFieldsRequestHandler creates a multipart/form-data request with the file and
+// additional form fields (e.g. mode="binary"). Fields are written after the file part.
+func NewFileUploadWithFieldsRequestHandler(file FormFile, fields map[string]string) RequestHandler {
+	return func(method, url string) (*http.Request, error) {
+		if file == nil {
+			return nil, errors.New("cannot create multipart form without file")
+		}
+
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create multipart form")
+		}
+		if _, err = io.Copy(part, file); err != nil {
+			return nil, errors.Wrap(err, "failed to write to multipart form")
+		}
+		for key, val := range fields {
+			if err = writer.WriteField(key, val); err != nil {
+				return nil, errors.Wrapf(err, "failed to write field %q", key)
+			}
+		}
+		if err = writer.Close(); err != nil {
+			return nil, errors.Wrap(err, "failed to close multipart")
+		}
+
+		request, err := http.NewRequest(method, url, body)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build request")
+		}
+		request.Header.Add("Content-Type", writer.FormDataContentType())
+		return request, nil
+	}
+}
+
 // NewFormURLEncodedRequestHandler creates a application/x-www-form-urlencoded request encoding the provided data
 func NewFormURLEncodedRequestHandler(data url.Values) RequestHandler {
 	return func(method, url string) (*http.Request, error) {

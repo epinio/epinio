@@ -276,6 +276,21 @@ type FakeAPIClient struct {
 		result1 models.App
 		result2 error
 	}
+	AppSourcePatchStub        func(string, string, client.FormFile) (*models.StageResponse, error)
+	appSourcePatchMutex       sync.RWMutex
+	appSourcePatchArgsForCall []struct {
+		arg1 string
+		arg2 string
+		arg3 client.FormFile
+	}
+	appSourcePatchReturns struct {
+		result1 *models.StageResponse
+		result2 error
+	}
+	appSourcePatchReturnsOnCall map[int]struct {
+		result1 *models.StageResponse
+		result2 error
+	}
 	AppStageStub        func(models.StageRequest) (*models.StageResponse, error)
 	appStageMutex       sync.RWMutex
 	appStageArgsForCall []struct {
@@ -287,6 +302,24 @@ type FakeAPIClient struct {
 	}
 	appStageReturnsOnCall map[int]struct {
 		result1 *models.StageResponse
+		result2 error
+	}
+	AppSyncStub        func(string, string, client.FormFile, string, string, string) (models.Response, error)
+	appSyncMutex       sync.RWMutex
+	appSyncArgsForCall []struct {
+		arg1 string
+		arg2 string
+		arg3 client.FormFile
+		arg4 string
+		arg5 string
+		arg6 string
+	}
+	appSyncReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	appSyncReturnsOnCall map[int]struct {
+		result1 models.Response
 		result2 error
 	}
 	AppUpdateStub        func(models.ApplicationUpdateRequest, string, string) (models.Response, error)
@@ -2182,6 +2215,72 @@ func (fake *FakeAPIClient) AppShowReturnsOnCall(i int, result1 models.App, resul
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) AppSourcePatch(arg1 string, arg2 string, arg3 client.FormFile) (*models.StageResponse, error) {
+	fake.appSourcePatchMutex.Lock()
+	ret, specificReturn := fake.appSourcePatchReturnsOnCall[len(fake.appSourcePatchArgsForCall)]
+	fake.appSourcePatchArgsForCall = append(fake.appSourcePatchArgsForCall, struct {
+		arg1 string
+		arg2 string
+		arg3 client.FormFile
+	}{arg1, arg2, arg3})
+	stub := fake.AppSourcePatchStub
+	fakeReturns := fake.appSourcePatchReturns
+	fake.recordInvocation("AppSourcePatch", []interface{}{arg1, arg2, arg3})
+	fake.appSourcePatchMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) AppSourcePatchCallCount() int {
+	fake.appSourcePatchMutex.RLock()
+	defer fake.appSourcePatchMutex.RUnlock()
+	return len(fake.appSourcePatchArgsForCall)
+}
+
+func (fake *FakeAPIClient) AppSourcePatchCalls(stub func(string, string, client.FormFile) (*models.StageResponse, error)) {
+	fake.appSourcePatchMutex.Lock()
+	defer fake.appSourcePatchMutex.Unlock()
+	fake.AppSourcePatchStub = stub
+}
+
+func (fake *FakeAPIClient) AppSourcePatchArgsForCall(i int) (string, string, client.FormFile) {
+	fake.appSourcePatchMutex.RLock()
+	defer fake.appSourcePatchMutex.RUnlock()
+	argsForCall := fake.appSourcePatchArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeAPIClient) AppSourcePatchReturns(result1 *models.StageResponse, result2 error) {
+	fake.appSourcePatchMutex.Lock()
+	defer fake.appSourcePatchMutex.Unlock()
+	fake.AppSourcePatchStub = nil
+	fake.appSourcePatchReturns = struct {
+		result1 *models.StageResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppSourcePatchReturnsOnCall(i int, result1 *models.StageResponse, result2 error) {
+	fake.appSourcePatchMutex.Lock()
+	defer fake.appSourcePatchMutex.Unlock()
+	fake.AppSourcePatchStub = nil
+	if fake.appSourcePatchReturnsOnCall == nil {
+		fake.appSourcePatchReturnsOnCall = make(map[int]struct {
+			result1 *models.StageResponse
+			result2 error
+		})
+	}
+	fake.appSourcePatchReturnsOnCall[i] = struct {
+		result1 *models.StageResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeAPIClient) AppStage(arg1 models.StageRequest) (*models.StageResponse, error) {
 	fake.appStageMutex.Lock()
 	ret, specificReturn := fake.appStageReturnsOnCall[len(fake.appStageArgsForCall)]
@@ -2242,6 +2341,75 @@ func (fake *FakeAPIClient) AppStageReturnsOnCall(i int, result1 *models.StageRes
 	}
 	fake.appStageReturnsOnCall[i] = struct {
 		result1 *models.StageResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppSync(arg1 string, arg2 string, arg3 client.FormFile, arg4 string, arg5 string, arg6 string) (models.Response, error) {
+	fake.appSyncMutex.Lock()
+	ret, specificReturn := fake.appSyncReturnsOnCall[len(fake.appSyncArgsForCall)]
+	fake.appSyncArgsForCall = append(fake.appSyncArgsForCall, struct {
+		arg1 string
+		arg2 string
+		arg3 client.FormFile
+		arg4 string
+		arg5 string
+		arg6 string
+	}{arg1, arg2, arg3, arg4, arg5, arg6})
+	stub := fake.AppSyncStub
+	fakeReturns := fake.appSyncReturns
+	fake.recordInvocation("AppSync", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6})
+	fake.appSyncMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4, arg5, arg6)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) AppSyncCallCount() int {
+	fake.appSyncMutex.RLock()
+	defer fake.appSyncMutex.RUnlock()
+	return len(fake.appSyncArgsForCall)
+}
+
+func (fake *FakeAPIClient) AppSyncCalls(stub func(string, string, client.FormFile, string, string, string) (models.Response, error)) {
+	fake.appSyncMutex.Lock()
+	defer fake.appSyncMutex.Unlock()
+	fake.AppSyncStub = stub
+}
+
+func (fake *FakeAPIClient) AppSyncArgsForCall(i int) (string, string, client.FormFile, string, string, string) {
+	fake.appSyncMutex.RLock()
+	defer fake.appSyncMutex.RUnlock()
+	argsForCall := fake.appSyncArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5, argsForCall.arg6
+}
+
+func (fake *FakeAPIClient) AppSyncReturns(result1 models.Response, result2 error) {
+	fake.appSyncMutex.Lock()
+	defer fake.appSyncMutex.Unlock()
+	fake.AppSyncStub = nil
+	fake.appSyncReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppSyncReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.appSyncMutex.Lock()
+	defer fake.appSyncMutex.Unlock()
+	fake.AppSyncStub = nil
+	if fake.appSyncReturnsOnCall == nil {
+		fake.appSyncReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.appSyncReturnsOnCall[i] = struct {
+		result1 models.Response
 		result2 error
 	}{result1, result2}
 }
