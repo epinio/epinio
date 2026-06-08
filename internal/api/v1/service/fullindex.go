@@ -12,6 +12,8 @@
 package service
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -43,18 +45,72 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	filteredServices := auth.FilterResources(user, serviceList)
+
+	if search := response.GetSearchParam(c); search != "" {
+		lower := strings.ToLower(search)
+		var searched models.ServiceList
+		for _, svc := range filteredServices {
+			if strings.Contains(strings.ToLower(svc.Meta.Name), lower) {
+				searched = append(searched, svc)
+			}
+		}
+		filteredServices = searched
+	}
+
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		total := len(filteredServices)
+		start := (page - 1) * pageSize
+		if start >= total {
+			start = total
+		}
+		end := start + pageSize
+		if end > total {
+			end = total
+		}
+		pageServices := filteredServices[start:end]
+
+		// Scope the binding lookup to just the namespaces on this page.
+		nsSet := map[string]struct{}{}
+		for _, svc := range pageServices {
+			nsSet[svc.Meta.Namespace] = struct{}{}
+		}
+		pageNamespaces := make([]string, 0, len(nsSet))
+		for ns := range nsSet {
+			pageNamespaces = append(pageNamespaces, ns)
+		}
+
+		appsOf, err := application.ServicesBoundAppsNamesForNamespaces(
+			ctx,
+			cluster,
+			pageNamespaces,
+		)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		response.OKReturn(c, response.BuildPaginatedResponse(
+			extendWithBoundApps(pageServices, appsOf),
+			page,
+			pageSize,
+			total,
+		))
+		return nil
+	}
+
 	appsOf, err := application.ServicesBoundAppsNames(ctx, cluster, "")
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	filteredServices := auth.FilterResources(user, serviceList)
-
 	response.OKReturn(c, extendWithBoundApps(filteredServices, appsOf))
 	return nil
 }
 
-func extendWithBoundApps(services models.ServiceList, appsOf map[string][]string) models.ServiceList {
+func extendWithBoundApps(
+	services models.ServiceList,
+	appsOf map[string][]string,
+) models.ServiceList {
 	theServices := models.ServiceList{}
 	for _, service := range services {
 		key := application.ServiceKey(service.Meta.Name, service.Meta.Namespace)

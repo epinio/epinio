@@ -713,6 +713,9 @@ func fetchAppManifest(c *gin.Context, app *models.App) apierror.APIErrors {
 		Origin:        app.Origin,
 		Staging:       app.Staging,
 	}
+	// EnvironmentGrouped is a display-only response field; it must not appear in manifests
+	// since manifests are used to redeploy apps and the field carries no actionable data.
+	m.Configuration.EnvironmentGrouped = nil
 
 	response.OKYaml(c, m)
 	return nil

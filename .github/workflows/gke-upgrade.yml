@@ -32,7 +32,7 @@ on:
         - Keep
 
 env:
-  SETUP_GO_VERSION: '1.22.1'
+  SETUP_GO_VERSION: '1.25.0'
   GOLANGCI_LINT_VERSION: v1.56
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
@@ -48,19 +48,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -87,20 +87,20 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         timeout-minutes: 5
         with:
           cache: false
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Login to GitHub Docker Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -119,12 +119,12 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
 
       - name: Authenticate to GCP
-        uses: 'google-github-actions/auth@v1'
+        uses: 'google-github-actions/auth@v3'
         with:
           credentials_json: '${{ secrets.EPCI_GCP_CREDENTIALS }}'
 
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v3
       
       - name: Install gcloud kubectl version
         run: gcloud components install kubectl

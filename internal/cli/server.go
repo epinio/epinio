@@ -29,11 +29,10 @@ import (
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
 
-	"k8s.io/client-go/rest"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"k8s.io/client-go/rest"
 )
 
 func init() {

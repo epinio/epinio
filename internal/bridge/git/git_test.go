@@ -198,9 +198,14 @@ var _ = Describe("Manager", func() {
 	Describe("NewSecretFromConfiguration", func() {
 		When("some secrets exists", func() {
 			It("returns the expected configurations", func() {
-				configs := git.NewConfigurationsFromSecrets([]v1.Secret{
+				createdAt := metav1.Now()
+
+				secrets := []v1.Secret{
 					{
-						ObjectMeta: metav1.ObjectMeta{Name: "my-config"},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "my-config",
+							CreationTimestamp: createdAt,
+						},
 						Data: map[string][]byte{
 							"url":         []byte("giturl"),
 							"provider":    []byte("github"),
@@ -231,7 +236,9 @@ var _ = Describe("Manager", func() {
 							"provider": []byte("sdjnksd"),
 						},
 					},
-				})
+				}
+
+				configs := git.NewConfigurationsFromSecrets(secrets)
 
 				Expect(configs).ToNot(BeNil())
 				Expect(configs).To(HaveLen(4))
@@ -244,6 +251,7 @@ var _ = Describe("Manager", func() {
 				Expect(configs[0].Repository).To(Equal("myrepo"))
 				Expect(configs[0].SkipSSL).To(BeTrue())
 				Expect(configs[0].Certificate).To(Equal([]byte("----CERT----")))
+				Expect(configs[0].CreatedAt).To(Equal(createdAt))
 
 				Expect(configs[1].ID).To(Equal("my-config-skipssl-false"))
 				Expect(configs[1].SkipSSL).To(BeFalse())

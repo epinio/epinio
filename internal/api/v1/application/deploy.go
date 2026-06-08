@@ -128,8 +128,9 @@ func Redeploy(ctx context.Context, cluster *kubernetes.Cluster, namespace string
 			return apierror.InternalError(err)
 		}
 
-		// Restart workload, if any
-		if app.Workload != nil {
+		// Restart running workloads only. Non-running apps keep the saved configuration
+		// and avoid blocking this request on Helm's rollout wait path.
+		if app.Workload != nil && app.Status == models.ApplicationRunning {
 			// TODO :: This plain restart is different from all other restarts
 			// (scaling, ev change, bound configurations change) ... The deployment
 			// actually does not change, at all. A resource the deployment
@@ -140,6 +141,8 @@ func Redeploy(ctx context.Context, cluster *kubernetes.Cluster, namespace string
 			if apiErr != nil {
 				return apiErr
 			}
+		} else if app.Workload != nil {
+			requestctx.Logger(ctx).Infow("redeploy skipped because application is not running", "app", appName, "status", app.Status)
 		}
 	}
 
