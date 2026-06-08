@@ -51,7 +51,7 @@ We will now have the necessary `GatewayClass` CRD deployed to our cluster.
 
 ## Install Epinio's Gateway API Resources
 
-Simply update your Helm values to leverage Epinio's Gateway API resources, simply:
+Update your Helm values to leverage Epinio's Gateway API resources, simply:
 
 - `Gateway`
 
@@ -77,6 +77,16 @@ global:
   domain: 127.0.0.1.sslip.io
 ```
 
+❗**IMPORTANT**:
+
+We allow the existence of both Ingress & Gateway API resources to facilitate migration efforts in dev/qa.  **However**, we advise that you practice one implementation in production.  If you have enabled your Gateway API resources, disable Ingress resources by setting:
+
+```yaml
+## --set ingress.enabled=false
+ingress:
+  enabled: false
+```
+
 Once these Helm values have been applied to your installation via `helm upgrade --install`, your `Gateway` and `HTTPRoute` resources will be deployed to the cluster, ready to handle incoming traffic.
 
 
@@ -84,10 +94,14 @@ Once these Helm values have been applied to your installation via `helm upgrade 
 
 There are additional configurations to control the behavior for Epinio's usage of Gateway API.
 
+- `gateway.hostnameOverride` & `gateway.dexHostnameOverride`
+    - Configurable values to override the defaults determined by `global.domain`
 - `gateway.gatewayClassName`
     - Determines the Gateway Controller's class that we wish to use.  For this walkthrough, we installed Traefik, thus our class name is `traefik` which happens to be the default.
-- `gateway.tls.terminate`
+- `gateway.tls.enabled`
     - Determines whether or not we secure traffic to Epinio with an HTTPS redirect within Kubernetes at the Gateway.  In order to enable an HTTPS redirect, set to `true`.
+- `gateway.annotations` & `httpRoute.annotations`
+    - Provide any annotations necessary for your custom implementations, such as certificate issuers.
 
 There are more configurations available however these are the most relevant and anticipated for customization.
 
