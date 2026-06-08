@@ -39,8 +39,11 @@ func Sync(c *gin.Context) apierror.APIErrors {
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 
-	// Calculate the mode, might need to add more options in the future.
+	dest := c.Request.FormValue("dest")
 	mode := c.Request.FormValue("mode")
+	binaryName := c.Request.FormValue("binary_name")
+
+	// Calculate the mode, might need to add more options in the future.
 	if mode == "" {
 		mode = "files"
 	}
@@ -80,6 +83,7 @@ func Sync(c *gin.Context) apierror.APIErrors {
 		)
 	}
 
+	//Ensure the pod is ready before trying to exec int it.
 	podName, containerName, apiError := findReadyPod(
 		ctx,
 		cluster,
@@ -90,9 +94,12 @@ func Sync(c *gin.Context) apierror.APIErrors {
 		return apiError
 	}
 
-	dest := c.Request.FormValue("dest")
-	binaryName := c.Request.FormValue("binary_name")
-
+	// Build the command to execute based on the mode. For "files" mode, we
+	// extract the tar directly into the app source directory. For "binary" mode,
+	// we extract to a temp location, move the binary to the sync directory, and
+	// kill the app process to trigger a restart. We also allow file destination
+	// overrides via the "dest" form value for flexibility of app deployment
+	// structures.
 	var cmd []string
 	switch mode {
 	case "files":
@@ -109,15 +116,17 @@ func Sync(c *gin.Context) apierror.APIErrors {
 		if binaryName == "" {
 			binaryName = "app"
 		}
+		// Use positional args ($1, $2) so paths with spaces or special
+		// characters are handled correctly without string interpolation.
+		// kill is intentionally allowed to fail (pid file may not exist yet).
 		cmd = []string{
 			"sh", "-c",
-			fmt.Sprintf(
-				"tar xf - -C /tmp && mv /tmp/%s %s && kill $(cat /epinio-sync/pid) 2>/dev/null || true",
-				binaryName, binaryDest,
-			),
+			`tar xf - -C /tmp && mv /tmp/"$1" "$2" && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
+			"--", binaryName, binaryDest,
 		}
 	}
 
+	// Set up the exec request to stream the tar into the pod.
 	execURL := cluster.Kubectl.CoreV1().RESTClient().
 		Get().
 		Namespace(namespace).
@@ -133,6 +142,8 @@ func Sync(c *gin.Context) apierror.APIErrors {
 			Command:   cmd,
 		}, scheme.ParameterCodec).URL()
 
+	// Actually execute the command in the pod, streaming the tar as stdin and
+	// capturing stdout/stderr for logging and error handling.
 	executor, execError := remotecommand.NewWebSocketExecutor(
 		cluster.RestConfig,
 		"GET",
@@ -142,17 +153,18 @@ func Sync(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(execError, "creating exec executor")
 	}
 
+	// Capture any errors from the exce command
 	var stdoutBuf, stderrBuf bytes.Buffer
-	streamErr := executor.StreamWithContext(ctx, remotecommand.StreamOptions{
+	streamError := executor.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  bytes.NewReader(tarBytes),
 		Stdout: &stdoutBuf,
 		Stderr: &stderrBuf,
 	})
-	if streamErr != nil {
+	if streamError != nil {
 		return apierror.NewAPIError(
 			fmt.Sprintf(
 				"exec failed: %s (stderr: %s)",
-				streamErr.Error(),
+				streamError.Error(),
 				stderrBuf.String(),
 			),
 			http.StatusInternalServerError,

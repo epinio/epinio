@@ -3,12 +3,13 @@ package usercmd
 import (
 	"archive/tar"
 	"context"
-	"crypto/md5" // #nosec G501 -- md5 used for change detection only, not cryptography
+	"crypto/md5" // #nosec G501 -- change detection only, not cryptography
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,23 +30,28 @@ const (
 )
 
 type syncConfig struct {
-	BuildCmd   string `yaml:"build_cmd"`
-	Binary     string `yaml:"binary"`
-	FilesDest  string `yaml:"files_dest"`
+	BuildCmd  string `yaml:"build_cmd"`
+	Binary    string `yaml:"binary"`
+	FilesDest string `yaml:"files_dest"`
 	// BinaryDest overrides /epinio-sync/app in the pod. Note: the supervisor
-	// wrapper injected at startup also checks /epinio-sync/app, so changing this
-	// without a matching change to the startup PATCH will break the binary swap.
+	// wrapper injected at startup also checks /epinio-sync/app, so changing
+	// this without a matching change to the startup PATCH will break the
+	// binary swap.
 	BinaryDest string `yaml:"binary_dest"`
+	// ProcessCmd is the command the supervisor falls back to when no dev
+	// binary is present in /epinio-sync/. Defaults to /cnb/process/web
+	// (Paketo). Set this for non-Paketo buildpacks, e.g. "/app/bin/start".
+	ProcessCmd string `yaml:"process_cmd"`
 }
 
 // fileHashes maps relative file paths to their md5 hex digest.
 type fileHashes map[string]string
 
-// AppWatch watches the source directory at path for changes and syncs them into
-// the running pod. On first run (no state file) it does a full buildpack push
-// to warm the cache and set up the supervisor wrapper. Subsequent runs do
-// incremental file or binary syncs via the /sync endpoint, which requires no
-// kubectl.
+// AppWatch watches the source directory at path for changes and syncs them
+// into the running pod. On first run (no state file) it does a full buildpack
+// push to warm the cache and set up the supervisor wrapper. Subsequent runs
+// do incremental file or binary syncs via the /sync endpoint, which requires
+// no kubectl.
 //
 // namespace overrides c.Settings.Namespace when non-empty.
 func (c *EpinioClient) AppWatch(
@@ -59,24 +65,30 @@ func (c *EpinioClient) AppWatch(
 	}
 	if namespace == "" {
 		return fmt.Errorf(
-			"namespace is required: use --namespace or run 'epinio target <namespace>'",
+			"namespace is required: use --namespace" +
+				" or run 'epinio target <namespace>'",
 		)
 	}
 	appRef := models.NewAppRef(appName, namespace)
 	log := c.Log.WithName("AppWatch")
 
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return errors.Wrap(err, "resolving source path")
+	absPath, resolvePathError := filepath.Abs(path)
+	if resolvePathError != nil {
+		return errors.Wrap(resolvePathError, "resolving source path")
 	}
 
-	cfg, err := loadSyncConfig(absPath)
-	if err != nil {
-		return errors.Wrap(err, "reading .epinio-sync.yaml")
+	cfg, loadConfigError := loadSyncConfig(absPath)
+	if loadConfigError != nil {
+		return errors.Wrap(loadConfigError, "reading .epinio-sync.yaml")
 	}
 
 	stateFile := filepath.Join(absPath, watchStateFile)
-	log.Info("watching", "app", appName, "namespace", namespace, "path", absPath)
+	log.Info(
+		"watching",
+		"app", appName,
+		"namespace", namespace,
+		"path", absPath,
+	)
 
 	for {
 		select {
@@ -110,7 +122,8 @@ func (c *EpinioClient) AppWatch(
 		changed, deleted := diffHashes(state, current)
 		if len(deleted) > 0 {
 			c.ui.Normal().Msg(
-				"Deleted files detected, clearing state for full push on next cycle...",
+				"Deleted files detected, " +
+					"clearing state for full push on next cycle...",
 			)
 
 			rmError := os.Remove(stateFile)
@@ -125,9 +138,11 @@ func (c *EpinioClient) AppWatch(
 			continue
 		}
 
-		c.ui.Normal().Msgf("Detected %d changed file(s), syncing...", len(changed))
+		c.ui.Normal().Msgf(
+			"Detected %d changed file(s), syncing...",
+			len(changed),
+		)
 		syncError := c.watchSync(
-			ctx,
 			appRef,
 			absPath,
 			changed,
@@ -150,37 +165,48 @@ func (c *EpinioClient) watchStartup(
 	log := c.Log.WithName("watchStartup")
 
 	ignorePatterns := []string{watchStateFile, watchConfigFile, ".git", "bin"}
-	tmpDir, archive, err := helpers.Tar(path, ignorePatterns)
-	if err != nil {
-		return errors.Wrap(err, "creating source archive")
+	tmpDir, archive, createArchiveError := helpers.Tar(path, ignorePatterns)
+	if createArchiveError != nil {
+		return errors.Wrap(createArchiveError, "creating source archive")
 	}
 	defer func() {
-		if rmErr := os.RemoveAll(tmpDir); rmErr != nil {
-			log.Error(rmErr, "removing temp dir")
+		rmError := os.RemoveAll(tmpDir)
+		if rmError != nil {
+			log.Error(rmError, "removing temp dir")
 		}
 	}()
 
-	file, err := os.Open(archive)
-	if err != nil {
-		return errors.Wrap(err, "opening source archive")
+	file, openArchiveError := os.Open(archive)
+	if openArchiveError != nil {
+		return errors.Wrap(openArchiveError, "opening source archive")
 	}
-	defer func() { _ = file.Close() }()
+	defer func() {
+		closeError := file.Close()
+		if closeError != nil {
+			log.Error(closeError, "closing source archive")
+		}
+	}()
 
 	c.ui.Normal().Msg("Uploading source...")
 	unixTime := time.Now()
-	stageResp, err := c.API.AppSourcePatch(appRef.Namespace, appRef.Name, file)
-	if err != nil {
-		return errors.Wrap(err, "uploading source patch")
+	stageResp, uploadError := c.API.AppSourcePatch(
+		appRef.Namespace,
+		appRef.Name,
+		file,
+		cfg.ProcessCmd,
+	)
+	if uploadError != nil {
+		return errors.Wrap(uploadError, "uploading source patch")
 	}
 	c.ui.Normal().Msgf(
-		"Uploaded in %dms,  waiting for build...",
+		"Uploaded in %dms, waiting for build...",
 		time.Since(unixTime).Milliseconds(),
 	)
 
 	unixTime = time.Now()
-	err = stagingWait(log, c.API, appRef.Namespace, stageResp.Stage.ID)
-	if err != nil {
-		return errors.Wrap(err, "staging failed")
+	stagingError := stagingWait(log, c.API, appRef.Namespace, stageResp.Stage.ID)
+	if stagingError != nil {
+		return errors.Wrap(stagingError, "staging failed")
 	}
 	c.ui.Normal().Msgf(
 		"Build done in %dms, waiting for pod...",
@@ -188,23 +214,23 @@ func (c *EpinioClient) watchStartup(
 	)
 
 	unixTime = time.Now()
-	if err := c.waitAppRunning(ctx, appRef); err != nil {
-		return errors.Wrap(err, "waiting for app to become ready")
+	waitRunningError := c.waitAppRunning(ctx, appRef)
+	if waitRunningError != nil {
+		return errors.Wrap(waitRunningError, "waiting for app to become ready")
 	}
 	c.ui.Normal().Msgf(
 		"Pod ready in %dms. Watching for changes...",
 		time.Since(unixTime).Milliseconds(),
 	)
 
-	hashes, err := hashDir(path)
-	if err != nil {
-		return errors.Wrap(err, "computing initial file hashes")
+	hashes, hashDirError := hashDir(path)
+	if hashDirError != nil {
+		return errors.Wrap(hashDirError, "computing initial file hashes")
 	}
 	return saveHashes(stateFile, hashes)
 }
 
 func (c *EpinioClient) watchSync(
-	ctx context.Context,
 	appRef models.AppRef,
 	path string,
 	changed []string,
@@ -224,11 +250,15 @@ func (c *EpinioClient) watchSync(
 			dest = cfg.BinaryDest
 		}
 		c.ui.Normal().Msg("Building locally...")
-		t := time.Now()
-		if err := runBuildCmd(cfg.BuildCmd, path); err != nil {
-			return errors.Wrap(err, "local build failed")
+		buildTime := time.Now()
+		runBuildError := runBuildCmd(cfg.BuildCmd, path)
+		if runBuildError != nil {
+			return errors.Wrap(runBuildError, "local build failed")
 		}
-		c.ui.Normal().Msgf("Built in %dms", time.Since(t).Milliseconds())
+		c.ui.Normal().Msgf(
+			"Built in %dms",
+			time.Since(buildTime).Milliseconds(),
+		)
 
 		binaryAbs := cfg.Binary
 		if !filepath.IsAbs(cfg.Binary) {
@@ -244,123 +274,182 @@ func (c *EpinioClient) watchSync(
 		tarPaths = changed
 	}
 
-	tmpFile, err := os.CreateTemp("", "epinio-sync-*.tar")
-	if err != nil {
-		return errors.Wrap(err, "creating temp tar file")
+	tmpFile, createTempError := os.CreateTemp("", "epinio-sync-*.tar")
+	if createTempError != nil {
+		return errors.Wrap(createTempError, "creating temp tar file")
 	}
 	tmpName := tmpFile.Name()
-	_ = tmpFile.Close()
-	defer func() { _ = os.Remove(tmpName) }()
+	closeTempError := tmpFile.Close()
+	if closeTempError != nil {
+		return errors.Wrap(closeTempError, "closing temp tar file")
+	}
+	defer func() {
+		removeTempError := os.Remove(tmpName)
+		if removeTempError != nil && !os.IsNotExist(removeTempError) {
+			c.Log.Error(removeTempError, "removing temp sync tar")
+		}
+	}()
 
-	if err := createSyncTar(tmpName, tarBase, tarPaths); err != nil {
-		return errors.Wrap(err, "creating sync tar")
+	createTarError := createSyncTar(tmpName, tarBase, tarPaths)
+	if createTarError != nil {
+		return errors.Wrap(createTarError, "creating sync tar")
 	}
 
-	f, err := os.Open(tmpName)
-	if err != nil {
-		return errors.Wrap(err, "opening sync tar")
+	syncTarFile, openSyncTarError := os.Open(tmpName)
+	if openSyncTarError != nil {
+		return errors.Wrap(openSyncTarError, "opening sync tar")
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		closeSyncTarError := syncTarFile.Close()
+		if closeSyncTarError != nil {
+			c.Log.Error(closeSyncTarError, "closing sync tar")
+		}
+	}()
 
-	t := time.Now()
-	if _, apiErr := c.API.AppSync(appRef.Namespace, appRef.Name, f, mode, dest, binaryName); apiErr != nil {
-		errStr := apiErr.Error()
-		if strings.Contains(errStr, "no ready pod") || strings.Contains(errStr, "503") {
-			c.ui.Normal().Msg("No ready pod -- clearing state for full push on next cycle...")
-			_ = os.Remove(stateFile)
+	syncTime := time.Now()
+	_, syncError := c.API.AppSync(
+		appRef.Namespace,
+		appRef.Name,
+		syncTarFile,
+		mode,
+		dest,
+		binaryName,
+	)
+	if syncError != nil {
+		syncErrStr := syncError.Error()
+		noReadyPod := strings.Contains(syncErrStr, "no ready pod")
+		serviceUnavailable := strings.Contains(syncErrStr, "503")
+		if noReadyPod || serviceUnavailable {
+			c.ui.Normal().Msg(
+				"No ready pod -- clearing state for full push on next cycle...",
+			)
+			rmStateError := os.Remove(stateFile)
+			if rmStateError != nil && !os.IsNotExist(rmStateError) {
+				return errors.Wrap(rmStateError, "removing state file")
+			}
 			return nil
 		}
-		return errors.Wrap(apiErr, "syncing to pod")
+		return errors.Wrap(syncError, "syncing to pod")
 	}
-	c.ui.Normal().Msgf("Synced in %dms (via API)", time.Since(t).Milliseconds())
+	c.ui.Normal().Msgf(
+		"Synced in %dms (via API)",
+		time.Since(syncTime).Milliseconds(),
+	)
 
 	return saveHashes(stateFile, current)
 }
 
-// waitAppRunning polls the /running endpoint until the app is up or ctx is cancelled.
-func (c *EpinioClient) waitAppRunning(ctx context.Context, appRef models.AppRef) error {
+// waitAppRunning polls the /running endpoint until the app is up or ctx is
+// cancelled.
+func (c *EpinioClient) waitAppRunning(
+	ctx context.Context,
+	appRef models.AppRef,
+) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
-		if _, err := c.API.AppRunning(appRef); err == nil {
+		_, runningError := c.API.AppRunning(appRef)
+		if runningError == nil {
 			return nil
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
 }
 
-// loadSyncConfig reads .epinio-sync.yaml from dir. Missing file is not an error.
+// loadSyncConfig reads .epinio-sync.yaml from dir. Missing file is not an
+// error.
 func loadSyncConfig(dir string) (syncConfig, error) {
 	var cfg syncConfig
-	data, err := os.ReadFile(filepath.Join(dir, watchConfigFile))
-	if os.IsNotExist(err) {
+	data, readFileError := os.ReadFile(filepath.Join(dir, watchConfigFile))
+	if os.IsNotExist(readFileError) {
 		return cfg, nil
 	}
-	if err != nil {
-		return cfg, err
+	if readFileError != nil {
+		return cfg, readFileError
 	}
-	return cfg, yaml.Unmarshal(data, &cfg)
+	unmarshalError := yaml.Unmarshal(data, &cfg)
+	return cfg, unmarshalError
 }
 
 // hashDir md5-hashes every non-excluded file under dir, returning a map of
-// relative path -> hex digest. Exclusions come from .gitignore and .epinioignore
-// (the same files the push command respects), plus the watch-specific state files.
+// relative path to hex digest. Exclusions come from .gitignore and
+// .epinioignore (the same files the push command respects), plus the
+// watch-specific state files.
 func hashDir(dir string) (fileHashes, error) {
 	hashes := make(fileHashes)
 
-	// Seed the matcher with watch-internal files the user shouldn't need to list
-	// themselves, then let LoadIgnoreMatcher layer on .epinioignore patterns.
-	gitignorePatterns, _ := readIgnoreFile(filepath.Join(dir, ".gitignore"))
-	basePatterns := append(gitignorePatterns, watchStateFile, watchConfigFile) //nolint:gocritic
+	gitignorePatterns, readGitignoreError := readIgnoreFile(
+		filepath.Join(dir, ".gitignore"),
+	)
+	if readGitignoreError != nil {
+		return nil, fmt.Errorf("reading .gitignore: %w", readGitignoreError)
+	}
+	basePatterns := append( //nolint:gocritic
+		gitignorePatterns,
+		watchStateFile,
+		watchConfigFile,
+	)
 
-	matcher, err := helpers.LoadIgnoreMatcher(dir, basePatterns)
-	if err != nil {
-		return nil, fmt.Errorf("loading ignore patterns: %w", err)
+	matcher, loadIgnoreError := helpers.LoadIgnoreMatcher(dir, basePatterns)
+	if loadIgnoreError != nil {
+		return nil, fmt.Errorf(
+			"loading ignore patterns: %w",
+			loadIgnoreError,
+		)
 	}
 
-	err = filepath.WalkDir(dir, func(p string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
+	walkError := filepath.WalkDir(dir, func(
+		filePath string,
+		dirEntry fs.DirEntry,
+		entryError error,
+	) error {
+		if entryError != nil {
+			return entryError
 		}
-		// Always skip .git — not a user-visible ignore, just implementation noise.
-		if d.IsDir() && d.Name() == ".git" {
+		// Always skip .git, not a user-visible ignore, just implementation noise.
+		if dirEntry.IsDir() && dirEntry.Name() == ".git" {
 			return filepath.SkipDir
 		}
-		if matcher.ShouldIgnore(dir, p, d.IsDir()) {
-			if d.IsDir() {
+
+		if matcher.ShouldIgnore(dir, filePath, dirEntry.IsDir()) {
+			if dirEntry.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if d.IsDir() {
+
+		if dirEntry.IsDir() {
 			return nil
 		}
-		rel, err := filepath.Rel(dir, p)
-		if err != nil {
-			return err
+
+		rel, getRelError := filepath.Rel(dir, filePath)
+		if getRelError != nil {
+			return getRelError
 		}
-		digest, err := md5File(p)
-		if err != nil {
-			return fmt.Errorf("hashing %s: %w", rel, err)
+
+		digest, hashFileError := md5File(filePath)
+		if hashFileError != nil {
+			return fmt.Errorf("hashing %s: %w", rel, hashFileError)
 		}
+
 		hashes[rel] = digest
 		return nil
 	})
-	return hashes, err
+	return hashes, walkError
 }
 
 // readIgnoreFile reads pattern lines from a gitignore-style file, stripping
 // blank lines and comments. Missing file is silently ignored.
 func readIgnoreFile(path string) ([]string, error) {
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+	data, readFileError := os.ReadFile(path)
+	if os.IsNotExist(readFileError) {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
+	if readFileError != nil {
+		return nil, readFileError
 	}
 	var patterns []string
 	for _, line := range strings.Split(string(data), "\n") {
@@ -374,39 +463,48 @@ func readIgnoreFile(path string) ([]string, error) {
 }
 
 func md5File(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
+	file, openFileError := os.Open(path)
+	if openFileError != nil {
+		return "", openFileError
 	}
-	defer f.Close()
-	h := md5.New() // #nosec G401
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
+	defer func() {
+		closeError := file.Close()
+		if closeError != nil {
+			log.Printf("md5File: failed to close %s: %v", path, closeError)
+		}
+	}()
+	hasher := md5.New() // #nosec G401
+	_, copyError := io.Copy(hasher, file)
+	if copyError != nil {
+		return "", copyError
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func loadHashes(path string) (fileHashes, error) {
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+	data, readFileError := os.ReadFile(path)
+	if os.IsNotExist(readFileError) {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
+	if readFileError != nil {
+		return nil, readFileError
 	}
-	var h fileHashes
-	return h, json.Unmarshal(data, &h)
+	var hashes fileHashes
+	unmarshalError := json.Unmarshal(data, &hashes)
+	return hashes, unmarshalError
 }
 
-func saveHashes(path string, h fileHashes) error {
-	data, err := json.Marshal(h)
-	if err != nil {
-		return err
+func saveHashes(path string, hashes fileHashes) error {
+	data, marshalError := json.Marshal(hashes)
+	if marshalError != nil {
+		return marshalError
 	}
-	return os.WriteFile(path, data, 0600)
+	writeError := os.WriteFile(path, data, 0600)
+	return writeError
 }
 
-// diffHashes returns the relative paths of changed/new files and deleted files.
+// diffHashes returns the relative paths of changed/new files and deleted
+// files.
 func diffHashes(old, current fileHashes) (changed, deleted []string) {
 	for path, digest := range current {
 		if old[path] != digest {
@@ -430,46 +528,71 @@ func runBuildCmd(buildCmd, dir string) error {
 	return cmd.Run()
 }
 
-// createSyncTar creates a plain (non-gzip) tar at destPath containing the listed
-// files read from baseDir. Files are stored with their basenames to match what the
-// server-side exec command expects.
+// createSyncTar creates a plain (non-gzip) tar at destPath containing the
+// listed files read from baseDir. Files are stored with their basenames to
+// match what the server-side exec command expects.
 func createSyncTar(destPath, baseDir string, files []string) error {
-	out, err := os.Create(destPath)
-	if err != nil {
-		return err
+	outputFile, createFileError := os.Create(destPath)
+	if createFileError != nil {
+		return createFileError
 	}
-	defer func() { _ = out.Close() }()
+	defer func() {
+		closeOutputError := outputFile.Close()
+		if closeOutputError != nil {
+			log.Printf(
+				"createSyncTar: failed to close %s: %v",
+				destPath,
+				closeOutputError,
+			)
+		}
+	}()
 
-	tw := tar.NewWriter(out)
-	defer func() { _ = tw.Close() }()
+	tarWriter := tar.NewWriter(outputFile)
+	defer func() {
+		closeTarError := tarWriter.Close()
+		if closeTarError != nil {
+			log.Printf(
+				"createSyncTar: failed to close tar writer: %v",
+				closeTarError,
+			)
+		}
+	}()
 
 	for _, name := range files {
 		srcPath := filepath.Join(baseDir, name)
-		info, err := os.Stat(srcPath)
-		if err != nil {
-			return fmt.Errorf("stat %s: %w", name, err)
+		fileInfo, statFileError := os.Stat(srcPath)
+		if statFileError != nil {
+			return fmt.Errorf("stat %s: %w", name, statFileError)
 		}
 
-		hdr := &tar.Header{
+		header := &tar.Header{
 			Name:    name,
-			Mode:    int64(info.Mode()),
-			Size:    info.Size(),
-			ModTime: info.ModTime(),
+			Mode:    int64(fileInfo.Mode()),
+			Size:    fileInfo.Size(),
+			ModTime: fileInfo.ModTime(),
 		}
-		if err := tw.WriteHeader(hdr); err != nil {
-			return fmt.Errorf("writing tar header for %s: %w", name, err)
+		writeHeaderError := tarWriter.WriteHeader(header)
+		if writeHeaderError != nil {
+			return fmt.Errorf(
+				"writing tar header for %s: %w",
+				name,
+				writeHeaderError,
+			)
 		}
 
-		f, err := os.Open(srcPath)
-		if err != nil {
-			return fmt.Errorf("opening %s: %w", name, err)
+		srcFile, openSrcFileError := os.Open(srcPath)
+		if openSrcFileError != nil {
+			return fmt.Errorf("opening %s: %w", name, openSrcFileError)
 		}
-		_, copyErr := io.Copy(tw, f)
-		_ = f.Close()
-		if copyErr != nil {
-			return fmt.Errorf("writing %s to tar: %w", name, copyErr)
+
+		_, copyError := io.Copy(tarWriter, srcFile)
+		closeSrcFileError := srcFile.Close()
+		if copyError != nil {
+			return fmt.Errorf("writing %s to tar: %w", name, copyError)
+		}
+		if closeSrcFileError != nil {
+			return fmt.Errorf("closing %s: %w", name, closeSrcFileError)
 		}
 	}
 	return nil
 }
-

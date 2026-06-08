@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
+	"mime/multipart"
 	"strings"
 	"time"
 
@@ -21,7 +23,9 @@ import (
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -36,97 +40,246 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 	name := c.Param("app")
 	username := requestctx.User(ctx).Username
 
-	log.Debugw("parsing multipart form")
+	// process_cmd is the command the supervisor falls back to when no dev binary
+	// is present in /epinio-sync/. Defaults to /cnb/process/web for Paketo; set
+	// this for non-Paketo buildpacks (e.g. "/app/bin/start", "bundle exec puma").
+	processCmd := c.Request.FormValue("process_cmd")
 
-	file, _, err := c.Request.FormFile("file")
-	if err != nil {
-		return apierror.
-			NewBadRequestError(err.Error()).
-			WithDetails("can't read multipart file input")
+	file, apiError := parseFile(c)
+	if apiError != nil {
+		return apiError
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			log.Errorw("file failed to close", "error", err)
+		fileCloseError := file.Close()
+		if fileCloseError != nil {
+			log.Errorw("file failed to close", "error", fileCloseError)
 		}
 	}()
 
-	contentType, err := GetFileContentType(file)
-	if err != nil {
-		return apierror.InternalError(err, "can't detect content type of archive")
-	}
-	if !isValidType(contentType) {
-		return apierror.NewBadRequestErrorf("archive type not supported [%s]", contentType)
-	}
-
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err, "failed to get access to a kube client")
-	}
-
-	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
-	if err != nil {
-		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
-	}
-	manager, err := s3manager.New(connectionDetails)
-	if err != nil {
-		return apierror.InternalError(err, "creating an S3 manager")
+	cluster, getClusterError := kubernetes.GetCluster(ctx)
+	if getClusterError != nil {
+		return apierror.InternalError(
+			getClusterError,
+			"failed to get access to a kube client",
+		)
 	}
 
 	appRef := models.NewAppRef(name, namespace)
-	app, err := application.Get(ctx, cluster, appRef)
-	if err != nil {
-		return apierror.InternalError(err, "failed to get the application resource")
+	newBlobUID, app, connectionDetails, apiError := sourceInfo(
+		ctx,
+		cluster,
+		appRef,
+		namespace,
+		name,
+		username,
+		file,
+		log,
+	)
+	if apiError != nil {
+		return apiError
 	}
 
-	currentBlobUID, err := findPreviousBlobUID(app)
+	stageResponse, params, apiError := buildAndPatch(
+		ctx,
+		cluster,
+		appRef,
+		newBlobUID,
+		app,
+		connectionDetails,
+		username,
+	)
+	if apiError != nil {
+		return apiError
+	}
+
+	// We can't use the request ctx here, it is cancelled when this handler
+	// returns.
+	go asyncDeploy(
+		cluster,
+		appRef,
+		&stageResponse,
+		params,
+		processCmd,
+		name,
+		namespace,
+		log,
+	)
+
+	response.OKReturn(c, stageResponse)
+	return nil
+}
+
+func parseFile(c *gin.Context) (multipart.File, apierror.APIErrors) {
+	file, _, err := c.Request.FormFile("file")
 	if err != nil {
-		return apierror.InternalError(err, "failed to find existing blob UID")
+		return nil, apierror.
+			NewBadRequestError(err.Error()).
+			WithDetails("can't read multipart file input")
+	}
+	contentType, err := GetFileContentType(file)
+	if err != nil {
+		_ = file.Close()
+		return nil, apierror.InternalError(
+			err,
+			"can't detect content type of archive",
+		)
+	}
+	if !isValidType(contentType) {
+		_ = file.Close()
+		return nil, apierror.NewBadRequestErrorf(
+			"archive type not supported [%s]",
+			contentType,
+		)
+	}
+	return file, nil
+}
+
+func sourceInfo(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+	namespace, name, username string,
+	file io.Reader,
+	log *zap.SugaredLogger,
+) (
+	string,
+	*unstructured.Unstructured,
+	s3manager.ConnectionDetails,
+	apierror.APIErrors,
+) {
+
+	connectionDetails, getConnectionDetailsError := s3manager.GetConnectionDetails(
+		ctx,
+		cluster,
+		helmchart.Namespace(),
+		helmchart.S3ConnectionDetailsSecretName,
+	)
+	if getConnectionDetailsError != nil {
+		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
+			getConnectionDetailsError,
+			"fetching the S3 connection details from the Kubernetes secret",
+		)
+	}
+	manager, createManagerError := s3manager.New(connectionDetails)
+	if createManagerError != nil {
+		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
+			createManagerError,
+			"creating an S3 manager",
+		)
+	}
+
+	app, getAppError := application.Get(ctx, cluster, appRef)
+	if getAppError != nil {
+		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
+			getAppError,
+			"failed to get the application resource",
+		)
+	}
+
+	currentBlobUID, findBlobError := findPreviousBlobUID(app)
+	if findBlobError != nil {
+		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
+			findBlobError,
+			"failed to find existing blob UID",
+		)
 	}
 	if currentBlobUID == "" {
-		return apierror.NewBadRequestError("no existing source blob found -- push the app at least once before using watch")
+		return "", nil, s3manager.ConnectionDetails{}, apierror.NewBadRequestError(
+			"no existing source blob found,  push the app at least once before using watch",
+		)
 	}
 
-	existingBlob, err := manager.Download(ctx, currentBlobUID)
-	if err != nil {
-		return apierror.InternalError(err, "downloading existing source blob")
-	}
-	defer existingBlob.Close()
-
-	patchedBlob, err := applySourcePatch(existingBlob, file)
-	if err != nil {
-		return apierror.InternalError(err, "applying the source patch")
+	existingBlob, downloadBlobError := manager.Download(ctx, currentBlobUID)
+	if downloadBlobError != nil {
+		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
+			downloadBlobError,
+			"downloading existing source blob",
+		)
 	}
 
-	newBlobUID, err := manager.UploadStream(ctx, patchedBlob, -1, map[string]string{
-		"app": name, "namespace": namespace, "username": username,
-	})
-	if err != nil {
-		return apierror.InternalError(err, "uploading the patched application sources blob")
+	defer func() {
+		closeError := existingBlob.Close()
+		if closeError != nil {
+			log.Errorw("failed to close existing blob reader", "error", closeError)
+		}
+	}()
+
+	patchedBlob, applyPatchError := applySourcePatch(existingBlob, file)
+	if applyPatchError != nil {
+		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
+			applyPatchError,
+			"applying the source patch",
+		)
 	}
 
-	log.Infow("uploaded patched source", "namespace", namespace, "app", name, "blobUID", newBlobUID)
+	newBlobUID, uploadBlobError := manager.UploadStream(
+		ctx,
+		patchedBlob,
+		-1,
+		map[string]string{
+			"app": name, "namespace": namespace, "username": username,
+		},
+	)
+	if uploadBlobError != nil {
+		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
+			uploadBlobError,
+			"uploading the patched application sources blob",
+		)
+	}
 
+	log.Infow(
+		"uploaded patched source",
+		"namespace",
+		namespace,
+		"app",
+		name,
+		"blobUID",
+		newBlobUID,
+	)
+	return newBlobUID, app, connectionDetails, nil
+}
+
+func buildAndPatch(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+	newBlobUID string,
+	app *unstructured.Unstructured,
+	connectionDetails s3manager.ConnectionDetails,
+	username string,
+) (models.StageResponse, stageParam, apierror.APIErrors) {
 	req := models.StageRequest{
 		App:     appRef,
 		BlobUID: newBlobUID,
 	}
 
-	builderImage, builderErr := getBuilderImage(req, app)
-	if builderErr != nil {
-		return builderErr
+	builderImage, builderError := getBuilderImage(req, app)
+	if builderError != nil {
+		return models.StageResponse{}, stageParam{}, builderError
 	}
 	if builderImage == "" {
 		builderImage = viper.GetString("default-builder-image")
 	}
 
-	config, err := DetermineStagingScripts(ctx, cluster, helmchart.Namespace(), builderImage)
-	if err != nil {
-		return apierror.InternalError(err, "failed to retrieve staging configuration")
+	config, determineStagingError := DetermineStagingScripts(
+		ctx,
+		cluster,
+		helmchart.Namespace(),
+		builderImage,
+	)
+	if determineStagingError != nil {
+		return models.StageResponse{}, stageParam{}, apierror.InternalError(
+			determineStagingError,
+			"failed to retrieve staging configuration",
+		)
 	}
 
-	environment, err := application.Environment(ctx, cluster, appRef)
-	if err != nil {
-		return apierror.InternalError(err, "failed to access application runtime environment")
+	environment, getEnvironmentError := application.Environment(ctx, cluster, appRef)
+	if getEnvironmentError != nil {
+		return models.StageResponse{}, stageParam{}, apierror.InternalError(
+			getEnvironmentError,
+			"failed to access application runtime environment",
+		)
 	}
 
 	for envName, value := range config.Env {
@@ -143,27 +296,42 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 		UID:        app.GetUID(),
 	}
 
-	previousID, err := application.StageID(app)
-	if err != nil {
-		return apierror.InternalError(err, "failed to determine application stage id")
+	previousID, getStageIDError := application.StageID(app)
+	if getStageIDError != nil {
+		return models.StageResponse{}, stageParam{}, apierror.InternalError(
+			getStageIDError,
+			"failed to determine application stage id",
+		)
 	}
 
-	uid, err := randstr.Hex16()
-	if err != nil {
-		return apierror.InternalError(err, "failed to generate a uid")
+	uid, generateUIDError := randstr.Hex16()
+	if generateUIDError != nil {
+		return models.StageResponse{}, stageParam{}, apierror.InternalError(
+			generateUIDError,
+			"failed to generate a uid",
+		)
 	}
 	if previousID == "" {
 		previousID = uid
 	}
 
-	registryPublicURL, err := getRegistryURL(ctx, cluster)
-	if err != nil {
-		return apierror.InternalError(err, "getting the Epinio registry public URL")
+	registryPublicURL, getRegistryURLError := getRegistryURL(ctx, cluster)
+	if getRegistryURLError != nil {
+		return models.StageResponse{}, stageParam{}, apierror.InternalError(
+			getRegistryURLError,
+			"getting the Epinio registry public URL",
+		)
 	}
 
-	registryCertificateSecret, registryCACertKey, registryCertificateHash, err := resolveRegistryCertHash(ctx, cluster)
-	if err != nil {
-		return apierror.InternalError(err, "cannot calculate Certificate hash")
+	registryCertificateSecret,
+		registryCACertKey,
+		registryCertificateHash,
+		getCertHashError := resolveRegistryCertHash(ctx, cluster)
+	if getCertHashError != nil {
+		return models.StageResponse{}, stageParam{}, apierror.InternalError(
+			getCertHashError,
+			"cannot calculate Certificate hash",
+		)
 	}
 
 	params := stageParam{
@@ -190,90 +358,145 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 
 	stageResponse, stageErr := executeStage(ctx, cluster, app, req, params)
 	if stageErr != nil {
-		return stageErr
+		return models.StageResponse{}, stageParam{}, stageErr
 	}
 
-	// Deploy asynchronously after staging completes.
-	// We can't use the request ctx here -- it is cancelled when this handler returns.
-	go func() {
-		bgCtx := context.Background()
-		bgLog := log.With("stageID", params.Stage.ID, "app", name, "namespace", namespace)
-		totalStart := time.Now()
-
-		t := time.Now()
-		jobs, jobsErr := stageJobs(bgCtx, cluster, namespace, params.Stage.ID)
-		if jobsErr != nil {
-			bgLog.Errorw("failed to list staging jobs", "error", jobsErr)
-			return
-		}
-		bgLog.Infow("step:stageJobs", "ms", time.Since(t).Milliseconds())
-
-		t = time.Now()
-		success, err := waitForStagingCompletion(bgCtx, cluster, jobs)
-		if err != nil {
-			bgLog.Errorw("error waiting for staging completion", "error", err)
-			return
-		}
-		if !success {
-			bgLog.Errorw("staging failed", "stageID", params.Stage.ID)
-			return
-		}
-		bgLog.Infow("step:staging", "ms", time.Since(t).Milliseconds())
-
-		t = time.Now()
-		freshApp, err := application.Get(bgCtx, cluster, appRef)
-		if err != nil {
-			bgLog.Errorw("failed to re-fetch app CR for deploy", "error", err)
-			return
-		}
-		bgLog.Infow("step:fetchApp", "ms", time.Since(t).Milliseconds())
-
-		t = time.Now()
-		if err := deploy.UpdateImageURL(bgCtx, cluster, freshApp, stageResponse.ImageURL); err != nil {
-			bgLog.Errorw("failed to update image URL", "error", err)
-			return
-		}
-		bgLog.Infow("step:updateImageURL", "ms", time.Since(t).Milliseconds())
-
-		// Transform public registry URL (cluster-internal DNS) to the NodePort URL
-		// that the kubelet can resolve when pulling the image.
-		registryDetails, rdErr := registry.GetConnectionDetails(bgCtx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
-		if rdErr != nil {
-			bgLog.Errorw("failed to get registry connection details", "error", rdErr)
-			return
-		}
-		deployImageURL, rdErr := registryDetails.ReplaceWithInternalRegistry(stageResponse.ImageURL)
-		if rdErr != nil {
-			bgLog.Errorw("failed to replace registry URL", "error", rdErr)
-			return
-		}
-
-		t = time.Now()
-		if err := swapPodImage(bgCtx, cluster, appRef, deployImageURL, params.UserID, params.GroupID); err != nil {
-			bgLog.Errorw("pod image swap failed", "error", err)
-			return
-		}
-		bgLog.Infow("step:swapPodImage", "ms", time.Since(t).Milliseconds())
-
-		bgLog.Infow("watch-deploy complete", "image", stageResponse.ImageURL, "total_ms", time.Since(totalStart).Milliseconds())
-	}()
-
-	response.OKReturn(c, stageResponse)
-	return nil
+	return stageResponse, params, nil
 }
 
-// swapPodImage bypasses Helm: patches the deployment image and securityContext directly
-// then deletes the running pod so k8s immediately recreates it. The securityContext is set
-// to the build UID/GID so that subsequent file syncs (kubectl exec tar) can write to
-// /workspace/source/app, which is owned by the build user.
-func swapPodImage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, imageURL string, userID, groupID int64) error {
+func asyncDeploy(
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+	stageResponse *models.StageResponse,
+	params stageParam,
+	processCmd, name, namespace string,
+	log *zap.SugaredLogger,
+) {
+	bgCtx := context.Background()
+	bgLog := log.With(
+		"stageID",
+		params.Stage.ID,
+		"app",
+		name,
+		"namespace",
+		namespace,
+	)
+	totalStart := time.Now()
+
+	t := time.Now()
+	jobs, jobsError := stageJobs(bgCtx, cluster, namespace, params.Stage.ID)
+	if jobsError != nil {
+		bgLog.Errorw("failed to list staging jobs", "error", jobsError)
+		return
+	}
+	bgLog.Infow("step:stageJobs", "ms", time.Since(t).Milliseconds())
+
+	t = time.Now()
+	success, waitStagingError := waitForStagingCompletion(bgCtx, cluster, jobs)
+	if waitStagingError != nil {
+		bgLog.Errorw(
+			"error waiting for staging completion",
+			"error",
+			waitStagingError,
+		)
+		return
+	}
+	if !success {
+		bgLog.Errorw("staging failed", "stageID", params.Stage.ID)
+		return
+	}
+	bgLog.Infow("step:staging", "ms", time.Since(t).Milliseconds())
+
+	t = time.Now()
+	freshApp, getAppError := application.Get(bgCtx, cluster, appRef)
+	if getAppError != nil {
+		bgLog.Errorw("failed to re-fetch app CR for deploy", "error", getAppError)
+		return
+	}
+	bgLog.Infow("step:fetchApp", "ms", time.Since(t).Milliseconds())
+
+	t = time.Now()
+	updateImageError := deploy.UpdateImageURL(
+		bgCtx,
+		cluster,
+		freshApp,
+		stageResponse.ImageURL,
+	)
+	if updateImageError != nil {
+		bgLog.Errorw("failed to update image URL", "error", updateImageError)
+		return
+	}
+	bgLog.Infow("step:updateImageURL", "ms", time.Since(t).Milliseconds())
+
+	// Transform public registry URL (cluster-internal DNS) to the NodePort URL
+	// that the kubelet can resolve when pulling the image.
+	registryDetails, rdError := registry.GetConnectionDetails(
+		bgCtx,
+		cluster,
+		helmchart.Namespace(),
+		registry.CredentialsSecretName,
+	)
+	if rdError != nil {
+		bgLog.Errorw("failed to get registry connection details", "error", rdError)
+		return
+	}
+	deployImageURL, rdError := registryDetails.ReplaceWithInternalRegistry(
+		stageResponse.ImageURL,
+	)
+	if rdError != nil {
+		bgLog.Errorw("failed to replace registry URL", "error", rdError)
+		return
+	}
+
+	t = time.Now()
+	swapImageError := swapPodImage(
+		bgCtx,
+		cluster,
+		appRef,
+		deployImageURL,
+		params.UserID,
+		params.GroupID,
+		processCmd,
+	)
+	if swapImageError != nil {
+		bgLog.Errorw("pod image swap failed", "error", swapImageError)
+		return
+	}
+	bgLog.Infow("step:swapPodImage", "ms", time.Since(t).Milliseconds())
+
+	bgLog.Infow(
+		"watch-deploy complete",
+		"image",
+		stageResponse.ImageURL,
+		"total_ms",
+		time.Since(totalStart).Milliseconds(),
+	)
+}
+
+// swapPodImage bypasses Helm: patches the deployment image and securityContext
+// directly then deletes the running pod so k8s immediately recreates it.
+// The securityContext is set to the build UID/GID so that subsequent file
+// syncs (kubectl exec tar) can write to /workspace/source/app, which is owned
+// by the build user.
+func swapPodImage(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+	imageURL string,
+	userID,
+	groupID int64,
+	processCmd string,
+) error {
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name)
 
-	// Patch the deployment image
-	deployments, err := cluster.Kubectl.AppsV1().Deployments(appRef.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
-	if err != nil || len(deployments.Items) == 0 {
+	deployments, getDeploymentsError := cluster.
+		Kubectl.
+		AppsV1().
+		Deployments(appRef.Namespace).
+		List(ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+	if getDeploymentsError != nil || len(deployments.Items) == 0 {
 		return fmt.Errorf("deployment not found for app %s", appRef.Name)
 	}
 	d := deployments.Items[0]
@@ -282,15 +505,20 @@ func swapPodImage(ctx context.Context, cluster *kubernetes.Cluster, appRef model
 	}
 	containerName := d.Spec.Template.Spec.Containers[0].Name
 
-	// The wrapper command checks for a dev binary in the epinio-sync emptyDir volume first,
-	// falling back to the normal Paketo launcher. This enables binary swap for compiled
-	// languages without requiring changes after the dev session ends -- any pod restart
-	// with an empty emptyDir will transparently use the original image binary.
-	// Supervisor loop always runs as PID 1 so k8s never sees a container restart.
-	// Each iteration picks /epinio-sync/app if present, else falls back to /cnb/process/web.
-	// The child PID is written to /epinio-sync/pid on every iteration so the sync script
-	// can kill just the child to trigger a hot reload without restarting the container.
-	const wrapperCmd = `while true; do if [ -f /epinio-sync/app ]; then /epinio-sync/app & else /cnb/process/web & fi; echo $! > /epinio-sync/pid; wait; sleep 0.1; done`
+	// Supervisor loop runs as PID 1 so k8s never counts a container restart.
+	// Each iteration checks for a dev binary in /epinio-sync/app first, then
+	// falls back to processCmd (the app's normal entrypoint). The child PID is
+	// written to /epinio-sync/pid so the sync handler can reload without
+	// restarting the container.
+	// processCmd defaults to /cnb/process/web for Paketo buildpacks; set it to
+	// the app's actual entrypoint for non-Paketo images.
+	if processCmd == "" {
+		processCmd = "/cnb/process/web"
+	}
+	wrapperCmd := fmt.Sprintf(
+		`while true; do if [ -f /epinio-sync/app ]; then /epinio-sync/app & else %s & fi; echo $! > /epinio-sync/pid; wait; sleep 0.1; done`,
+		processCmd,
+	)
 	patch := []byte(fmt.Sprintf(
 		`{"spec":{"template":{"spec":{`+
 			`"securityContext":{"runAsUser":%d,"runAsGroup":%d},`+
@@ -301,18 +529,31 @@ func swapPodImage(ctx context.Context, cluster *kubernetes.Cluster, appRef model
 			`}}}}`,
 		userID, groupID, containerName, imageURL, wrapperCmd,
 	))
-	if _, err := cluster.Kubectl.AppsV1().Deployments(appRef.Namespace).Patch(
-		ctx, d.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{},
-	); err != nil {
-		return fmt.Errorf("patching deployment image: %w", err)
+	_, patchError := cluster.
+		Kubectl.
+		AppsV1().
+		Deployments(appRef.Namespace).
+		Patch(
+			ctx,
+			d.Name,
+			types.StrategicMergePatchType,
+			patch,
+			metav1.PatchOptions{},
+		)
+
+	if patchError != nil {
+		return fmt.Errorf("patching deployment image: %w", patchError)
 	}
 
 	// Delete the running pod -- k8s recreates it immediately with the new image
-	pods, err := cluster.Kubectl.CoreV1().Pods(appRef.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: labelSelector,
-		FieldSelector: "status.phase=Running",
-	})
-	if err != nil || len(pods.Items) == 0 {
+	pods, getPodsError := cluster.Kubectl.CoreV1().Pods(appRef.Namespace).List(
+		ctx,
+		metav1.ListOptions{
+			LabelSelector: labelSelector,
+			FieldSelector: "status.phase=Running",
+		},
+	)
+	if getPodsError != nil || len(pods.Items) == 0 {
 		return nil // no running pod, deployment patch is enough
 	}
 	return cluster.Kubectl.CoreV1().Pods(appRef.Namespace).Delete(
@@ -321,15 +562,22 @@ func swapPodImage(ctx context.Context, cluster *kubernetes.Cluster, appRef model
 }
 
 func extractTar(archive io.Reader) (map[string][]byte, error) {
-	data, err := io.ReadAll(archive)
-	if err != nil {
-		return nil, err
+	data, readAllError := io.ReadAll(archive)
+	if readAllError != nil {
+		return nil, readAllError
 	}
 
-	// Detect gzip vs plain tar -- epinio push stores plain tar, but client patches may be gzip
+	// Detect gzip vs plain tar, epinio push stores plain tar, but client patches
+	// may be gzip.extractTar
 	var tarReader *tar.Reader
-	if gz, gzErr := gzip.NewReader(bytes.NewReader(data)); gzErr == nil {
-		defer gz.Close()
+	gz, gzError := gzip.NewReader(bytes.NewReader(data))
+	if gzError == nil {
+		defer func() {
+			closeError := gz.Close()
+			if closeError != nil {
+				log.Printf("error closing gzip reader: %v", closeError)
+			}
+		}()
 		tarReader = tar.NewReader(gz)
 	} else {
 		tarReader = tar.NewReader(bytes.NewReader(data))
@@ -371,11 +619,21 @@ func createTar(files map[string][]byte) (io.Reader, error) {
 			Typeflag: tar.TypeReg,
 		}
 
-		_ = tarWriter.WriteHeader(header)
-		_, _ = tarWriter.Write(content)
+		headerWriteError := tarWriter.WriteHeader(header)
+		if headerWriteError != nil {
+			return nil, headerWriteError
+		}
+
+		_, writeError := tarWriter.Write(content)
+		if writeError != nil {
+			return nil, writeError
+		}
 	}
 
-	_ = tarWriter.Close()
+	closeError := tarWriter.Close()
+	if closeError != nil {
+		return nil, closeError
+	}
 
 	return bytes.NewReader(buffer.Bytes()), nil
 }
