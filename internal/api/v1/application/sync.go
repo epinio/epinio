@@ -112,7 +112,7 @@ func Sync(c *gin.Context) apierror.APIErrors {
 		// file may not exist yet).
 		cmd = []string{
 			"sh", "-c",
-			`tar xf - -C "$1" --overwrite && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
+			`chmod -R u+w "$1" && tar xf - -C "$1" --overwrite && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
 			"--", filesDest,
 		}
 	case "binary":
