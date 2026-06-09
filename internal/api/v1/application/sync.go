@@ -107,7 +107,14 @@ func Sync(c *gin.Context) apierror.APIErrors {
 		if dest != "" {
 			filesDest = dest
 		}
-		cmd = []string{"tar", "xf", "-", "-C", filesDest, "--overwrite"}
+		// Use a positional arg ($1) so paths with spaces or special characters
+		// are handled correctly. kill is intentionally allowed to fail (pid
+		// file may not exist yet).
+		cmd = []string{
+			"sh", "-c",
+			`tar xf - -C "$1" --overwrite && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
+			"--", filesDest,
+		}
 	case "binary":
 		binaryDest := "/epinio-sync/app"
 		if dest != "" {
