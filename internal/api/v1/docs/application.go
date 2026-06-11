@@ -383,6 +383,43 @@ type AppStageResponse struct {
 	Body models.StageResponse
 }
 
+// swagger:route PATCH /namespaces/{Namespace}/applications/{App}/source application AppSourcePatch
+// Replace the source of the named `App` in the `Namespace` and restage it.
+// The multipart body carries the source archive and an optional `process_cmd`
+// form field (supervisor fallback command for non-Paketo buildpacks).
+// responses:
+//   200: AppStageResponse
+
+// swagger:parameters AppSourcePatch
+type AppSourcePatchParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/sync application AppSync
+// Sync changed files or a compiled binary into the running pod of the named
+// `App` in the `Namespace`. The multipart body carries the tar archive plus
+// `mode` ("files" or "binary"), and optional `dest` and `binary_name` form
+// fields.
+// responses:
+//   200: AppSyncResponse
+
+// swagger:parameters AppSync
+type AppSyncParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:response AppSyncResponse
+type AppSyncResponse struct {
+	// in: body
+	Body models.Response
+}
+
 // swagger:route POST /namespaces/{Namespace}/applications/{App}/deploy application AppDeploy
 // Create the deployment, configuration and ingress resources for the named `App` in the `Namespace`.
 // responses:
