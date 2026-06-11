@@ -332,27 +332,46 @@ func executeStage(
 ) (models.StageResponse, apierror.APIErrors) {
 	log := requestctx.Logger(ctx)
 
-	if pvcErr := ensureStagingPVCs(ctx, cluster, req, params.HelmValues); pvcErr != nil {
-		return models.StageResponse{}, pvcErr
+	pvcError := ensureStagingPVCs(ctx, cluster, req, params.HelmValues)
+	if pvcError != nil {
+		return models.StageResponse{}, pvcError
 	}
 
 	job, jobenv := newJobRun(params)
 
 	// Note: The secret is deleted with the job in function `Unstage()`.
-	if err := cluster.CreateSecret(ctx, helmchart.Namespace(), *jobenv); err != nil {
-		return models.StageResponse{}, apierror.InternalError(err, fmt.Sprintf("failed to create job env: %#v", jobenv))
+	createSecretError := cluster.CreateSecret(ctx, helmchart.Namespace(), *jobenv)
+	if createSecretError != nil {
+		return models.StageResponse{}, apierror.InternalError(
+			createSecretError,
+			fmt.Sprintf("failed to create job env: %#v", jobenv),
+		)
 	}
 
-	if err := cluster.CreateJob(ctx, helmchart.Namespace(), job); err != nil {
-		return models.StageResponse{}, apierror.InternalError(err, fmt.Sprintf("failed to create job run: %#v", job))
+	createJobError := cluster.CreateJob(ctx, helmchart.Namespace(), job)
+	if createJobError != nil {
+		return models.StageResponse{}, apierror.InternalError(
+			createJobError,
+			fmt.Sprintf("failed to create job run: %#v", job),
+		)
 	}
 
-	if err := updateApp(ctx, cluster, app, params); err != nil {
-		return models.StageResponse{}, apierror.InternalError(err, "updating application CR with staging information")
+	updateAppError := updateApp(ctx, cluster, app, params)
+	if updateAppError != nil {
+		return models.StageResponse{}, apierror.InternalError(
+			updateAppError,
+			"updating application CR with staging information",
+		)
 	}
 
 	imageURL := params.ImageURL(params.RegistryURL)
-	log.Infow("staged app", "namespace", helmchart.Namespace(), "app", params.AppRef, "uid", params.Stage.ID, "image", imageURL)
+	log.Infow(
+		"staged app",
+		"namespace", helmchart.Namespace(),
+		"app", params.AppRef,
+		"uid", params.Stage.ID,
+		"image", imageURL,
+	)
 
 	return models.StageResponse{
 		Stage:    params.Stage,

@@ -94,44 +94,7 @@ func Sync(c *gin.Context) apierror.APIErrors {
 		return apiError
 	}
 
-	// Build the command to execute based on the mode. For "files" mode, we
-	// extract the tar directly into the app source directory. For "binary" mode,
-	// we extract to a temp location, move the binary to the sync directory, and
-	// kill the app process to trigger a restart. We also allow file destination
-	// overrides via the "dest" form value for flexibility of app deployment
-	// structures.
-	var cmd []string
-	switch mode {
-	case "files":
-		filesDest := "/workspace/source/app"
-		if dest != "" {
-			filesDest = dest
-		}
-		// Use a positional arg ($1) so paths with spaces or special characters
-		// are handled correctly. kill is intentionally allowed to fail (pid
-		// file may not exist yet).
-		cmd = []string{
-			"sh", "-c",
-			`chmod -R u+w "$1" && tar xf - -C "$1" --overwrite && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
-			"--", filesDest,
-		}
-	case "binary":
-		binaryDest := "/epinio-sync/app"
-		if dest != "" {
-			binaryDest = dest
-		}
-		if binaryName == "" {
-			binaryName = "app"
-		}
-		// Use positional args ($1, $2) so paths with spaces or special
-		// characters are handled correctly without string interpolation.
-		// kill is intentionally allowed to fail (pid file may not exist yet).
-		cmd = []string{
-			"sh", "-c",
-			`tar xf - -C /tmp && mv /tmp/"$1" "$2" && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
-			"--", binaryName, binaryDest,
-		}
-	}
+	cmd := buildSyncCommand(mode, dest, binaryName)
 
 	// Set up the exec request to stream the tar into the pod.
 	execURL := cluster.Kubectl.CoreV1().RESTClient().
@@ -186,6 +149,45 @@ func Sync(c *gin.Context) apierror.APIErrors {
 	)
 
 	response.OK(c)
+	return nil
+}
+
+// buildSyncCommand returns the in-pod command for the given sync mode. For
+// "files" mode the tar is extracted directly into the app source directory.
+// For "binary" mode the tar is extracted to a temp location and the binary is
+// moved to the sync directory. Both modes kill the app process afterwards so
+// the supervisor restarts it with the new content. The "dest" value overrides
+// the default destination for flexibility of app deployment structures.
+//
+// Positional args ($1, $2) are used so paths with spaces or special
+// characters are handled correctly without string interpolation. kill is
+// intentionally allowed to fail (pid file may not exist yet).
+func buildSyncCommand(mode, dest, binaryName string) []string {
+	switch mode {
+	case "files":
+		filesDest := "/workspace/source/app"
+		if dest != "" {
+			filesDest = dest
+		}
+		return []string{
+			"sh", "-c",
+			`chmod -R u+w "$1" && tar xf - -C "$1" --overwrite && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
+			"--", filesDest,
+		}
+	case "binary":
+		binaryDest := "/epinio-sync/app"
+		if dest != "" {
+			binaryDest = dest
+		}
+		if binaryName == "" {
+			binaryName = "app"
+		}
+		return []string{
+			"sh", "-c",
+			`tar xf - -C /tmp && mv /tmp/"$1" "$2" && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
+			"--", binaryName, binaryDest,
+		}
+	}
 	return nil
 }
 

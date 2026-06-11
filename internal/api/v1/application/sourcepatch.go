@@ -110,17 +110,17 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 }
 
 func parseFile(c *gin.Context) (multipart.File, apierror.APIErrors) {
-	file, _, err := c.Request.FormFile("file")
-	if err != nil {
+	file, _, formFileError := c.Request.FormFile("file")
+	if formFileError != nil {
 		return nil, apierror.
-			NewBadRequestError(err.Error()).
+			NewBadRequestError(formFileError.Error()).
 			WithDetails("can't read multipart file input")
 	}
-	contentType, err := GetFileContentType(file)
-	if err != nil {
+	contentType, contentTypeError := GetFileContentType(file)
+	if contentTypeError != nil {
 		_ = file.Close()
 		return nil, apierror.InternalError(
-			err,
+			contentTypeError,
 			"can't detect content type of archive",
 		)
 	}
@@ -496,7 +496,14 @@ func swapPodImage(
 		List(ctx, metav1.ListOptions{
 			LabelSelector: labelSelector,
 		})
-	if getDeploymentsError != nil || len(deployments.Items) == 0 {
+	if getDeploymentsError != nil {
+		return fmt.Errorf(
+			"listing deployments for app %s: %w",
+			appRef.Name,
+			getDeploymentsError,
+		)
+	}
+	if len(deployments.Items) == 0 {
 		return fmt.Errorf("deployment not found for app %s", appRef.Name)
 	}
 	d := deployments.Items[0]
@@ -553,8 +560,15 @@ func swapPodImage(
 			FieldSelector: "status.phase=Running",
 		},
 	)
-	if getPodsError != nil || len(pods.Items) == 0 {
-		return nil // no running pod, deployment patch is enough
+	if getPodsError != nil {
+		return fmt.Errorf(
+			"listing pods for app %s: %w",
+			appRef.Name,
+			getPodsError,
+		)
+	}
+	if len(pods.Items) == 0 {
+		return nil // no running pod; deployment patch is enough
 	}
 	return cluster.Kubectl.CoreV1().Pods(appRef.Namespace).Delete(
 		ctx, pods.Items[0].Name, metav1.DeleteOptions{},
