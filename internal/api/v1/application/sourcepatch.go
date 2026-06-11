@@ -111,11 +111,13 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 
 func parseFile(c *gin.Context) (multipart.File, apierror.APIErrors) {
 	file, _, formFileError := c.Request.FormFile("file")
+
 	if formFileError != nil {
 		return nil, apierror.
 			NewBadRequestError(formFileError.Error()).
 			WithDetails("can't read multipart file input")
 	}
+
 	contentType, contentTypeError := GetFileContentType(file)
 	if contentTypeError != nil {
 		_ = file.Close()
@@ -124,6 +126,7 @@ func parseFile(c *gin.Context) (multipart.File, apierror.APIErrors) {
 			"can't detect content type of archive",
 		)
 	}
+
 	if !isValidType(contentType) {
 		_ = file.Close()
 		return nil, apierror.NewBadRequestErrorf(
@@ -131,6 +134,7 @@ func parseFile(c *gin.Context) (multipart.File, apierror.APIErrors) {
 			contentType,
 		)
 	}
+
 	return file, nil
 }
 
@@ -147,19 +151,20 @@ func sourceInfo(
 	s3manager.ConnectionDetails,
 	apierror.APIErrors,
 ) {
-
 	connectionDetails, getConnectionDetailsError := s3manager.GetConnectionDetails(
 		ctx,
 		cluster,
 		helmchart.Namespace(),
 		helmchart.S3ConnectionDetailsSecretName,
 	)
+
 	if getConnectionDetailsError != nil {
 		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
 			getConnectionDetailsError,
 			"fetching the S3 connection details from the Kubernetes secret",
 		)
 	}
+
 	manager, createManagerError := s3manager.New(connectionDetails)
 	if createManagerError != nil {
 		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
@@ -196,7 +201,6 @@ func sourceInfo(
 			"downloading existing source blob",
 		)
 	}
-
 	defer func() {
 		closeError := existingBlob.Close()
 		if closeError != nil {
@@ -236,6 +240,7 @@ func sourceInfo(
 		"blobUID",
 		newBlobUID,
 	)
+
 	return newBlobUID, app, connectionDetails, nil
 }
 
@@ -440,6 +445,7 @@ func asyncDeploy(
 		bgLog.Errorw("failed to get registry connection details", "error", rdError)
 		return
 	}
+
 	deployImageURL, rdError := registryDetails.ReplaceWithInternalRegistry(
 		stageResponse.ImageURL,
 	)
@@ -536,6 +542,7 @@ func swapPodImage(
 			`}}}}`,
 		userID, groupID, containerName, imageURL, wrapperCmd,
 	))
+
 	_, patchError := cluster.
 		Kubectl.
 		AppsV1().
@@ -547,7 +554,6 @@ func swapPodImage(
 			patch,
 			metav1.PatchOptions{},
 		)
-
 	if patchError != nil {
 		return fmt.Errorf("patching deployment image: %w", patchError)
 	}
@@ -570,8 +576,11 @@ func swapPodImage(
 	if len(pods.Items) == 0 {
 		return nil // no running pod; deployment patch is enough
 	}
+
 	return cluster.Kubectl.CoreV1().Pods(appRef.Namespace).Delete(
-		ctx, pods.Items[0].Name, metav1.DeleteOptions{},
+		ctx,
+		pods.Items[0].Name,
+		metav1.DeleteOptions{},
 	)
 }
 

@@ -33,6 +33,7 @@ import (
 func makeSourceTar(files map[string]string) *bytes.Buffer {
 	buffer := &bytes.Buffer{}
 	tarWriter := tar.NewWriter(buffer)
+
 	for name, content := range files {
 		header := &tar.Header{
 			Name:     name,
@@ -45,8 +46,10 @@ func makeSourceTar(files map[string]string) *bytes.Buffer {
 		_, writeError := tarWriter.Write([]byte(content))
 		Expect(writeError).ToNot(HaveOccurred())
 	}
+
 	closeError := tarWriter.Close()
 	Expect(closeError).ToNot(HaveOccurred())
+
 	return buffer
 }
 
@@ -66,10 +69,12 @@ func makeMultipartRequest(
 		_, copyError := io.Copy(part, tarData)
 		Expect(copyError).ToNot(HaveOccurred())
 	}
+
 	for key, value := range fields {
 		writeFieldError := writer.WriteField(key, value)
 		Expect(writeFieldError).ToNot(HaveOccurred())
 	}
+
 	closeError := writer.Close()
 	Expect(closeError).ToNot(HaveOccurred())
 
@@ -77,12 +82,12 @@ func makeMultipartRequest(
 	Expect(newRequestError).ToNot(HaveOccurred())
 	request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
+
 	return request
 }
 
 var _ = Describe("AppSourcePatch and AppSync Endpoints",
 	LApplication, Ordered, func() {
-
 		var (
 			namespace string
 			appName   string
@@ -91,18 +96,24 @@ var _ = Describe("AppSourcePatch and AppSync Endpoints",
 
 		curlApp := func() string {
 			response, curlError := env.Curl(
-				"GET", route, strings.NewReader(""),
+				"GET",
+				route,
+				strings.NewReader(""),
 			)
+
 			if curlError != nil {
 				return ""
 			}
+
 			defer func() {
 				_ = response.Body.Close()
 			}()
+
 			content, readError := io.ReadAll(response.Body)
 			if readError != nil {
 				return ""
 			}
+
 			return string(content)
 		}
 
@@ -127,10 +138,16 @@ var _ = Describe("AppSourcePatch and AppSync Endpoints",
 		Describe("AppSync input validation", func() {
 
 			It("rejects an invalid mode with 400", func() {
-				url := fmt.Sprintf("%s%s/%s", serverURL, v1.Root,
-					v1.Routes.Path("AppSync", namespace, appName))
+				url := fmt.Sprintf(
+					"%s%s/%s",
+					serverURL,
+					v1.Root,
+					v1.Routes.Path("AppSync", namespace, appName),
+				)
+
 				request := makeMultipartRequest(
-					"POST", url,
+					"POST",
+					url,
 					makeSourceTar(map[string]string{"x": "y"}),
 					map[string]string{"mode": "bogus"},
 				)
@@ -143,10 +160,17 @@ var _ = Describe("AppSourcePatch and AppSync Endpoints",
 			})
 
 			It("rejects a request without a file with 400", func() {
-				url := fmt.Sprintf("%s%s/%s", serverURL, v1.Root,
-					v1.Routes.Path("AppSync", namespace, appName))
+				url := fmt.Sprintf(
+					"%s%s/%s",
+					serverURL,
+					v1.Root,
+					v1.Routes.Path("AppSync", namespace, appName),
+				)
+
 				request := makeMultipartRequest(
-					"POST", url, nil,
+					"POST",
+					url,
+					nil,
 					map[string]string{"mode": "files"},
 				)
 
@@ -160,14 +184,23 @@ var _ = Describe("AppSourcePatch and AppSync Endpoints",
 			It("fails with 503 when the app has no running pod", func() {
 				bareApp := catalog.NewAppName()
 				createOutput, createError := env.Epinio(
-					"", "app", "create", bareApp,
+					"",
+					"app",
+					"create",
+					bareApp,
 				)
 				Expect(createError).ToNot(HaveOccurred(), createOutput)
 
-				url := fmt.Sprintf("%s%s/%s", serverURL, v1.Root,
-					v1.Routes.Path("AppSync", namespace, bareApp))
+				url := fmt.Sprintf(
+					"%s%s/%s",
+					serverURL,
+					v1.Root,
+					v1.Routes.Path("AppSync", namespace, bareApp),
+				)
+
 				request := makeMultipartRequest(
-					"POST", url,
+					"POST",
+					url,
 					makeSourceTar(map[string]string{"x": "y"}),
 					map[string]string{"mode": "files"},
 				)
@@ -189,8 +222,12 @@ var _ = Describe("AppSourcePatch and AppSync Endpoints",
 					"index.php": "<?php echo \"Hello Patched World\"; ?>",
 				})
 
-				url := fmt.Sprintf("%s%s/%s", serverURL, v1.Root,
-					v1.Routes.Path("AppSourcePatch", namespace, appName))
+				url := fmt.Sprintf(
+					"%s%s/%s",
+					serverURL,
+					v1.Root,
+					v1.Routes.Path("AppSourcePatch", namespace, appName),
+				)
 				request := makeMultipartRequest("PATCH", url, sourceTar, nil)
 
 				response, requestError := env.Client().Do(request)
@@ -226,8 +263,12 @@ var _ = Describe("AppSourcePatch and AppSync Endpoints",
 					"index.php": "<?php echo \"Hello Synced World\"; ?>",
 				})
 
-				url := fmt.Sprintf("%s%s/%s", serverURL, v1.Root,
-					v1.Routes.Path("AppSync", namespace, appName))
+				url := fmt.Sprintf(
+					"%s%s/%s",
+					serverURL,
+					v1.Root,
+					v1.Routes.Path("AppSync", namespace, appName),
+				)
 				request := makeMultipartRequest(
 					"POST", url, syncTar,
 					map[string]string{"mode": "files"},

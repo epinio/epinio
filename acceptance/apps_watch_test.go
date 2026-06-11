@@ -54,16 +54,20 @@ var _ = Describe("Apps watch", LApplication, func() {
 		if curlError != nil {
 			return ""
 		}
+
 		defer func() {
 			_ = response.Body.Close()
 		}()
+
 		if response.StatusCode != http.StatusOK {
 			return ""
 		}
+
 		content, readError := io.ReadAll(response.Body)
 		if readError != nil {
 			return ""
 		}
+
 		return string(content)
 	}
 
@@ -110,13 +114,16 @@ var _ = Describe("Apps watch", LApplication, func() {
 	AfterEach(func() {
 		if watchCmd != nil && watchCmd.Process != nil {
 			killError := watchCmd.Process.Kill()
+
 			if killError != nil {
 				GinkgoWriter.Printf(
 					"failed to kill watch process: %v\n", killError,
 				)
 			}
+
 			_ = watchCmd.Wait()
 		}
+
 		env.DeleteApp(appName)
 		env.DeleteNamespace(namespace)
 	})
