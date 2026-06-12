@@ -226,6 +226,9 @@ var _ = Describe("swapPodImage", func() {
 		Expect(container.Image).To(Equal("new-image"))
 		Expect(container.Command).To(HaveLen(3))
 		Expect(container.Command[2]).To(
+			ContainSubstring(`"$APP_CMD" &`),
+		)
+		Expect(container.Command[2]).To(
 			ContainSubstring("/cnb/process/web"),
 		)
 		Expect(container.Command[2]).To(
@@ -258,8 +261,8 @@ var _ = Describe("swapPodImage", func() {
 		Expect(getError).ToNot(HaveOccurred())
 
 		command := patched.Spec.Template.Spec.Containers[0].Command[2]
-		Expect(command).To(ContainSubstring("/app/bin/start"))
-		Expect(command).ToNot(ContainSubstring("/cnb/process/web"))
+		Expect(command).To(ContainSubstring("/app/bin/start &"))
+		Expect(command).ToNot(ContainSubstring(`"$APP_CMD" &`))
 	})
 
 	It("deletes the running pod so the new image starts immediately", func() {

@@ -39,8 +39,10 @@ type syncConfig struct {
 	// binary swap.
 	BinaryDest string `yaml:"binary_dest"`
 	// ProcessCmd is the command the supervisor falls back to when no dev
-	// binary is present in /epinio-sync/. Defaults to /cnb/process/web
-	// (Paketo). Set this for non-Paketo buildpacks, e.g. "/app/bin/start".
+	// binary is present in /epinio-sync/. By default the supervisor
+	// discovers the entrypoint from /cnb/process ("web" when present,
+	// otherwise the first process symlink). Set this for non-CNB images,
+	// e.g. "/app/bin/start".
 	ProcessCmd string `yaml:"process_cmd"`
 }
 

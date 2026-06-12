@@ -40,9 +40,10 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 	name := c.Param("app")
 	username := requestctx.User(ctx).Username
 
-	// process_cmd is the command the supervisor falls back to when no dev binary
-	// is present in /epinio-sync/. Defaults to /cnb/process/web for Paketo; set
-	// this for non-Paketo buildpacks (e.g. "/app/bin/start", "bundle exec puma").
+	// process_cmd is the command the supervisor falls back to when no dev
+	// binary is present in /epinio-sync/. By default the supervisor discovers
+	// the entrypoint from /cnb/process; set this for non-CNB images (e.g.
+	// "/app/bin/start", "bundle exec puma").
 	processCmd := c.Request.FormValue("process_cmd")
 
 	file, apiError := parseFile(c)
@@ -523,13 +524,16 @@ func swapPodImage(
 	// falls back to processCmd (the app's normal entrypoint). The child PID is
 	// written to /epinio-sync/pid so the sync handler can reload without
 	// restarting the container.
-	// processCmd defaults to /cnb/process/web for Paketo buildpacks; set it to
-	// the app's actual entrypoint for non-Paketo images.
+	// By default the entrypoint is discovered from /cnb/process: "web" when
+	// the buildpack defines it (PHP, Node, Procfile apps), otherwise the
+	// first process symlink (the Paketo Go buildpack names the process after
+	// the module, so /cnb/process/web does not exist there). Set processCmd
+	// for non-CNB images or to pick a specific process.
 	if processCmd == "" {
-		processCmd = "/cnb/process/web"
+		processCmd = `"$APP_CMD"`
 	}
 	wrapperCmd := fmt.Sprintf(
-		`while true; do if [ -f /epinio-sync/app ]; then /epinio-sync/app & else %s & fi; echo $! > /epinio-sync/pid; wait; sleep 0.1; done`,
+		`APP_CMD=/cnb/process/web; [ -x "$APP_CMD" ] || APP_CMD="$(ls /cnb/process/* 2>/dev/null | head -n1)"; while true; do if [ -f /epinio-sync/app ]; then /epinio-sync/app & else %s & fi; echo $! > /epinio-sync/pid; wait; sleep 0.1; done`,
 		processCmd,
 	)
 	patch := []byte(fmt.Sprintf(
