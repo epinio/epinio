@@ -446,12 +446,16 @@ func (c *Cluster) NamespaceExists(ctx context.Context, namespaceName string) (bo
 	return true, nil
 }
 
-// GetEpinioHTTPRouteHostname returns the first hostname from the epinio-server HTTPRoute.
-// Used as a fallback by domain.MainDomain when gateway.enabled=true removes the Ingress.
-func (c *Cluster) GetEpinioHTTPRouteHostname(ctx context.Context, namespace string) (string, error) {
-	cs, err := dynamic.NewForConfig(c.RestConfig)
-	if err != nil {
-		return "", err
+// GetEpinioHTTPRouteHostname returns the first hostname from the epinio-server
+// HTTPRoute. Used as a fallback by domain.MainDomain when gateway.enabled=true
+// removes the Ingress.
+func (c *Cluster) GetEpinioHTTPRouteHostname(
+	ctx context.Context,
+	namespace string,
+) (string, error) {
+	cs, newConfError := dynamic.NewForConfig(c.RestConfig)
+	if newConfError != nil {
+		return "", newConfError
 	}
 
 	gvr := schema.GroupVersionResource{
@@ -460,19 +464,26 @@ func (c *Cluster) GetEpinioHTTPRouteHostname(ctx context.Context, namespace stri
 		Resource: "httproutes",
 	}
 
-	routes, err := cs.Resource(gvr).Namespace(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=epinio-server",
-	})
-	if err != nil {
-		return "", err
+	routes, resourceError := cs.Resource(gvr).Namespace(namespace).List(
+		ctx,
+		metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/name=epinio-server",
+		},
+	)
+	if resourceError != nil {
+		return "", resourceError
 	}
 	if len(routes.Items) == 0 {
 		return "", errors.New("no epinio httproute found")
 	}
 
-	hostnames, found, err := unstructured.NestedStringSlice(routes.Items[0].Object, "spec", "hostnames")
-	if err != nil {
-		return "", errors.Wrap(err, "failed to read httproute hostnames")
+	hostnames, found, sliceError := unstructured.NestedStringSlice(
+		routes.Items[0].Object,
+		"spec",
+		"hostnames",
+	)
+	if sliceError != nil {
+		return "", errors.Wrap(sliceError, "failed to read httproute hostnames")
 	}
 	if !found || len(hostnames) == 0 {
 		return "", errors.New("epinio httproute has no hostnames configured")
