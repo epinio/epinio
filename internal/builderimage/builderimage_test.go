@@ -130,6 +130,25 @@ var _ = Describe("BuilderImage CRUD", func() {
 			Expect(found.Meta.Name).To(Equal("standard"))
 			Expect(found.Image).To(Equal("paketo:jammy"))
 		})
+
+		It("surfaces spec.default read-only", func() {
+			cr := makeCR("standard", "paketo:jammy", "long", "short")
+			cr.Object["spec"].(map[string]interface{})["default"] = true
+			fakeRI.GetReturns(&cr, nil)
+
+			found, lookupError := builderimage.Lookup(ctx, fakeNS, "standard")
+			Expect(lookupError).ToNot(HaveOccurred())
+			Expect(found.Default).To(BeTrue())
+		})
+
+		It("defaults to false when spec.default is absent", func() {
+			cr := makeCR("alpha", "alpha:1.0", "", "")
+			fakeRI.GetReturns(&cr, nil)
+
+			found, lookupError := builderimage.Lookup(ctx, fakeNS, "alpha")
+			Expect(lookupError).ToNot(HaveOccurred())
+			Expect(found.Default).To(BeFalse())
+		})
 	})
 
 	Describe("Create", func() {

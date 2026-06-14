@@ -136,6 +136,17 @@ func toBuilderImage(bp *unstructured.Unstructured) (*models.BuilderImage, error)
 		return nil, errors.New("shortDescription should be string")
 	}
 
+	// default is operator policy (helm seed / kubectl), surfaced read-only.
+	// A missing field reads as false.
+	isDefault, _, defaultError := unstructured.NestedBool(
+		bp.UnstructuredContent(),
+		"spec",
+		"default",
+	)
+	if defaultError != nil {
+		return nil, errors.New("default should be bool")
+	}
+
 	createdAt := bp.GetCreationTimestamp()
 
 	return &models.BuilderImage{
@@ -146,5 +157,6 @@ func toBuilderImage(bp *unstructured.Unstructured) (*models.BuilderImage, error)
 		Image:            image,
 		Description:      description,
 		ShortDescription: short,
+		Default:          isDefault,
 	}, nil
 }

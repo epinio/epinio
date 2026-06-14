@@ -489,6 +489,10 @@ type BuilderImage struct {
 	Image            string   `json:"image,omitempty"`
 	Description      string   `json:"description,omitempty"`
 	ShortDescription string   `json:"short_description,omitempty"`
+	// Default reports whether this builder image is the cluster default.
+	// Read-only: it is set as operator policy (helm seed / kubectl), never
+	// through the create or update API.
+	Default bool `json:"default"`
 }
 
 // BuilderImageRequest is the unstructured-friendly wrapper used when creating
