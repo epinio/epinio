@@ -6,15 +6,6 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 [![Go Report Card](https://goreportcard.com/badge/github.com/epinio/epinio)](https://goreportcard.com/report/github.com/epinio/epinio)
 [![CI](https://github.com/epinio/epinio/actions/workflows/main.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/main.yml)
 [![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml)
-[![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/aks.yml)
-[![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/eks.yml)
-[![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/gke.yml)
-[![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/rke.yml)
-[![RKE2-EC2-CI](https://github.com/epinio/epinio/actions/workflows/rke2-lh-ec2.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/rke2-lh-ec2.yml)
-[![AKS-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml)
-[![GKE-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml)
-[![RKE-CI-UPGRADE](https://github.com/epinio/epinio/actions/workflows/rke-upgrade.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/rke-upgrade.yml)
-
 <img src="./docs/epinio.png" align="left" width="100" height="50%">
 
 ## What problem does Epinio solve?
