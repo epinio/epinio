@@ -72,6 +72,30 @@ var _ = Describe("Gitproxy Endpoint", func() {
 		})
 	})
 
+	When("a gitconfig is named but not usable", func() {
+		It("returns 404 when the gitconfig does not exist", func() {
+			setupRequestBody(`{"url":"https://api.github.com/repos/epinio/epinio","gitconfig":"missing"}`)
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).To(HaveOccurred())
+			Expect(errs.FirstStatus()).To(Equal(http.StatusNotFound))
+		})
+
+		It("returns 403 when the user may not use the gitconfig", func() {
+			setupRequestBody(`{"url":"https://api.github.com/repos/epinio/epinio","gitconfig":"private"}`)
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
+				{ID: "private"},
+			}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).To(HaveOccurred())
+			Expect(errs.FirstStatus()).To(Equal(http.StatusForbidden))
+		})
+	})
+
 	When("proxying the request", func() {
 		It("returns the same response", func() {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +104,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			}))
 			defer srv.Close()
 
-			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"missing"}`, srv.URL))
+			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio"}`, srv.URL))
 
 			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
 
@@ -229,7 +253,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: gitConfig, Username: "epinio", Password: "password"},
+					{ID: gitConfig, Global: true, Username: "epinio", Password: "password"},
 				}}
 
 				errs := gitproxy.Proxy(c, gitManager)
@@ -270,7 +294,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: gitConfig, SkipSSL: true},
+					{ID: gitConfig, Global: true, SkipSSL: true},
 				}}
 
 				errs := gitproxy.Proxy(c, gitManager)
@@ -301,7 +325,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: conn.ConnectionState().PeerCertificates[0].Raw})
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: gitConfig, Certificate: pemCert},
+					{ID: gitConfig, Global: true, Certificate: pemCert},
 				}}
 
 				errs := gitproxy.Proxy(c, gitManager)

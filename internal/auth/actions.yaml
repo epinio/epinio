@@ -319,6 +319,7 @@
     - GitconfigShow
     - GitconfigsMatch
     - GitconfigsMatch0
+    - GitconfigSuggest
 
 # Gitconfig Write
 - id: gitconfig_write

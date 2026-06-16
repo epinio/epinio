@@ -21,8 +21,9 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -68,18 +69,24 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 		return apierror.InternalError(err, "creating proxy request")
 	}
 
-	// if specified look for the git configuration
+	// If a git configuration was specified, resolve it and verify the user is
+	// allowed to use it before its credentials are applied to the proxied request.
 	var gitConfig *gitbridge.Configuration
 	if proxyRequest.Gitconfig != "" {
-		for i := range gitManager.Configurations {
-			if proxyRequest.Gitconfig == gitManager.Configurations[i].ID {
-				gitConfig = &gitManager.Configurations[i]
-				break
-			}
+		user := requestctx.User(ctx)
+
+		config, found := gitManager.Configuration(proxyRequest.Gitconfig)
+		if !found {
+			return apierror.NewNotFoundError("gitconfig", proxyRequest.Gitconfig)
 		}
-		if gitConfig == nil {
-			requestctx.Logger(ctx).Infow("gitconfig not found", "id", proxyRequest.Gitconfig)
+		if !auth.CanUseGitconfig(user, *config) {
+			return apierror.NewAPIError(
+				fmt.Sprintf("user unauthorized to use gitconfig [%s]", proxyRequest.Gitconfig),
+				http.StatusForbidden,
+			)
 		}
+
+		gitConfig = config
 	}
 
 	if gitConfig != nil {

@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
@@ -38,11 +39,12 @@ type Manager struct {
 }
 
 // Configuration is used to customize the Git requests for a  specific git provider.
-// The only required field is the URL, needed to check the specific instance to apply the configuration.
-// If the UserOrg and/or the Repository are also specified then the most specific configuration will be used.
+// The only required field is the URL, needed to check the specific instance to
+// apply the configuration. If the UserOrg and/or the Repository are also
+// specified then the most specific configuration will be used.
 type Configuration struct {
-	// TODO : Track creating user
-
+	// Used to indicate if any user in the epinio org can use config
+	Global bool
 	// ID of the configuration (it maps to the kubernetes secret)
 	ID string
 	// CreatedAt is when the gitconfig (Secret) was created (from Secret.CreationTimestamp).
@@ -51,7 +53,8 @@ type Configuration struct {
 	URL      string
 	Provider models.GitProvider
 	// Username and Password are used to perform a BasicAuth.
-	// For Github/Gitlab the username can be anything (see https://gitlab.com/gitlab-org/gitlab/-/issues/212953).
+	// For Github/Gitlab the username can be anything
+	// (see https://gitlab.com/gitlab-org/gitlab/-/issues/212953).
 	Username string
 	// The Personal Access Token
 	Password string // nolint:gosec // intentional auth field for git config
@@ -69,6 +72,12 @@ func (c Configuration) Gitconfig() string {
 	return c.ID
 }
 
+// IsGlobal reports whether the configuration is shared with all users.
+// Satisfies the interface `GitconfigResource`, see package `internal/auth`
+func (c Configuration) IsGlobal() bool {
+	return c.Global
+}
+
 func NewManager(secretLoader SecretLister) (*Manager, error) {
 	logger := helpers.Logger.With("component", "GitManager")
 
@@ -76,7 +85,10 @@ func NewManager(secretLoader SecretLister) (*Manager, error) {
 		kubernetes.EpinioAPIGitCredentialsLabelKey: "true",
 	}).AsSelector().String()
 
-	secretList, err := secretLoader.List(context.Background(), metav1.ListOptions{LabelSelector: secretSelector})
+	secretList, err := secretLoader.List(
+		context.Background(),
+		metav1.ListOptions{LabelSelector: secretSelector},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -88,13 +100,20 @@ func NewManager(secretLoader SecretLister) (*Manager, error) {
 	}
 
 	// Sort the configurations to fetch always the same, in case of multiple matches.
-	// This will help in case of errors because in case of multiple configurations always the same will be chosen.
+	// This will help in case of errors because in case of multiple configurations
+	// always the same will be chosen.
 	// Having instead a different one everytime could cause sporadic errors.
 	sort.Slice(configurations, func(i, j int) bool {
 		return configurations[i].ID < configurations[j].ID
 	})
 
-	logger.Debugw("found git configurations", "count", len(configurations), "configs", strings.Join(configIDs, ", "))
+	logger.Debugw(
+		"found git configurations",
+		"count",
+		len(configurations),
+		"configs",
+		strings.Join(configIDs, ", "),
+	)
 
 	return &Manager{
 		SecretLister:   secretLoader,
@@ -105,28 +124,60 @@ func NewManager(secretLoader SecretLister) (*Manager, error) {
 func NewConfigurationsFromSecrets(secrets []v1.Secret) []Configuration {
 	configs := make([]Configuration, 0, len(secrets))
 
-	for _, sec := range secrets {
-		config := &Configuration{
-			ID:          string(sec.Name),
-			CreatedAt:   sec.CreationTimestamp,
-			URL:         string(sec.Data["url"]),
-			Username:    string(sec.Data["username"]),
-			Password:    string(sec.Data["password"]),
-			UserOrg:     string(sec.Data["userOrg"]),
-			Repository:  string(sec.Data["repo"]),
-			Certificate: sec.Data["certificate"],
+	logger := helpers.Logger.With("component", "GitManager")
+
+	for _, secret := range secrets {
+		// global is optional and defaults to false. A malformed value is logged
+		// rather than silently swallowed, but still falls back to false.
+		global := false
+		rawGlobal, hasGlobal := secret.Data["global"]
+		if hasGlobal {
+			parsed, err := strconv.ParseBool(string(rawGlobal))
+			if err != nil {
+				logger.Warnw(
+					"git config has a non-boolean global flag, defaulting to false",
+					"config", secret.Name, "global", string(rawGlobal), "error", err,
+				)
+			}
+			global = parsed
 		}
 
-		// the func is always returning a provider, if err a models.ProviderUnknown
-		config.Provider, _ = models.GitProviderFromString(string(sec.Data["provider"]))
-
-		skipSSLVal, found := sec.Data["skipSSL"]
-		// if not found skipSSL is false, otherwise it needs to be "true"
-		if found && strings.ToLower(string(skipSSLVal)) == "true" {
-			config.SkipSSL = true
+		// GitProviderFromString returns ProviderUnknown on error, which we keep as
+		// the default while logging the error instead of ignoring it. An absent
+		// provider is a valid state and is not treated as an error.
+		provider := models.ProviderUnknown
+		rawProvider, hasProvider := secret.Data["provider"]
+		if hasProvider {
+			parsed, err := models.GitProviderFromString(string(rawProvider))
+			if err != nil {
+				logger.Warnw(
+					"git config has an invalid provider, using unknown",
+					"config", secret.Name, "provider", string(rawProvider), "error", err,
+				)
+			}
+			provider = parsed
 		}
 
-		configs = append(configs, *config)
+		// skipSSL is true only for the explicit string "true"; anything else is false.
+		skipSSL := false
+		rawSSL, ok := secret.Data["skipSSL"]
+		if ok && strings.ToLower(string(rawSSL)) == "true" {
+			skipSSL = true
+		}
+
+		configs = append(configs, Configuration{
+			Global:      global,
+			ID:          string(secret.Name),
+			CreatedAt:   secret.CreationTimestamp,
+			URL:         string(secret.Data["url"]),
+			Provider:    provider,
+			Username:    string(secret.Data["username"]),
+			Password:    string(secret.Data["password"]),
+			UserOrg:     string(secret.Data["userOrg"]),
+			Repository:  string(secret.Data["repo"]),
+			SkipSSL:     skipSSL,
+			Certificate: secret.Data["certificate"],
+		})
 	}
 
 	return configs
@@ -143,6 +194,7 @@ func NewSecretFromConfiguration(config Configuration) v1.Secret {
 
 	dataMap := make(map[string][]byte)
 
+	dataMap = setValue(dataMap, "global", strconv.FormatBool(config.Global))
 	dataMap = setValue(dataMap, "url", string(config.URL))
 	dataMap = setValue(dataMap, "provider", string(config.Provider))
 	dataMap = setValue(dataMap, "username", string(config.Username))
@@ -167,6 +219,17 @@ func NewSecretFromConfiguration(config Configuration) v1.Secret {
 		},
 		Data: dataMap,
 	}
+}
+
+// Configuration returns the configuration with the given ID, and whether it
+// was found.
+func (m *Manager) Configuration(id string) (*Configuration, bool) {
+	for i := range m.Configurations {
+		if m.Configurations[i].ID == id {
+			return &m.Configurations[i], true
+		}
+	}
+	return nil, false
 }
 
 // FindConfiguration will load the most specific Configuration for the provided gitUrl.

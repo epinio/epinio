@@ -41,13 +41,13 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "creating git configuration manager")
 	}
 
-	gitconfigList := manager.Configurations
-
-	gitconfigList = auth.FilterGitconfigResources(user, gitconfigList)
+	// Scope list based on user or if admin, return all
+	gitconfigList := auth.FilterGitconfigResources(user, manager.Configurations)
 
 	gitconfigs := make(models.GitconfigList, 0, len(gitconfigList))
 	for _, gitconfig := range gitconfigList {
 		gitconfigs = append(gitconfigs, models.Gitconfig{
+			Global: gitconfig.Global,
 			Meta: models.MetaLite{
 				Name:      gitconfig.ID,
 				CreatedAt: gitconfig.CreatedAt,
@@ -58,8 +58,6 @@ func Index(c *gin.Context) apierror.APIErrors {
 			UserOrg:    gitconfig.UserOrg,
 			Repository: gitconfig.Repository,
 			SkipSSL:    gitconfig.SkipSSL,
-			// Password    string - Private, excluded
-			// Certificate []byte - Private, excluded
 		})
 	}
 

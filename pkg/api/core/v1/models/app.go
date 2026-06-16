@@ -85,10 +85,11 @@ type ApplicationStatus string
 type ApplicationStagingStatus string
 
 type GitRef struct {
-	Revision string      `json:"revision,omitempty" yaml:"revision,omitempty"`
-	URL      string      `json:"repository"         yaml:"url,omitempty"`
-	Provider GitProvider `json:"provider,omitempty" yaml:"provider,omitempty"`
-	Branch   string      `json:"branch,omitempty"   yaml:"branch,omitempty"`
+	Revision  string      `json:"revision,omitempty"  yaml:"revision,omitempty"`
+	URL       string      `json:"repository"          yaml:"url,omitempty"`
+	Provider  GitProvider `json:"provider,omitempty"  yaml:"provider,omitempty"`
+	Branch    string      `json:"branch,omitempty"    yaml:"branch,omitempty"`
+	Gitconfig string      `json:"gitconfig,omitempty" yaml:"gitconfig,omitempty"`
 }
 
 // App has all the application's properties, for at rest (Configuration), and active (Workload).

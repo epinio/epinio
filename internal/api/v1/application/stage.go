@@ -42,6 +42,7 @@ import (
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -1051,10 +1052,33 @@ func resolveBlobUID(
 		"namespace", namespace, "app", name,
 		"url", origin.Git.URL, "revision", origin.Git.Revision,
 	)
+
+	// Resolve the gitconfig stored on the app origin. This is a system re-clone of
+	// an origin already authorized at push time, so it is not re-authorized here.
+	// A name that no longer exists falls back to an unauthenticated clone.
+	var gitConfig *gitbridge.Configuration
+	if origin.Git.Gitconfig != "" {
+		manager, managerError := gitbridge.NewManager(
+			cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
+		)
+		if managerError != nil {
+			return "", apierror.InternalError(managerError, "creating git configuration manager")
+		}
+
+		config, found := manager.Configuration(origin.Git.Gitconfig)
+		if found {
+			gitConfig = config
+		} else {
+			log.Infow("stored gitconfig no longer exists, cloning without it",
+				"namespace", namespace, "app", name, "gitconfig", origin.Git.Gitconfig,
+			)
+		}
+	}
+
 	blobUID, _, _, cloneError := cloneAndUpload(
 		ctx, cluster,
 		origin.Git.URL, origin.Git.Revision,
-		namespace, name, username,
+		namespace, name, username, gitConfig,
 	)
 	if cloneError != nil {
 		return "", cloneError

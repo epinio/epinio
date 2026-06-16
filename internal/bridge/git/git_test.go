@@ -272,6 +272,7 @@ var _ = Describe("Manager", func() {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "my-config"},
 						Data: map[string][]byte{
+							"global":      []byte("false"),
 							"url":         []byte("giturl"),
 							"provider":    []byte("github"),
 							"username":    []byte("myuser"),
@@ -314,14 +315,17 @@ var _ = Describe("Manager", func() {
 
 				Expect(secrets[0].Data).To(Equal(originalSecrets[0].Data))
 				Expect(secrets[1].Data).To(Equal(map[string][]byte{
+					"global":   []byte("false"),
 					"provider": []byte("unknown"),
 					"skipSSL":  []byte("false"),
 				}))
 				Expect(secrets[2].Data).To(Equal(map[string][]byte{
+					"global":   []byte("false"),
 					"provider": []byte("unknown"),
 					"skipSSL":  []byte("false"),
 				}))
 				Expect(secrets[3].Data).To(Equal(map[string][]byte{
+					"global":   []byte("false"),
 					"provider": []byte("unknown"),
 					"skipSSL":  []byte("false"),
 				}))

@@ -223,6 +223,7 @@ func (c *Client) AppImportGit(namespace string, name string, gitRef models.GitRe
 	data := url.Values{}
 	data.Set("giturl", gitRef.URL)
 	data.Set("gitrev", gitRef.Revision)
+	data.Set("gitconfig", gitRef.Gitconfig)
 
 	requestHandler := NewFormURLEncodedRequestHandler(data)
 	responseHandler := NewJSONResponseHandler(c.log, response)
