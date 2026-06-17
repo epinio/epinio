@@ -38,6 +38,14 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	inUse, err := kubeServiceClient.CatalogServicesInUse(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	for _, svc := range serviceList {
+		svc.BoundServices = inUse[svc.Meta.Name]
+	}
+
 	response.OKReturn(c, serviceList)
 	return nil
 }

@@ -493,6 +493,9 @@ type BuilderImage struct {
 	// Read-only: it is set as operator policy (helm seed / kubectl), never
 	// through the create or update API.
 	Default bool `json:"default"`
+	// BoundApps reports whether at least one application is currently staged
+	// with this builder image. Read-only, computed from live app resources.
+	BoundApps bool `json:"boundApps,omitempty"`
 }
 
 // BuilderImageRequest is the unstructured-friendly wrapper used when creating

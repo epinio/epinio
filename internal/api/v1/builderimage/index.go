@@ -14,6 +14,7 @@ package builderimage
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/builderimage"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
@@ -34,18 +35,31 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clientError)
 	}
 
-	all, listError := builderimage.List(ctx, client)
+	builderList, listError := builderimage.List(ctx, client)
 	if listError != nil {
 		return apierror.InternalError(listError)
 	}
 
+	appClient, appClientError := cluster.ClientApp()
+	if appClientError != nil {
+		return apierror.InternalError(appClientError)
+	}
+
+	inUse, inUseError := application.BuilderImagesInUse(ctx, appClient)
+	if inUseError != nil {
+		return apierror.InternalError(inUseError)
+	}
+	for i := range builderList {
+		builderList[i].BoundApps = inUse[builderList[i].Image]
+	}
+
 	page, pageSize, ok := response.GetPaginationParams(c, 1, 25)
 	if ok {
-		paged := response.PaginateSlice(all, page, pageSize)
+		paged := response.PaginateSlice(builderList, page, pageSize)
 		response.OKReturn(c, paged)
 		return nil
 	}
 
-	response.OKReturn(c, all)
+	response.OKReturn(c, builderList)
 	return nil
 }

@@ -131,6 +131,11 @@ type CatalogService struct {
 	HelmRepo         HelmRepo                `json:"helm_repo,omitempty"`
 	Values           string                  `json:"values,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	// BoundServices reports whether at least one provisioned service instance
+	// derives from this catalog service. Read-only, computed from live service
+	// instances. Named for what actually binds to a catalog service (instances),
+	// not apps, which attach to instances rather than the catalog entry.
+	BoundServices bool `json:"boundServices,omitempty"`
 }
 
 // HelmRepo matches github.com/epinio/application/api/v1 HelmRepo

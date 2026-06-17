@@ -43,6 +43,12 @@ func Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	inUse, err := kubeServiceClient.CatalogServicesInUse(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	svc.BoundServices = inUse[svc.Meta.Name]
+
 	response.OKReturn(c, svc)
 	return nil
 }

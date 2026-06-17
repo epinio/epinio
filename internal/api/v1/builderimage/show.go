@@ -14,6 +14,7 @@ package builderimage
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/builderimage"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
@@ -42,6 +43,17 @@ func Show(c *gin.Context) apierror.APIErrors {
 	if builderimage == nil {
 		return apierror.BuilderImageIsNotKnown(name)
 	}
+
+	appClient, appClientError := cluster.ClientApp()
+	if appClientError != nil {
+		return apierror.InternalError(appClientError)
+	}
+
+	inUse, inUseError := application.BuilderImagesInUse(ctx, appClient)
+	if inUseError != nil {
+		return apierror.InternalError(inUseError)
+	}
+	builderimage.BoundApps = inUse[builderimage.Image]
 
 	response.OKReturn(c, builderimage)
 	return nil
