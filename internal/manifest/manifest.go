@@ -100,6 +100,22 @@ func UpdateBuilder(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 		manifest.Staging.Builder = builderImage
 	}
 
+	buildMode, err := cmd.Flags().GetString("build-mode")
+	if err != nil {
+		return manifest, errors.Wrap(err, "could not read option --build-mode")
+	}
+	if buildMode != "" {
+		manifest.Staging.BuildMode = models.NormalizeBuildMode(buildMode)
+	}
+
+	dockerfilePath, err := cmd.Flags().GetString("dockerfile-path")
+	if err != nil {
+		return manifest, errors.Wrap(err, "could not read option --dockerfile-path")
+	}
+	if dockerfilePath != "" {
+		manifest.Staging.DockerfilePath = dockerfilePath
+	}
+
 	return manifest, nil
 }
 

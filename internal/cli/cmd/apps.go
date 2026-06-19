@@ -470,6 +470,8 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().StringP("name", "n", "", "Application name. (mandatory if no manifest is provided)")
 	cmd.Flags().StringP("path", "p", "", "Path to application sources.")
 	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
+	cmd.Flags().String("build-mode", "", "Staging build mode: buildpack (default) or dockerfile")
+	cmd.Flags().String("dockerfile-path", "", "Path to Dockerfile within the application sources (default: Dockerfile)")
 
 	gitProviderOption(cmd)
 	routeOption(cmd)

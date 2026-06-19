@@ -206,6 +206,8 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 	} else {
 		asyncReq.BlobUID = blobUID
 		asyncReq.BuilderImage = manifest.Staging.Builder
+		asyncReq.BuildMode = manifest.Staging.BuildMode
+		asyncReq.DockerfilePath = manifest.Staging.DockerfilePath
 	}
 
 	c.ui.Normal().Msg("Building and deploying application on the server ...")

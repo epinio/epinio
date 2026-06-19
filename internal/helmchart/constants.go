@@ -19,6 +19,7 @@ const (
 	EpinioStageDownload           = "download"
 	EpinioStageUnpack             = "unpack"
 	EpinioStageBuild              = "build"
+	EpinioStageDockerfileBuild    = "dockerfile-build"
 )
 
 func Namespace() string {
