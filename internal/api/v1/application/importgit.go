@@ -121,7 +121,7 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clusterError, "failed to get access to a kube client")
 	}
 
-	gitConfig, resolveError := resolveGitconfig(ctx, cluster, user, gitconfigName)
+	gitConfig, resolveError := resolveGitconfig(cluster, user, gitconfigName)
 	if resolveError != nil {
 		return resolveError
 	}
@@ -145,7 +145,6 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 // none was requested. Selection is intentional: there is no implicit URL matching.
 // An unknown name is rejected, and the user must be permitted to use the config.
 func resolveGitconfig(
-	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	user auth.User,
 	name string,
