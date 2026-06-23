@@ -148,14 +148,20 @@ func ValidateURL(proxiedURL string) error {
 // - /repos/USERNAME/REPO/branches
 // - /repos/USERNAME/REPO/branches/BRANCH
 // - /users/USERNAME/repos
+// - /user/repos              (authenticated user's repos, including private)
+// - /orgs/ORG/repos          (org repos, including private)
 // - /search/repositories
 func validateGithubURL(path string) error {
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
 
-	// with 2 parts we support this endpoint:
+	// with 2 parts we support these endpoints:
 	// - /search/repositories
+	// - /user/repos
 	if len(parts) == 2 {
 		if parts[0] == "search" && parts[1] == "repositories" {
+			return nil
+		}
+		if parts[0] == "user" && parts[1] == "repos" {
 			return nil
 		}
 	}
@@ -163,9 +169,11 @@ func validateGithubURL(path string) error {
 	// with 3 parts we support these endpoints:
 	// - /repos/USERNAME/REPO
 	// - /users/USERNAME/repos
+	// - /orgs/ORG/repos
 	if len(parts) == 3 {
 		if parts[0] == "repos" ||
-			(parts[0] == "users" && parts[2] == "repos") {
+			(parts[0] == "users" && parts[2] == "repos") ||
+			(parts[0] == "orgs" && parts[2] == "repos") {
 			return nil
 		}
 	}
@@ -205,10 +213,11 @@ func validateGithubURL(path string) error {
 func validateGitlabURL(path string) error {
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
 
-	// with 1 part we support this endpoint:
+	// with 1 part we support these endpoints:
 	// - /avatar
+	// - /projects        (e.g. ?membership=true, the user's projects including private)
 	if len(parts) == 1 {
-		if parts[0] == "avatar" {
+		if parts[0] == "avatar" || parts[0] == "projects" {
 			return nil
 		}
 	}
