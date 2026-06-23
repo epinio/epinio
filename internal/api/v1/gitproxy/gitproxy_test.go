@@ -163,7 +163,10 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			}
 
 			setupAndRun("/search/repositories?q=repo:USER/ORG")
+			setupAndRun("/users/USERNAME")
 			setupAndRun("/users/USERNAME/repos")
+			setupAndRun("/user/repos")
+			setupAndRun("/orgs/ORG/repos")
 			setupAndRun("/repos/USERNAME/REPO")
 			setupAndRun("/repos/USERNAME/REPO/commits")
 			setupAndRun("/repos/USERNAME/REPO/branches")

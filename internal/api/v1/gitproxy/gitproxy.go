@@ -148,6 +148,7 @@ func ValidateURL(proxiedURL string) error {
 // - /repos/USERNAME/REPO/branches
 // - /repos/USERNAME/REPO/branches/BRANCH
 // - /users/USERNAME/repos
+// - /users/USERNAME          (account info, used to detect user vs org)
 // - /user/repos              (authenticated user's repos, including private)
 // - /orgs/ORG/repos          (org repos, including private)
 // - /search/repositories
@@ -157,11 +158,15 @@ func validateGithubURL(path string) error {
 	// with 2 parts we support these endpoints:
 	// - /search/repositories
 	// - /user/repos
+	// - /users/USERNAME
 	if len(parts) == 2 {
 		if parts[0] == "search" && parts[1] == "repositories" {
 			return nil
 		}
 		if parts[0] == "user" && parts[1] == "repos" {
+			return nil
+		}
+		if parts[0] == "users" {
 			return nil
 		}
 	}
