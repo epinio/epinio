@@ -313,36 +313,70 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		HelmValues:          config.HelmValues,
 	}
 
-	if pvcErr := ensureStagingPVCs(ctx, cluster, req, params.HelmValues); pvcErr != nil {
-		return pvcErr
+	stageResponse, stageErr := executeStage(ctx, cluster, app, req, params)
+	if stageErr != nil {
+		return stageErr
+	}
+
+	response.OKReturn(c, stageResponse)
+	return nil
+}
+
+// executeStage runs the staging job for the given params. It is called by both Stage and SourcePatch.
+func executeStage(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app *unstructured.Unstructured,
+	req models.StageRequest,
+	params stageParam,
+) (models.StageResponse, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
+
+	pvcError := ensureStagingPVCs(ctx, cluster, req, params.HelmValues)
+	if pvcError != nil {
+		return models.StageResponse{}, pvcError
 	}
 
 	job, jobenv := newJobRun(params)
 
 	// Note: The secret is deleted with the job in function `Unstage()`.
-	err = cluster.CreateSecret(ctx, helmchart.Namespace(), *jobenv)
-	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("failed to create job env: %#v", jobenv))
+	createSecretError := cluster.CreateSecret(ctx, helmchart.Namespace(), *jobenv)
+	if createSecretError != nil {
+		return models.StageResponse{}, apierror.InternalError(
+			createSecretError,
+			fmt.Sprintf("failed to create job env: %#v", jobenv),
+		)
 	}
 
-	err = cluster.CreateJob(ctx, helmchart.Namespace(), job)
-	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("failed to create job run: %#v", job))
+	createJobError := cluster.CreateJob(ctx, helmchart.Namespace(), job)
+	if createJobError != nil {
+		return models.StageResponse{}, apierror.InternalError(
+			createJobError,
+			fmt.Sprintf("failed to create job run: %#v", job),
+		)
 	}
 
-	if err := updateApp(ctx, cluster, app, params); err != nil {
-		return apierror.InternalError(err, "updating application CR with staging information")
+	updateAppError := updateApp(ctx, cluster, app, params)
+	if updateAppError != nil {
+		return models.StageResponse{}, apierror.InternalError(
+			updateAppError,
+			"updating application CR with staging information",
+		)
 	}
 
 	imageURL := params.ImageURL(params.RegistryURL)
+	log.Infow(
+		"staged app",
+		"namespace", helmchart.Namespace(),
+		"app", params.AppRef,
+		"uid", params.Stage.ID,
+		"image", imageURL,
+	)
 
-	log.Infow("staged app", "namespace", helmchart.Namespace(), "app", params.AppRef, "uid", uid, "image", imageURL)
-
-	response.OKReturn(c, models.StageResponse{
-		Stage:    models.NewStage(uid),
+	return models.StageResponse{
+		Stage:    params.Stage,
 		ImageURL: imageURL,
-	})
-	return nil
+	}, nil
 }
 
 // stageJobs returns the jobs responsible for the staging run of the provided stageID.
