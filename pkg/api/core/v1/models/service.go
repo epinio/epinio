@@ -121,13 +121,13 @@ type CatalogMatchResponse struct {
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type CatalogService struct {
 	Meta             MetaLite                `json:"meta,omitempty"`
-	SecretTypes      []string                `json:"secretTypes,omitempty"`
+	SecretTypes      []string                `json:"secret_types,omitempty"`
 	Description      string                  `json:"description,omitempty"`
 	ShortDescription string                  `json:"short_description,omitempty"`
 	HelmChart        string                  `json:"chart,omitempty"`
-	ChartVersion     string                  `json:"chartVersion,omitempty"`
-	ServiceIcon      string                  `json:"serviceIcon,omitempty"`
-	AppVersion       string                  `json:"appVersion,omitempty"`
+	ChartVersion     string                  `json:"chart_version,omitempty"`
+	ServiceIcon      string                  `json:"service_icon,omitempty"`
+	AppVersion       string                  `json:"app_version,omitempty"`
 	HelmRepo         HelmRepo                `json:"helm_repo,omitempty"`
 	Values           string                  `json:"values,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
@@ -166,30 +166,30 @@ type HelmRepoRequest struct {
 // the remainder land under spec.
 type CatalogServiceCreateRequest struct {
 	Name             string                  `json:"name,omitempty"`
-	ShortDescription string                  `json:"shortDescription,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
 	Description      string                  `json:"description,omitempty"`
 	HelmChart        string                  `json:"chart,omitempty"`
-	ChartVersion     string                  `json:"chartVersion,omitempty"`
-	AppVersion       string                  `json:"appVersion,omitempty"`
-	ServiceIcon      string                  `json:"serviceIcon,omitempty"`
+	ChartVersion     string                  `json:"chart_version,omitempty"`
+	AppVersion       string                  `json:"app_version,omitempty"`
+	ServiceIcon      string                  `json:"service_icon,omitempty"`
 	Values           string                  `json:"values,omitempty"`
-	HelmRepo         HelmRepoRequest         `json:"helmRepo,omitempty"`
+	HelmRepo         HelmRepoRequest         `json:"helm_repo,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
-	SecretTypes      []string                `json:"secretTypes,omitempty"`
+	SecretTypes      []string                `json:"secret_types,omitempty"`
 }
 
 // CatalogServiceUpdateRequest carries optional field updates. Empty string
 // fields are ignored — name is taken from the URL, not the body. Settings
 // and SecretTypes are replaced when non-nil; pass nil to leave untouched.
 type CatalogServiceUpdateRequest struct {
-	ShortDescription string                  `json:"shortDescription,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
 	Description      string                  `json:"description,omitempty"`
 	HelmChart        string                  `json:"chart,omitempty"`
-	ChartVersion     string                  `json:"chartVersion,omitempty"`
-	AppVersion       string                  `json:"appVersion,omitempty"`
-	ServiceIcon      string                  `json:"serviceIcon,omitempty"`
+	ChartVersion     string                  `json:"chart_version,omitempty"`
+	AppVersion       string                  `json:"app_version,omitempty"`
+	ServiceIcon      string                  `json:"service_icon,omitempty"`
 	Values           string                  `json:"values,omitempty"`
-	HelmRepo         *HelmRepoRequest        `json:"helmRepo,omitempty"`
+	HelmRepo         *HelmRepoRequest        `json:"helm_repo,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
-	SecretTypes      []string                `json:"secretTypes,omitempty"`
+	SecretTypes      []string                `json:"secret_types,omitempty"`
 }

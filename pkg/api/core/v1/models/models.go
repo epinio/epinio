@@ -141,9 +141,9 @@ type ApplicationStage struct {
 
 // ApplicationConfiguration is the part of the manifest describing the configuration of the application
 type ApplicationConfiguration struct {
-	Instances           *int32                      `json:"instances"            yaml:"instances,omitempty"`
-	Configurations      []string                    `json:"configurations"     yaml:"configurations,omitempty"`
-	Environment        EnvVariableMap               `json:"environment"        yaml:"environment,omitempty"`
+	Instances          *int32                      `json:"instances"            yaml:"instances,omitempty"`
+	Configurations     []string                    `json:"configurations"     yaml:"configurations,omitempty"`
+	Environment        EnvVariableMap              `json:"environment"        yaml:"environment,omitempty"`
 	EnvironmentGrouped *EnvVariableGroupedResponse `json:"environment_grouped,omitempty" yaml:"environment_grouped,omitempty"`
 	ReplaceEnv         *bool                       `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
 	Services           []string                    `json:"services,omitempty" yaml:"services,omitempty"`
@@ -431,18 +431,18 @@ type AppChartRequest struct {
 type AppChartCreateRequest struct {
 	Name             string                  `json:"name,omitempty"`
 	Description      string                  `json:"description,omitempty"`
-	ShortDescription string                  `json:"shortDescription,omitempty"`
-	HelmChart        string                  `json:"helmChart,omitempty"`
-	HelmRepo         string                  `json:"helmRepo,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
+	HelmChart        string                  `json:"helm_chart,omitempty"`
+	HelmRepo         string                  `json:"helm_repo,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
 	Values           map[string]string       `json:"values,omitempty"`
 }
 
 type AppChartUpdateRequest struct {
 	Description      string                  `json:"description,omitempty"`
-	ShortDescription string                  `json:"shortDescription,omitempty"`
-	HelmChart        string                  `json:"helmChart,omitempty"`
-	HelmRepo         string                  `json:"helmRepo,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
+	HelmChart        string                  `json:"helm_chart,omitempty"`
+	HelmRepo         string                  `json:"helm_repo,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
 	Values           map[string]string       `json:"values,omitempty"`
 }
@@ -450,7 +450,7 @@ type AppChartUpdateRequest struct {
 type AppChartFull struct {
 	AppChart
 	Values    map[string]string `json:"values,omitempty"`
-	BoundApps bool              `json:"boundApps,omitempty"`
+	BoundApps bool              `json:"bound_apps,omitempty"`
 }
 
 // ChartSetting matches github.com/epinio/application/api/v1 ChartSetting
@@ -495,7 +495,7 @@ type BuilderImage struct {
 	Default bool `json:"default"`
 	// BoundApps reports whether at least one application is currently staged
 	// with this builder image. Read-only, computed from live app resources.
-	BoundApps bool `json:"boundApps,omitempty"`
+	BoundApps bool `json:"bound_apps,omitempty"`
 }
 
 // BuilderImageRequest is the unstructured-friendly wrapper used when creating
@@ -514,7 +514,7 @@ type BuilderImageCreateRequest struct {
 	Name             string `json:"name,omitempty"`
 	Image            string `json:"image,omitempty"`
 	Description      string `json:"description,omitempty"`
-	ShortDescription string `json:"shortDescription,omitempty"`
+	ShortDescription string `json:"short_description,omitempty"`
 }
 
 // BuilderImageUpdateRequest carries optional field updates. Empty fields are
@@ -522,7 +522,7 @@ type BuilderImageCreateRequest struct {
 type BuilderImageUpdateRequest struct {
 	Image            string `json:"image,omitempty"`
 	Description      string `json:"description,omitempty"`
-	ShortDescription string `json:"shortDescription,omitempty"`
+	ShortDescription string `json:"short_description,omitempty"`
 }
 
 // BuilderImageList is a collection of builder images
