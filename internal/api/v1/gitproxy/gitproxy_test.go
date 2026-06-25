@@ -208,6 +208,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			setupAndRun("/")
 			setupAndRun("/any")
 			setupAndRun("/search/something")
+			setupAndRun("/search/repositories") // GitHub-shaped, not a GitLab endpoint
 			setupAndRun("/USERNAME/projects")
 			setupAndRun("/projects/USERNAME%2FREPO/repository/stars")
 			setupAndRun("/projects/USERNAME%2FREPO/repository/commits/BRANCH")
@@ -216,9 +217,11 @@ var _ = Describe("Gitproxy Endpoint", func() {
 
 		It("passes for Gitlab Server whitelisted URLs", func() {
 			// - /api/v4/avatar
-			// - /api/v4/search/repositories
-			// - /api/v4/users/USERNAME/projects
-			// - /api/v4/groups/USERNAME/projects
+			// - /api/v4/projects (and ?membership=true)
+			// - /api/v4/users (and ?username=NAME)
+			// - /api/v4/groups/GROUP
+			// - /api/v4/users/USERNAME/projects (and ?search=TERM)
+			// - /api/v4/groups/USERNAME/projects (and ?search=TERM)
 			// - /api/v4/projects/USERNAME%2FREPO
 			// - /api/v4/projects/USERNAME%2FREPO/repository/commits
 			// - /api/v4/projects/USERNAME%2FREPO/repository/branches
@@ -232,8 +235,13 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			}
 
 			setupAndRun("/avatar")
-			setupAndRun("/search/repositories")
+			setupAndRun("/projects")
+			setupAndRun("/projects?membership=true")
+			setupAndRun("/users")
+			setupAndRun("/users?username=USERNAME")
+			setupAndRun("/groups/GROUP")
 			setupAndRun("/users/USERNAME/projects")
+			setupAndRun("/users/USERNAME/projects?search=TERM")
 			setupAndRun("/groups/USERNAME/projects")
 			setupAndRun("/projects/USERNAME%2FREPO")
 			setupAndRun("/projects/USERNAME%2FREPO/repository/commits")

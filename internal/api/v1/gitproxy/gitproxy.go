@@ -89,10 +89,17 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 		gitConfig = config
 	}
 
-	if gitConfig != nil {
-		// check BasicAuth
-		if gitConfig.Username != "" && gitConfig.Password != "" {
-			req.SetBasicAuth(gitConfig.Username, gitConfig.Password)
+	// Apply the gitconfig credentials using the scheme the provider expects.
+	// GitHub accepts HTTP Basic (username + token); GitLab's REST API does not,
+	// it expects the token in the PRIVATE-TOKEN header.
+	if gitConfig != nil && gitConfig.Password != "" {
+		switch gitConfig.Provider {
+		case models.ProviderGitlab, models.ProviderGitlabEnterprise:
+			req.Header.Set("PRIVATE-TOKEN", gitConfig.Password)
+		default:
+			if gitConfig.Username != "" {
+				req.SetBasicAuth(gitConfig.Username, gitConfig.Password)
+			}
 		}
 	}
 
@@ -208,30 +215,36 @@ func validateGithubURL(path string) error {
 // Gitlab use the project ID or the url encoded "USERNAME/REPO" string, hence we are checking for the second one.
 // The supported APIs are:
 // - /avatar
-// - /search/repositories
+// - /projects                (e.g. ?membership=true, the user's projects including private)
 // - /projects/USERNAME%2FREPO
+// - /users                   (e.g. ?username=NAME, to resolve a user)
 // - /users/USERNAME/projects
+// - /groups/GROUP            (group info, used to detect user vs group)
 // - /groups/USERNAME/projects
 // - /projects/USERNAME%2FREPO/repository/branches
 // - /projects/USERNAME%2FREPO/repository/commits
 // - /projects/REPO/repository/branches/BRANCH
+//
+// Project listing/search uses the `?search=` query on the list endpoints; GitLab
+// has no `/search/repositories` endpoint (that is GitHub-shaped).
 func validateGitlabURL(path string) error {
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
 
 	// with 1 part we support these endpoints:
 	// - /avatar
 	// - /projects        (e.g. ?membership=true, the user's projects including private)
+	// - /users           (e.g. ?username=NAME, to resolve a user / detect namespace)
 	if len(parts) == 1 {
-		if parts[0] == "avatar" || parts[0] == "projects" {
+		if parts[0] == "avatar" || parts[0] == "projects" || parts[0] == "users" {
 			return nil
 		}
 	}
 
 	// with 2 parts we support these endpoints:
-	// - /search/repositories
 	// - /projects/USERNAME%2FREPO
+	// - /groups/GROUP     (group info, used to detect user vs group)
 	if len(parts) == 2 {
-		if path == "/search/repositories" || parts[0] == "projects" {
+		if parts[0] == "projects" || parts[0] == "groups" {
 			return nil
 		}
 	}
