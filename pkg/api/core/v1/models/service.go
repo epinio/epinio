@@ -135,7 +135,7 @@ type CatalogService struct {
 	// derives from this catalog service. Read-only, computed from live service
 	// instances. Named for what actually binds to a catalog service (instances),
 	// not apps, which attach to instances rather than the catalog entry.
-	BoundServices bool `json:"boundServices,omitempty"`
+	BoundServices bool `json:"bound_services,omitempty"`
 }
 
 // HelmRepo matches github.com/epinio/application/api/v1 HelmRepo
