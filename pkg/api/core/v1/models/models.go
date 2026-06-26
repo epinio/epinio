@@ -421,13 +421,6 @@ type AppChart struct {
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
 }
 
-type AppChartRequest struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec AppChartCreateRequest `json:"spec,omitempty"`
-}
-
 type AppChartCreateRequest struct {
 	Name             string                  `json:"name,omitempty"`
 	Description      string                  `json:"description,omitempty"`
