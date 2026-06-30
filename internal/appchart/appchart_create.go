@@ -33,11 +33,6 @@ func Create(
 		"epinio.io/area":               NAMESPACE,
 	})
 
-	// Build the spec with the CRD's camelCase keys explicitly. The request DTO
-	// carries snake_case JSON tags for the client API, so it cannot be fed to
-	// the unstructured converter directly, that would emit snake_case spec
-	// keys the AppChart CRD rejects. Name is the metadata name only, never a
-	// spec field. Mirrors the explicit mapping in appchart_update.go.
 	spec := map[string]interface{}{}
 	if chart.Description != "" {
 		spec["description"] = chart.Description

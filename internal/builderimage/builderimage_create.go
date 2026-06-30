@@ -7,7 +7,6 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -22,18 +21,7 @@ func Create(
 	bp models.BuilderImageCreateRequest,
 ) (*unstructured.Unstructured, error) {
 
-	request := &models.BuilderImageRequest{
-		Spec: bp,
-	}
-
-	content, contentError := runtime.
-		DefaultUnstructuredConverter.
-		ToUnstructured(request)
-	if contentError != nil {
-		return nil, contentError
-	}
-
-	final := &unstructured.Unstructured{Object: content}
+	final := &unstructured.Unstructured{Object: map[string]interface{}{}}
 
 	final.SetKind(KIND)
 	final.SetAPIVersion(API_VERSION)
@@ -44,6 +32,18 @@ func Create(
 		"app.kubernetes.io/managed-by": NAMESPACE,
 		"epinio.io/area":               NAMESPACE,
 	})
+
+	spec := map[string]interface{}{}
+	if bp.Image != "" {
+		spec["image"] = bp.Image
+	}
+	if bp.Description != "" {
+		spec["description"] = bp.Description
+	}
+	if bp.ShortDescription != "" {
+		spec["shortDescription"] = bp.ShortDescription
+	}
+	final.Object["spec"] = spec
 
 	created, createError := client.
 		Namespace(helmchart.Namespace()).
