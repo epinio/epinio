@@ -347,7 +347,15 @@ func Deploy(parameters ChartParameters) error {
 	logger.Infow("deploy app", "parameters", parameters)
 
 	// Find the app chart to use for the deployment.
-	appChart, err := appchart.Lookup(parameters.Context, parameters.Cluster, parameters.Chart)
+	appChartClient, clientError := parameters.Cluster.ClientAppChart()
+	if clientError != nil {
+		return errors.Wrap(clientError, "creating app chart client")
+	}
+	appChart, err := appchart.Lookup(
+		parameters.Context,
+		appChartClient,
+		parameters.Chart,
+	)
 	if err != nil {
 		return errors.Wrap(err, "looking up application chart")
 	}

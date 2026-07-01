@@ -46,6 +46,50 @@ type ServiceCatalogShowResponse struct {
 	Body models.CatalogService
 }
 
+// swagger:route POST /catalogservices service ServiceCatalogCreate
+// Create a new catalog service.
+// responses:
+//   201: ServiceCatalogCreateResponse
+
+// swagger:parameters ServiceCatalogCreate
+type ServiceCatalogCreateParam struct {
+	// in: body
+	Body models.CatalogServiceCreateRequest
+}
+
+// swagger:response ServiceCatalogCreateResponse
+type ServiceCatalogCreateResponse struct{}
+
+// swagger:route PATCH /catalogservices/{CatalogService} service ServiceCatalogUpdate
+// Update fields on the named `CatalogService`.
+// responses:
+//   200: ServiceCatalogUpdateResponse
+
+// swagger:parameters ServiceCatalogUpdate
+type ServiceCatalogUpdateParam struct {
+	// in: path
+	CatalogService string
+	// in: body
+	Body models.CatalogServiceUpdateRequest
+}
+
+// swagger:response ServiceCatalogUpdateResponse
+type ServiceCatalogUpdateResponse struct{}
+
+// swagger:route DELETE /catalogservices/{CatalogService} service ServiceCatalogDelete
+// Delete the named `CatalogService`.
+// responses:
+//   200: ServiceCatalogDeleteResponse
+
+// swagger:parameters ServiceCatalogDelete
+type ServiceCatalogDeleteParam struct {
+	// in: path
+	CatalogService string
+}
+
+// swagger:response ServiceCatalogDeleteResponse
+type ServiceCatalogDeleteResponse struct{}
+
 // swagger:route GET /catalogservicesmatches/{Pattern} catalogservice CatalogServiceMatch
 // Return list of names for all catalog entries whose name matches the prefix `Pattern`.
 // responses:
