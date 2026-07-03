@@ -38,6 +38,7 @@ import (
 // This interface allows for mocking in tests.
 type S3Manager interface {
 	Meta(ctx context.Context, blobUID string) (map[string]string, error)
+	Open(ctx context.Context, blobUID string) (io.ReadCloser, string, int64, error)
 	UploadStream(ctx context.Context, file io.Reader, size int64, metadata map[string]string) (string, error)
 	Upload(ctx context.Context, filepath string, metadata map[string]string) (string, error)
 	EnsureBucket(ctx context.Context) error
@@ -230,6 +231,29 @@ func (m *Manager) Meta(ctx context.Context, blobUID string) (map[string]string, 
 		meta[k] = v
 	}
 	return meta, nil
+}
+
+// Open retrieves the blob specified by blobUID from the S3 endpoint.
+func (m *Manager) Open(ctx context.Context, blobUID string) (io.ReadCloser, string, int64, error) {
+	out, err := m.s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(m.connectionDetails.Bucket),
+		Key:    aws.String(blobUID),
+	})
+	if err != nil {
+		return nil, "", 0, errors.Wrap(err, "reading the object")
+	}
+
+	contentType := "application/tar"
+	if out.ContentType != nil && *out.ContentType != "" {
+		contentType = *out.ContentType
+	}
+
+	var contentLength int64 = -1
+	if out.ContentLength != nil {
+		contentLength = *out.ContentLength
+	}
+
+	return out.Body, contentType, contentLength, nil
 }
 
 // UploadStream uploads the given Reader to the S3 endpoint and returns a blobUID which

@@ -203,6 +203,7 @@
   routes:
     - AppPart # export part
     - AppExport # export to registry
+    - AppSource # retrieve staging source
 
 # App Logs
 - id: app_logs
