@@ -1087,18 +1087,19 @@ func resolveBlobUID(
 		"url", origin.Git.URL, "revision", origin.Git.Revision,
 	)
 
-	// Resolve the gitconfig stored on the app origin. This is a system re-clone of
-	// an origin already authorized at push time, so it is not re-authorized here.
-	// A name that no longer exists falls back to an unauthenticated clone.
+	// Resolve the gitconfig for this system re-clone of an origin already
+	// authorized at push time (not re-authorized here).
+	manager, managerError := gitbridge.NewManager(
+		cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
+	)
+	if managerError != nil {
+		return "", apierror.InternalError(managerError, "creating git configuration manager")
+	}
+
 	var gitConfig *gitbridge.Configuration
 	if origin.Git.Gitconfig != "" {
-		manager, managerError := gitbridge.NewManager(
-			cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
-		)
-		if managerError != nil {
-			return "", apierror.InternalError(managerError, "creating git configuration manager")
-		}
-
+		// Preferred path: the app carries an explicit per-app gitconfig stamp.
+		// A name that no longer exists falls back to an unauthenticated clone.
 		config, found := manager.Configuration(origin.Git.Gitconfig)
 		if found {
 			gitConfig = config
@@ -1106,6 +1107,21 @@ func resolveBlobUID(
 			log.Infow("stored gitconfig no longer exists, cloning without it",
 				"namespace", namespace, "app", name, "gitconfig", origin.Git.Gitconfig,
 			)
+		}
+	} else {
+		// Legacy fallback: apps pushed before per-app gitconfig stamping have no
+		// origin.git.gitconfig. Match a configuration by repo URL, preserving the
+		// pre-upgrade behavior so private-repo re-clones keep working on redeploy.
+		config, findError := manager.FindConfiguration(origin.Git.URL)
+		if findError != nil {
+			return "", apierror.InternalError(findError,
+				fmt.Sprintf("finding git configuration for gitURL [%s]", origin.Git.URL))
+		}
+		if config != nil {
+			log.Infow("legacy app without stored gitconfig, matched by url",
+				"namespace", namespace, "app", name, "gitconfig", config.ID,
+			)
+			gitConfig = config
 		}
 	}
 
