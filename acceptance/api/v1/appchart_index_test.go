@@ -44,10 +44,10 @@ var _ = Describe("ChartList Endpoint", LAppchart, func() {
 		// Note to maintainers: Due to the concurrent nature of tests we may have a varying
 		// number of custom app charts from other tests visible here. Find the "standard"
 		// chart in the list (order is not guaranteed) and assert on its fields.
-		var standard *models.AppChart
+		var standard models.AppChartFull
 		for i := range appcharts {
 			if appcharts[i].Meta.Name == "standard" {
-				standard = &appcharts[i]
+				standard = appcharts[i]
 				break
 			}
 		}
