@@ -20,6 +20,7 @@ package models
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/epinio/epinio/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -132,11 +133,28 @@ type ApplicationManifest struct {
 	Namespace     string                   `yaml:"namespace,omitempty"`
 }
 
+// Build mode constants for staging.
+const (
+	BuildModeBuildpack  = "buildpack"
+	BuildModeDockerfile = "dockerfile"
+)
+
+// NormalizeBuildMode returns a known build mode, defaulting to buildpack.
+func NormalizeBuildMode(mode string) string {
+	switch strings.ToLower(mode) {
+	case BuildModeDockerfile:
+		return BuildModeDockerfile
+	default:
+		return BuildModeBuildpack
+	}
+}
+
 // ApplicationStage is the part of the manifest holding information
-// relevant to staging the application's sources. This is, currently,
-// only the reference to the Paketo builder image to use.
+// relevant to staging the application's sources.
 type ApplicationStage struct {
-	Builder string `yaml:"builder,omitempty" json:"builder,omitempty"`
+	Builder        string `yaml:"builder,omitempty" json:"builder,omitempty"`
+	BuildMode      string `yaml:"buildMode,omitempty" json:"buildMode,omitempty"`
+	DockerfilePath string `yaml:"dockerfilePath,omitempty" json:"dockerfilePath,omitempty"`
 }
 
 // ApplicationConfiguration is the part of the manifest describing the configuration of the application
@@ -257,9 +275,11 @@ type UploadResponse struct {
 
 // StageRequest represents and contains the data needed to stage an application
 type StageRequest struct {
-	App          AppRef `json:"app,omitempty"`
-	BlobUID      string `json:"blobuid,omitempty"`
-	BuilderImage string `json:"builderimage,omitempty"`
+	App            AppRef `json:"app,omitempty"`
+	BlobUID        string `json:"blobuid,omitempty"`
+	BuilderImage   string `json:"builderimage,omitempty"`
+	BuildMode      string `json:"buildmode,omitempty"`
+	DockerfilePath string `json:"dockerfilepath,omitempty"`
 }
 
 // StageResponse represents the server's response to a successful app staging
@@ -309,11 +329,13 @@ type DeployResponse struct {
 // For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
 // `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
 type AsyncDeployRequest struct {
-	App         AppRef            `json:"app,omitempty"`
-	BlobUID     string            `json:"blobuid,omitempty"`
-	BuilderImage string           `json:"builderimage,omitempty"`
-	ImageURL    string            `json:"image,omitempty"`
-	Origin      ApplicationOrigin `json:"origin,omitempty"`
+	App            AppRef            `json:"app,omitempty"`
+	BlobUID        string            `json:"blobuid,omitempty"`
+	BuilderImage   string            `json:"builderimage,omitempty"`
+	BuildMode      string            `json:"buildmode,omitempty"`
+	DockerfilePath string            `json:"dockerfilepath,omitempty"`
+	ImageURL       string            `json:"image,omitempty"`
+	Origin         ApplicationOrigin `json:"origin,omitempty"`
 }
 
 // AsyncDeployStatus represents the status of an asynchronous deploy operation.
