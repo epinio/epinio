@@ -61,6 +61,10 @@ func (m *mockS3Manager) Upload(ctx context.Context, filepath string, metadata ma
 	return "", nil
 }
 
+func (m *mockS3Manager) Download(ctx context.Context, blobUID string) (io.ReadCloser, error) {
+	return nil, nil
+}
+
 func (m *mockS3Manager) EnsureBucket(ctx context.Context) error {
 	return nil
 }

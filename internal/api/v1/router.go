@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/internal/api/v1/appchart"
 	"github.com/epinio/epinio/internal/api/v1/application"
+	"github.com/epinio/epinio/internal/api/v1/builderimage"
 	"github.com/epinio/epinio/internal/api/v1/configuration"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/env"
@@ -33,6 +34,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/report"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
+	"github.com/epinio/epinio/internal/api/v1/service/catalog"
 	"github.com/epinio/epinio/internal/api/v1/supportbundle"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -124,6 +126,8 @@ var Routes = routes.NamedRoutes{
 	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),
 	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Running)),
 	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)), // See stage.go
+	"AppSourcePatch":  patch("/namespaces/:namespace/applications/:app/source", errorHandler(application.SourcePatch)), // See sourcepatch.go
+	"AppSync":         post("/namespaces/:namespace/applications/:app/sync", errorHandler(application.Sync)),           // See sync.go
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
 	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
 	"AppSource":       get("/namespaces/:namespace/applications/:app/source", errorHandler(application.GetSource)),
@@ -177,12 +181,15 @@ var Routes = routes.NamedRoutes{
 	"ConfigurationMatch0": get("/namespaces/:namespace/configurationsmatches", errorHandler(configuration.Match)),
 
 	// Service Catalog
-	"ServiceCatalog":     get("/catalogservices", errorHandler(service.Catalog)),
-	"ServiceCatalogShow": get("/catalogservices/:catalogservice", errorHandler(service.CatalogShow)),
+	"ServiceCatalog":       get("/catalogservices", errorHandler(catalog.Index)),
+	"ServiceCatalogShow":   get("/catalogservices/:catalogservice", errorHandler(catalog.Show)),
+	"ServiceCatalogCreate": post("/catalogservices", errorHandler(catalog.Create)),
+	"ServiceCatalogUpdate": patch("/catalogservices/:catalogservice", errorHandler(catalog.Update)),
+	"ServiceCatalogDelete": delete("/catalogservices/:catalogservice", errorHandler(catalog.Delete)),
 
 	// Note, the second registration catches calls with an empty pattern!
-	"ServiceCatalogMatch":  get("catalogservicesmatches/:pattern", errorHandler(service.CatalogMatch)),
-	"ServiceCatalogMatch0": get("catalogservicesmatches", errorHandler(service.CatalogMatch)),
+	"ServiceCatalogMatch":  get("catalogservicesmatches/:pattern", errorHandler(catalog.Match)),
+	"ServiceCatalogMatch0": get("catalogservicesmatches", errorHandler(catalog.Match)),
 
 	// Services
 	"ServiceApps": get("/namespaces/:namespace/serviceapps", errorHandler(service.ServiceApps)),
@@ -215,10 +222,22 @@ var Routes = routes.NamedRoutes{
 		errorHandler(service.BatchBind)),
 
 	// App charts
+	"ChartCreate": post("/appcharts", errorHandler(appchart.Create)),
 	"ChartList":   get("/appcharts", errorHandler(appchart.Index)),
 	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Match)),
 	"ChartMatch0": get("/appchartsmatch", errorHandler(appchart.Match)),
 	"ChartShow":   get("/appcharts/:name", errorHandler(appchart.Show)),
+	"ChartUpdate": patch("/appcharts/:name", errorHandler(appchart.Update)),
+	"ChartDelete": delete("/appcharts/:name", errorHandler(appchart.Delete)),
+
+	// Builder Images
+	"BuilderImageCreate": post("/builderimages", errorHandler(builderimage.Create)),
+	"BuilderImageList":   get("/builderimages", errorHandler(builderimage.Index)),
+	"BuilderImageMatch":  get("/builderimagesmatch/:pattern", errorHandler(builderimage.Match)),
+	"BuilderImageMatch0": get("/builderimagesmatch", errorHandler(builderimage.Match)),
+	"BuilderImageShow":   get("/builderimages/:name", errorHandler(builderimage.Show)),
+	"BuilderImageUpdate": patch("/builderimages/:name", errorHandler(builderimage.Update)),
+	"BuilderImageDelete": delete("/builderimages/:name", errorHandler(builderimage.Delete)),
 
 	// Git configurations (auth for private git repos) - List, create, delete, and show.
 	"Gitconfigs":           get("/gitconfigs", errorHandler(gitconfig.Index)),

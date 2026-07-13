@@ -16,9 +16,9 @@ go 1.25.0
 require (
 	github.com/adrg/xdg v0.5.3
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/aws-sdk-go-v2 v1.41.1
+	github.com/aws/aws-sdk-go-v2 v1.41.9
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.7
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.0
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.102.2
 	github.com/briandowns/spinner v1.23.2
 	github.com/coreos/go-oidc/v3 v3.9.0
 	github.com/dchest/uniuri v1.2.0
@@ -41,7 +41,7 @@ require (
 	github.com/novln/docker-parser v1.0.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/ginkgo/v2 v2.28.3
-	github.com/onsi/gomega v1.40.0
+	github.com/onsi/gomega v1.41.0
 	github.com/paketo-buildpacks/ca-certificates/v3 v3.10.4
 	github.com/panjf2000/ants/v2 v2.11.3
 	github.com/pkg/errors v0.9.1
@@ -51,12 +51,12 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	go.uber.org/mock v0.5.2
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.50.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/term v0.42.0
+	golang.org/x/term v0.43.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -83,15 +83,15 @@ require (
 	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.4 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.17 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.17 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.17 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.17 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.17 // indirect
-	github.com/aws/smithy-go v1.24.0 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.11 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.26 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.10 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.18 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.25 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.25 // indirect
+	github.com/aws/smithy-go v1.26.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bodgit/plumbing v1.3.0 // indirect
 	github.com/bodgit/sevenzip v1.6.1 // indirect
@@ -218,7 +218,7 @@ require (
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect

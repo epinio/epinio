@@ -22,107 +22,171 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/dynamic"
 )
 
-// List returns a slice of all known app chart CRs.
-func List(ctx context.Context, cluster *kubernetes.Cluster) (models.AppChartList, error) {
-	client, err := cluster.ClientAppChart()
-	if err != nil {
-		return nil, err
+// LookupViaCluster is a convenience wrapper for callers that have a
+// *kubernetes.Cluster but not a dynamic client. It resolves the dynamic
+// client from the cluster and delegates to Lookup.
+func LookupViaCluster(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	name string,
+) (*models.AppChartFull, error) {
+	client, clientError := cluster.ClientAppChart()
+	if clientError != nil {
+		return nil, clientError
 	}
+	return Lookup(ctx, client, name)
+}
 
-	list, err := client.Namespace(helmchart.Namespace()).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
+// ExistsViaCluster is a convenience wrapper that mirrors LookupViaCluster
+// for the Exists check.
+func ExistsViaCluster(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	name string,
+) (bool, error) {
+	client, clientError := cluster.ClientAppChart()
+	if clientError != nil {
+		return false, clientError
+	}
+	return Exists(ctx, client, name)
+}
+
+// List returns a slice of all known app chart CRs.
+func List(
+	ctx context.Context,
+	client dynamic.NamespaceableResourceInterface,
+) (models.AppChartList, error) {
+	list, listError := client.Namespace(helmchart.Namespace()).List(
+		ctx,
+		metav1.ListOptions{},
+	)
+	if listError != nil {
+		return nil, listError
 	}
 
 	apps := make(models.AppChartList, 0, len(list.Items))
 
 	for _, chart := range list.Items {
-		copy := chart // Prevent memory aliasing warning
-		appChart, err := toChart(&copy)
-		if err != nil {
-			return nil, err
+		copyChart := chart // Prevent memory aliasing warning
+		converted, convertError := toChart(&copyChart)
+		if convertError != nil {
+			return nil, convertError
 		}
-		apps = append(apps, appChart.AppChart)
+		apps = append(apps, *converted)
 	}
 
 	return apps, nil
 }
 
 // Exists tests if the named app chart exists, or not.
-func Exists(ctx context.Context, cluster *kubernetes.Cluster, name string) (bool, error) {
-	_, err := Get(ctx, cluster, name)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
+func Exists(
+	ctx context.Context,
+	client dynamic.NamespaceableResourceInterface,
+	name string,
+) (bool, error) {
+	_, getError := Get(ctx, client, name)
+	if getError != nil {
+		if apierrors.IsNotFound(getError) {
 			return false, nil
 		}
-		return false, err
+		return false, getError
 	}
 	return true, nil
 }
 
 // Lookup returns the named app chart, or nil
-func Lookup(ctx context.Context, cluster *kubernetes.Cluster, name string) (*models.AppChartFull, error) {
-	chartCR, err := Get(ctx, cluster, name)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
+func Lookup(
+	ctx context.Context,
+	client dynamic.NamespaceableResourceInterface,
+	name string,
+) (*models.AppChartFull, error) {
+	chartCR, getError := Get(ctx, client, name)
+	if getError != nil {
+		if apierrors.IsNotFound(getError) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, getError
 	}
 
 	return toChart(chartCR)
 }
 
-// Get returns the app chart resource from the cluster.  This should be
-// changed to return a typed application struct, like epinioappv1.AppChartSpec if
-// needed in the future.
-func Get(ctx context.Context, cluster *kubernetes.Cluster, name string) (*unstructured.Unstructured, error) {
-	client, err := cluster.ClientAppChart()
-	if err != nil {
-		return nil, err
-	}
-
-	return client.Namespace(helmchart.Namespace()).Get(ctx, name, metav1.GetOptions{})
+// Get returns the app chart resource from the cluster.
+func Get(
+	ctx context.Context,
+	client dynamic.NamespaceableResourceInterface,
+	name string,
+) (*unstructured.Unstructured, error) {
+	return client.Namespace(helmchart.Namespace()).Get(
+		ctx,
+		name,
+		metav1.GetOptions{},
+	)
 }
 
 // toChart converts the unstructured app chart CR into the proper model
 func toChart(chart *unstructured.Unstructured) (*models.AppChartFull, error) {
 
-	name, _, err := unstructured.NestedString(chart.UnstructuredContent(), "metadata", "name")
-	if err != nil {
+	name, _, nameError := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"metadata",
+		"name",
+	)
+	if nameError != nil {
 		return nil, errors.New("chart should be string")
 	}
 
-	description, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "description")
-	if err != nil {
+	description, _, descriptionError := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"spec",
+		"description",
+	)
+	if descriptionError != nil {
 		return nil, errors.New("description should be string")
 	}
 
-	short, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "shortDescription")
-	if err != nil {
+	short, _, shortError := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"spec",
+		"shortDescription",
+	)
+	if shortError != nil {
 		return nil, errors.New("shortdescription should be string")
 	}
 
-	helmChart, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "helmChart")
-	if err != nil {
+	helmChart, _, helmChartError := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"spec",
+		"helmChart",
+	)
+	if helmChartError != nil {
 		return nil, errors.New("helm chart should be string")
 	}
 
-	helmRepo, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "helmRepo")
-	if err != nil {
+	helmRepo, _, helmRepoError := unstructured.NestedString(
+		chart.UnstructuredContent(),
+		"spec",
+		"helmRepo",
+	)
+	if helmRepoError != nil {
 		return nil, errors.New("helm repo should be string")
 	}
 
-	theValues, _, err := unstructured.NestedStringMap(chart.UnstructuredContent(), "spec", "values")
-	if err != nil {
+	theValues, _, valuesError := unstructured.NestedStringMap(
+		chart.UnstructuredContent(),
+		"spec",
+		"values",
+	)
+	if valuesError != nil {
 		return nil, errors.New("spec values should be map")
 	}
 
-	settings, err := helmchart.SettingsToChart(chart)
-	if err != nil {
-		return nil, err
+	settings, settingsError := helmchart.SettingsToChart(chart)
+	if settingsError != nil {
+		return nil, settingsError
 	}
 
 	createdAt := chart.GetCreationTimestamp()
