@@ -130,7 +130,6 @@ var Routes = routes.NamedRoutes{
 	"AppSync":         post("/namespaces/:namespace/applications/:app/sync", errorHandler(application.Sync)),           // See sync.go
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
 	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
-	"AppSource":       get("/namespaces/:namespace/applications/:app/source", errorHandler(application.GetSource)),
 	"AppValidateCV":   get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
 	"AppExport":       post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
 

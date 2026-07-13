@@ -134,22 +134,6 @@ func (c *Client) AppShow(namespace string, appName string) (models.App, error) {
 	return Get(c, endpoint, response)
 }
 
-// AppGetSource retrieves the staging source tarball for an app.
-func (c *Client) AppGetSource(namespace, appName string) (models.AppPartResponse, error) {
-	response := models.AppPartResponse{}
-	endpoint := api.Routes.Path("AppSource", namespace, appName)
-
-	httpResponse, err := c.Do(endpoint, http.MethodGet, nil)
-	if err != nil {
-		return response, errors.Wrap(err, "executing AppSource request")
-	}
-
-	return models.AppPartResponse{
-		Data:          httpResponse.Body,
-		ContentLength: httpResponse.ContentLength,
-	}, nil
-}
-
 // AppGetPart retrieves part of an app (values.yaml, chart, image)
 func (c *Client) AppGetPart(namespace, appName, part string) (models.AppPartResponse, error) {
 	response := models.AppPartResponse{}

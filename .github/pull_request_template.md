@@ -4,7 +4,6 @@
 - [ ] Unit Tests are passing
 - [ ] Acceptance Tests are passing
 - [ ] Code is well documented
-- [ ] Does the [MCP](https://github.com/epinio/mcp) server need an update?
 - [ ] If applicable, a PR in the [epinio/docs](https://github.com/epinio/docs) repository has been opened
  
 <!-- This template is for Devs to give the reviewer and QA details -->
