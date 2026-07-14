@@ -72,7 +72,7 @@ jobs:
       # Login to Azure for the AKS deletion case
       - name: Login to Azure
         if: ${{ github.event.inputs.pcp == 'AKS' }}
-        uses: azure/login@v1
+        uses: azure/login@v3
         with:
           creds: ${{ github.events.inputs.azure_credentials || secrets.AZURE_CREDENTIALS }}
 

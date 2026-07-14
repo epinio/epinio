@@ -115,7 +115,7 @@ jobs:
       # az ad sp create-for-rbac --name ${{ env.AKS_RESOURCE_GROUP }} --sdk-auth --role contributor \
       #   --scopes /subscriptions/{id}/resourceGroups/${{ env.AKS_RESOURCE_GROUP }}
       - name: Login to Azure
-        uses: azure/login@v1
+        uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
