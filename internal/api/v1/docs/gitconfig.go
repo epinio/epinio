@@ -114,21 +114,3 @@ type GitconfigMatchResponse struct {
 type GitconfigMatch0Param struct{}
 
 // response: See GitconfigMatch.
-
-// swagger:route GET /gitconfigssuggest gitconfig GitconfigSuggest
-// Return the name of the most specific git configuration the user may use for the
-// repository `URL`, or an empty name when none matches.
-// responses:
-//   200: GitconfigSuggestResponse
-
-// swagger:parameters GitconfigSuggest
-type GitconfigSuggestParam struct {
-	// in: query
-	URL string `json:"url"`
-}
-
-// swagger:response GitconfigSuggestResponse
-type GitconfigSuggestResponse struct {
-	// in: body
-	Body models.GitconfigSuggestResponse
-}

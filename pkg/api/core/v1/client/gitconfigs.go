@@ -53,22 +53,6 @@ func (c *Client) GitconfigsMatch(prefix string) (models.GitconfigsMatchResponse,
 	return Get(c, endpoint, response)
 }
 
-// GitconfigSuggest returns the suggested gitconfig name for the given repository URL
-func (c *Client) GitconfigSuggest(gitURL string) (models.GitconfigSuggestResponse, error) {
-	response := models.GitconfigSuggestResponse{}
-
-	queryParams := url.Values{}
-	queryParams.Set("url", gitURL)
-
-	endpoint := fmt.Sprintf(
-		"%s?%s",
-		api.Routes.Path("GitconfigSuggest"),
-		queryParams.Encode(),
-	)
-
-	return Get(c, endpoint, response)
-}
-
 // Gitconfigs returns a list of gitconfigs
 func (c *Client) Gitconfigs() (models.GitconfigList, error) {
 	response := models.GitconfigList{}
