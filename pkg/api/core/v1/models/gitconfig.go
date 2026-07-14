@@ -16,12 +16,6 @@ type GitconfigsMatchResponse struct {
 	Names []string `json:"names,omitempty"`
 }
 
-// GitconfigSuggestResponse contains the name of the suggested git configuration
-// for a repository URL. The name is empty when no usable configuration matches.
-type GitconfigSuggestResponse struct {
-	Name string `json:"name,omitempty"`
-}
-
 // GitconfigCreateRequest contains the data for a new git configuration.
 type GitconfigCreateRequest struct {
 	Global       bool        `json:"global,omitempty"`
