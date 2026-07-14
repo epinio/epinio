@@ -32,7 +32,7 @@ Documentation is available at [docs.epinio.io](https://docs.epinio.io/).
 
 ### Installation
 
-Requires a Kubernetes cluster, an Ingress Controller and a Cert Manager as explained in the [installation](https://docs.epinio.io/installation/install_epinio) documentation.
+Requires a Kubernetes cluster, an Ingress Controller and a Cert Manager as explained in the [installation](https://docs.epinio.io/getting-started/install-epinio) documentation.
 Once this is in place, and leaving out DNS setup, an installation reduces to:
 
 ```
@@ -52,11 +52,11 @@ Installation of the Epinio CLI is by downloading a binary from the
 brew install epinio
 ```
 
-There is further documentation [here](https://docs.epinio.io/installation/install_epinio_cli).
+There is further documentation [here](https://docs.epinio.io/getting-started/install-cli).
 
 ### Quick Start Tutorial
 
-Our [QuickStart Tutorial](https://docs.epinio.io/tutorials/quickstart) works through how to create a namespace and push an application.
+Our [QuickStart Tutorial](https://docs.epinio.io/getting-started/quickstart) works through how to create a namespace and push an application.
 
 ### Reach Us
 
@@ -67,7 +67,7 @@ Our [QuickStart Tutorial](https://docs.epinio.io/tutorials/quickstart) works thr
 
 `Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues.
 
-Find more information in the [Contribution Guide](https://docs.epinio.io/contribute).
+Find more information in the [Contribution Guide](https://docs.epinio.io/contribute/contributing).
 
 The [developer documentation](./docs) explains how to build and run Epinio from a git source checkout.
 
