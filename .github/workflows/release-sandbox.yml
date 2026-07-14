@@ -35,7 +35,7 @@ jobs:
       id-token: write   # This is the key for OIDC!
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0
