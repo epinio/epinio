@@ -157,7 +157,10 @@ func resolveGitconfig(
 		cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
 	)
 	if managerError != nil {
-		return nil, apierror.InternalError(managerError, "creating git configuration manager")
+		return nil, apierror.InternalError(
+			managerError,
+			"creating git configuration manager",
+		)
 	}
 
 	gitConfig, found := manager.Configuration(name)
@@ -173,6 +176,41 @@ func resolveGitconfig(
 	}
 
 	return gitConfig, nil
+}
+
+// authorizeOrigin verifies that the git configuration referenced by an app
+// origin (if any) exists, that the user is permitted to use it, and that it is
+// bound to the origin's host, before the origin is persisted onto the App CR.
+// This stops a caller from stamping a config they may not use, or one whose
+// credentials would then be sent to an unrelated host on a later re-clone.
+func authorizeOrigin(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	origin models.ApplicationOrigin,
+) apierror.APIErrors {
+	if origin.Git == nil || origin.Git.Gitconfig == "" {
+		return nil
+	}
+
+	user := requestctx.User(ctx)
+
+	gitConfig, resolveError := resolveGitconfig(cluster, user, origin.Git.Gitconfig)
+	if resolveError != nil {
+		return resolveError
+	}
+
+	if !gitConfig.AllowsHost(origin.Git.URL) {
+		return apierror.NewAPIError(
+			fmt.Sprintf(
+				"gitconfig [%s] is not allowed for the host of url [%s]",
+				origin.Git.Gitconfig,
+				origin.Git.URL,
+			),
+			nethttp.StatusForbidden,
+		)
+	}
+
+	return nil
 }
 
 // cloneAndUpload clones the git repository, tarballs it, uploads to S3,
@@ -197,6 +235,14 @@ func cloneAndUpload(
 	}()
 
 	if gitConfig != nil {
+		// Bind the credential to its own instance: never send a config's
+		// username/token/cert to a host it does not belong to.
+		if !gitConfig.AllowsHost(gitURL) {
+			return "", "", "", apierror.NewAPIError(
+				fmt.Sprintf("gitconfig [%s] is not allowed for the host of url [%s]", gitConfig.ID, gitURL),
+				nethttp.StatusForbidden,
+			)
+		}
 		log.Infow("cloning with git config", "gitConfig", gitConfig.ID)
 	} else {
 		log.Infow("cloning without a git config", "giturl", gitURL)

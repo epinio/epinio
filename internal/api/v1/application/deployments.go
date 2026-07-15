@@ -237,6 +237,11 @@ func runAsyncDeployment(ctx context.Context, deploymentID string, req models.Asy
 		return
 	}
 
+	if apiErr := authorizeOrigin(ctx, cluster, req.Origin); apiErr != nil {
+		failAPI(apiErr)
+		return
+	}
+
 	if err := application.SetOrigin(ctx, cluster, req.App, req.Origin); err != nil {
 		failErr(err)
 		return

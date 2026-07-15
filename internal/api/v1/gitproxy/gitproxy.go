@@ -85,6 +85,14 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 				http.StatusForbidden,
 			)
 		}
+		// Bind the credential to its own instance: the proxied host must be one
+		// this config is allowed to reach, so a token is never forwarded onward.
+		if !config.AllowsHost(proxyRequest.URL) {
+			return apierror.NewAPIError(
+				fmt.Sprintf("gitconfig [%s] is not allowed for the requested host", proxyRequest.Gitconfig),
+				http.StatusForbidden,
+			)
+		}
 
 		gitConfig = config
 	}
@@ -211,8 +219,11 @@ func validateGithubURL(path string) error {
 }
 
 // validateGitlabURL will validate if the requested API is a whitelisted one.
-// We don't want to let the user call all the Gitlab APIs with the provided tokens.
-// Gitlab use the project ID or the url encoded "USERNAME/REPO" string, hence we are checking for the second one.
+// We don't want to let the user call all the Gitlab APIs with the provided
+// tokens.
+// Gitlab use the project ID or the url encoded "USERNAME/REPO" string, hence
+// we are checking for the second one.
+//
 // The supported APIs are:
 // - /avatar
 // - /projects                (e.g. ?membership=true, the user's projects including private)

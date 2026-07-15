@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	nethttp "net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -42,6 +43,7 @@ import (
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
@@ -1087,8 +1089,8 @@ func resolveBlobUID(
 		"url", origin.Git.URL, "revision", origin.Git.Revision,
 	)
 
-	// Resolve the gitconfig for this system re-clone of an origin already
-	// authorized at push time (not re-authorized here).
+	// Resolve the gitconfig for this system re-clone. The stamp is re-authorized
+	// on every re-clone rather than trusted from push time.
 	manager, managerError := gitbridge.NewManager(
 		cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
 	)
@@ -1099,14 +1101,36 @@ func resolveBlobUID(
 	var gitConfig *gitbridge.Configuration
 	if origin.Git.Gitconfig != "" {
 		// Preferred path: the app carries an explicit per-app gitconfig stamp.
-		// A name that no longer exists falls back to an unauthenticated clone.
+		// A name that no longer exists falls back to an unauthenticated clone;
+		// a name that still exists must re-pass authorization and host binding.
 		config, found := manager.Configuration(origin.Git.Gitconfig)
-		if found {
-			gitConfig = config
-		} else {
+		if !found {
 			log.Infow("stored gitconfig no longer exists, cloning without it",
 				"namespace", namespace, "app", name, "gitconfig", origin.Git.Gitconfig,
 			)
+		} else {
+			user := requestctx.User(ctx)
+			if !auth.CanUseGitconfig(user, *config) {
+				return "", apierror.NewAPIError(
+					fmt.Sprintf(
+						"user unauthorized to use gitconfig [%s]",
+						origin.Git.Gitconfig,
+					),
+					nethttp.StatusForbidden,
+				)
+			}
+
+			if !config.AllowsHost(origin.Git.URL) {
+				return "", apierror.NewAPIError(
+					fmt.Sprintf(
+						"gitconfig [%s] is not allowed for the host of url [%s]",
+						origin.Git.Gitconfig,
+						origin.Git.URL,
+					),
+					nethttp.StatusForbidden,
+				)
+			}
+			gitConfig = config
 		}
 	} else {
 		// Legacy fallback: apps pushed before per-app gitconfig stamping have no

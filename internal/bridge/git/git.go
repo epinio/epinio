@@ -78,6 +78,60 @@ func (c Configuration) IsGlobal() bool {
 	return c.Global
 }
 
+// hostFromURL reduces a stored instance URL to its lowercased host, with no
+// scheme or path. It tolerates the shapes older configs may hold (a bare host,
+// a full URL, or a URL that already carries an API path such as /api/v3), so
+// pre-existing enterprise configs keep working after upgrade.
+func hostFromURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if !strings.Contains(raw, "://") {
+		raw = "https://" + raw
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(parsed.Host)
+}
+
+// AllowedHosts returns the hosts whose requests this configuration's credentials
+// may be attached to. For the SaaS providers the host is implied; for everything
+// else (enterprise, self-hosted, generic git, and legacy configs whose provider
+// string predates the enterprise split) it is derived from the configuration URL.
+func (c Configuration) AllowedHosts() []string {
+	switch c.Provider {
+	case models.ProviderGithub:
+		return []string{"github.com", "api.github.com"}
+	case models.ProviderGitlab:
+		return []string{"gitlab.com"}
+	default:
+		host := hostFromURL(c.URL)
+		if host == "" {
+			return nil
+		}
+		return []string{host}
+	}
+}
+
+// AllowsHost reports whether this configuration's credentials may be sent to the
+// host of targetURL. This binds a credential to its own instance, so a token
+// cannot be forwarded to an unrelated host.
+func (c Configuration) AllowsHost(targetURL string) bool {
+	target := hostFromURL(targetURL)
+	if target == "" {
+		return false
+	}
+	for _, allowed := range c.AllowedHosts() {
+		if strings.EqualFold(allowed, target) {
+			return true
+		}
+	}
+	return false
+}
+
 func NewManager(secretLoader SecretLister) (*Manager, error) {
 	logger := helpers.Logger.With("component", "GitManager")
 

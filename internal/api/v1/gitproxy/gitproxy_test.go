@@ -264,7 +264,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: gitConfig, Global: true, Username: "epinio", Password: "password"},
+					{ID: gitConfig, Global: true, URL: srv.URL, Username: "epinio", Password: "password"},
 				}}
 
 				errs := gitproxy.Proxy(c, gitManager)
@@ -275,6 +275,30 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(b)).To(Equal(`{"foo":"bar"}`))
 			})
+		})
+	})
+
+	When("the gitconfig host does not match the proxied host", func() {
+		It("refuses with 403 and never forwards the credentials", func() {
+			gotAuth := ""
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotAuth = r.Header.Get("Authorization")
+				w.WriteHeader(200)
+			}))
+			defer srv.Close()
+
+			gitConfig := "my-git-conf"
+			// Proxy target is srv, but the config is bound to a different host.
+			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
+				{ID: gitConfig, Global: true, URL: "https://ghe.example.com", Username: "epinio", Password: "password"},
+			}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).To(HaveOccurred())
+			Expect(errs.FirstStatus()).To(Equal(http.StatusForbidden))
+			Expect(gotAuth).To(BeEmpty())
 		})
 	})
 
@@ -305,7 +329,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: gitConfig, Global: true, SkipSSL: true},
+					{ID: gitConfig, Global: true, URL: srv.URL, SkipSSL: true},
 				}}
 
 				errs := gitproxy.Proxy(c, gitManager)
@@ -336,7 +360,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: conn.ConnectionState().PeerCertificates[0].Raw})
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: gitConfig, Global: true, Certificate: pemCert},
+					{ID: gitConfig, Global: true, URL: srv.URL, Certificate: pemCert},
 				}}
 
 				errs := gitproxy.Proxy(c, gitManager)
