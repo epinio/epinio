@@ -196,6 +196,29 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			setupAndRun("/repos/USERNAME/REPO/branches/BRANCH")
 		})
 
+		It("passes for Github Enterprise Cloud data-residency (ghe.com) whitelisted URLs", func() {
+			// Data-residency tenants serve the API from api.<subdomain>.ghe.com with
+			// the same bare paths as api.github.com (no /api/v3 prefix).
+			setupAndRun := func(path string) {
+				GinkgoHelper()
+
+				err := gitproxy.ValidateURL(fmt.Sprintf("https://api.octocorp.ghe.com%s", path))
+				Expect(err).ToNot(HaveOccurred())
+			}
+
+			setupAndRun("/search/repositories?q=repo:USER/ORG")
+			setupAndRun("/users/USERNAME")
+			setupAndRun("/repos/USERNAME/REPO")
+			setupAndRun("/repos/USERNAME/REPO/commits")
+			setupAndRun("/repos/USERNAME/REPO/branches")
+		})
+
+		It("fails for a non-ghe.com host using bare Github paths", func() {
+			// The ghe.com allowance must not open bare-path proxying to arbitrary hosts.
+			err := gitproxy.ValidateURL("https://api.evil.com/repos/USER/REPO")
+			Expect(err).To(HaveOccurred())
+		})
+
 		It("fails for Gitlab Server non whitelisted URLs", func() {
 			setupAndRun := func(path string) {
 				GinkgoHelper()

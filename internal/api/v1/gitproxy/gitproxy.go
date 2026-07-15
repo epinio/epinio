@@ -134,7 +134,11 @@ func ValidateURL(proxiedURL string) error {
 
 	// if the host is known (Github or Github Enterprise Cloud) just validate the path
 	// https://docs.github.com/en/enterprise-cloud@latest/rest/enterprise-admin
-	if u.Host == "api.github.com" {
+	//
+	// GitHub Enterprise Cloud with data residency serves the same API from a
+	// per-tenant subdomain, api.<subdomain>.ghe.com, with the same bare paths as
+	// api.github.com (no /api/v3 prefix). .ghe.com is GitHub-operated.
+	if u.Host == "api.github.com" || isGHEComAPIHost(u.Host) {
 		return validateGithubURL(u.EscapedPath())
 	}
 
@@ -153,6 +157,13 @@ func ValidateURL(proxiedURL string) error {
 	}
 
 	return fmt.Errorf("unknown URL '%s'", proxiedURL)
+}
+
+// isGHEComAPIHost reports whether host is a GitHub Enterprise Cloud data-residency
+// REST API host, i.e. api.<subdomain>.ghe.com. `.ghe.com` is a GitHub-operated
+// domain, so a token cannot be steered to an attacker-controlled host through it.
+func isGHEComAPIHost(host string) bool {
+	return strings.HasPrefix(host, "api.") && strings.HasSuffix(host, ".ghe.com")
 }
 
 // validateGithubURL will validate if the requested API is a whitelisted one.

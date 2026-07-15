@@ -370,5 +370,15 @@ var _ = Describe("Configuration.AllowsHost", func() {
 			git.Configuration{Provider: models.ProviderUnknown, URL: "https://ghe.corp.com/api/v3"}, "https://ghe.corp.com/org/repo", true),
 		Entry("config with no url refuses everything",
 			git.Configuration{Provider: models.ProviderUnknown}, "https://ghe.corp.com/org/repo", false),
+		Entry("enterprise cloud (api.github.com) allows the API host for browsing",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.github.com"}, "https://api.github.com/repos/org/repo", true),
+		Entry("enterprise cloud (api.github.com) allows the web host for cloning",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.github.com"}, "https://github.com/org/repo", true),
+		Entry("enterprise cloud (ghe.com) allows the API host for browsing",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.octocorp.ghe.com"}, "https://api.octocorp.ghe.com/repos/org/repo", true),
+		Entry("enterprise cloud (ghe.com) allows the web host for cloning",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.octocorp.ghe.com"}, "https://octocorp.ghe.com/org/repo", true),
+		Entry("enterprise cloud refuses an unrelated host",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.octocorp.ghe.com"}, "https://evil.example.com/org/repo", false),
 	)
 })

@@ -107,6 +107,17 @@ func (c Configuration) AllowedHosts() []string {
 		return []string{"github.com", "api.github.com"}
 	case models.ProviderGitlab:
 		return []string{"gitlab.com"}
+	case models.ProviderGithubEnterpriseCloud:
+		// The config URL is the REST API host (api.github.com, or
+		// api.<tenant>.ghe.com for data residency). Browsing hits that host, but
+		// cloning uses the matching web host (the same host without the leading
+		// "api."), so allow both.
+		apiHost := hostFromURL(c.URL)
+		if apiHost == "" {
+			return nil
+		}
+		webHost := strings.TrimPrefix(apiHost, "api.")
+		return []string{apiHost, webHost}
 	default:
 		host := hostFromURL(c.URL)
 		if host == "" {
