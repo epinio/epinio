@@ -134,7 +134,9 @@ func NewHandler() (*gin.Engine, error) {
 			middleware.NamespaceExists,
 			middleware.RoleAuthorization,
 			middleware.NamespaceAuthorization,
-			middleware.GitconfigAuthorization,
+			// gitconfig authorization is enforced in the handlers (read allows
+			// global, delete is owner/admin only), which the middleware cannot
+			// express without loading the resource.
 		)
 		apiv1.Lemon(apiRoutesGroup)
 	}

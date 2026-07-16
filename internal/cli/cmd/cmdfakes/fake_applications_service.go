@@ -187,6 +187,20 @@ type FakeApplicationsService struct {
 	appUpdateReturnsOnCall map[int]struct {
 		result1 error
 	}
+	AppWatchStub        func(context.Context, string, string, string) error
+	appWatchMutex       sync.RWMutex
+	appWatchArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 string
+	}
+	appWatchReturns struct {
+		result1 error
+	}
+	appWatchReturnsOnCall map[int]struct {
+		result1 error
+	}
 	AppsStub        func(bool) error
 	appsMutex       sync.RWMutex
 	appsArgsForCall []struct {
@@ -1193,6 +1207,70 @@ func (fake *FakeApplicationsService) AppUpdateReturnsOnCall(i int, result1 error
 		})
 	}
 	fake.appUpdateReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) AppWatch(arg1 context.Context, arg2 string, arg3 string, arg4 string) error {
+	fake.appWatchMutex.Lock()
+	ret, specificReturn := fake.appWatchReturnsOnCall[len(fake.appWatchArgsForCall)]
+	fake.appWatchArgsForCall = append(fake.appWatchArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 string
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.AppWatchStub
+	fakeReturns := fake.appWatchReturns
+	fake.recordInvocation("AppWatch", []interface{}{arg1, arg2, arg3, arg4})
+	fake.appWatchMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) AppWatchCallCount() int {
+	fake.appWatchMutex.RLock()
+	defer fake.appWatchMutex.RUnlock()
+	return len(fake.appWatchArgsForCall)
+}
+
+func (fake *FakeApplicationsService) AppWatchCalls(stub func(context.Context, string, string, string) error) {
+	fake.appWatchMutex.Lock()
+	defer fake.appWatchMutex.Unlock()
+	fake.AppWatchStub = stub
+}
+
+func (fake *FakeApplicationsService) AppWatchArgsForCall(i int) (context.Context, string, string, string) {
+	fake.appWatchMutex.RLock()
+	defer fake.appWatchMutex.RUnlock()
+	argsForCall := fake.appWatchArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeApplicationsService) AppWatchReturns(result1 error) {
+	fake.appWatchMutex.Lock()
+	defer fake.appWatchMutex.Unlock()
+	fake.AppWatchStub = nil
+	fake.appWatchReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) AppWatchReturnsOnCall(i int, result1 error) {
+	fake.appWatchMutex.Lock()
+	defer fake.appWatchMutex.Unlock()
+	fake.AppWatchStub = nil
+	if fake.appWatchReturnsOnCall == nil {
+		fake.appWatchReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.appWatchReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }

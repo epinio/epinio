@@ -121,16 +121,21 @@ type CatalogMatchResponse struct {
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type CatalogService struct {
 	Meta             MetaLite                `json:"meta,omitempty"`
-	SecretTypes      []string                `json:"secretTypes,omitempty"`
+	SecretTypes      []string                `json:"secret_types,omitempty"`
 	Description      string                  `json:"description,omitempty"`
 	ShortDescription string                  `json:"short_description,omitempty"`
 	HelmChart        string                  `json:"chart,omitempty"`
-	ChartVersion     string                  `json:"chartVersion,omitempty"`
-	ServiceIcon      string                  `json:"serviceIcon,omitempty"`
-	AppVersion       string                  `json:"appVersion,omitempty"`
+	ChartVersion     string                  `json:"chart_version,omitempty"`
+	ServiceIcon      string                  `json:"service_icon,omitempty"`
+	AppVersion       string                  `json:"app_version,omitempty"`
 	HelmRepo         HelmRepo                `json:"helm_repo,omitempty"`
 	Values           string                  `json:"values,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	// BoundServices reports whether at least one provisioned service instance
+	// derives from this catalog service. Read-only, computed from live service
+	// instances. Named for what actually binds to a catalog service (instances),
+	// not apps, which attach to instances rather than the catalog entry.
+	BoundServices bool `json:"bound_services,omitempty"`
 }
 
 // HelmRepo matches github.com/epinio/application/api/v1 HelmRepo
@@ -145,4 +150,46 @@ type HelmRepo struct {
 type HelmAuth struct {
 	Username string `json:"-"`
 	Password string `json:"-"`
+}
+
+// HelmRepoRequest mirrors the on-cluster CR HelmRepo, including the Secret
+// reference used to resolve credentials. Used by catalog service write
+// requests; auth values themselves are never accepted in the request body.
+type HelmRepoRequest struct {
+	Name   string `json:"name,omitempty"`
+	URL    string `json:"url,omitempty"`
+	Secret string `json:"secret,omitempty"`
+}
+
+// CatalogServiceCreateRequest carries the fields a client supplies when
+// creating a catalog service. Name is required and lands in metadata.name;
+// the remainder land under spec.
+type CatalogServiceCreateRequest struct {
+	Name             string                  `json:"name,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
+	Description      string                  `json:"description,omitempty"`
+	HelmChart        string                  `json:"chart,omitempty"`
+	ChartVersion     string                  `json:"chart_version,omitempty"`
+	AppVersion       string                  `json:"app_version,omitempty"`
+	ServiceIcon      string                  `json:"service_icon,omitempty"`
+	Values           string                  `json:"values,omitempty"`
+	HelmRepo         HelmRepoRequest         `json:"helm_repo,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	SecretTypes      []string                `json:"secret_types,omitempty"`
+}
+
+// CatalogServiceUpdateRequest carries optional field updates. Empty string
+// fields are ignored — name is taken from the URL, not the body. Settings
+// and SecretTypes are replaced when non-nil; pass nil to leave untouched.
+type CatalogServiceUpdateRequest struct {
+	ShortDescription string                  `json:"short_description,omitempty"`
+	Description      string                  `json:"description,omitempty"`
+	HelmChart        string                  `json:"chart,omitempty"`
+	ChartVersion     string                  `json:"chart_version,omitempty"`
+	AppVersion       string                  `json:"app_version,omitempty"`
+	ServiceIcon      string                  `json:"service_icon,omitempty"`
+	Values           string                  `json:"values,omitempty"`
+	HelmRepo         *HelmRepoRequest        `json:"helm_repo,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	SecretTypes      []string                `json:"secret_types,omitempty"`
 }

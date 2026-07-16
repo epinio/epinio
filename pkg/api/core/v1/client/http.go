@@ -226,6 +226,67 @@ func NewFileUploadRequestHandler(file FormFile) RequestHandler {
 	}
 }
 
+// NewFileUploadWithFieldsRequestHandler creates a multipart/form-data request
+// with the file and additional form fields (e.g. mode="binary"). Fields are
+// written after the file part.
+func NewFileUploadWithFieldsRequestHandler(
+	file FormFile,
+	fields map[string]string,
+) RequestHandler {
+	return func(method, url string) (*http.Request, error) {
+		if file == nil {
+			return nil, errors.New("cannot create multipart form without file")
+		}
+
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, createFormError := writer.CreateFormFile(
+			"file",
+			filepath.Base(file.Name()),
+		)
+		if createFormError != nil {
+			return nil, errors.Wrap(
+				createFormError,
+				"failed to create multipart form",
+			)
+		}
+
+		_, copyError := io.Copy(part, file)
+		if copyError != nil {
+			return nil, errors.Wrap(
+				copyError,
+				"failed to write to multipart form",
+			)
+		}
+
+		for key, val := range fields {
+			writeFieldError := writer.WriteField(key, val)
+			if writeFieldError != nil {
+				return nil, errors.Wrapf(
+					writeFieldError,
+					"failed to write field %q",
+					key,
+				)
+			}
+		}
+
+		closeWriterError := writer.Close()
+		if closeWriterError != nil {
+			return nil, errors.Wrap(
+				closeWriterError,
+				"failed to close multipart",
+			)
+		}
+
+		request, newRequestError := http.NewRequest(method, url, body)
+		if newRequestError != nil {
+			return nil, errors.Wrap(newRequestError, "failed to build request")
+		}
+		request.Header.Add("Content-Type", writer.FormDataContentType())
+		return request, nil
+	}
+}
+
 // NewFormURLEncodedRequestHandler creates a application/x-www-form-urlencoded request encoding the provided data
 func NewFormURLEncodedRequestHandler(data url.Values) RequestHandler {
 	return func(method, url string) (*http.Request, error) {

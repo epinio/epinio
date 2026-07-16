@@ -13,6 +13,7 @@ package gitconfig
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -46,6 +47,12 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError(err.Error())
 	}
 
+	if request.Global && !user.IsAdmin() {
+		return apierror.NewAPIError(
+			"only admins may create global gitconfigs", http.StatusForbidden,
+		)
+	}
+
 	gitconfigName := request.ID
 	if gitconfigName == "" {
 		return apierror.NewBadRequestError("name of gitconfig to create not found")
@@ -74,6 +81,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	secret := gitbridge.NewSecretFromConfiguration(gitbridge.Configuration{
+		Global:      request.Global,
 		ID:          request.ID,
 		URL:         request.URL,
 		Provider:    request.Provider,
