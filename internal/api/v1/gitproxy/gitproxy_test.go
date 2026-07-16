@@ -325,6 +325,36 @@ var _ = Describe("Gitproxy Endpoint", func() {
 		})
 	})
 
+	When("the proxied host redirects to a different host", func() {
+		It("blocks the redirect and never forwards the PRIVATE-TOKEN", func() {
+			gotToken := ""
+			attacker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if v := r.Header.Get("PRIVATE-TOKEN"); v != "" {
+					gotToken = v
+				}
+				w.WriteHeader(200)
+			}))
+			defer attacker.Close()
+
+			// The configured instance issues a cross-host redirect to the attacker.
+			instance := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, attacker.URL+"/api/v4/projects", http.StatusFound)
+			}))
+			defer instance.Close()
+
+			gitConfig := "gl-ent"
+			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v4/projects","gitconfig":"%s"}`, instance.URL, gitConfig))
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
+				{ID: gitConfig, Global: true, URL: instance.URL, Provider: "gitlab_enterprise", Password: "super-secret-token"},
+			}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).To(HaveOccurred())
+			Expect(gotToken).To(BeEmpty())
+		})
+	})
+
 	When("proxying the request to HTTPS server", func() {
 		When("no gitconfig is provided", func() {
 			It("fails for unknown authority", func() {

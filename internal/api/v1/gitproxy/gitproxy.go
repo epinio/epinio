@@ -310,6 +310,21 @@ func getProxyClient(gitConfig *gitbridge.Configuration) (*http.Client, error) {
 		return client, nil
 	}
 
+	// Re-check the host binding on every redirect hop. Go drops the Authorization
+	// header on a cross-host redirect, but not a custom header such as GitLab's
+	// PRIVATE-TOKEN, so without this a redirect could forward the token to an
+	// unrelated host. Refusing the redirect stops the credential from leaving the
+	// configured instance.
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		if !gitConfig.AllowsHost(req.URL.String()) {
+			return fmt.Errorf("redirect to disallowed host %q blocked", req.URL.Host)
+		}
+		return nil
+	}
+
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
 
