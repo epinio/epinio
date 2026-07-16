@@ -45,6 +45,8 @@
 # App Read
 - id: app_read
   name: App Read
+  dependsOn:
+    - chart_read
   routes:
     # app read endpoints
     - AllApps
@@ -64,11 +66,6 @@
     # app env autocomplete
     - EnvMatch
     - EnvMatch0
-    # app chart endpoints
-    - ChartList
-    - ChartShow
-    - ChartMatch
-    - ChartMatch0
 
 # Allow users to restart an app without write permissions
 - id: app_restart
@@ -184,6 +181,8 @@
     - app_logs
   routes:
     - AppStage
+    - AppSourcePatch
+    - AppSync
 
 # App Deploy
 - id: app_deploy
@@ -203,6 +202,7 @@
   routes:
     - AppPart # export part
     - AppExport # export to registry
+    - AppSource # retrieve staging source
 
 # App Logs
 - id: app_logs
@@ -223,6 +223,58 @@
   name: App PortForward
   wsRoutes:
     - AppPortForward
+
+# App Chart related actions
+- id: chart
+  name: Chart
+  dependsOn:
+    - chart_read
+    - chart_write
+
+# Chart Read
+- id: chart_read
+  name: Chart Read
+  routes:
+    - ChartList
+    - ChartShow
+    - ChartMatch
+    - ChartMatch0
+
+# Chart Write
+- id: chart_write
+  name: Chart Write
+  dependsOn:
+    - chart_read
+  routes:
+    - ChartCreate
+    - ChartUpdate
+    - ChartDelete
+
+# Builder Image related actions
+- id: builderimage
+  name: Builder Image
+  dependsOn:
+    - builderimage_read
+    - builderimage_write
+
+# Builder Image Read
+- id: builderimage_read
+  name: Builder Image Read
+  routes:
+    - BuilderImageList
+    - BuilderImageShow
+    - BuilderImageMatch
+    - BuilderImageMatch0
+
+# Builder Image Write
+- id: builderimage_write
+  name: Builder Image Write
+  dependsOn:
+    - builderimage_read
+  routes:
+    - BuilderImageCreate
+    - BuilderImageUpdate
+    - BuilderImageDelete
 
 # Configuration related actions
 - id: configuration
@@ -288,6 +340,10 @@
   dependsOn:
     - service_read
   routes:
+    # service catalog write endpoints
+    - ServiceCatalogCreate
+    - ServiceCatalogUpdate
+    - ServiceCatalogDelete
     # service write endpoints
     - ServiceCreate
     - ServiceDelete
@@ -319,6 +375,7 @@
     - GitconfigShow
     - GitconfigsMatch
     - GitconfigsMatch0
+    - GitconfigSuggest
 
 # Gitconfig Write
 - id: gitconfig_write

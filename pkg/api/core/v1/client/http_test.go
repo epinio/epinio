@@ -14,8 +14,10 @@ package client_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -129,6 +131,56 @@ var _ = Describe("Client HTTP", func() {
 
 				_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
 				Expect(err).To(HaveOccurred())
+			})
+		})
+	})
+
+	Describe("NewFileUploadWithFieldsRequestHandler", func() {
+
+		When("a file and fields are provided", func() {
+			It("builds a multipart request with the file and all fields", func() {
+				uploadFile, createFileError := os.CreateTemp("", "upload-*.tar")
+				Expect(createFileError).ToNot(HaveOccurred())
+				defer os.Remove(uploadFile.Name())
+
+				_, writeError := uploadFile.WriteString("tar-content")
+				Expect(writeError).ToNot(HaveOccurred())
+
+				_, seekError := uploadFile.Seek(0, io.SeekStart)
+				Expect(seekError).ToNot(HaveOccurred())
+
+				handler := client.NewFileUploadWithFieldsRequestHandler(
+					uploadFile,
+					map[string]string{
+						"mode":        "binary",
+						"binary_name": "my-app",
+					},
+				)
+
+				request, handlerError := handler(http.MethodPost, "http://localhost/sync")
+				Expect(handlerError).ToNot(HaveOccurred())
+				Expect(request.Header.Get("Content-Type")).To(
+					ContainSubstring("multipart/form-data"),
+				)
+
+				parseError := request.ParseMultipartForm(1 << 20)
+				Expect(parseError).ToNot(HaveOccurred())
+				Expect(request.FormValue("mode")).To(Equal("binary"))
+				Expect(request.FormValue("binary_name")).To(Equal("my-app"))
+
+				formFile, _, formFileError := request.FormFile("file")
+				Expect(formFileError).ToNot(HaveOccurred())
+				content, readError := io.ReadAll(formFile)
+				Expect(readError).ToNot(HaveOccurred())
+				Expect(string(content)).To(Equal("tar-content"))
+			})
+		})
+
+		When("no file is provided", func() {
+			It("fails", func() {
+				handler := client.NewFileUploadWithFieldsRequestHandler(nil, nil)
+				_, handlerError := handler(http.MethodPost, "http://localhost/sync")
+				Expect(handlerError).To(HaveOccurred())
 			})
 		})
 	})

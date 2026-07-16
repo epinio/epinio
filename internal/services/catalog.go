@@ -20,6 +20,7 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,42 +32,54 @@ const (
 	CatalogServiceLabelKey              = "application.epinio.io/catalog-service-name"
 	CatalogServiceSecretTypesAnnotation = "application.epinio.io/catalog-service-secret-types"
 	CatalogServiceVersionLabelKey       = "application.epinio.io/catalog-service-version"
-	// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
+	// COMPATIBILITY SUPPORT for services from before
+	// https://github.com/epinio/epinio/issues/1704 fix
 	TargetNamespaceLabelKey = "application.epinio.io/target-namespace"
 	// ServiceNameLabelKey is used to keep the original name
 	// since the name in the metadata is combined with the namespace
 	ServiceNameLabelKey = "application.epinio.io/service-name"
 )
 
-func (s *ServiceClient) GetCatalogService(ctx context.Context, serviceName string) (*models.CatalogService, error) {
-	result, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).Get(ctx, serviceName, metav1.GetOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("error getting service %s from namespace epinio", serviceName))
+// CatalogServiceExists tests if the named catalog service exists, or not.
+func (s *ServiceClient) CatalogServiceExists(
+	ctx context.Context,
+	name string,
+) (bool, error) {
+	_, getError := s.serviceKubeClient.
+		Namespace(helmchart.Namespace()).
+		Get(ctx, name, metav1.GetOptions{})
+	if getError != nil {
+		if k8sapierrors.IsNotFound(getError) {
+			return false, nil
+		}
+		return false, getError
 	}
-
-	service, err := s.convertUnstructuredIntoCatalogService(*result)
-	if err != nil {
-		return nil, errors.Wrap(err, "error converting result into Catalog Service")
-	}
-
-	return service, nil
+	return true, nil
 }
 
-func (s *ServiceClient) ListCatalogServices(ctx context.Context) ([]*models.CatalogService, error) {
-	listResult, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "error listing services")
+// convertChartSettingsToCRD lifts the public ChartSetting map into the
+// apiv1.ServiceSetting map shape expected by the CR.
+func convertChartSettingsToCRD(
+	settings map[string]models.ChartSetting,
+) map[string]apiv1.ServiceSetting {
+	if len(settings) == 0 {
+		return nil
 	}
-
-	services, err := s.convertUnstructuredListIntoCatalogService(listResult)
-	if err != nil {
-		return nil, errors.Wrap(err, "error converting listResult into Catalog Services")
+	result := map[string]apiv1.ServiceSetting{}
+	for key, value := range settings {
+		result[key] = apiv1.ServiceSetting{
+			Type:    value.Type,
+			Minimum: value.Minimum,
+			Maximum: value.Maximum,
+			Enum:    value.Enum,
+		}
 	}
-
-	return services, nil
+	return result
 }
 
-func (s *ServiceClient) convertUnstructuredListIntoCatalogService(unstructuredList *unstructured.UnstructuredList) ([]*models.CatalogService, error) {
+func (s *ServiceClient) convertUnstructuredListIntoCatalogService(
+	unstructuredList *unstructured.UnstructuredList,
+) ([]*models.CatalogService, error) {
 	catalogServices := []*models.CatalogService{}
 
 	for _, item := range unstructuredList.Items {
@@ -80,9 +93,15 @@ func (s *ServiceClient) convertUnstructuredListIntoCatalogService(unstructuredLi
 	return catalogServices, nil
 }
 
-func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructured) (*models.CatalogService, error) {
+func (s *ServiceClient) convertUnstructuredIntoCatalogService(
+	unstructured unstructured.Unstructured,
+) (*models.CatalogService, error) {
 	catalogService := apiv1.Service{}
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &catalogService)
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(
+		unstructured.Object,
+		&catalogService,
+	)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "error converting catalog service")
 	}
@@ -107,7 +126,10 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 			catalogService.Spec.HelmRepo.Secret,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "finding helm repo auth secret: "+catalogService.Spec.HelmRepo.Secret)
+			return nil, errors.Wrap(
+				err,
+				"finding helm repo auth secret: "+catalogService.Spec.HelmRepo.Secret,
+			)
 		}
 
 		repoUsername = string(authSecret.Data["username"])
@@ -143,4 +165,52 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(unstructured unstr
 		Values:   catalogService.Spec.Values,
 		Settings: settings,
 	}, nil
+}
+
+func (s *ServiceClient) GetCatalogService(
+	ctx context.Context,
+	serviceName string,
+) (*models.CatalogService, error) {
+	result, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).
+		Get(ctx, serviceName, metav1.GetOptions{})
+
+	if err != nil {
+		return nil, errors.Wrap(
+			err,
+			fmt.Sprintf(
+				"error getting service %s from namespace epinio",
+				serviceName,
+			),
+		)
+	}
+
+	service, err := s.convertUnstructuredIntoCatalogService(*result)
+	if err != nil {
+		return nil, errors.Wrap(err, "error converting result into Catalog Service")
+	}
+
+	return service, nil
+}
+
+func (s *ServiceClient) ListCatalogServices(
+	ctx context.Context,
+) ([]*models.CatalogService, error) {
+	listResult, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).List(
+		ctx,
+		metav1.ListOptions{},
+	)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "error listing services")
+	}
+
+	services, err := s.convertUnstructuredListIntoCatalogService(listResult)
+	if err != nil {
+		return nil, errors.Wrap(
+			err,
+			"error converting listResult into Catalog Services",
+		)
+	}
+
+	return services, nil
 }
