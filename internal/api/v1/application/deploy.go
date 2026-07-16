@@ -98,6 +98,12 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 		return apierr
 	}
 
+	// Authorize the git configuration referenced by the origin before it is
+	// deployed and persisted (must exist, be usable by the user, and match host).
+	if apierr := authorizeOrigin(ctx, cluster, req.Origin); apierr != nil {
+		return apierr
+	}
+
 	deployResult, apierr := deploy.DeployApp(ctx, cluster, req.App, username, req.Stage.ID)
 	if apierr != nil {
 		return apierr

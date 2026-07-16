@@ -328,6 +328,7 @@ type EpinioParam struct {
 	Env            []models.EnvVariable `yaml:"env"`
 	ImageUrl       string               `yaml:"imageURL"`
 	Ingress        string               `yaml:"ingress,omitempty"`
+	Gateway        string               `yaml:"gateway,omitempty"`
 	ReplicaCount   int32                `yaml:"replicaCount"`
 	Routes         []RouteParam         `yaml:"routes"`
 	StageID        string               `yaml:"stageID"`
@@ -346,7 +347,15 @@ func Deploy(parameters ChartParameters) error {
 	logger.Infow("deploy app", "parameters", parameters)
 
 	// Find the app chart to use for the deployment.
-	appChart, err := appchart.Lookup(parameters.Context, parameters.Cluster, parameters.Chart)
+	appChartClient, clientError := parameters.Cluster.ClientAppChart()
+	if clientError != nil {
+		return errors.Wrap(clientError, "creating app chart client")
+	}
+	appChart, err := appchart.Lookup(
+		parameters.Context,
+		appChartClient,
+		parameters.Chart,
+	)
 	if err != nil {
 		return errors.Wrap(err, "looking up application chart")
 	}
@@ -710,7 +719,7 @@ func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (s
 			StageID:        parameters.StageID,
 			TlsIssuer:      viper.GetString("tls-issuer"),
 			Username:       parameters.Username,
-			// Ingress, Start, Routes: see below
+			// Ingress, Gateway, Start, Routes: see below
 		},
 		// Chart, User: see below
 	}
@@ -720,6 +729,14 @@ func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (s
 		params.Epinio.Ingress = name
 		logger.Infow("deploy app", "ingress-class", name)
 	}
+
+	// if opting into Gateway API, pass Epinio's gateway class to AppChart deployment
+	gatewayClass := viper.GetString("gateway-class-name")
+	if gatewayClass != "" {
+		params.Epinio.Gateway = gatewayClass
+		logger.Infow("deploy app", "gateway-class", gatewayClass)
+	}
+
 	if parameters.Start != nil {
 		params.Epinio.Start = fmt.Sprintf(`%d`, *parameters.Start)
 		logger.Infow("deploy app", "start", params.Epinio.Start)

@@ -57,24 +57,27 @@ func MainDomain(ctx context.Context) (string, error) {
 		return "", errors.Wrap(err, "failed to list ingresses for epinio")
 	}
 
-	if len(ingresses.Items) < 1 {
-		return "", errors.New("epinio ingress not found")
-	}
-
 	if len(ingresses.Items) > 1 {
 		return "", errors.New("more than one epinio ingress found")
 	}
 
-	if len(ingresses.Items[0].Spec.Rules) < 1 {
-		return "", errors.New("epinio ingress has no rules")
+	if len(ingresses.Items) == 1 {
+		if len(ingresses.Items[0].Spec.Rules) < 1 {
+			return "", errors.New("epinio ingress has no rules")
+		}
+		if len(ingresses.Items[0].Spec.Rules) > 1 {
+			return "", errors.New("epinio ingress has more than one rule")
+		}
+		host := ingresses.Items[0].Spec.Rules[0].Host
+		mainDomain = strings.TrimPrefix(host, "epinio.")
+		return mainDomain, nil
 	}
 
-	if len(ingresses.Items[0].Spec.Rules) > 1 {
-		return "", errors.New("epinio ingress has more than on rule")
+	// No ingress found — fall back to Gateway API HTTPRoute (gateway.enabled mode)
+	host, err := cluster.GetEpinioHTTPRouteHostname(ctx, helmchart.Namespace())
+	if err != nil {
+		return "", errors.Wrap(err, "epinio domain not found: no ingress and no httproute")
 	}
-
-	host := ingresses.Items[0].Spec.Rules[0].Host
-	mainDomain := strings.TrimPrefix(host, "epinio.")
-
+	mainDomain = strings.TrimPrefix(host, "epinio.")
 	return mainDomain, nil
 }

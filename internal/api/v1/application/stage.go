@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	nethttp "net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -42,6 +43,8 @@ import (
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/auth"
+	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -313,36 +316,70 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		HelmValues:          config.HelmValues,
 	}
 
-	if pvcErr := ensureStagingPVCs(ctx, cluster, req, params.HelmValues); pvcErr != nil {
-		return pvcErr
+	stageResponse, stageErr := executeStage(ctx, cluster, app, req, params)
+	if stageErr != nil {
+		return stageErr
+	}
+
+	response.OKReturn(c, stageResponse)
+	return nil
+}
+
+// executeStage runs the staging job for the given params. It is called by both Stage and SourcePatch.
+func executeStage(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app *unstructured.Unstructured,
+	req models.StageRequest,
+	params stageParam,
+) (models.StageResponse, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
+
+	pvcError := ensureStagingPVCs(ctx, cluster, req, params.HelmValues)
+	if pvcError != nil {
+		return models.StageResponse{}, pvcError
 	}
 
 	job, jobenv := newJobRun(params)
 
 	// Note: The secret is deleted with the job in function `Unstage()`.
-	err = cluster.CreateSecret(ctx, helmchart.Namespace(), *jobenv)
-	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("failed to create job env: %#v", jobenv))
+	createSecretError := cluster.CreateSecret(ctx, helmchart.Namespace(), *jobenv)
+	if createSecretError != nil {
+		return models.StageResponse{}, apierror.InternalError(
+			createSecretError,
+			fmt.Sprintf("failed to create job env: %#v", jobenv),
+		)
 	}
 
-	err = cluster.CreateJob(ctx, helmchart.Namespace(), job)
-	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("failed to create job run: %#v", job))
+	createJobError := cluster.CreateJob(ctx, helmchart.Namespace(), job)
+	if createJobError != nil {
+		return models.StageResponse{}, apierror.InternalError(
+			createJobError,
+			fmt.Sprintf("failed to create job run: %#v", job),
+		)
 	}
 
-	if err := updateApp(ctx, cluster, app, params); err != nil {
-		return apierror.InternalError(err, "updating application CR with staging information")
+	updateAppError := updateApp(ctx, cluster, app, params)
+	if updateAppError != nil {
+		return models.StageResponse{}, apierror.InternalError(
+			updateAppError,
+			"updating application CR with staging information",
+		)
 	}
 
 	imageURL := params.ImageURL(params.RegistryURL)
+	log.Infow(
+		"staged app",
+		"namespace", helmchart.Namespace(),
+		"app", params.AppRef,
+		"uid", params.Stage.ID,
+		"image", imageURL,
+	)
 
-	log.Infow("staged app", "namespace", helmchart.Namespace(), "app", params.AppRef, "uid", uid, "image", imageURL)
-
-	response.OKReturn(c, models.StageResponse{
-		Stage:    models.NewStage(uid),
+	return models.StageResponse{
+		Stage:    params.Stage,
 		ImageURL: imageURL,
-	})
-	return nil
+	}, nil
 }
 
 // stageJobs returns the jobs responsible for the staging run of the provided stageID.
@@ -1051,10 +1088,71 @@ func resolveBlobUID(
 		"namespace", namespace, "app", name,
 		"url", origin.Git.URL, "revision", origin.Git.Revision,
 	)
+
+	// Resolve the gitconfig for this system re-clone. The stamp is re-authorized
+	// on every re-clone rather than trusted from push time.
+	manager, managerError := gitbridge.NewManager(
+		cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
+	)
+	if managerError != nil {
+		return "", apierror.InternalError(managerError, "creating git configuration manager")
+	}
+
+	var gitConfig *gitbridge.Configuration
+	if origin.Git.Gitconfig != "" {
+		// Preferred path: the app carries an explicit per-app gitconfig stamp.
+		// A name that no longer exists falls back to an unauthenticated clone;
+		// a name that still exists must re-pass authorization and host binding.
+		config, found := manager.Configuration(origin.Git.Gitconfig)
+		if !found {
+			log.Infow("stored gitconfig no longer exists, cloning without it",
+				"namespace", namespace, "app", name, "gitconfig", origin.Git.Gitconfig,
+			)
+		} else {
+			user := requestctx.User(ctx)
+			if !auth.CanUseGitconfig(user, *config) {
+				return "", apierror.NewAPIError(
+					fmt.Sprintf(
+						"user unauthorized to use gitconfig [%s]",
+						origin.Git.Gitconfig,
+					),
+					nethttp.StatusForbidden,
+				)
+			}
+
+			if !config.AllowsHost(origin.Git.URL) {
+				return "", apierror.NewAPIError(
+					fmt.Sprintf(
+						"gitconfig [%s] is not allowed for the host of url [%s]",
+						origin.Git.Gitconfig,
+						origin.Git.URL,
+					),
+					nethttp.StatusForbidden,
+				)
+			}
+			gitConfig = config
+		}
+	} else {
+		// Legacy fallback: apps pushed before per-app gitconfig stamping have no
+		// origin.git.gitconfig. Match a configuration by repo URL, preserving the
+		// pre-upgrade behavior so private-repo re-clones keep working on redeploy.
+		config, findError := manager.FindConfiguration(origin.Git.URL)
+		if findError != nil {
+			return "", apierror.InternalError(findError,
+				fmt.Sprintf("finding git configuration for gitURL [%s]", origin.Git.URL))
+		}
+		if config != nil {
+			log.Infow("legacy app without stored gitconfig, matched by url",
+				"namespace", namespace, "app", name, "gitconfig", config.ID,
+			)
+			gitConfig = config
+		}
+	}
+
 	blobUID, _, _, cloneError := cloneAndUpload(
 		ctx, cluster,
 		origin.Git.URL, origin.Git.Revision,
-		namespace, name, username,
+		namespace, name, username, gitConfig,
 	)
 	if cloneError != nil {
 		return "", cloneError

@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/epinio/epinio/internal/application"
@@ -48,12 +49,20 @@ func (m *mockS3Manager) Meta(ctx context.Context, blobUID string) (map[string]st
 	return nil, nil
 }
 
+func (m *mockS3Manager) Open(ctx context.Context, blobUID string) (io.ReadCloser, string, int64, error) {
+	return io.NopCloser(strings.NewReader("")), "application/tar", 0, nil
+}
+
 func (m *mockS3Manager) UploadStream(ctx context.Context, file io.Reader, size int64, metadata map[string]string) (string, error) {
 	return "", nil
 }
 
 func (m *mockS3Manager) Upload(ctx context.Context, filepath string, metadata map[string]string) (string, error) {
 	return "", nil
+}
+
+func (m *mockS3Manager) Download(ctx context.Context, blobUID string) (io.ReadCloser, error) {
+	return nil, nil
 }
 
 func (m *mockS3Manager) EnsureBucket(ctx context.Context) error {
