@@ -18,6 +18,7 @@ type GitconfigsMatchResponse struct {
 
 // GitconfigCreateRequest contains the data for a new git configuration.
 type GitconfigCreateRequest struct {
+	Global       bool        `json:"global,omitempty"`
 	ID           string      `json:"id,omitempty"`
 	URL          string      `json:"url,omitempty"`
 	Provider     GitProvider `json:"provider,omitempty"`
@@ -33,6 +34,7 @@ type GitconfigCreateRequest struct {
 // Password and cert data are private and excluded.
 // TODO : Track creating user of the config.
 type Gitconfig struct {
+	Global     bool        `json:"global,omitempty"`
 	Meta       MetaLite    `json:"meta,omitempty"`
 	URL        string      `json:"url,omitempty"`
 	Provider   GitProvider `json:"provider,omitempty"`

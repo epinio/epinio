@@ -135,6 +135,22 @@ func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
 			result.Git.Branch = branch
 		}
 
+		// For git check for the optional gitconfig as well.
+		gitconfig, found, gitConfigError := unstructured.NestedString(
+			origin,
+			"git",
+			"gitconfig",
+		)
+		if found {
+			if gitConfigError != nil {
+				return result, gitConfigError
+			}
+			if gitconfig == "" {
+				return result, errors.New("bad git origin, gitconfig is empty string")
+			}
+			result.Git.Gitconfig = gitconfig
+		}
+
 		result.Kind = models.OriginGit
 		result.Git.URL = repository
 		return result, nil

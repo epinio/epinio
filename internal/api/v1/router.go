@@ -125,7 +125,7 @@ var Routes = routes.NamedRoutes{
 	"AppPart":         get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.GetPart)),
 	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),
 	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Running)),
-	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)), // See stage.go
+	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)),         // See stage.go
 	"AppSourcePatch":  patch("/namespaces/:namespace/applications/:app/source", errorHandler(application.SourcePatch)), // See sourcepatch.go
 	"AppSync":         post("/namespaces/:namespace/applications/:app/sync", errorHandler(application.Sync)),           // See sync.go
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),

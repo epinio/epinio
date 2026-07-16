@@ -339,24 +339,65 @@ func FilterResources[T NamespacedResource](user User, resources []T) []T {
 
 type GitconfigResource interface {
 	Gitconfig() string
+	IsGlobal() bool
 }
 
-// FilterResources returns only the GitconfigResources where the user has permissions
-func FilterGitconfigResources[T GitconfigResource](user User, resources []T) []T {
-	// Admins and users with at least one global role (e.g. view_only, application_manager)
-	// can see gitconfigs in all namespaces.
-	if user.IsAdmin() || user.HasGlobalRole() {
+// CanDeleteGitconfig reports whether the user may delete the gitconfig.
+// Only admins and the owning user may delete; global does not grant delete.
+func CanDeleteGitconfig(user User, gc GitconfigResource) bool {
+	if user.IsAdmin() {
+		return true
+	}
+
+	for _, id := range user.Gitconfigs {
+		if id == gc.Gitconfig() {
+			return true
+		}
+	}
+
+	return false
+}
+
+// CanUseGitconfig reports whether the user may use the gitconfig, e.g. to clone
+// a repository. Admins, the owning user, and any user for a global config are
+// permitted. This matches read visibility (see FilterGitconfigResources).
+func CanUseGitconfig(user User, gc GitconfigResource) bool {
+	if user.IsAdmin() || gc.IsGlobal() {
+		return true
+	}
+
+	for _, id := range user.Gitconfigs {
+		if id == gc.Gitconfig() {
+			return true
+		}
+	}
+
+	return false
+}
+
+// FilterResources returns only the GitconfigResources where the user has
+// permissions or is global
+func FilterGitconfigResources[T GitconfigResource](
+	user User,
+	resources []T,
+) []T {
+	// Admins and users with at least one global role can see gitconfigs in all
+	// namespaces.
+	if user.IsAdmin() {
 		return resources
 	}
 
 	gitconfigsMap := make(map[string]struct{})
-	for _, ns := range user.Gitconfigs {
-		gitconfigsMap[ns] = struct{}{}
+	for _, id := range user.Gitconfigs {
+		gitconfigsMap[id] = struct{}{}
 	}
 
 	filteredResources := []T{}
 	for _, resource := range resources {
-		if _, allowed := gitconfigsMap[resource.Gitconfig()]; allowed {
+		_, personalAllowed := gitconfigsMap[resource.Gitconfig()]
+		isGlobal := resource.IsGlobal()
+
+		if personalAllowed || isGlobal {
 			filteredResources = append(filteredResources, resource)
 		}
 	}
