@@ -14,7 +14,9 @@ package gitconfig
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/gin-gonic/gin"
 
@@ -26,19 +28,25 @@ import (
 // It returns the details of the specified git configuration
 func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	user := requestctx.User(ctx)
 	gitconfigID := c.Param("gitconfig")
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError)
 	}
 
-	manager, err := gitbridge.NewManager(cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
-	if err != nil {
-		return apierror.InternalError(err, "creating git configuration manager")
+	manager, gitBridgeError := gitbridge.
+		NewManager(cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()))
+
+	if gitBridgeError != nil {
+		return apierror.InternalError(
+			gitBridgeError,
+			"creating git configuration manager",
+		)
 	}
 
-	gitconfigList := manager.Configurations
+	gitconfigList := auth.FilterGitconfigResources(user, manager.Configurations)
 
 	for _, gitconfig := range gitconfigList {
 		if gitconfig.ID != gitconfigID {
@@ -46,6 +54,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 		}
 
 		response.OKReturn(c, models.Gitconfig{
+			Global: gitconfig.Global,
 			Meta: models.MetaLite{
 				Name:      gitconfig.ID,
 				CreatedAt: gitconfig.CreatedAt,
