@@ -119,7 +119,7 @@ jobs:
       # contains epinio's latest tag.
 
       - name: epinio/helm-charts Repository Dispatch
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
           repository: epinio/helm-charts

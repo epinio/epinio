@@ -42,7 +42,7 @@ jobs:
       # Automate documentation update related to Epinio releases.
       # The latest tag is sent to the documentation repository.
       - name: epinio/docs Repository Dispatch
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
           repository: epinio/docs
@@ -52,7 +52,7 @@ jobs:
       # Automate Docker extension update related to Epinio releases.
       # The latest tag is sent to the extension-docker-desktop repository.
       - name: epinio/extension-docker-desktop Repository Dispatch
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
           repository: epinio/extension-docker-desktop
