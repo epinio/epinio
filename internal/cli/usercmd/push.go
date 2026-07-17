@@ -168,17 +168,6 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 			return errors.New("git origin is nil")
 		}
 
-		// validate provider reference, if actually present (git origin, and specified)
-		if gitOrigin.Provider != "" {
-			if _, err := models.GitProviderFromString(string(gitOrigin.Provider)); err != nil {
-				return errors.Wrapf(err, "bad git provider `%s`", gitOrigin.Provider)
-			}
-
-			if err := gitOrigin.Provider.ValidateURL(gitOrigin.URL); err != nil {
-				return errors.Wrap(err, "validating git url")
-			}
-		}
-
 		response, err := c.API.AppImportGit(appRef.Namespace, appRef.Name, *gitOrigin)
 		if err != nil {
 			return errors.Wrap(err, "importing git remote")

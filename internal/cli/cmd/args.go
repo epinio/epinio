@@ -18,7 +18,6 @@ import (
 
 	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/cli/usercmd"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/spf13/cobra"
 )
 
@@ -416,14 +415,25 @@ func NewGitconfigMatcherFunc(matcher GitconfigMatcher) ValidArgsFunc {
 	}
 }
 
+// NewGitconfigMatcherValueFunc returns a flag-completion function offering
+// matching git configurations.
+func NewGitconfigMatcherValueFunc(matcher GitconfigMatcher) FlagCompletionFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		matcher.GetAPI().DisableVersionWarning()
+		return matcher.GitconfigsMatching(toComplete), cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
 // ///////////////////////////////////////////////////////////
 /// manifest and other options shared between app create/update/push
 
-// gitProviderOption initializes the --git-provider option for the provided command
-func gitProviderOption(cmd *cobra.Command) {
-	cmd.Flags().String("git-provider", "", "Git provider code [git|github|github_enterprise|gitlab|gitlab_enterprise]")
-	bindFlag(cmd, "git-provider")
-	bindFlagCompletionFunc(cmd, "git-provider", NewStaticFlagsCompletionFunc(models.ValidProviders))
+// gitConfigOption initializes the --git-config option for the provided command.
+// The value names a stored git configuration the server uses (for credentials
+// and host policy) when importing the application sources from Git.
+func gitConfigOption(cmd *cobra.Command, client ApplicationsService) {
+	cmd.Flags().String("git-config", "", "Name of the git configuration to use for the Git import")
+	bindFlag(cmd, "git-config")
+	bindFlagCompletionFunc(cmd, "git-config", NewGitconfigMatcherValueFunc(client))
 }
 
 // instancesOption initializes the --instances/-i option for the provided command

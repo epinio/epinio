@@ -45,6 +45,7 @@ type ApplicationsService interface {
 	AppMatcher
 	AppChartMatcher
 	RegistryMatcher
+	GitconfigMatcher                                  // --git-config
 	ConfigurationMatching(toComplete string) []string // --bind
 
 	// interfaces for the env and chart sub-ensembles
@@ -473,7 +474,7 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().StringP("path", "p", "", "Path to application sources.")
 	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
 
-	gitProviderOption(cmd)
+	gitConfigOption(cmd, client)
 	routeOption(cmd)
 	bindOption(cmd, client)
 	envOption(cmd)
