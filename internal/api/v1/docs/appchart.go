@@ -73,3 +73,47 @@ type ChartMatch0Params struct {
 }
 
 // See ChartMatch above
+
+// swagger:route POST /appcharts appcharts ChartCreate
+// Create a new appchart.
+// responses:
+//   201: ChartCreateResponse
+
+// swagger:parameters ChartCreate
+type ChartCreateParam struct {
+	// in: body
+	Body models.AppChartCreateRequest
+}
+
+// swagger:response ChartCreateResponse
+type ChartCreateResponse struct{}
+
+// swagger:route PATCH /appcharts/{Chart} appcharts ChartUpdate
+// Update fields on the named `Chart`.
+// responses:
+//   200: ChartUpdateResponse
+
+// swagger:parameters ChartUpdate
+type ChartUpdateParam struct {
+	// in: path
+	Chart string
+	// in: body
+	Body models.AppChartUpdateRequest
+}
+
+// swagger:response ChartUpdateResponse
+type ChartUpdateResponse struct{}
+
+// swagger:route DELETE /appcharts/{Chart} appcharts ChartDelete
+// Delete the named `Chart`.
+// responses:
+//   200: ChartDeleteResponse
+
+// swagger:parameters ChartDelete
+type ChartDeleteParam struct {
+	// in: path
+	Chart string
+}
+
+// swagger:response ChartDeleteResponse
+type ChartDeleteResponse struct{}

@@ -128,7 +128,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 		chart = createRequest.Configuration.AppChart
 	}
 
-	found, err = appchart.Exists(ctx, cluster, chart)
+	found, err = appchart.ExistsViaCluster(ctx, cluster, chart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

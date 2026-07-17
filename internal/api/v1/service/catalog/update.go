@@ -1,0 +1,67 @@
+// Copyright © 2021 - 2023 SUSE LLC
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package catalog
+
+import (
+	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/services"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
+)
+
+// Update handles PATCH /catalogservices/:catalogservice
+func Update(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
+	name := c.Param("catalogservice")
+
+	log.Infow("update catalog service", "name", name)
+	defer log.Infow("return")
+
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError)
+	}
+
+	kubeServiceClient, clientError := services.NewKubernetesServiceClient(cluster)
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
+	log.Infow("check existence", "name", name)
+	exists, existsError := kubeServiceClient.CatalogServiceExists(ctx, name)
+	if existsError != nil {
+		return apierror.InternalError(existsError)
+	}
+	if !exists {
+		return apierror.CatalogServiceIsNotKnown(name)
+	}
+
+	var updateRequest models.CatalogServiceUpdateRequest
+	bindError := c.BindJSON(&updateRequest)
+	if bindError != nil {
+		return apierror.NewBadRequestError(bindError.Error())
+	}
+
+	log.Infow("apply update", "name", name)
+	updateError := kubeServiceClient.UpdateCatalogService(ctx, name, updateRequest)
+	if updateError != nil {
+		return apierror.InternalError(updateError)
+	}
+
+	log.Infow("catalog service updated", "name", name)
+	response.OK(c)
+	return nil
+}

@@ -112,7 +112,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 			return apierror.NewBadRequestError("unable to change app chart of active application")
 		}
 
-		appChart, err := appchart.Lookup(ctx, cluster, app.Configuration.AppChart)
+		appChart, err := appchart.LookupViaCluster(ctx, cluster, app.Configuration.AppChart)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
@@ -266,7 +266,7 @@ func updateAppChart(
 	appName string,
 	appChart string,
 ) error {
-	found, err := appchart.Exists(ctx, cluster, appChart)
+	found, err := appchart.ExistsViaCluster(ctx, cluster, appChart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
