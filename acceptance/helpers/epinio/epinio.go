@@ -173,7 +173,6 @@ func (e *Epinio) Install(args ...string) (string, error) {
 		"epinio",
 		chart,
 		"--wait",
-		"--set", "server.disableTracking=true", // disable tracking during tests
 	}
 
 	out, err = proc.Run(testenv.Root(), false, "helm", append(opts, args...)...)

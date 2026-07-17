@@ -25,7 +25,6 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/server"
-	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
 
@@ -92,18 +91,6 @@ func init() {
 	err = viper.BindEnv("default-builder-image", "DEFAULT_BUILDER_IMAGE")
 	checkErr(err)
 
-	flags.Bool("disable-tracking", false, "(DISABLE_TRACKING) Disable tracking of the running Epinio and Kubernetes versions")
-	err = viper.BindPFlag("disable-tracking", flags.Lookup("disable-tracking"))
-	checkErr(err)
-	err = viper.BindEnv("disable-tracking", "DISABLE_TRACKING")
-	checkErr(err)
-
-	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Disable tracking of the running Epinio and Kubernetes versions")
-	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
-	checkErr(err)
-	err = viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS")
-	checkErr(err)
-
 	flags.Float32("kube-api-qps", rest.DefaultQPS, "(KUBE_API_QPS) The QPS indicates the maximum QPS of the Kubernetes client.")
 	err = viper.BindPFlag("kube-api-qps", flags.Lookup("kube-api-qps"))
 	checkErr(err)
@@ -150,31 +137,6 @@ var CmdServer = &cobra.Command{
 		helpers.Logger.Infow("Epinio version", "version", version.Version)
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 		helpers.Logger.Infow("listening on localhost", "port", listeningPort)
-
-		trackingDisabled := viper.GetBool("disable-tracking")
-		upgradeResponderAddress := viper.GetString("upgrade-responder-address")
-		helpers.Logger.Infow("checking upgrade-responder",
-			"tracking_disabled", trackingDisabled,
-			"upgrade_responder_address", upgradeResponderAddress,
-		)
-
-		if !trackingDisabled {
-			// Convert zap logger to logr.Logger for upgraderesponder (compatibility bridge)
-			logrLogger := helpers.LoggerToLogr().WithName("UpgradeResponder")
-			checker, err := upgraderesponder.NewChecker(
-				context.Background(),
-				logrLogger,
-				upgradeResponderAddress,
-			)
-
-			if err != nil {
-				helpers.Logger.Errorw("error creating listener", "error", err)
-				return err
-			}
-
-			checker.Start()
-			defer checker.Stop()
-		}
 
 		return startServerGracefully(listener, handler)
 	},
