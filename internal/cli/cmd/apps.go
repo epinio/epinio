@@ -36,6 +36,7 @@ type ApplicationsService interface {
 	AppPush(ctxt context.Context, manifest models.ApplicationManifest) error
 	AppRestage(name string, restart bool) error
 	AppRestart(name string) error
+	AppWatch(ctx context.Context, name, namespace, path string) error
 	AppShow(name string) error
 	AppStageID(name string) (string, error)
 	AppUpdate(name string, updateRequest models.ApplicationUpdateRequest) error
@@ -84,6 +85,7 @@ func NewApplicationsCmd(client ApplicationsService, rootCfg *RootConfig) *cobra.
 		NewAppRestartCmd(client),
 		NewAppShowCmd(client, rootCfg),
 		NewAppUpdateCmd(client),
+		NewAppWatchCmd(client),
 	)
 
 	return appsCmd
@@ -628,6 +630,47 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 	bindFlagCompletionFunc(cmd, "app-chart", NewAppChartMatcherValueFunc(client))
 	
 	cmd.Flags().BoolVar(&noRestart, "no-restart", false, "Prevent restarting the application after update")
+
+	return cmd
+}
+
+// NewAppWatchCmd returns a new `epinio app watch` command
+func NewAppWatchCmd(client ApplicationsService) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "watch NAME",
+		Short:             "Watch a local directory and sync changes to the running application",
+		Long:              "Watches the source directory for changes and syncs them into the running pod.\nOn first run, performs a full buildpack push. Subsequent runs sync only changed files or binaries.\nReads .epinio-sync.yaml for build_cmd/binary (compiled languages).",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: NewAppMatcherFirstFunc(client),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			namespace, err := cmd.Flags().GetString("namespace")
+			if err != nil {
+				return errors.Wrap(err, "reading --namespace flag")
+			}
+
+			path, err := cmd.Flags().GetString("path")
+			if err != nil {
+				return errors.Wrap(err, "reading --path flag")
+			}
+			if path == "" {
+				wd, err := os.Getwd()
+				if err != nil {
+					return errors.Wrap(err, "getting working directory")
+				}
+				path = wd
+			}
+
+			return errors.Wrap(
+				client.AppWatch(cmd.Context(), args[0], namespace, path),
+				"error watching app",
+			)
+		},
+	}
+
+	cmd.Flags().StringP("namespace", "n", "", "Namespace the application lives in (overrides targeted namespace)")
+	cmd.Flags().String("path", "", "Path to the application source directory (defaults to current directory)")
 
 	return cmd
 }

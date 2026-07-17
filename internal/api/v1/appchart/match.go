@@ -33,15 +33,20 @@ func Match(c *gin.Context) apierror.APIErrors {
 	log.Infow("match appcharts")
 	defer log.Infow("return")
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError)
+	}
+
+	client, clientError := cluster.ClientAppChart()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
 	}
 
 	log.Infow("list appcharts")
-	appcharts, err := appchart.List(ctx, cluster)
-	if err != nil {
-		return apierror.InternalError(err)
+	appcharts, listError := appchart.List(ctx, client)
+	if listError != nil {
+		return apierror.InternalError(listError)
 	}
 
 	log.Infow("get appchart prefix")
