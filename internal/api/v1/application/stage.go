@@ -45,6 +45,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
+	"github.com/epinio/epinio/internal/builderimage"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -75,6 +76,29 @@ type stageParam struct {
 	GroupID             int64
 	Scripts             string
 	HelmValues          HelmValuesMap
+}
+
+// resolveDefaultBuilderImage returns the BuilderImage CR selected as the
+// cluster default, falling back to the legacy environment configuration when
+// no CR is marked as default.
+func resolveDefaultBuilderImage(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+) (string, error) {
+	client, err := cluster.ClientBuilderImage()
+	if err != nil {
+		return "", err
+	}
+
+	defaultBuilder, err := builderimage.Default(ctx, client)
+	if err != nil {
+		return "", err
+	}
+	if defaultBuilder != nil {
+		return defaultBuilder.Image, nil
+	}
+
+	return viper.GetString("default-builder-image"), nil
 }
 
 type HelmValuesMap struct {
@@ -211,7 +235,10 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return builderErr
 	}
 	if builderImage == "" {
-		builderImage = viper.GetString("default-builder-image")
+		builderImage, err = resolveDefaultBuilderImage(ctx, cluster)
+		if err != nil {
+			return apierror.InternalError(err, "failed to resolve the default builder image")
+		}
 	}
 
 	// Find staging script spec based on the builder image and what images are supported by each spec

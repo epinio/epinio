@@ -22,7 +22,6 @@ import (
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -264,7 +263,14 @@ func buildAndPatch(
 		return models.StageResponse{}, stageParam{}, builderError
 	}
 	if builderImage == "" {
-		builderImage = viper.GetString("default-builder-image")
+		resolvedBuilderImage, resolveError := resolveDefaultBuilderImage(ctx, cluster)
+		if resolveError != nil {
+			return models.StageResponse{}, stageParam{}, apierror.InternalError(
+				resolveError,
+				"failed to resolve the default builder image",
+			)
+		}
+		builderImage = resolvedBuilderImage
 	}
 
 	config, determineStagingError := DetermineStagingScripts(
