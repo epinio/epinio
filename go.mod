@@ -51,6 +51,8 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	go.uber.org/mock v0.5.2
+	golang.org/x/crypto v0.52.0
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.51.0
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
