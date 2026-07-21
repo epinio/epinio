@@ -153,6 +153,7 @@ func NewRootCmd() (*cobra.Command, error) {
 		cmd.NewInfoCmd(client, cfg),
 		cmd.NewClientSyncCmd(client),
 		cmd.NewGitconfigCmd(client),
+		cmd.NewBuildImageCmd(client),
 		cmd.NewNamespaceCmd(client, cfg),
 		cmd.NewAppPushCmd(client), // shorthand access to `app push`
 		cmd.NewApplicationsCmd(client, cfg),

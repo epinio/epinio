@@ -14,6 +14,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -27,6 +28,9 @@ type ServicesService interface {
 	ServiceBatchBind(appName string, serviceNames []string) error
 	ServiceCatalog() error
 	ServiceCatalogShow(ctx context.Context, serviceName string) error
+	ServiceCatalogCreate(request models.CatalogServiceCreateRequest) error
+	ServiceCatalogUpdate(name string, request models.CatalogServiceUpdateRequest) error
+	ServiceCatalogDelete(name string) error
 	ServiceCreate(catalogName, serviceName string, wait bool, chartValues models.ChartValueSettings) error
 	ServiceDelete(serviceNames []string, unbind, all bool) error
 	ServiceList() error
@@ -75,7 +79,9 @@ func NewServicesCmd(client ServicesService, rootCfg *RootConfig) *cobra.Command 
 	return servicesCmd
 }
 
-// NewServiceCatalogCmd returns a new `epinio service catalog` command
+// NewServiceCatalogCmd returns a new `epinio service catalog` command. With no
+// argument it lists the catalog; with a NAME it shows that entry. The create,
+// update, and delete subcommands manage catalog entries.
 func NewServiceCatalogCmd(client ServicesService) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "catalog [NAME]",
@@ -100,7 +106,183 @@ func NewServiceCatalogCmd(client ServicesService) *cobra.Command {
 		},
 	}
 
+	cmd.AddCommand(
+		NewServiceCatalogCreateCmd(client),
+		NewServiceCatalogUpdateCmd(client),
+		NewServiceCatalogDeleteCmd(client),
+	)
+
 	return cmd
+}
+
+// CatalogWriteConfig holds the flags shared by the catalog create and update
+// commands. The update command reuses the same set minus --name.
+type CatalogWriteConfig struct {
+	name             string
+	chart            string
+	chartVersion     string
+	appVersion       string
+	helmRepoName     string
+	helmRepoURL      string
+	helmRepoSecret   string
+	valuesFile       string
+	description      string
+	shortDescription string
+	serviceIcon      string
+	secretTypes      []string
+}
+
+// catalogHelmRepoFlagsChanged reports whether any of the --helm-repo-* flags
+// were set on the command line. The repo block is replaced as a unit, so
+// callers pass them together.
+func catalogHelmRepoFlagsChanged(cmd *cobra.Command) bool {
+	return cmd.Flags().Changed("helm-repo-name") ||
+		cmd.Flags().Changed("helm-repo-url") ||
+		cmd.Flags().Changed("helm-repo-secret")
+}
+
+// readCatalogValuesFile reads the YAML file at path and returns its contents as
+// a string, to be sent as the values field.
+func readCatalogValuesFile(path string) (string, error) {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return "", errors.Wrap(err, "reading values file")
+	}
+	return string(contents), nil
+}
+
+// catalogWriteFlags registers the flags common to create and update (i.e. every
+// write flag except --name, which only create carries).
+func catalogWriteFlags(cmd *cobra.Command, cfg *CatalogWriteConfig) {
+	cmd.Flags().StringVar(&cfg.chart, "chart", "", "Helm chart")
+	cmd.Flags().StringVar(&cfg.chartVersion, "chart-version", "", "Helm chart version")
+	cmd.Flags().StringVar(&cfg.appVersion, "app-version", "", "application version")
+	cmd.Flags().StringVar(&cfg.helmRepoName, "helm-repo-name", "", "Helm repository name")
+	cmd.Flags().StringVar(&cfg.helmRepoURL, "helm-repo-url", "", "Helm repository URL")
+	cmd.Flags().StringVar(&cfg.helmRepoSecret, "helm-repo-secret", "", "Helm repository credentials secret")
+	cmd.Flags().StringVar(&cfg.valuesFile, "values-file", "", "path to a YAML file whose contents are sent as the values string field")
+	cmd.Flags().StringVar(&cfg.description, "description", "", "long description")
+	cmd.Flags().StringVar(&cfg.shortDescription, "short-description", "", "short description")
+	cmd.Flags().StringVar(&cfg.serviceIcon, "service-icon", "", "service icon")
+	cmd.Flags().StringSliceVar(&cfg.secretTypes, "secret-types", []string{}, "comma-separated secret types")
+}
+
+// NewServiceCatalogCreateCmd returns a new `epinio service catalog create` command
+func NewServiceCatalogCreateCmd(client ServicesService) *cobra.Command {
+	cfg := CatalogWriteConfig{}
+	cmd := &cobra.Command{
+		Use:   "create --name NAME --chart CHART [flags]",
+		Short: "Create an Epinio catalog service",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			if cfg.name == "" {
+				return errors.New("--name is required")
+			}
+
+			request := models.CatalogServiceCreateRequest{
+				Name:             cfg.name,
+				HelmChart:        cfg.chart,
+				ChartVersion:     cfg.chartVersion,
+				AppVersion:       cfg.appVersion,
+				Description:      cfg.description,
+				ShortDescription: cfg.shortDescription,
+				ServiceIcon:      cfg.serviceIcon,
+				SecretTypes:      cfg.secretTypes,
+				HelmRepo: models.HelmRepoRequest{
+					Name:   cfg.helmRepoName,
+					URL:    cfg.helmRepoURL,
+					Secret: cfg.helmRepoSecret,
+				},
+			}
+
+			if cfg.valuesFile != "" {
+				values, err := readCatalogValuesFile(cfg.valuesFile)
+				if err != nil {
+					return err
+				}
+				request.Values = values
+			}
+
+			err := client.ServiceCatalogCreate(request)
+			return errors.Wrap(err, "error creating Epinio catalog service")
+		},
+	}
+
+	cmd.Flags().StringVar(&cfg.name, "name", "", "catalog service name (required)")
+	catalogWriteFlags(cmd, &cfg)
+
+	return cmd
+}
+
+// NewServiceCatalogUpdateCmd returns a new `epinio service catalog update` command
+func NewServiceCatalogUpdateCmd(client ServicesService) *cobra.Command {
+	cfg := CatalogWriteConfig{}
+	cmd := &cobra.Command{
+		Use:               "update NAME [flags]",
+		Short:             "Update an Epinio catalog service",
+		Long:              `Update a catalog service. Omitted flags leave the corresponding fields unchanged. Pass all --helm-repo-* flags together to replace the repo block.`,
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: FirstArgValidator(client.CatalogMatching),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			name := args[0]
+
+			request := models.CatalogServiceUpdateRequest{
+				HelmChart:        cfg.chart,
+				ChartVersion:     cfg.chartVersion,
+				AppVersion:       cfg.appVersion,
+				Description:      cfg.description,
+				ShortDescription: cfg.shortDescription,
+				ServiceIcon:      cfg.serviceIcon,
+				SecretTypes:      cfg.secretTypes,
+			}
+
+			// The repo block is replaced as a unit only when the caller
+			// supplied at least one --helm-repo-* flag; otherwise it is left
+			// untouched (nil pointer).
+			if catalogHelmRepoFlagsChanged(cmd) {
+				request.HelmRepo = &models.HelmRepoRequest{
+					Name:   cfg.helmRepoName,
+					URL:    cfg.helmRepoURL,
+					Secret: cfg.helmRepoSecret,
+				}
+			}
+
+			if cfg.valuesFile != "" {
+				values, err := readCatalogValuesFile(cfg.valuesFile)
+				if err != nil {
+					return err
+				}
+				request.Values = values
+			}
+
+			err := client.ServiceCatalogUpdate(name, request)
+			return errors.Wrap(err, "error updating Epinio catalog service")
+		},
+	}
+
+	catalogWriteFlags(cmd, &cfg)
+
+	return cmd
+}
+
+// NewServiceCatalogDeleteCmd returns a new `epinio service catalog delete` command
+func NewServiceCatalogDeleteCmd(client ServicesService) *cobra.Command {
+	return &cobra.Command{
+		Use:               "delete NAME",
+		Short:             "Delete an Epinio catalog service",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: FirstArgValidator(client.CatalogMatching),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			err := client.ServiceCatalogDelete(args[0])
+			return errors.Wrap(err, "error deleting Epinio catalog service")
+		},
+	}
 }
 
 type ServiceCreateConfig struct {

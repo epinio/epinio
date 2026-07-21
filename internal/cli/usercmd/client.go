@@ -109,6 +109,9 @@ type APIClient interface {
 	ServiceCatalog() (models.CatalogServices, error)
 	ServiceCatalogShow(serviceName string) (*models.CatalogService, error)
 	ServiceCatalogMatch(prefix string) (models.CatalogMatchResponse, error)
+	ServiceCatalogCreate(request models.CatalogServiceCreateRequest) (models.Response, error)
+	ServiceCatalogUpdate(name string, request models.CatalogServiceUpdateRequest) (models.Response, error)
+	ServiceCatalogDelete(name string) (models.Response, error)
 
 	AllServices() (models.ServiceList, error)
 	ServiceShow(namespace, name string) (*models.Service, error)
@@ -127,6 +130,17 @@ type APIClient interface {
 	ChartList() ([]models.AppChart, error)
 	ChartShow(name string) (models.AppChart, error)
 	ChartMatch(prefix string) (models.ChartMatchResponse, error)
+	ChartCreate(request models.AppChartCreateRequest) (models.Response, error)
+	ChartUpdate(name string, request models.AppChartUpdateRequest) (models.Response, error)
+	ChartDelete(name string) (models.Response, error)
+
+	// builder images
+	BuilderImageList() (models.BuilderImageList, error)
+	BuilderImageShow(name string) (models.BuilderImage, error)
+	BuilderImageMatch(prefix string) (models.BuilderImageMatchResponse, error)
+	BuilderImageCreate(request models.BuilderImageCreateRequest) (models.Response, error)
+	BuilderImageUpdate(name string, request models.BuilderImageUpdateRequest) (models.Response, error)
+	BuilderImageDelete(name string) (models.Response, error)
 
 	// gitconfigs
 	GitconfigCreate(req models.GitconfigCreateRequest) (models.Response, error)

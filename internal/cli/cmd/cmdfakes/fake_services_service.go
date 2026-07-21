@@ -88,6 +88,28 @@ type FakeServicesService struct {
 	serviceCatalogReturnsOnCall map[int]struct {
 		result1 error
 	}
+	ServiceCatalogCreateStub        func(models.CatalogServiceCreateRequest) error
+	serviceCatalogCreateMutex       sync.RWMutex
+	serviceCatalogCreateArgsForCall []struct {
+		arg1 models.CatalogServiceCreateRequest
+	}
+	serviceCatalogCreateReturns struct {
+		result1 error
+	}
+	serviceCatalogCreateReturnsOnCall map[int]struct {
+		result1 error
+	}
+	ServiceCatalogDeleteStub        func(string) error
+	serviceCatalogDeleteMutex       sync.RWMutex
+	serviceCatalogDeleteArgsForCall []struct {
+		arg1 string
+	}
+	serviceCatalogDeleteReturns struct {
+		result1 error
+	}
+	serviceCatalogDeleteReturnsOnCall map[int]struct {
+		result1 error
+	}
 	ServiceCatalogShowStub        func(context.Context, string) error
 	serviceCatalogShowMutex       sync.RWMutex
 	serviceCatalogShowArgsForCall []struct {
@@ -98,6 +120,18 @@ type FakeServicesService struct {
 		result1 error
 	}
 	serviceCatalogShowReturnsOnCall map[int]struct {
+		result1 error
+	}
+	ServiceCatalogUpdateStub        func(string, models.CatalogServiceUpdateRequest) error
+	serviceCatalogUpdateMutex       sync.RWMutex
+	serviceCatalogUpdateArgsForCall []struct {
+		arg1 string
+		arg2 models.CatalogServiceUpdateRequest
+	}
+	serviceCatalogUpdateReturns struct {
+		result1 error
+	}
+	serviceCatalogUpdateReturnsOnCall map[int]struct {
 		result1 error
 	}
 	ServiceCreateStub        func(string, string, bool, models.ChartValueSettings) error
@@ -571,6 +605,128 @@ func (fake *FakeServicesService) ServiceCatalogReturnsOnCall(i int, result1 erro
 	}{result1}
 }
 
+func (fake *FakeServicesService) ServiceCatalogCreate(arg1 models.CatalogServiceCreateRequest) error {
+	fake.serviceCatalogCreateMutex.Lock()
+	ret, specificReturn := fake.serviceCatalogCreateReturnsOnCall[len(fake.serviceCatalogCreateArgsForCall)]
+	fake.serviceCatalogCreateArgsForCall = append(fake.serviceCatalogCreateArgsForCall, struct {
+		arg1 models.CatalogServiceCreateRequest
+	}{arg1})
+	stub := fake.ServiceCatalogCreateStub
+	fakeReturns := fake.serviceCatalogCreateReturns
+	fake.recordInvocation("ServiceCatalogCreate", []interface{}{arg1})
+	fake.serviceCatalogCreateMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeServicesService) ServiceCatalogCreateCallCount() int {
+	fake.serviceCatalogCreateMutex.RLock()
+	defer fake.serviceCatalogCreateMutex.RUnlock()
+	return len(fake.serviceCatalogCreateArgsForCall)
+}
+
+func (fake *FakeServicesService) ServiceCatalogCreateCalls(stub func(models.CatalogServiceCreateRequest) error) {
+	fake.serviceCatalogCreateMutex.Lock()
+	defer fake.serviceCatalogCreateMutex.Unlock()
+	fake.ServiceCatalogCreateStub = stub
+}
+
+func (fake *FakeServicesService) ServiceCatalogCreateArgsForCall(i int) models.CatalogServiceCreateRequest {
+	fake.serviceCatalogCreateMutex.RLock()
+	defer fake.serviceCatalogCreateMutex.RUnlock()
+	argsForCall := fake.serviceCatalogCreateArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeServicesService) ServiceCatalogCreateReturns(result1 error) {
+	fake.serviceCatalogCreateMutex.Lock()
+	defer fake.serviceCatalogCreateMutex.Unlock()
+	fake.ServiceCatalogCreateStub = nil
+	fake.serviceCatalogCreateReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceCatalogCreateReturnsOnCall(i int, result1 error) {
+	fake.serviceCatalogCreateMutex.Lock()
+	defer fake.serviceCatalogCreateMutex.Unlock()
+	fake.ServiceCatalogCreateStub = nil
+	if fake.serviceCatalogCreateReturnsOnCall == nil {
+		fake.serviceCatalogCreateReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.serviceCatalogCreateReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceCatalogDelete(arg1 string) error {
+	fake.serviceCatalogDeleteMutex.Lock()
+	ret, specificReturn := fake.serviceCatalogDeleteReturnsOnCall[len(fake.serviceCatalogDeleteArgsForCall)]
+	fake.serviceCatalogDeleteArgsForCall = append(fake.serviceCatalogDeleteArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.ServiceCatalogDeleteStub
+	fakeReturns := fake.serviceCatalogDeleteReturns
+	fake.recordInvocation("ServiceCatalogDelete", []interface{}{arg1})
+	fake.serviceCatalogDeleteMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeServicesService) ServiceCatalogDeleteCallCount() int {
+	fake.serviceCatalogDeleteMutex.RLock()
+	defer fake.serviceCatalogDeleteMutex.RUnlock()
+	return len(fake.serviceCatalogDeleteArgsForCall)
+}
+
+func (fake *FakeServicesService) ServiceCatalogDeleteCalls(stub func(string) error) {
+	fake.serviceCatalogDeleteMutex.Lock()
+	defer fake.serviceCatalogDeleteMutex.Unlock()
+	fake.ServiceCatalogDeleteStub = stub
+}
+
+func (fake *FakeServicesService) ServiceCatalogDeleteArgsForCall(i int) string {
+	fake.serviceCatalogDeleteMutex.RLock()
+	defer fake.serviceCatalogDeleteMutex.RUnlock()
+	argsForCall := fake.serviceCatalogDeleteArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeServicesService) ServiceCatalogDeleteReturns(result1 error) {
+	fake.serviceCatalogDeleteMutex.Lock()
+	defer fake.serviceCatalogDeleteMutex.Unlock()
+	fake.ServiceCatalogDeleteStub = nil
+	fake.serviceCatalogDeleteReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceCatalogDeleteReturnsOnCall(i int, result1 error) {
+	fake.serviceCatalogDeleteMutex.Lock()
+	defer fake.serviceCatalogDeleteMutex.Unlock()
+	fake.ServiceCatalogDeleteStub = nil
+	if fake.serviceCatalogDeleteReturnsOnCall == nil {
+		fake.serviceCatalogDeleteReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.serviceCatalogDeleteReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeServicesService) ServiceCatalogShow(arg1 context.Context, arg2 string) error {
 	fake.serviceCatalogShowMutex.Lock()
 	ret, specificReturn := fake.serviceCatalogShowReturnsOnCall[len(fake.serviceCatalogShowArgsForCall)]
@@ -629,6 +785,68 @@ func (fake *FakeServicesService) ServiceCatalogShowReturnsOnCall(i int, result1 
 		})
 	}
 	fake.serviceCatalogShowReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceCatalogUpdate(arg1 string, arg2 models.CatalogServiceUpdateRequest) error {
+	fake.serviceCatalogUpdateMutex.Lock()
+	ret, specificReturn := fake.serviceCatalogUpdateReturnsOnCall[len(fake.serviceCatalogUpdateArgsForCall)]
+	fake.serviceCatalogUpdateArgsForCall = append(fake.serviceCatalogUpdateArgsForCall, struct {
+		arg1 string
+		arg2 models.CatalogServiceUpdateRequest
+	}{arg1, arg2})
+	stub := fake.ServiceCatalogUpdateStub
+	fakeReturns := fake.serviceCatalogUpdateReturns
+	fake.recordInvocation("ServiceCatalogUpdate", []interface{}{arg1, arg2})
+	fake.serviceCatalogUpdateMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeServicesService) ServiceCatalogUpdateCallCount() int {
+	fake.serviceCatalogUpdateMutex.RLock()
+	defer fake.serviceCatalogUpdateMutex.RUnlock()
+	return len(fake.serviceCatalogUpdateArgsForCall)
+}
+
+func (fake *FakeServicesService) ServiceCatalogUpdateCalls(stub func(string, models.CatalogServiceUpdateRequest) error) {
+	fake.serviceCatalogUpdateMutex.Lock()
+	defer fake.serviceCatalogUpdateMutex.Unlock()
+	fake.ServiceCatalogUpdateStub = stub
+}
+
+func (fake *FakeServicesService) ServiceCatalogUpdateArgsForCall(i int) (string, models.CatalogServiceUpdateRequest) {
+	fake.serviceCatalogUpdateMutex.RLock()
+	defer fake.serviceCatalogUpdateMutex.RUnlock()
+	argsForCall := fake.serviceCatalogUpdateArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeServicesService) ServiceCatalogUpdateReturns(result1 error) {
+	fake.serviceCatalogUpdateMutex.Lock()
+	defer fake.serviceCatalogUpdateMutex.Unlock()
+	fake.ServiceCatalogUpdateStub = nil
+	fake.serviceCatalogUpdateReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServicesService) ServiceCatalogUpdateReturnsOnCall(i int, result1 error) {
+	fake.serviceCatalogUpdateMutex.Lock()
+	defer fake.serviceCatalogUpdateMutex.Unlock()
+	fake.ServiceCatalogUpdateStub = nil
+	if fake.serviceCatalogUpdateReturnsOnCall == nil {
+		fake.serviceCatalogUpdateReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.serviceCatalogUpdateReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }

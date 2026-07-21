@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 )
@@ -136,6 +137,73 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 	c.ChartSettingsShow(ctx, chart.Settings)
 
 	c.ui.Success().Msg("Ok")
+
+	return nil
+}
+
+// ChartCreate creates an application chart from the supplied request.
+func (c *EpinioClient) ChartCreate(ctx context.Context, request models.AppChartCreateRequest) error {
+	log := c.Log.WithName("ChartCreate")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", request.Name).
+		Msg("Creating Application Chart...")
+
+	_, err := c.API.ChartCreate(request)
+	if err != nil {
+		return errors.Wrap(err, "chart create failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", request.Name).
+		Msg("Application Chart Created.")
+
+	return nil
+}
+
+// ChartUpdate updates the named application chart. Omitted request fields leave
+// the corresponding values unchanged on the server.
+func (c *EpinioClient) ChartUpdate(ctx context.Context, name string, request models.AppChartUpdateRequest) error {
+	log := c.Log.WithName("ChartUpdate")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", name).
+		Msg("Updating Application Chart...")
+
+	_, err := c.API.ChartUpdate(name, request)
+	if err != nil {
+		return errors.Wrap(err, "chart update failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		Msg("Application Chart Updated.")
+
+	return nil
+}
+
+// ChartDelete deletes the named application chart.
+func (c *EpinioClient) ChartDelete(ctx context.Context, name string) error {
+	log := c.Log.WithName("ChartDelete")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", name).
+		Msg("Deleting Application Chart...")
+
+	_, err := c.API.ChartDelete(name)
+	if err != nil {
+		return errors.Wrap(err, "chart delete failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		Msg("Application Chart Removed.")
 
 	return nil
 }
