@@ -16,6 +16,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/builderimage"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/spf13/viper"
@@ -45,7 +46,20 @@ func Info(c *gin.Context) APIErrors {
 
 	platform := cluster.GetPlatform()
 
+	builderImageClient, err := cluster.ClientBuilderImage()
+	if err != nil {
+		return InternalError(err)
+	}
+
+	defaultBuilder, err := builderimage.Default(ctx, builderImageClient)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	defaultBuilderImage := viper.GetString("default-builder-image")
+	if defaultBuilder != nil {
+		defaultBuilderImage = defaultBuilder.Image
+	}
 
 	_, dexError := os.Stat(DexPEMPath)
 

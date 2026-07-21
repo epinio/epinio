@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
@@ -210,6 +211,123 @@ var _ = Describe("AppStage Endpoint", LApplication, func() {
 			Expect(stagingBuilderImage).To(Equal(builderImage))
 		})
 	})
+
+	It("uses the default BuilderImage CR and follows a default change", Serial, func() {
+		firstImage := "paketobuildpacks/builder-jammy-full:0.3.495"
+		secondImage := "paketobuildpacks/builder-jammy-full:0.3.290"
+		firstName := catalog.NewTmpName("00-builderimage-default-a-")
+		secondName := catalog.NewTmpName("00-builderimage-default-b-")
+		manifest := fmt.Sprintf(`apiVersion: application.epinio.io/v1
+kind: BuilderImage
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  image: %s
+  default: true
+  shortDescription: Acceptance test builder
+  description: Acceptance test builder
+---
+apiVersion: application.epinio.io/v1
+kind: BuilderImage
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  image: %s
+  default: false
+  shortDescription: Acceptance test builder
+  description: Acceptance test builder
+`, firstName, testenv.Namespace, firstImage, secondName, testenv.Namespace, secondImage)
+
+		manifestFile, err := os.CreateTemp("", "epinio-builderimages-*.yaml")
+		Expect(err).NotTo(HaveOccurred())
+		_, err = manifestFile.WriteString(manifest)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(manifestFile.Close()).To(Succeed())
+		DeferCleanup(os.Remove, manifestFile.Name())
+
+		out, err := proc.Kubectl("apply", "-f", manifestFile.Name())
+		Expect(err).NotTo(HaveOccurred(), out)
+		DeferCleanup(func() {
+			_, _ = proc.Kubectl(
+				"delete", "builderimage", firstName, secondName,
+				"--namespace", testenv.Namespace,
+				"--ignore-not-found",
+			)
+		})
+
+		By("staging a new application with the initial CR-derived default")
+		uploadResponse := uploadApplication(appName, namespace)
+		stageResponse := stageApplication(appName, namespace, models.StageRequest{
+			App: models.AppRef{
+				Meta: models.Meta{Name: appName, Namespace: namespace},
+			},
+			BlobUID: uploadResponse.BlobUID,
+		})
+		stagingBuilderImage, err := proc.Kubectl(
+			"get", "pods",
+			"--namespace", testenv.Namespace,
+			"-l", fmt.Sprintf("epinio.io/stage-id=%s", stageResponse.Stage.ID),
+			"-o", "jsonpath={.items[*].spec.containers[0].image}",
+		)
+		Expect(err).NotTo(HaveOccurred(), stagingBuilderImage)
+		Expect(stagingBuilderImage).To(Equal(firstImage))
+
+		By("switching the default BuilderImage CR")
+		out, err = proc.Kubectl(
+			"patch", "builderimage", firstName,
+			"--namespace", testenv.Namespace,
+			"--type", "merge",
+			"--patch", `{"spec":{"default":false}}`,
+		)
+		Expect(err).NotTo(HaveOccurred(), out)
+		out, err = proc.Kubectl(
+			"patch", "builderimage", secondName,
+			"--namespace", testenv.Namespace,
+			"--type", "merge",
+			"--patch", `{"spec":{"default":true}}`,
+		)
+		Expect(err).NotTo(HaveOccurred(), out)
+
+		By("reporting the changed CR-derived default from the info endpoint")
+		infoResponse, err := env.Curl(
+			"GET",
+			fmt.Sprintf("%s%s/info", serverURL, v1.Root),
+			strings.NewReader(""),
+		)
+		Expect(err).NotTo(HaveOccurred())
+		infoBody, err := io.ReadAll(infoResponse.Body)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(infoResponse.Body.Close()).To(Succeed())
+		Expect(infoResponse.StatusCode).To(Equal(http.StatusOK), string(infoBody))
+		var info models.InfoResponse
+		Expect(json.Unmarshal(infoBody, &info)).To(Succeed())
+		Expect(info.DefaultBuilderImage).To(Equal(secondImage))
+
+		By("staging another new application with the changed default")
+		secondAppName := catalog.NewAppName()
+		appCreateRequest := models.ApplicationCreateRequest{Name: secondAppName}
+		bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+		Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+
+		secondUpload := uploadApplication(secondAppName, namespace)
+		secondStage := stageApplication(secondAppName, namespace, models.StageRequest{
+			App: models.AppRef{
+				Meta: models.Meta{Name: secondAppName, Namespace: namespace},
+			},
+			BlobUID: secondUpload.BlobUID,
+		})
+		stagingBuilderImage, err = proc.Kubectl(
+			"get", "pods",
+			"--namespace", testenv.Namespace,
+			"-l", fmt.Sprintf("epinio.io/stage-id=%s", secondStage.Stage.ID),
+			"-o", "jsonpath={.items[*].spec.containers[0].image}",
+		)
+		Expect(err).NotTo(HaveOccurred(), stagingBuilderImage)
+		Expect(stagingBuilderImage).To(Equal(secondImage))
+	})
+
 	When("staging and deploying a new app", func() {
 		It("returns a success for a tarball", func() {
 			By("uploading the code")

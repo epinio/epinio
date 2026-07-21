@@ -16,6 +16,7 @@ package builderimage
 import (
 	"context"
 	"errors"
+	"sort"
 
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -24,6 +25,36 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 )
+
+// Default returns the default BuilderImage. If more than one resource is
+// marked as default, the one with the lexicographically smallest name wins.
+// It returns nil when no default is configured.
+func Default(
+	ctx context.Context,
+	client dynamic.NamespaceableResourceInterface,
+) (*models.BuilderImage, error) {
+	builderimages, err := List(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	defaults := make(models.BuilderImageList, 0)
+	for _, candidate := range builderimages {
+		if candidate.Default {
+			defaults = append(defaults, candidate)
+		}
+	}
+
+	if len(defaults) == 0 {
+		return nil, nil
+	}
+
+	sort.Slice(defaults, func(i, j int) bool {
+		return defaults[i].Meta.Name < defaults[j].Meta.Name
+	})
+
+	return &defaults[0], nil
+}
 
 // List returns a slice of all known builderimage CRs.
 func List(

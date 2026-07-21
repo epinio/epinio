@@ -52,6 +52,62 @@ var _ = Describe("BuilderImage CRUD", func() {
 		}
 	}
 
+	Describe("Default", func() {
+		It("returns nil when no builder image is marked as default", func() {
+			fakeRI.ListReturns(&unstructured.UnstructuredList{
+				Items: []unstructured.Unstructured{
+					makeCR("standard", "paketo:jammy", "", ""),
+				},
+			}, nil)
+
+			found, defaultError := builderimage.Default(ctx, fakeNS)
+
+			Expect(defaultError).ToNot(HaveOccurred())
+			Expect(found).To(BeNil())
+		})
+
+		It("returns the builder image marked as default", func() {
+			standard := makeCR("standard", "paketo:jammy", "", "")
+			standard.Object["spec"].(map[string]interface{})["default"] = true
+			fakeRI.ListReturns(&unstructured.UnstructuredList{
+				Items: []unstructured.Unstructured{standard},
+			}, nil)
+
+			found, defaultError := builderimage.Default(ctx, fakeNS)
+
+			Expect(defaultError).ToNot(HaveOccurred())
+			Expect(found).ToNot(BeNil())
+			Expect(found.Meta.Name).To(Equal("standard"))
+			Expect(found.Image).To(Equal("paketo:jammy"))
+		})
+
+		It("chooses deterministically when multiple builder images are default", func() {
+			zulu := makeCR("zulu", "zulu:latest", "", "")
+			zulu.Object["spec"].(map[string]interface{})["default"] = true
+			alpha := makeCR("alpha", "alpha:latest", "", "")
+			alpha.Object["spec"].(map[string]interface{})["default"] = true
+			fakeRI.ListReturns(&unstructured.UnstructuredList{
+				Items: []unstructured.Unstructured{zulu, alpha},
+			}, nil)
+
+			found, defaultError := builderimage.Default(ctx, fakeNS)
+
+			Expect(defaultError).ToNot(HaveOccurred())
+			Expect(found).ToNot(BeNil())
+			Expect(found.Meta.Name).To(Equal("alpha"))
+			Expect(found.Image).To(Equal("alpha:latest"))
+		})
+
+		It("propagates list errors", func() {
+			fakeRI.ListReturns(nil, errors.New("boom"))
+
+			found, defaultError := builderimage.Default(ctx, fakeNS)
+
+			Expect(defaultError).To(MatchError("boom"))
+			Expect(found).To(BeNil())
+		})
+	})
+
 	Describe("List", func() {
 		It("returns all known builder images", func() {
 			fakeRI.ListReturns(&unstructured.UnstructuredList{
