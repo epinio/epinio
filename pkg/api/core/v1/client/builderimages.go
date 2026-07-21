@@ -16,6 +16,30 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
+// BuilderImageList returns a list of all known builder images.
+func (c *Client) BuilderImageList() (models.BuilderImageList, error) {
+	response := models.BuilderImageList{}
+	endpoint := api.Routes.Path("BuilderImageList")
+
+	return Get(c, endpoint, response)
+}
+
+// BuilderImageShow returns the named builder image.
+func (c *Client) BuilderImageShow(name string) (models.BuilderImage, error) {
+	response := models.BuilderImage{}
+	endpoint := api.Routes.Path("BuilderImageShow", name)
+
+	return Get(c, endpoint, response)
+}
+
+// BuilderImageMatch returns all builder images whose name matches the prefix.
+func (c *Client) BuilderImageMatch(prefix string) (models.BuilderImageMatchResponse, error) {
+	response := models.BuilderImageMatchResponse{}
+	endpoint := api.Routes.Path("BuilderImageMatch", prefix)
+
+	return Get(c, endpoint, response)
+}
+
 // BuilderImageCreate creates a builder image. The name travels in the request
 // body.
 func (c *Client) BuilderImageCreate(request models.BuilderImageCreateRequest) (models.Response, error) {

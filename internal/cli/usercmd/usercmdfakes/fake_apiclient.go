@@ -418,6 +418,44 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
+	BuilderImageListStub        func() (models.BuilderImageList, error)
+	builderImageListMutex       sync.RWMutex
+	builderImageListArgsForCall []struct {
+	}
+	builderImageListReturns struct {
+		result1 models.BuilderImageList
+		result2 error
+	}
+	builderImageListReturnsOnCall map[int]struct {
+		result1 models.BuilderImageList
+		result2 error
+	}
+	BuilderImageMatchStub        func(string) (models.BuilderImageMatchResponse, error)
+	builderImageMatchMutex       sync.RWMutex
+	builderImageMatchArgsForCall []struct {
+		arg1 string
+	}
+	builderImageMatchReturns struct {
+		result1 models.BuilderImageMatchResponse
+		result2 error
+	}
+	builderImageMatchReturnsOnCall map[int]struct {
+		result1 models.BuilderImageMatchResponse
+		result2 error
+	}
+	BuilderImageShowStub        func(string) (models.BuilderImage, error)
+	builderImageShowMutex       sync.RWMutex
+	builderImageShowArgsForCall []struct {
+		arg1 string
+	}
+	builderImageShowReturns struct {
+		result1 models.BuilderImage
+		result2 error
+	}
+	builderImageShowReturnsOnCall map[int]struct {
+		result1 models.BuilderImage
+		result2 error
+	}
 	BuilderImageUpdateStub        func(string, models.BuilderImageUpdateRequest) (models.Response, error)
 	builderImageUpdateMutex       sync.RWMutex
 	builderImageUpdateArgsForCall []struct {
@@ -2977,6 +3015,190 @@ func (fake *FakeAPIClient) BuilderImageDeleteReturnsOnCall(i int, result1 models
 	}
 	fake.builderImageDeleteReturnsOnCall[i] = struct {
 		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) BuilderImageList() (models.BuilderImageList, error) {
+	fake.builderImageListMutex.Lock()
+	ret, specificReturn := fake.builderImageListReturnsOnCall[len(fake.builderImageListArgsForCall)]
+	fake.builderImageListArgsForCall = append(fake.builderImageListArgsForCall, struct {
+	}{})
+	stub := fake.BuilderImageListStub
+	fakeReturns := fake.builderImageListReturns
+	fake.recordInvocation("BuilderImageList", []interface{}{})
+	fake.builderImageListMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) BuilderImageListCallCount() int {
+	fake.builderImageListMutex.RLock()
+	defer fake.builderImageListMutex.RUnlock()
+	return len(fake.builderImageListArgsForCall)
+}
+
+func (fake *FakeAPIClient) BuilderImageListCalls(stub func() (models.BuilderImageList, error)) {
+	fake.builderImageListMutex.Lock()
+	defer fake.builderImageListMutex.Unlock()
+	fake.BuilderImageListStub = stub
+}
+
+func (fake *FakeAPIClient) BuilderImageListReturns(result1 models.BuilderImageList, result2 error) {
+	fake.builderImageListMutex.Lock()
+	defer fake.builderImageListMutex.Unlock()
+	fake.BuilderImageListStub = nil
+	fake.builderImageListReturns = struct {
+		result1 models.BuilderImageList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) BuilderImageListReturnsOnCall(i int, result1 models.BuilderImageList, result2 error) {
+	fake.builderImageListMutex.Lock()
+	defer fake.builderImageListMutex.Unlock()
+	fake.BuilderImageListStub = nil
+	if fake.builderImageListReturnsOnCall == nil {
+		fake.builderImageListReturnsOnCall = make(map[int]struct {
+			result1 models.BuilderImageList
+			result2 error
+		})
+	}
+	fake.builderImageListReturnsOnCall[i] = struct {
+		result1 models.BuilderImageList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) BuilderImageMatch(arg1 string) (models.BuilderImageMatchResponse, error) {
+	fake.builderImageMatchMutex.Lock()
+	ret, specificReturn := fake.builderImageMatchReturnsOnCall[len(fake.builderImageMatchArgsForCall)]
+	fake.builderImageMatchArgsForCall = append(fake.builderImageMatchArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.BuilderImageMatchStub
+	fakeReturns := fake.builderImageMatchReturns
+	fake.recordInvocation("BuilderImageMatch", []interface{}{arg1})
+	fake.builderImageMatchMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) BuilderImageMatchCallCount() int {
+	fake.builderImageMatchMutex.RLock()
+	defer fake.builderImageMatchMutex.RUnlock()
+	return len(fake.builderImageMatchArgsForCall)
+}
+
+func (fake *FakeAPIClient) BuilderImageMatchCalls(stub func(string) (models.BuilderImageMatchResponse, error)) {
+	fake.builderImageMatchMutex.Lock()
+	defer fake.builderImageMatchMutex.Unlock()
+	fake.BuilderImageMatchStub = stub
+}
+
+func (fake *FakeAPIClient) BuilderImageMatchArgsForCall(i int) string {
+	fake.builderImageMatchMutex.RLock()
+	defer fake.builderImageMatchMutex.RUnlock()
+	argsForCall := fake.builderImageMatchArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeAPIClient) BuilderImageMatchReturns(result1 models.BuilderImageMatchResponse, result2 error) {
+	fake.builderImageMatchMutex.Lock()
+	defer fake.builderImageMatchMutex.Unlock()
+	fake.BuilderImageMatchStub = nil
+	fake.builderImageMatchReturns = struct {
+		result1 models.BuilderImageMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) BuilderImageMatchReturnsOnCall(i int, result1 models.BuilderImageMatchResponse, result2 error) {
+	fake.builderImageMatchMutex.Lock()
+	defer fake.builderImageMatchMutex.Unlock()
+	fake.BuilderImageMatchStub = nil
+	if fake.builderImageMatchReturnsOnCall == nil {
+		fake.builderImageMatchReturnsOnCall = make(map[int]struct {
+			result1 models.BuilderImageMatchResponse
+			result2 error
+		})
+	}
+	fake.builderImageMatchReturnsOnCall[i] = struct {
+		result1 models.BuilderImageMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) BuilderImageShow(arg1 string) (models.BuilderImage, error) {
+	fake.builderImageShowMutex.Lock()
+	ret, specificReturn := fake.builderImageShowReturnsOnCall[len(fake.builderImageShowArgsForCall)]
+	fake.builderImageShowArgsForCall = append(fake.builderImageShowArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.BuilderImageShowStub
+	fakeReturns := fake.builderImageShowReturns
+	fake.recordInvocation("BuilderImageShow", []interface{}{arg1})
+	fake.builderImageShowMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) BuilderImageShowCallCount() int {
+	fake.builderImageShowMutex.RLock()
+	defer fake.builderImageShowMutex.RUnlock()
+	return len(fake.builderImageShowArgsForCall)
+}
+
+func (fake *FakeAPIClient) BuilderImageShowCalls(stub func(string) (models.BuilderImage, error)) {
+	fake.builderImageShowMutex.Lock()
+	defer fake.builderImageShowMutex.Unlock()
+	fake.BuilderImageShowStub = stub
+}
+
+func (fake *FakeAPIClient) BuilderImageShowArgsForCall(i int) string {
+	fake.builderImageShowMutex.RLock()
+	defer fake.builderImageShowMutex.RUnlock()
+	argsForCall := fake.builderImageShowArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeAPIClient) BuilderImageShowReturns(result1 models.BuilderImage, result2 error) {
+	fake.builderImageShowMutex.Lock()
+	defer fake.builderImageShowMutex.Unlock()
+	fake.BuilderImageShowStub = nil
+	fake.builderImageShowReturns = struct {
+		result1 models.BuilderImage
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) BuilderImageShowReturnsOnCall(i int, result1 models.BuilderImage, result2 error) {
+	fake.builderImageShowMutex.Lock()
+	defer fake.builderImageShowMutex.Unlock()
+	fake.BuilderImageShowStub = nil
+	if fake.builderImageShowReturnsOnCall == nil {
+		fake.builderImageShowReturnsOnCall = make(map[int]struct {
+			result1 models.BuilderImage
+			result2 error
+		})
+	}
+	fake.builderImageShowReturnsOnCall[i] = struct {
+		result1 models.BuilderImage
 		result2 error
 	}{result1, result2}
 }

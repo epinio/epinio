@@ -135,6 +135,9 @@ type APIClient interface {
 	ChartDelete(name string) (models.Response, error)
 
 	// builder images
+	BuilderImageList() (models.BuilderImageList, error)
+	BuilderImageShow(name string) (models.BuilderImage, error)
+	BuilderImageMatch(prefix string) (models.BuilderImageMatchResponse, error)
 	BuilderImageCreate(request models.BuilderImageCreateRequest) (models.Response, error)
 	BuilderImageUpdate(name string, request models.BuilderImageUpdateRequest) (models.Response, error)
 	BuilderImageDelete(name string) (models.Response, error)

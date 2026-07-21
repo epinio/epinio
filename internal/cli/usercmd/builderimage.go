@@ -12,9 +12,98 @@
 package usercmd
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/fatih/color"
 	"github.com/pkg/errors"
 )
+
+// BuilderImageList displays a table of all known builder images.
+func (c *EpinioClient) BuilderImageList(ctx context.Context) error {
+	log := c.Log.WithName("BuilderImageList")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		Msg("Show Builder Images")
+
+	images, err := c.API.BuilderImageList()
+	if err != nil {
+		return err
+	}
+
+	msg := c.ui.Success().WithTable("Default", "Name", "Image", "Short Description", "Bound Apps")
+
+	for _, image := range images {
+		mark := ""
+		if image.Default {
+			mark = color.BlueString("*")
+		}
+		boundApps := ""
+		if image.BoundApps {
+			boundApps = "yes"
+		}
+		msg = msg.WithTableRow(mark, image.Meta.Name, image.Image, image.ShortDescription, boundApps)
+	}
+
+	msg.Msg("Ok")
+	return nil
+}
+
+// BuilderImageShow displays the details of the named builder image.
+func (c *EpinioClient) BuilderImageShow(ctx context.Context, name string) error {
+	log := c.Log.WithName("BuilderImageShow")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", name).
+		Msg("Show builder image details")
+
+	image, err := c.API.BuilderImageShow(name)
+	if err != nil {
+		return err
+	}
+
+	defaultMark := "no"
+	if image.Default {
+		defaultMark = "yes"
+	}
+	boundApps := "no"
+	if image.BoundApps {
+		boundApps = "yes"
+	}
+
+	c.ui.Note().WithTable("Key", "Value").
+		WithTableRow("Name", image.Meta.Name).
+		WithTableRow("Created", formatCreatedAt(image.Meta.CreatedAt)).
+		WithTableRow("Image", image.Image).
+		WithTableRow("Short", image.ShortDescription).
+		WithTableRow("Description", image.Description).
+		WithTableRow("Default", defaultMark).
+		WithTableRow("Bound Apps", boundApps).
+		Msg("Details:")
+
+	c.ui.Success().Msg("Ok")
+
+	return nil
+}
+
+// BuilderImageMatching retrieves all builder images in the cluster, for the given prefix
+func (c *EpinioClient) BuilderImageMatching(prefix string) []string {
+	log := c.Log.WithName("BuilderImageMatching")
+	log.Info("start")
+	defer log.Info("return")
+
+	resp, err := c.API.BuilderImageMatch(prefix)
+	if err != nil {
+		log.Error(err, "calling builder image match endpoint")
+		return []string{}
+	}
+
+	return resp.Names
+}
 
 // BuilderImageCreate creates a builder image from the supplied request.
 func (c *EpinioClient) BuilderImageCreate(request models.BuilderImageCreateRequest) error {

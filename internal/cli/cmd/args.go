@@ -90,6 +90,12 @@ type AppChartMatcher interface {
 	ChartMatching(toComplete string) []string
 }
 
+//counterfeiter:generate -header ../../../LICENSE_HEADER . BuilderImageMatcher
+type BuilderImageMatcher interface {
+	GetAPI() usercmd.APIClient
+	BuilderImageMatching(toComplete string) []string
+}
+
 //counterfeiter:generate -header ../../../LICENSE_HEADER . AppVarMatcher
 type AppVarMatcher interface {
 	GetAPI() usercmd.APIClient
@@ -301,6 +307,22 @@ func NewAppChartMatcherFirstFunc(matcher AppChartMatcher) ValidArgsFunc {
 		matcher.GetAPI().DisableVersionWarning()
 
 		matches := matcher.ChartMatching(toComplete)
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// NewBuilderImageMatcherFirstFunc returns a function providing shell completion
+// of builder image names for the provided partial command. It only matches for
+// the first command argument.
+func NewBuilderImageMatcherFirstFunc(matcher BuilderImageMatcher) ValidArgsFunc {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matcher.GetAPI().DisableVersionWarning()
+
+		matches := matcher.BuilderImageMatching(toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	}
 }

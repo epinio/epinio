@@ -27,12 +27,43 @@ func NewBuildImageCmd(client *usercmd.EpinioClient) *cobra.Command {
 	}
 
 	cmd.AddCommand(
+		NewBuildImageListCmd(client),
+		NewBuildImageShowCmd(client),
 		NewBuildImageCreateCmd(client),
 		NewBuildImageUpdateCmd(client),
 		NewBuildImageDeleteCmd(client),
 	)
 
 	return cmd
+}
+
+// NewBuildImageListCmd returns a new 'epinio buildimage list' command
+func NewBuildImageListCmd(client *usercmd.EpinioClient) *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List builder images",
+		Long:  "List all known builder images",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+			return errors.Wrap(client.BuilderImageList(cmd.Context()), "error listing builder images")
+		},
+	}
+}
+
+// NewBuildImageShowCmd returns a new 'epinio buildimage show' command
+func NewBuildImageShowCmd(client *usercmd.EpinioClient) *cobra.Command {
+	return &cobra.Command{
+		Use:               "show NAME",
+		Short:             "Describe a builder image",
+		Long:              "Show the details of the named builder image",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: NewBuilderImageMatcherFirstFunc(client),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+			return errors.Wrap(client.BuilderImageShow(cmd.Context(), args[0]), "error showing builder image")
+		},
+	}
 }
 
 // BuildImageWriteConfig holds the flags shared by the create and update
@@ -91,10 +122,11 @@ func NewBuildImageCreateCmd(client *usercmd.EpinioClient) *cobra.Command {
 func NewBuildImageUpdateCmd(client *usercmd.EpinioClient) *cobra.Command {
 	cfg := BuildImageWriteConfig{}
 	cmd := &cobra.Command{
-		Use:   "update NAME [flags]",
-		Short: "Update a builder image",
-		Long:  "Update a builder image. Unset flags leave the corresponding fields unchanged.",
-		Args:  cobra.ExactArgs(1),
+		Use:               "update NAME [flags]",
+		Short:             "Update a builder image",
+		Long:              "Update a builder image. Unset flags leave the corresponding fields unchanged.",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: NewBuilderImageMatcherFirstFunc(client),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
@@ -116,10 +148,11 @@ func NewBuildImageUpdateCmd(client *usercmd.EpinioClient) *cobra.Command {
 // NewBuildImageDeleteCmd returns a new 'epinio buildimage delete' command
 func NewBuildImageDeleteCmd(client *usercmd.EpinioClient) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete NAME",
-		Short: "Delete a builder image",
-		Long:  "Delete a builder image",
-		Args:  cobra.ExactArgs(1),
+		Use:               "delete NAME",
+		Short:             "Delete a builder image",
+		Long:              "Delete a builder image",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: NewBuilderImageMatcherFirstFunc(client),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			return errors.Wrap(client.BuilderImageDelete(args[0]), "error deleting builder image")
