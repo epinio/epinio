@@ -433,13 +433,15 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 	sort.Strings(boundApps)
 	sort.Strings(siblings)
 
+	// Empty fields are shown as "Unknown" instead of a blank value, so that
+	// unused configuration details are still clearly indicated to the user.
 	c.ui.Note().
 		WithStringValue("Created", formatCreatedAt(resp.Meta.CreatedAt)).
-		WithStringValue("User", resp.Configuration.Username).
-		WithStringValue("Type", resp.Configuration.Type).
-		WithStringValue("Origin", resp.Configuration.Origin).
-		WithStringValue("Used-By", strings.Join(boundApps, ", ")).
-		WithStringValue("Siblings", strings.Join(siblings, ", ")).
+		WithStringValue("User", orUnknown(resp.Configuration.Username)).
+		WithStringValue("Type", orUnknown(resp.Configuration.Type)).
+		WithStringValue("Origin", orUnknown(resp.Configuration.Origin)).
+		WithStringValue("Used-By", orUnknown(strings.Join(boundApps, ", "))).
+		WithStringValue("Siblings", orUnknown(strings.Join(siblings, ", "))).
 		Msg("")
 
 	msg := c.ui.Success()
@@ -489,6 +491,16 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 	}
 
 	return nil
+}
+
+// orUnknown returns the given value, or "Unknown" when the value is empty. It
+// is used to indicate unused configuration details in the configuration show
+// output, instead of rendering a blank field.
+func orUnknown(v string) string {
+	if v == "" {
+		return "Unknown"
+	}
+	return v
 }
 
 func transformForDisplay(v string) string {

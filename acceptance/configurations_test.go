@@ -404,6 +404,11 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Configuration Details"))
 
+			// Unused details are shown as "Unknown" instead of a blank field.
+			Expect(out).To(ContainSubstring("Origin: Unknown"))
+			Expect(out).To(ContainSubstring("Used-By: Unknown"))
+			Expect(out).To(ContainSubstring("Siblings: Unknown"))
+
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
