@@ -159,6 +159,13 @@ func Sync(c *gin.Context) apierror.APIErrors {
 // the supervisor restarts it with the new content. The "dest" value overrides
 // the default destination for flexibility of app deployment structures.
 //
+// The kill targets a process GROUP (note the leading "-" on the pid): the
+// supervisor launches the app via setsid, so the recorded pid is the group
+// leader. Killing the group reaps entrypoints that fork or background the
+// real server (e.g. a start.sh doing `( node app ) &`); killing only the
+// recorded pid would leave the real server orphaned and still holding its
+// port, so the relaunched process could not bind.
+//
 // Positional args ($1, $2) are used so paths with spaces or special
 // characters are handled correctly without string interpolation. kill is
 // intentionally allowed to fail (pid file may not exist yet).
@@ -171,7 +178,7 @@ func buildSyncCommand(mode, dest, binaryName string) []string {
 		}
 		return []string{
 			"sh", "-c",
-			`chmod -R u+w "$1" && tar xf - -C "$1" --overwrite && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
+			`chmod -R u+w "$1" && tar xf - -C "$1" --overwrite && { kill -9 -"$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
 			"--", filesDest,
 		}
 	case "binary":
@@ -184,7 +191,7 @@ func buildSyncCommand(mode, dest, binaryName string) []string {
 		}
 		return []string{
 			"sh", "-c",
-			`tar xf - -C /tmp && mv /tmp/"$1" "$2" && { kill -9 "$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
+			`tar xf - -C /tmp && mv /tmp/"$1" "$2" && { kill -9 -"$(cat /epinio-sync/pid)" 2>/dev/null; true; }`,
 			"--", binaryName, binaryDest,
 		}
 	}

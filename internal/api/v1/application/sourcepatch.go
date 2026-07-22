@@ -529,11 +529,19 @@ func swapPodImage(
 	// first process symlink (the Paketo Go buildpack names the process after
 	// the module, so /cnb/process/web does not exist there). Set processCmd
 	// for non-CNB images or to pick a specific process.
+	//
+	// The launch is wrapped in setsid so the app runs in its own process
+	// group whose id equals the recorded PID. Entrypoints that fork or
+	// background the real server (e.g. a start.sh doing `( node app ) &`)
+	// would otherwise leave the recorded PID pointing at a wrapper shell;
+	// the sync handler kills the whole group (kill -9 -PID) so the real
+	// server dies and frees its port for the relaunch. Without this, an
+	// orphaned server keeps the port and the reloaded process can't bind.
 	if processCmd == "" {
 		processCmd = `"$APP_CMD"`
 	}
 	wrapperCmd := fmt.Sprintf(
-		`APP_CMD=/cnb/process/web; [ -x "$APP_CMD" ] || APP_CMD="$(ls /cnb/process/* 2>/dev/null | head -n1)"; while true; do if [ -f /epinio-sync/app ]; then /epinio-sync/app & else %s & fi; echo $! > /epinio-sync/pid; wait; sleep 0.1; done`,
+		`APP_CMD=/cnb/process/web; [ -x "$APP_CMD" ] || APP_CMD="$(ls /cnb/process/* 2>/dev/null | head -n1)"; while true; do if [ -f /epinio-sync/app ]; then setsid /epinio-sync/app & else setsid %s & fi; echo $! > /epinio-sync/pid; wait; sleep 0.1; done`,
 		processCmd,
 	)
 	patch := []byte(fmt.Sprintf(

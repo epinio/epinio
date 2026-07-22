@@ -50,10 +50,12 @@ type syncConfig struct {
 type fileHashes map[string]string
 
 // AppWatch watches the source directory at path for changes and syncs them
-// into the running pod. On first run (no state file) it does a full buildpack
-// push to warm the cache and set up the supervisor wrapper. Subsequent runs
-// do incremental file or binary syncs via the /sync endpoint, which requires
-// no kubectl.
+// into the running pod. On startup it always does a full buildpack push to
+// warm the cache and (re)install the supervisor wrapper, then does incremental
+// file or binary syncs via the /sync endpoint, which requires no kubectl. The
+// startup push is unconditional because a prior `epinio push` (or any normal
+// redeploy) recreates the pod without the supervisor; a stale state file must
+// not let watch skip straight to syncing against a pod that cannot reload.
 //
 // namespace overrides c.Settings.Namespace when non-empty.
 func (c *EpinioClient) AppWatch(
@@ -91,6 +93,16 @@ func (c *EpinioClient) AppWatch(
 		"namespace", namespace,
 		"path", absPath,
 	)
+
+	// Always start from a clean slate: remove any state file left by a prior
+	// watch session so the first loop iteration runs watchStartup, which
+	// reinstalls the supervisor. Without this, a stale state file makes watch
+	// skip startup and sync against a pod that may have been redeployed
+	// (e.g. by `epinio push`) without the supervisor.
+	removeStateError := os.Remove(stateFile)
+	if removeStateError != nil && !os.IsNotExist(removeStateError) {
+		return errors.Wrap(removeStateError, "clearing stale watch state")
+	}
 
 	for {
 		select {
@@ -221,7 +233,7 @@ func (c *EpinioClient) watchStartup(
 		return errors.Wrap(waitRunningError, "waiting for app to become ready")
 	}
 	c.ui.Normal().Msgf(
-		"Pod ready in %dms. Watching for changes...",
+		"Pod ready in %dms. Watching for file changes...",
 		time.Since(unixTime).Milliseconds(),
 	)
 
