@@ -43,8 +43,24 @@ func GroupedIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// Authorization: skip namespaces the user has no access to entirely.
+	// FilterResources already drops unauthorized apps, but the namespace key
+	// must be omitted too, otherwise an unauthorized namespace leaks by name
+	// and the UI then 403s when it polls the per-namespace endpoint for it.
+	// Mirrors FilterResources' access rules.
+	allowAll := user.IsAdmin() || user.HasGlobalRole()
+	allowedNamespaces := make(map[string]struct{}, len(user.Namespaces))
+	for _, ns := range user.Namespaces {
+		allowedNamespaces[ns] = struct{}{}
+	}
+
 	result := make(map[string]response.PaginatedResponse[models.App], len(grouped))
 	for ns, nsResult := range grouped {
+		if !allowAll {
+			if _, ok := allowedNamespaces[ns]; !ok {
+				continue
+			}
+		}
 		filtered := auth.FilterResources(user, nsResult.Items)
 		result[ns] = response.BuildPaginatedResponse(filtered, page, pageSize, nsResult.TotalItems)
 	}
