@@ -97,24 +97,25 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	if app.Workload != nil {
 		// For a running application we have to validate changed custom chart values against
-		// the configured app chart. It has to be done first, this ensures that there will
+		// the target app chart. It has to be done first, this ensures that there will
 		// be no partial update of the application.
 
 		// Note: If the custom chart values did not change then no validation is
 		// required. It was done when the application got (re)started (pushed, or last
 		// update).
 
-		// Note: Changing the app chart is forbidden for active apps. A simple redeploy is
-		// likely to run into trouble. Better to force a full re-creation (delete +
-		// create/push).
-
-		if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
-			return apierror.NewBadRequestError("unable to change app chart of active application")
+		// Validate settings against the chart that will be in effect after this update.
+		chartName := app.Configuration.AppChart
+		if updateRequest.AppChart != "" {
+			chartName = updateRequest.AppChart
 		}
 
-		appChart, err := appchart.Lookup(ctx, cluster, app.Configuration.AppChart)
+		appChart, err := appchart.Lookup(ctx, cluster, chartName)
 		if err != nil {
 			return apierror.InternalError(err)
+		}
+		if appChart == nil {
+			return apierror.AppChartIsNotKnown(chartName)
 		}
 
 		if len(updateRequest.Settings) > 0 {
@@ -133,12 +134,15 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 	// Save all changes to the relevant parts of the app resources (CRD, secrets, and the like).
 
-	// update appChart
+	// update appChart (allowed for both inactive and active/running apps)
 	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
 		log.Infow("updating app", "appChart", updateRequest.AppChart)
 
 		err := updateAppChart(ctx, cluster, client, app.Meta.Namespace, app.Meta.Name, updateRequest.AppChart)
 		if err != nil {
+			if apiErr, ok := err.(apierror.APIError); ok {
+				return apiErr
+			}
 			return apierror.InternalError(err)
 		}
 	}

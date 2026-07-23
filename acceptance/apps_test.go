@@ -465,11 +465,22 @@ var _ = Describe("Apps", LApplication, func() {
 					env.DeleteAppchart(tempFile)
 				})
 
-				It("fails to change the app chart of the running app", func() {
+				It("changes the app chart of the running app", func() {
 					out, err := env.Epinio("", "app", "update", appName,
 						"--app-chart", chartName)
-					Expect(err).To(HaveOccurred(), out)
-					Expect(out).To(ContainSubstring("unable to change app chart of active application"))
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					Eventually(func() string {
+						out, err := env.Epinio("", "app", "show", appName)
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+						return out
+					}, "1m").Should(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", chartName),
+						),
+					)
 				})
 
 				When("no workload is present", func() {
