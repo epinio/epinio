@@ -106,6 +106,38 @@ spec:
 	return tempFile
 }
 
+// MakeAppchartAlternate installs a deployable app chart that uses a different helm
+// package version than the default "standard" chart (0.1.26). It keeps the standard
+// settings schema so an already-running app can switch onto it safely in tests.
+func (m *Machine) MakeAppchartAlternate(chartName string) string {
+	tempFile := chartName + `.yaml`
+	err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
+kind: AppChart
+metadata:
+  namespace: epinio
+  name: %s
+  labels:
+    app.kubernetes.io/component: epinio
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: epinio-alternate-app-chart
+    app.kubernetes.io/part-of: epinio
+spec:
+  shortDescription: Alternate application chart for upgrade tests
+  description: Different epinio-application package version than standard
+  helmChart: https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.21/epinio-application-0.1.21.tgz
+  settings:
+    appListeningPort:
+      type: integer
+      minimum: "0"
+`, chartName)), 0600)
+	Expect(err).ToNot(HaveOccurred())
+
+	out, err := proc.Kubectl("apply", "-f", tempFile)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	return tempFile
+}
+
 func (m *Machine) DeleteAppchart(tempFile string) {
 	GinkgoHelper()
 

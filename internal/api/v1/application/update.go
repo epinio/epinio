@@ -95,33 +95,36 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		return nil
 	}
 
-	if app.Workload != nil {
-		// For a running application we have to validate changed custom chart values against
-		// the target app chart. It has to be done first, this ensures that there will
-		// be no partial update of the application.
+	chartChanging := updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart
+	previousChart := app.Configuration.AppChart
 
-		// Note: If the custom chart values did not change then no validation is
-		// required. It was done when the application got (re)started (pushed, or last
-		// update).
+	// Validate against the chart that will be in effect after this update. Do this before any
+	// mutation so a chart switch cannot leave the CRD patched while settings are incompatible.
+	targetChartName := previousChart
+	if updateRequest.AppChart != "" {
+		targetChartName = updateRequest.AppChart
+	}
 
-		// Validate settings against the chart that will be in effect after this update.
-		chartName := app.Configuration.AppChart
-		if updateRequest.AppChart != "" {
-			chartName = updateRequest.AppChart
-		}
-
-		appChart, err := appchart.Lookup(ctx, cluster, chartName)
+	settingsInRequest := len(updateRequest.Settings) > 0
+	// Chart changes always require a settings check (existing or requested). Running apps also
+	// validate when new settings are supplied.
+	if chartChanging || (app.Workload != nil && settingsInRequest) {
+		appChart, err := appchart.Lookup(ctx, cluster, targetChartName)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 		if appChart == nil {
-			return apierror.AppChartIsNotKnown(chartName)
+			return apierror.AppChartIsNotKnown(targetChartName)
 		}
 
-		if len(updateRequest.Settings) > 0 {
-			issues := application.ValidateCV(updateRequest.Settings, appChart.Settings)
+		settingsToValidate := updateRequest.Settings
+		if chartChanging && !settingsInRequest {
+			settingsToValidate = app.Configuration.Settings
+		}
+
+		if len(settingsToValidate) > 0 {
+			issues := application.ValidateCV(settingsToValidate, appChart.Settings)
 			if issues != nil {
-				// Validation failures are user-actionable request issues.
 				var apiIssues []apierror.APIError
 				for _, err := range issues {
 					apiIssues = append(apiIssues, apierror.NewBadRequestError(err.Error()))
@@ -135,7 +138,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	// Save all changes to the relevant parts of the app resources (CRD, secrets, and the like).
 
 	// update appChart (allowed for both inactive and active/running apps)
-	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
+	if chartChanging {
 		log.Infow("updating app", "appChart", updateRequest.AppChart)
 
 		err := updateAppChart(ctx, cluster, client, app.Meta.Namespace, app.Meta.Name, updateRequest.AppChart)
@@ -203,31 +206,37 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		}
 	}
 
-	// backward compatibility: if no flag provided then restart the app
+	// backward compatibility: if no flag provided then restart the app.
+	// Chart changes on an active app always redeploy: the workload must pick up the new
+	// helm chart. On failure, roll the CRD chart name back so we do not leave a partial update.
 	restart := updateRequest.Restart == nil || *updateRequest.Restart
-	if restart {
+	forceChartRedeploy := chartChanging && app.Workload != nil
+	if restart || forceChartRedeploy {
 		instancesChanged := appInstancesChanged(app, updateRequest.Instances)
 
-		if instancesChanged {
-			log.Infow("updating app -- deploying instance change")
-			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
-			if apierr != nil {
-				return apierr
-			}
+		var apierr apierror.APIErrors
+		if instancesChanged || forceChartRedeploy {
+			log.Infow("updating app -- deploying", "chartChanging", chartChanging, "instancesChanged", instancesChanged)
+			_, apierr = deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 		} else if app.Workload != nil && app.Status == models.ApplicationRunning {
 			log.Infow("updating app -- restarting")
-			if apierr := deployAppIfImageReady(ctx, cluster, app, username); apierr != nil {
-				return apierr
-			}
+			apierr = deployAppIfImageReady(ctx, cluster, app, username)
 		} else if app.Workload != nil {
 			log.Infow("updating app -- restart skipped because application is not running", "status", app.Status)
 		} else if desired > 0 {
 			log.Infow("updating app -- deploying")
+			_, apierr = deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+		}
 
-			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
-			if apierr != nil {
-				return apierr
+		if apierr != nil {
+			if chartChanging {
+				log.Errorw("deploy after app chart change failed, rolling chart back",
+					"from", updateRequest.AppChart, "to", previousChart, "error", apierr)
+				if rbErr := updateAppChart(ctx, cluster, client, app.Meta.Namespace, app.Meta.Name, previousChart); rbErr != nil {
+					log.Errorw("failed to roll back app chart after deploy error", "error", rbErr)
+				}
 			}
+			return apierr
 		}
 	}
 

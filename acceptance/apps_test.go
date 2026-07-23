@@ -458,27 +458,86 @@ var _ = Describe("Apps", LApplication, func() {
 
 				BeforeEach(func() {
 					chartName = catalog.NewTmpName("chart-")
-					tempFile = env.MakeAppchart(chartName)
+					tempFile = env.MakeAppchartAlternate(chartName)
 				})
 
 				AfterEach(func() {
 					env.DeleteAppchart(tempFile)
 				})
 
-				It("changes the app chart of the running app", func() {
+				It("changes the app chart of the running app and keeps the workload healthy", func() {
+					releaseName := names.ReleaseName(appName)
+
+					By("recording the helm chart package before the switch")
+					beforeStatus, err := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+					Expect(err).ToNot(HaveOccurred(), beforeStatus)
+					Expect(beforeStatus).To(ContainSubstring(`"name":"epinio-application"`))
+					Expect(beforeStatus).ToNot(ContainSubstring(`"version":"0.1.21"`))
+
+					By("switching the running app onto a different helm chart package")
 					out, err := env.Epinio("", "app", "update", appName,
 						"--app-chart", chartName)
 					Expect(err).ToNot(HaveOccurred(), out)
 
+					By("waiting until the app CR reports the new chart")
 					Eventually(func() string {
 						out, err := env.Epinio("", "app", "show", appName)
 						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 						return out
-					}, "1m").Should(
+					}, "2m").Should(
 						HaveATable(
 							WithHeaders("KEY", "VALUE"),
 							WithRow("App Chart", chartName),
+						),
+					)
+
+					By("waiting until the workload is healthy again")
+					Eventually(func() string {
+						out, err := env.Epinio("", "app", "list")
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+						return out
+					}, "5m").Should(
+						HaveATable(
+							WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+							WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+						),
+					)
+
+					By("verifying helm upgraded onto the alternate chart package")
+					Eventually(func() string {
+						status, statusErr := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+						ExpectWithOffset(1, statusErr).ToNot(HaveOccurred(), status)
+						return status
+					}, "2m").Should(And(
+						ContainSubstring(`"version":"0.1.21"`),
+						ContainSubstring(`"status":"deployed"`),
+					))
+				})
+
+				It("rejects a chart switch when existing settings are incompatible", func() {
+					incompatibleChart := catalog.NewTmpName("chart-bad-")
+					incompatibleFile := env.MakeAppchart(incompatibleChart)
+					defer env.DeleteAppchart(incompatibleFile)
+
+					By("setting a chart value that the target chart does not declare")
+					out, err := env.Epinio("", "app", "update", appName,
+						"--chart-value", "appListeningPort=8080")
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					By("attempting to switch onto a chart that does not allow that setting")
+					out, err = env.Epinio("", "app", "update", appName,
+						"--app-chart", incompatibleChart)
+					Expect(err).To(HaveOccurred(), out)
+					Expect(out).To(ContainSubstring(`setting "appListeningPort": not known`))
+
+					By("keeping the original app chart when validation fails")
+					showOut, showErr := env.Epinio("", "app", "show", appName)
+					Expect(showErr).ToNot(HaveOccurred(), showOut)
+					Expect(showOut).To(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", "standard"),
 						),
 					)
 				})
