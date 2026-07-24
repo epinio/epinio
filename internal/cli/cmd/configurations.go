@@ -136,23 +136,24 @@ func NewConfigurationCreateCmd(client ConfigurationService) *cobra.Command {
 	cfg := ConfigurationCreateConfig{}
 
 	cmd := &cobra.Command{
-		Use:   "create NAME (KEY VALUE)...",
+		Use:   "create NAME (KEY VALUE|KEY=VALUE)...",
 		Short: "Create a configuration",
 		Long:  `Create configuration by name and key/value dictionary.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return errors.New("Not enough arguments, expected name")
 			}
-			if len(args)%2 == 0 {
-				return errors.New("Last Key has no value")
-			}
-			return nil
+			_, err := parseAssignments(args[1:])
+			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
 			// Merge plain argument key/value data with k/v from options, i.e. files.
-			kvAssigments := args[1:]
+			kvAssigments, err := parseAssignments(args[1:])
+			if err != nil {
+				return err
+			}
 			if len(cfg.kvFromFiles) > 0 {
 				err, kvFiles := assignmentsFromFiles(cfg.kvFromFiles)
 				if err != nil {
@@ -161,8 +162,7 @@ func NewConfigurationCreateCmd(client ConfigurationService) *cobra.Command {
 				kvAssigments = append(kvAssigments, kvFiles...)
 			}
 
-			err := client.CreateConfiguration(args[0], kvAssigments)
-			if err != nil {
+			if err := client.CreateConfiguration(args[0], kvAssigments); err != nil {
 				return errors.Wrap(err, "error creating configuration")
 			}
 
@@ -230,11 +230,13 @@ func NewConfigurationUpdateCmd(client ConfigurationService) *cobra.Command {
 			// Process --set information into a map
 			assignments := map[string]string{}
 			for _, assignment := range cfg.assigned {
-				pieces := strings.Split(assignment, "=")
-				if len(pieces) != 2 {
+				// Split at the first `=` only. Values are allowed to contain `=`
+				// themselves, i.e. base64-encoded data and the like.
+				key, value, found := strings.Cut(assignment, "=")
+				if !found {
 					return errors.New("Bad --set assignment `" + assignment + "`, expected `name=value` as value")
 				}
-				assignments[pieces[0]] = pieces[1]
+				assignments[key] = value
 			}
 
 			err := client.UpdateConfiguration(args[0], cfg.removed, assignments, noRestart)
@@ -320,6 +322,36 @@ func changeOptions(cmd *cobra.Command, cfg *ChangeConfig) {
 	// Note: No completion functionality. This would require asking the configuration for
 	// its details so that the keys to remove can be matched. And add/modify cannot
 	// check anyway.
+}
+
+// parseAssignments converts the positional arguments of a configuration command into a
+// flat sequence of keys and values, i.e. `KEY1 VALUE1 KEY2 VALUE2 ...`.
+//
+// Two forms of assignment are accepted, and may be mixed:
+//   - `KEY VALUE`, as two separate arguments
+//   - `KEY=VALUE`, as a single argument
+//
+// The single-argument form is split at the first `=` only. Values containing `=`, like
+// base64-encoded data with its padding, are thus kept intact. Keys cannot contain `=`
+// (kubernetes secret key rules), making the two forms unambiguous.
+func parseAssignments(args []string) ([]string, error) {
+	assignments := []string{}
+
+	for i := 0; i < len(args); i++ {
+		if key, value, found := strings.Cut(args[i], "="); found {
+			assignments = append(assignments, key, value)
+			continue
+		}
+
+		if i+1 >= len(args) {
+			return nil, errors.New("Last Key has no value")
+		}
+
+		assignments = append(assignments, args[i], args[i+1])
+		i++
+	}
+
+	return assignments, nil
 }
 
 func assignmentsFromFiles(fromFileSpecs []string) (error, []string) {
