@@ -324,6 +324,12 @@ func (c *EpinioClient) UpdateConfiguration(name string, removedKeys []string, as
 	log.Info("start")
 	defer log.Info("return")
 
+	for key := range assignments {
+		if err := validateConfigurationKey(key); err != nil {
+			return err
+		}
+	}
+
 	c.showChanges("Configuration", name, removedKeys, assignments)
 
 	if err := c.TargetOk(); err != nil {
@@ -358,6 +364,10 @@ func (c *EpinioClient) CreateConfiguration(name string, dict []string) error {
 	log.Info("start")
 	defer log.Info("return")
 
+	if len(dict)%2 != 0 {
+		return errors.New("bad key/value dictionary, last key has no value")
+	}
+
 	data := make(map[string]string)
 	msg := c.ui.Note().
 		WithStringValue("Name", name).
@@ -366,6 +376,9 @@ func (c *EpinioClient) CreateConfiguration(name string, dict []string) error {
 	for i := 0; i < len(dict); i += 2 {
 		key := dict[i]
 		value := dict[i+1]
+		if err := validateConfigurationKey(key); err != nil {
+			return err
+		}
 		path := fmt.Sprintf("/configurations/%s/%s", name, key)
 		msg = msg.WithTableRow(key, transformForDisplay(value), path)
 		data[key] = value
@@ -488,6 +501,16 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		msg.Msg("No parameters")
 	}
 
+	return nil
+}
+
+// validateConfigurationKey checks that the key can be used as the name of a key in the
+// kubernetes secret backing a configuration. Reporting this client-side keeps the user
+// from getting an opaque 500 with a raw kubernetes validation error out of the API.
+func validateConfigurationKey(key string) error {
+	if errorMsgs := validation.IsConfigMapKey(key); len(errorMsgs) > 0 {
+		return fmt.Errorf("invalid configuration key `%s`: a key must consist of alphanumeric characters, '-', '_' or '.' (e.g. 'key.name', or 'KEY_NAME', or 'key-name')", key)
+	}
 	return nil
 }
 

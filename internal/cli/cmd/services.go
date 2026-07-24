@@ -162,11 +162,12 @@ func NewServiceUpdateCmd(client ServicesService) *cobra.Command {
 
 			assignments := map[string]string{}
 			for _, assignment := range cfg.change.assigned {
-				pieces := strings.Split(assignment, "=")
-				if len(pieces) != 2 {
+				// Split at the first `=` only, keeping values containing `=` intact.
+				key, value, found := strings.Cut(assignment, "=")
+				if !found {
 					return errors.New("Bad --set assignment `" + assignment + "`, expected `name=value` as value")
 				}
-				assignments[pieces[0]] = pieces[1]
+				assignments[key] = value
 			}
 
 			err := client.ServiceUpdate(args[0], cfg.wait, cfg.change.removed, assignments, cfg.noRestart)
