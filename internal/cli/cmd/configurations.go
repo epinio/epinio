@@ -138,10 +138,7 @@ func NewConfigurationCreateCmd(client ConfigurationService) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create NAME (KEY VALUE|KEY=VALUE)...",
 		Short: "Create a configuration",
-		Long: `Create configuration by name and key/value dictionary.
-Each assignment is given either as two arguments (KEY VALUE), or as a single
-argument (KEY=VALUE). Both forms may be mixed. The single-argument form is split
-at the first '=' only, i.e. values containing '=' are kept intact.`,
+		Long:  `Create configuration by name and key/value dictionary.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return errors.New("Not enough arguments, expected name")

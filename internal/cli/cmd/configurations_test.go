@@ -97,9 +97,6 @@ var _ = Describe("Command 'epinio configuration'", func() {
 		})
 
 		When("called with a value containing '='", func() {
-			// A trailing '=' is regular base64 padding, as produced by
-			// `openssl rand -base64 32` and friends.
-
 			It("keeps the value of a `KEY VALUE` pair intact", func() {
 				args = append(args, "myconfiguration",
 					"BETTER_AUTH_SECRET", "HTBCcNaoiW+piphiHQZSVq+JelIp3F6W4/FV1rfWdQI=")
