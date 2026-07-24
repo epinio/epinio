@@ -383,6 +383,10 @@ func Deploy(parameters ChartParameters) error {
 		return errors.Wrap(err, "cleaning up release")
 	}
 
+	// When the helm chart package itself changes (app chart switch), do not reuse values
+	// from the previous release. Old chart-specific values can break the upgrade.
+	reuseValues := shouldReuseHelmValues(client, releaseName, appChart)
+
 	chartSpec := hc.ChartSpec{
 		ReleaseName: releaseName,
 		ChartName:   helmChart,
@@ -392,12 +396,56 @@ func Deploy(parameters ChartParameters) error {
 		Atomic:      true, // implies `Wait true`
 		ValuesYaml:  params,
 		Timeout:     duration.ToDeployment(),
-		ReuseValues: true,
+		ReuseValues: reuseValues,
 	}
 
 	_, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil)
 
 	return err
+}
+
+// shouldReuseHelmValues is false when an existing release was installed from a different
+// chart package than the one about to be deployed (typical for app chart switches).
+func shouldReuseHelmValues(client hc.Client, releaseName string, appChart *models.AppChartFull) bool {
+	logger := helpers.Logger.With("component", "helm-deploy")
+
+	rel, err := client.GetRelease(releaseName)
+	if err != nil || rel == nil || rel.Chart == nil || rel.Chart.Metadata == nil {
+		return true
+	}
+
+	meta := rel.Chart.Metadata
+	if meta.Name == "" || meta.Version == "" {
+		return true
+	}
+
+	previous := fmt.Sprintf("%s-%s", meta.Name, meta.Version)
+	nextRef := appChart.HelmChart
+	if appChart.HelmRepo != "" {
+		// repo form is often "chart:version"
+		nextRef = appChart.HelmChart
+		if !strings.Contains(nextRef, meta.Name) {
+			logger.Infow("app chart package changed, disabling ReuseValues",
+				"release", releaseName, "previous", previous, "next", nextRef)
+			return false
+		}
+		pieces := strings.SplitN(appChart.HelmChart, ":", 2)
+		if len(pieces) == 2 && pieces[1] != meta.Version {
+			logger.Infow("app chart version changed, disabling ReuseValues",
+				"release", releaseName, "previous", previous, "next", nextRef)
+			return false
+		}
+		return true
+	}
+
+	// URL / file charts encode name-version in the artifact name.
+	if strings.Contains(nextRef, previous) {
+		return true
+	}
+
+	logger.Infow("app chart package changed, disabling ReuseValues",
+		"release", releaseName, "previous", previous, "next", nextRef)
+	return false
 }
 
 // Status is the status of a release
