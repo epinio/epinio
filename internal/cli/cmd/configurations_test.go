@@ -95,6 +95,67 @@ var _ = Describe("Command 'epinio configuration'", func() {
 				Expect(runErr).ToNot(HaveOccurred())
 			})
 		})
+
+		When("called with a value containing '='", func() {
+			It("keeps the value of a `KEY VALUE` pair intact", func() {
+				args = append(args, "myconfiguration",
+					"BETTER_AUTH_SECRET", "HTBCcNaoiW+piphiHQZSVq+JelIp3F6W4/FV1rfWdQI=")
+
+				configurationCmd := cmd.NewConfigurationCreateCmd(mockConfigurationService)
+				_, _, runErr := executeCmd(configurationCmd, args, output, outputErr)
+				Expect(runErr).ToNot(HaveOccurred())
+
+				_, kv := mockConfigurationService.CreateConfigurationArgsForCall(0)
+				Expect(kv).To(Equal([]string{
+					"BETTER_AUTH_SECRET", "HTBCcNaoiW+piphiHQZSVq+JelIp3F6W4/FV1rfWdQI=",
+				}))
+			})
+
+			It("splits a `KEY=VALUE` argument at the first '=' only", func() {
+				args = append(args, "myconfiguration",
+					"BETTER_AUTH_SECRET=HTBCcNaoiW+piphiHQZSVq+JelIp3F6W4/FV1rfWdQI=",
+					"GOOGLE_CLIENT_SECRET=GOCSPX-secret")
+
+				configurationCmd := cmd.NewConfigurationCreateCmd(mockConfigurationService)
+				_, _, runErr := executeCmd(configurationCmd, args, output, outputErr)
+				Expect(runErr).ToNot(HaveOccurred())
+
+				name, kv := mockConfigurationService.CreateConfigurationArgsForCall(0)
+				Expect(name).To(Equal("myconfiguration"))
+				Expect(kv).To(Equal([]string{
+					"BETTER_AUTH_SECRET", "HTBCcNaoiW+piphiHQZSVq+JelIp3F6W4/FV1rfWdQI=",
+					"GOOGLE_CLIENT_SECRET", "GOCSPX-secret",
+				}))
+			})
+		})
+
+		When("called with a mix of `KEY VALUE` and `KEY=VALUE` assignments", func() {
+			It("accepts both forms", func() {
+				args = append(args, "myconfiguration",
+					"alpha=a=1", "beta", "b=2", "gamma=c")
+
+				configurationCmd := cmd.NewConfigurationCreateCmd(mockConfigurationService)
+				_, _, runErr := executeCmd(configurationCmd, args, output, outputErr)
+				Expect(runErr).ToNot(HaveOccurred())
+
+				_, kv := mockConfigurationService.CreateConfigurationArgsForCall(0)
+				Expect(kv).To(Equal([]string{
+					"alpha", "a=1",
+					"beta", "b=2",
+					"gamma", "c",
+				}))
+			})
+
+			It("fails when the trailing key has no value", func() {
+				args = append(args, "myconfiguration", "alpha=a", "beta")
+
+				configurationCmd := cmd.NewConfigurationCreateCmd(mockConfigurationService)
+				_, _, runErr := executeCmd(configurationCmd, args, output, outputErr)
+				Expect(runErr).To(HaveOccurred())
+				Expect(runErr.Error()).To(Equal("Last Key has no value"))
+				Expect(mockConfigurationService.CreateConfigurationCallCount()).To(Equal(0))
+			})
+		})
 	})
 
 	Context("configuration list", func() {
