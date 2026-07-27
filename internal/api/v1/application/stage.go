@@ -80,7 +80,7 @@ type stageParam struct {
 
 // resolveDefaultBuilderImage returns the BuilderImage CR selected as the
 // cluster default, falling back to the legacy environment configuration when
-// no CR is marked as default.
+// no CR is marked as default, or when listing BuilderImage CRs is forbidden.
 func resolveDefaultBuilderImage(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,

@@ -106,6 +106,37 @@ var _ = Describe("BuilderImage CRUD", func() {
 			Expect(defaultError).To(MatchError("boom"))
 			Expect(found).To(BeNil())
 		})
+
+		It("returns nil when listing is forbidden so callers can fall back to env", func() {
+			fakeRI.ListReturns(
+				nil,
+				k8sapierrors.NewForbidden(
+					schema.GroupResource{
+						Group:    "application.epinio.io",
+						Resource: "builderimages",
+					},
+					"list",
+					errors.New("no rights"),
+				),
+			)
+
+			found, defaultError := builderimage.Default(ctx, fakeNS)
+
+			Expect(defaultError).ToNot(HaveOccurred())
+			Expect(found).To(BeNil())
+		})
+
+		It("returns nil when listing is unauthorized so callers can fall back to env", func() {
+			fakeRI.ListReturns(
+				nil,
+				k8sapierrors.NewUnauthorized("not authenticated"),
+			)
+
+			found, defaultError := builderimage.Default(ctx, fakeNS)
+
+			Expect(defaultError).ToNot(HaveOccurred())
+			Expect(found).To(BeNil())
+		})
 	})
 
 	Describe("List", func() {

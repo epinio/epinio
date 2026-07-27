@@ -51,6 +51,8 @@ func Info(c *gin.Context) APIErrors {
 		return InternalError(err)
 	}
 
+	// builderimage.Default returns nil (no error) when listing is forbidden,
+	// so we fall back to DEFAULT_BUILDER_IMAGE in that case as well.
 	defaultBuilder, err := builderimage.Default(ctx, builderImageClient)
 	if err != nil {
 		return InternalError(err)

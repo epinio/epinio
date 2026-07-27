@@ -29,12 +29,18 @@ import (
 // Default returns the default BuilderImage. If more than one resource is
 // marked as default, the one with the lexicographically smallest name wins.
 // It returns nil when no default is configured.
+//
+// Permission errors (Forbidden / Unauthorized) while listing also return
+// nil so callers can fall back to DEFAULT_BUILDER_IMAGE.
 func Default(
 	ctx context.Context,
 	client dynamic.NamespaceableResourceInterface,
 ) (*models.BuilderImage, error) {
 	builderimages, err := List(ctx, client)
 	if err != nil {
+		if apierrors.IsForbidden(err) || apierrors.IsUnauthorized(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
