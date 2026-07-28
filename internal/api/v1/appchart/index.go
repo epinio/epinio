@@ -12,12 +12,15 @@
 package appchart
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -53,6 +56,24 @@ func Index(c *gin.Context) apierror.APIErrors {
 	}
 	for i := range allApps {
 		allApps[i].BoundApps = inUse[allApps[i].Meta.Name]
+	}
+
+	// Optional name filtering, applied before pagination so the page counts
+	// describe the filtered set.
+	search := response.GetSearchParam(c)
+	if search != "" {
+		lower := strings.ToLower(search)
+		filtered := models.AppChartList{}
+
+		for _, chart := range allApps {
+			name := strings.ToLower(chart.Meta.Name)
+
+			if strings.Contains(name, lower) {
+				filtered = append(filtered, chart)
+			}
+		}
+
+		allApps = filtered
 	}
 
 	// Apply optional pagination when page parameters are provided.

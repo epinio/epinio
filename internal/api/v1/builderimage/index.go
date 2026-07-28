@@ -12,11 +12,14 @@
 package builderimage
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/builderimage"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -53,9 +56,28 @@ func Index(c *gin.Context) apierror.APIErrors {
 		builderList[i].BoundApps = inUse[builderList[i].Image]
 	}
 
+	// Optional name filtering, applied before pagination so the page counts
+	// describe the filtered set.
+	search := response.GetSearchParam(c)
+	if search != "" {
+		lower := strings.ToLower(search)
+		filtered := models.BuilderImageList{}
+
+		for _, image := range builderList {
+			name := strings.ToLower(image.Meta.Name)
+
+			if strings.Contains(name, lower) {
+				filtered = append(filtered, image)
+			}
+		}
+
+		builderList = filtered
+	}
+
 	page, pageSize, ok := response.GetPaginationParams(c, 1, 25)
 	if ok {
 		paged := response.PaginateSlice(builderList, page, pageSize)
+
 		response.OKReturn(c, paged)
 		return nil
 	}
