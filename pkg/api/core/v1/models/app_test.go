@@ -53,7 +53,7 @@ var _ = Describe("GitProvider", func() {
 	It("has the right number of valid providers", func() {
 		// This test will fail when we update the length of the valid providers.
 		// This will remind us to update the tests, or the code, if needed.
-		Expect(len(models.ValidProviders)).To(Equal(5))
+		Expect(len(models.ValidProviders)).To(Equal(6))
 	})
 
 	It("does not fail for the right git URL, or unknown", func() {
