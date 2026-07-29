@@ -15,6 +15,8 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
+	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 )
@@ -23,24 +25,41 @@ import (
 // It returns the details of the specified appchart.
 func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
 	chartName := c.Param("name")
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
+	log.Infow("show appchart", "name", chartName)
+	defer log.Infow("return")
+
+	cluster, clusterError := kubernetes.GetCluster(ctx)
+	if clusterError != nil {
+		return apierror.InternalError(clusterError)
 	}
 
-	app, err := appchart.Lookup(ctx, cluster, chartName)
-	if err != nil {
-		return apierror.InternalError(err)
+	client, clientError := cluster.ClientAppChart()
+	if clientError != nil {
+		return apierror.InternalError(clientError)
+	}
+
+	log.Infow("lookup appchart", "name", chartName)
+	app, lookupError := appchart.Lookup(ctx, client, chartName)
+	if lookupError != nil {
+		return apierror.InternalError(lookupError)
 	}
 
 	if app == nil {
 		return apierror.AppChartIsNotKnown(chartName)
 	}
 
+	inUse, inUseError := application.ChartsInUse(ctx, cluster)
+	if inUseError != nil {
+		return apierror.InternalError(inUseError)
+	}
+	app.BoundApps = inUse[chartName]
+
+	log.Infow("deliver appchart", "name", chartName)
 	// Note: Returning only the public parts. The local config
 	// data is not handed to the user. Only the setting specs.
-	response.OKReturn(c, app.AppChart)
+	response.OKReturn(c, app)
 	return nil
 }

@@ -6,15 +6,6 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 [![Go Report Card](https://goreportcard.com/badge/github.com/epinio/epinio)](https://goreportcard.com/report/github.com/epinio/epinio)
 [![CI](https://github.com/epinio/epinio/actions/workflows/main.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/main.yml)
 [![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml)
-[![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/aks.yml)
-[![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/eks.yml)
-[![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/gke.yml)
-[![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/rke.yml)
-[![RKE2-EC2-CI](https://github.com/epinio/epinio/actions/workflows/rke2-lh-ec2.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/rke2-lh-ec2.yml)
-[![AKS-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml)
-[![GKE-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml)
-[![RKE-CI-UPGRADE](https://github.com/epinio/epinio/actions/workflows/rke-upgrade.yml/badge.svg)](https://github.com/epinio/epinio/actions/workflows/rke-upgrade.yml)
-
 <img src="./docs/epinio.png" align="left" width="100" height="50%">
 
 ## What problem does Epinio solve?
@@ -41,7 +32,7 @@ Documentation is available at [docs.epinio.io](https://docs.epinio.io/).
 
 ### Installation
 
-Requires a Kubernetes cluster, an Ingress Controller and a Cert Manager as explained in the [installation](https://docs.epinio.io/installation/install_epinio) documentation.
+Requires a Kubernetes cluster, an Ingress Controller and a Cert Manager as explained in the [installation](https://docs.epinio.io/getting-started/install-epinio) documentation.
 Once this is in place, and leaving out DNS setup, an installation reduces to:
 
 ```
@@ -61,11 +52,11 @@ Installation of the Epinio CLI is by downloading a binary from the
 brew install epinio
 ```
 
-There is further documentation [here](https://docs.epinio.io/installation/install_epinio_cli).
+There is further documentation [here](https://docs.epinio.io/getting-started/install-cli).
 
 ### Quick Start Tutorial
 
-Our [QuickStart Tutorial](https://docs.epinio.io/tutorials/quickstart) works through how to create a namespace and push an application.
+Our [QuickStart Tutorial](https://docs.epinio.io/getting-started/quickstart) works through how to create a namespace and push an application.
 
 ### Reach Us
 
@@ -76,7 +67,7 @@ Our [QuickStart Tutorial](https://docs.epinio.io/tutorials/quickstart) works thr
 
 `Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues.
 
-Find more information in the [Contribution Guide](https://docs.epinio.io/contribute).
+Find more information in the [Contribution Guide](https://docs.epinio.io/contribute/contributing).
 
 The [developer documentation](./docs) explains how to build and run Epinio from a git source checkout.
 

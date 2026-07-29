@@ -81,6 +81,74 @@ func (c *EpinioClient) ServiceCatalogShow(ctx context.Context, serviceName strin
 	return nil
 }
 
+// ServiceCatalogCreate creates a catalog service from the supplied request.
+func (c *EpinioClient) ServiceCatalogCreate(request models.CatalogServiceCreateRequest) error {
+	log := c.Log.WithName("ServiceCatalogCreate")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", request.Name).
+		WithStringValue("Chart", request.HelmChart).
+		Msg("Creating Catalog Service...")
+
+	_, err := c.API.ServiceCatalogCreate(request)
+	if err != nil {
+		return errors.Wrap(err, "catalog service create failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", request.Name).
+		Msg("Catalog Service Created.")
+
+	return nil
+}
+
+// ServiceCatalogUpdate updates the named catalog service. Omitted request fields
+// leave the corresponding values unchanged on the server.
+func (c *EpinioClient) ServiceCatalogUpdate(name string, request models.CatalogServiceUpdateRequest) error {
+	log := c.Log.WithName("ServiceCatalogUpdate")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", name).
+		Msg("Updating Catalog Service...")
+
+	_, err := c.API.ServiceCatalogUpdate(name, request)
+	if err != nil {
+		return errors.Wrap(err, "catalog service update failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		Msg("Catalog Service Updated.")
+
+	return nil
+}
+
+// ServiceCatalogDelete deletes the named catalog service.
+func (c *EpinioClient) ServiceCatalogDelete(name string) error {
+	log := c.Log.WithName("ServiceCatalogDelete")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", name).
+		Msg("Deleting Catalog Service...")
+
+	_, err := c.API.ServiceCatalogDelete(name)
+	if err != nil {
+		return errors.Wrap(err, "catalog service delete failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		Msg("Catalog Service Removed.")
+
+	return nil
+}
+
 // ServiceCreate creates a service
 func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string, wait bool,
 	chartValues models.ChartValueSettings) error {

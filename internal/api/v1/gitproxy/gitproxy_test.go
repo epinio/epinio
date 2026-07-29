@@ -72,6 +72,30 @@ var _ = Describe("Gitproxy Endpoint", func() {
 		})
 	})
 
+	When("a gitconfig is named but not usable", func() {
+		It("returns 404 when the gitconfig does not exist", func() {
+			setupRequestBody(`{"url":"https://api.github.com/repos/epinio/epinio","gitconfig":"missing"}`)
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).To(HaveOccurred())
+			Expect(errs.FirstStatus()).To(Equal(http.StatusNotFound))
+		})
+
+		It("returns 403 when the user may not use the gitconfig", func() {
+			setupRequestBody(`{"url":"https://api.github.com/repos/epinio/epinio","gitconfig":"private"}`)
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
+				{ID: "private"},
+			}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).To(HaveOccurred())
+			Expect(errs.FirstStatus()).To(Equal(http.StatusForbidden))
+		})
+	})
+
 	When("proxying the request", func() {
 		It("returns the same response", func() {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +104,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			}))
 			defer srv.Close()
 
-			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"missing"}`, srv.URL))
+			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio"}`, srv.URL))
 
 			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
 
@@ -139,7 +163,10 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			}
 
 			setupAndRun("/search/repositories?q=repo:USER/ORG")
+			setupAndRun("/users/USERNAME")
 			setupAndRun("/users/USERNAME/repos")
+			setupAndRun("/user/repos")
+			setupAndRun("/orgs/ORG/repos")
 			setupAndRun("/repos/USERNAME/REPO")
 			setupAndRun("/repos/USERNAME/REPO/commits")
 			setupAndRun("/repos/USERNAME/REPO/branches")
@@ -169,6 +196,29 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			setupAndRun("/repos/USERNAME/REPO/branches/BRANCH")
 		})
 
+		It("passes for Github Enterprise Cloud data-residency (ghe.com) whitelisted URLs", func() {
+			// Data-residency tenants serve the API from api.<subdomain>.ghe.com with
+			// the same bare paths as api.github.com (no /api/v3 prefix).
+			setupAndRun := func(path string) {
+				GinkgoHelper()
+
+				err := gitproxy.ValidateURL(fmt.Sprintf("https://api.octocorp.ghe.com%s", path))
+				Expect(err).ToNot(HaveOccurred())
+			}
+
+			setupAndRun("/search/repositories?q=repo:USER/ORG")
+			setupAndRun("/users/USERNAME")
+			setupAndRun("/repos/USERNAME/REPO")
+			setupAndRun("/repos/USERNAME/REPO/commits")
+			setupAndRun("/repos/USERNAME/REPO/branches")
+		})
+
+		It("fails for a non-ghe.com host using bare Github paths", func() {
+			// The ghe.com allowance must not open bare-path proxying to arbitrary hosts.
+			err := gitproxy.ValidateURL("https://api.evil.com/repos/USER/REPO")
+			Expect(err).To(HaveOccurred())
+		})
+
 		It("fails for Gitlab Server non whitelisted URLs", func() {
 			setupAndRun := func(path string) {
 				GinkgoHelper()
@@ -181,6 +231,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			setupAndRun("/")
 			setupAndRun("/any")
 			setupAndRun("/search/something")
+			setupAndRun("/search/repositories") // GitHub-shaped, not a GitLab endpoint
 			setupAndRun("/USERNAME/projects")
 			setupAndRun("/projects/USERNAME%2FREPO/repository/stars")
 			setupAndRun("/projects/USERNAME%2FREPO/repository/commits/BRANCH")
@@ -189,9 +240,11 @@ var _ = Describe("Gitproxy Endpoint", func() {
 
 		It("passes for Gitlab Server whitelisted URLs", func() {
 			// - /api/v4/avatar
-			// - /api/v4/search/repositories
-			// - /api/v4/users/USERNAME/projects
-			// - /api/v4/groups/USERNAME/projects
+			// - /api/v4/projects (and ?membership=true)
+			// - /api/v4/users (and ?username=NAME)
+			// - /api/v4/groups/GROUP
+			// - /api/v4/users/USERNAME/projects (and ?search=TERM)
+			// - /api/v4/groups/USERNAME/projects (and ?search=TERM)
 			// - /api/v4/projects/USERNAME%2FREPO
 			// - /api/v4/projects/USERNAME%2FREPO/repository/commits
 			// - /api/v4/projects/USERNAME%2FREPO/repository/branches
@@ -205,8 +258,13 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			}
 
 			setupAndRun("/avatar")
-			setupAndRun("/search/repositories")
+			setupAndRun("/projects")
+			setupAndRun("/projects?membership=true")
+			setupAndRun("/users")
+			setupAndRun("/users?username=USERNAME")
+			setupAndRun("/groups/GROUP")
 			setupAndRun("/users/USERNAME/projects")
+			setupAndRun("/users/USERNAME/projects?search=TERM")
 			setupAndRun("/groups/USERNAME/projects")
 			setupAndRun("/projects/USERNAME%2FREPO")
 			setupAndRun("/projects/USERNAME%2FREPO/repository/commits")
@@ -229,7 +287,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: gitConfig, Username: "epinio", Password: "password"},
+					{ID: gitConfig, Global: true, URL: srv.URL, Username: "epinio", Password: "password"},
 				}}
 
 				errs := gitproxy.Proxy(c, gitManager)
@@ -240,6 +298,60 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(b)).To(Equal(`{"foo":"bar"}`))
 			})
+		})
+	})
+
+	When("the gitconfig host does not match the proxied host", func() {
+		It("refuses with 403 and never forwards the credentials", func() {
+			gotAuth := ""
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotAuth = r.Header.Get("Authorization")
+				w.WriteHeader(200)
+			}))
+			defer srv.Close()
+
+			gitConfig := "my-git-conf"
+			// Proxy target is srv, but the config is bound to a different host.
+			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
+				{ID: gitConfig, Global: true, URL: "https://ghe.example.com", Username: "epinio", Password: "password"},
+			}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).To(HaveOccurred())
+			Expect(errs.FirstStatus()).To(Equal(http.StatusForbidden))
+			Expect(gotAuth).To(BeEmpty())
+		})
+	})
+
+	When("the proxied host redirects to a different host", func() {
+		It("blocks the redirect and never forwards the PRIVATE-TOKEN", func() {
+			gotToken := ""
+			attacker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if v := r.Header.Get("PRIVATE-TOKEN"); v != "" {
+					gotToken = v
+				}
+				w.WriteHeader(200)
+			}))
+			defer attacker.Close()
+
+			// The configured instance issues a cross-host redirect to the attacker.
+			instance := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, attacker.URL+"/api/v4/projects", http.StatusFound)
+			}))
+			defer instance.Close()
+
+			gitConfig := "gl-ent"
+			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v4/projects","gitconfig":"%s"}`, instance.URL, gitConfig))
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
+				{ID: gitConfig, Global: true, URL: instance.URL, Provider: "gitlab_enterprise", Password: "super-secret-token"},
+			}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).To(HaveOccurred())
+			Expect(gotToken).To(BeEmpty())
 		})
 	})
 
@@ -270,7 +382,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio","gitconfig":"%s"}`, srv.URL, gitConfig))
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: gitConfig, SkipSSL: true},
+					{ID: gitConfig, Global: true, URL: srv.URL, SkipSSL: true},
 				}}
 
 				errs := gitproxy.Proxy(c, gitManager)
@@ -301,7 +413,7 @@ var _ = Describe("Gitproxy Endpoint", func() {
 				pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: conn.ConnectionState().PeerCertificates[0].Raw})
 
 				gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{
-					{ID: gitConfig, Certificate: pemCert},
+					{ID: gitConfig, Global: true, URL: srv.URL, Certificate: pemCert},
 				}}
 
 				errs := gitproxy.Proxy(c, gitManager)

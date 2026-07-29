@@ -272,6 +272,7 @@ var _ = Describe("Manager", func() {
 					{
 						ObjectMeta: metav1.ObjectMeta{Name: "my-config"},
 						Data: map[string][]byte{
+							"global":      []byte("false"),
 							"url":         []byte("giturl"),
 							"provider":    []byte("github"),
 							"username":    []byte("myuser"),
@@ -314,14 +315,17 @@ var _ = Describe("Manager", func() {
 
 				Expect(secrets[0].Data).To(Equal(originalSecrets[0].Data))
 				Expect(secrets[1].Data).To(Equal(map[string][]byte{
+					"global":   []byte("false"),
 					"provider": []byte("unknown"),
 					"skipSSL":  []byte("false"),
 				}))
 				Expect(secrets[2].Data).To(Equal(map[string][]byte{
+					"global":   []byte("false"),
 					"provider": []byte("unknown"),
 					"skipSSL":  []byte("false"),
 				}))
 				Expect(secrets[3].Data).To(Equal(map[string][]byte{
+					"global":   []byte("false"),
 					"provider": []byte("unknown"),
 					"skipSSL":  []byte("false"),
 				}))
@@ -338,3 +342,43 @@ func newConfiguration(ID, url, userOrg, repo string) git.Configuration {
 		Repository: repo,
 	}
 }
+
+var _ = Describe("Configuration.AllowsHost", func() {
+	DescribeTable("binds a credential to its instance host",
+		func(config git.Configuration, targetURL string, allowed bool) {
+			Expect(config.AllowsHost(targetURL)).To(Equal(allowed))
+		},
+		Entry("github SaaS allows github.com",
+			git.Configuration{Provider: models.ProviderGithub}, "https://github.com/org/repo", true),
+		Entry("github SaaS allows api.github.com",
+			git.Configuration{Provider: models.ProviderGithub}, "https://api.github.com/repos/org/repo", true),
+		Entry("github SaaS refuses an unrelated host",
+			git.Configuration{Provider: models.ProviderGithub}, "https://evil.example.com/org/repo", false),
+		Entry("gitlab SaaS allows gitlab.com",
+			git.Configuration{Provider: models.ProviderGitlab}, "https://gitlab.com/api/v4/projects", true),
+		Entry("gitlab SaaS refuses an unrelated host",
+			git.Configuration{Provider: models.ProviderGitlab}, "https://evil.example.com/api/v4/projects", false),
+		Entry("self-hosted allows its own host on the repo url",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseSelfHosted, URL: "https://ghe.corp.com"}, "https://ghe.corp.com/org/repo", true),
+		Entry("self-hosted allows its own host on the api path",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseSelfHosted, URL: "https://ghe.corp.com"}, "https://ghe.corp.com/api/v3/repos/org/repo", true),
+		Entry("self-hosted refuses a different host",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseSelfHosted, URL: "https://ghe.corp.com"}, "https://evil.example.com/api/v3/x", false),
+		Entry("legacy config with a bare-host url still matches",
+			git.Configuration{Provider: models.ProviderUnknown, URL: "ghe.corp.com"}, "https://ghe.corp.com/org/repo", true),
+		Entry("legacy config whose url includes /api/v3 still matches",
+			git.Configuration{Provider: models.ProviderUnknown, URL: "https://ghe.corp.com/api/v3"}, "https://ghe.corp.com/org/repo", true),
+		Entry("config with no url refuses everything",
+			git.Configuration{Provider: models.ProviderUnknown}, "https://ghe.corp.com/org/repo", false),
+		Entry("enterprise cloud (api.github.com) allows the API host for browsing",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.github.com"}, "https://api.github.com/repos/org/repo", true),
+		Entry("enterprise cloud (api.github.com) allows the web host for cloning",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.github.com"}, "https://github.com/org/repo", true),
+		Entry("enterprise cloud (ghe.com) allows the API host for browsing",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.octocorp.ghe.com"}, "https://api.octocorp.ghe.com/repos/org/repo", true),
+		Entry("enterprise cloud (ghe.com) allows the web host for cloning",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.octocorp.ghe.com"}, "https://octocorp.ghe.com/org/repo", true),
+		Entry("enterprise cloud refuses an unrelated host",
+			git.Configuration{Provider: models.ProviderGithubEnterpriseCloud, URL: "https://api.octocorp.ghe.com"}, "https://evil.example.com/org/repo", false),
+	)
+})

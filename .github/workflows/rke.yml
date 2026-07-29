@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -64,7 +64,7 @@ jobs:
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
       - name: Lint Epinio
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v9
         timeout-minutes: 10
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
@@ -78,7 +78,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0

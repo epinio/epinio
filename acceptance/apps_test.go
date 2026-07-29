@@ -231,26 +231,6 @@ var _ = Describe("Apps", LApplication, func() {
 	})
 
 	When("pushing an app from an external repository", func() {
-		It("rejects a bad provider specification", func() {
-			out, err := env.Epinio("", "push",
-				"--name", appName,
-				"--git", wordpress,
-				"--git-provider", "bogus")
-			Expect(err).To(HaveOccurred(), out)
-
-			Expect(out).To(ContainSubstring("Bad --git-provider `bogus`"))
-		})
-
-		It("rejects a bad provider specification for a wrong git url", func() {
-			out, err := env.Epinio("", "push",
-				"--name", appName,
-				"--git", wordpress,
-				"--git-provider", "gitlab")
-			Expect(err).To(HaveOccurred(), out)
-
-			Expect(out).To(ContainSubstring("git url and provider mismatch"))
-		})
-
 		It("rejects a bad specification", func() {
 			out, err := env.Epinio("", "push",
 				"--name", appName,

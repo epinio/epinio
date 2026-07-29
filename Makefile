@@ -192,7 +192,7 @@ appchart:
 # Docs
 
 getswagger:
-	( [ -x "$$(command -v swagger)" ] || go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0 )
+	( [ -x "$$(command -v swagger)" ] || go install github.com/go-swagger/go-swagger/cmd/swagger@v0.33.2 )
 
 swagger: getswagger
 	swagger generate spec > docs/references/api/swagger.json

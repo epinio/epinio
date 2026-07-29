@@ -91,8 +91,13 @@ func DeploymentsStart(c *gin.Context) apierror.APIErrors {
 	asyncDeployJobs[id] = job
 	asyncDeployJobsMu.Unlock()
 
-	username := requestctx.User(ctx).Username
-	go runAsyncDeployment(context.Background(), id, req, username)
+	user := requestctx.User(ctx)
+	// Detach from the request lifecycle (background), but carry the authenticated
+	// user so the async origin authorization (authorizeOrigin) can still see who
+	// triggered the deployment. context.Background() alone has no user, which
+	// would reject any non-global gitconfig.
+	asyncCtx := requestctx.WithUser(context.Background(), user)
+	go runAsyncDeployment(asyncCtx, id, req, user.Username)
 
 	// Help clients recover deployment id even when intermediaries strip 202 bodies.
 	c.Header("Location", c.Request.URL.Path+"/"+id)
@@ -233,6 +238,11 @@ func runAsyncDeployment(ctx context.Context, deploymentID string, req models.Asy
 
 	deployResult, apiErr := deploy.DeployApp(ctx, cluster, req.App, username, stageID)
 	if apiErr != nil {
+		failAPI(apiErr)
+		return
+	}
+
+	if apiErr := authorizeOrigin(ctx, cluster, req.Origin); apiErr != nil {
 		failAPI(apiErr)
 		return
 	}

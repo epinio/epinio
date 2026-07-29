@@ -54,7 +54,7 @@ func ValidateChartValues(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	appChart, err := appchart.Lookup(ctx, cluster, app.Configuration.AppChart)
+	appChart, err := appchart.LookupViaCluster(ctx, cluster, app.Configuration.AppChart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

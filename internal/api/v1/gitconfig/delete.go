@@ -13,11 +13,13 @@ package gitconfig
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/gin-gonic/gin"
 
@@ -28,6 +30,7 @@ import (
 // It destroys the git configuration specified by its name.
 func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	user := requestctx.User(ctx)
 	gitconfigName := c.Param("gitconfig")
 
 	var gitconfigNames []string
@@ -48,16 +51,29 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "creating git configuration manager")
 	}
 
-	gitconfigList := manager.Configurations
+	// Index every known config by ID, for existence and ownership checks.
+	configsByID := map[string]gitbridge.Configuration{}
+	for _, gitconfig := range manager.Configurations {
+		configsByID[gitconfig.ID] = gitconfig
+	}
 
-	// see create.go
-	gcNames := map[string]struct{}{}
-	for _, gitconfig := range gitconfigList {
-		gcNames[gitconfig.ID] = struct{}{}
+	// Validate the whole batch before deleting anything: the user must be allowed
+	// to delete every requested config that exists. Global grants read, not delete.
+	for _, gitconfig := range gitconfigNames {
+		config, exists := configsByID[gitconfig]
+		if !exists {
+			continue
+		}
+		if !auth.CanDeleteGitconfig(user, config) {
+			return apierror.NewAPIError(
+				fmt.Sprintf("user unauthorized to delete gitconfig [%s]", gitconfig),
+				http.StatusForbidden,
+			)
+		}
 	}
 
 	for _, gitconfig := range gitconfigNames {
-		if _, ok := gcNames[gitconfig]; !ok {
+		if _, exists := configsByID[gitconfig]; !exists {
 			continue
 		}
 

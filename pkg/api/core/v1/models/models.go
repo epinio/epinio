@@ -141,9 +141,9 @@ type ApplicationStage struct {
 
 // ApplicationConfiguration is the part of the manifest describing the configuration of the application
 type ApplicationConfiguration struct {
-	Instances           *int32                      `json:"instances"            yaml:"instances,omitempty"`
-	Configurations      []string                    `json:"configurations"     yaml:"configurations,omitempty"`
-	Environment        EnvVariableMap               `json:"environment"        yaml:"environment,omitempty"`
+	Instances          *int32                      `json:"instances"            yaml:"instances,omitempty"`
+	Configurations     []string                    `json:"configurations"     yaml:"configurations,omitempty"`
+	Environment        EnvVariableMap              `json:"environment"        yaml:"environment,omitempty"`
 	EnvironmentGrouped *EnvVariableGroupedResponse `json:"environment_grouped,omitempty" yaml:"environment_grouped,omitempty"`
 	ReplaceEnv         *bool                       `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
 	Services           []string                    `json:"services,omitempty" yaml:"services,omitempty"`
@@ -309,11 +309,11 @@ type DeployResponse struct {
 // For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
 // `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
 type AsyncDeployRequest struct {
-	App         AppRef            `json:"app,omitempty"`
-	BlobUID     string            `json:"blobuid,omitempty"`
-	BuilderImage string           `json:"builderimage,omitempty"`
-	ImageURL    string            `json:"image,omitempty"`
-	Origin      ApplicationOrigin `json:"origin,omitempty"`
+	App          AppRef            `json:"app,omitempty"`
+	BlobUID      string            `json:"blobuid,omitempty"`
+	BuilderImage string            `json:"builderimage,omitempty"`
+	ImageURL     string            `json:"image,omitempty"`
+	Origin       ApplicationOrigin `json:"origin,omitempty"`
 }
 
 // AsyncDeployStatus represents the status of an asynchronous deploy operation.
@@ -421,9 +421,29 @@ type AppChart struct {
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
 }
 
+type AppChartCreateRequest struct {
+	Name             string                  `json:"name,omitempty"`
+	Description      string                  `json:"description,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
+	HelmChart        string                  `json:"helm_chart,omitempty"`
+	HelmRepo         string                  `json:"helm_repo,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	Values           map[string]string       `json:"values,omitempty"`
+}
+
+type AppChartUpdateRequest struct {
+	Description      string                  `json:"description,omitempty"`
+	ShortDescription string                  `json:"short_description,omitempty"`
+	HelmChart        string                  `json:"helm_chart,omitempty"`
+	HelmRepo         string                  `json:"helm_repo,omitempty"`
+	Settings         map[string]ChartSetting `json:"settings,omitempty"`
+	Values           map[string]string       `json:"values,omitempty"`
+}
+
 type AppChartFull struct {
 	AppChart
-	Values map[string]string
+	Values    map[string]string `json:"values,omitempty"`
+	BoundApps bool              `json:"bound_apps,omitempty"`
 }
 
 // ChartSetting matches github.com/epinio/application/api/v1 ChartSetting
@@ -446,10 +466,63 @@ type ChartSetting struct {
 }
 
 // AppChartList is a collection of app charts
-type AppChartList []AppChart
+type AppChartList []AppChartFull
 
 // ChartMatchResponse contains the list of names for matching application charts
 type ChartMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
+
+// BuilderImage is the REST DTO for the BuilderImage CRD
+// (application.epinio.io/v1, kind BuilderImage). The CRD shape is intentionally
+// not re-exported here — we keep a domain wrapper so CRD revisions do not
+// become breaking client changes.
+type BuilderImage struct {
+	Meta             MetaLite `json:"meta,omitempty"`
+	Image            string   `json:"image,omitempty"`
+	Description      string   `json:"description,omitempty"`
+	ShortDescription string   `json:"short_description,omitempty"`
+	// Default reports whether this builder image is the cluster default.
+	// Read-only: it is set as operator policy (helm seed / kubectl), never
+	// through the create or update API.
+	Default bool `json:"default"`
+	// BoundApps reports whether at least one application is currently staged
+	// with this builder image. Read-only, computed from live app resources.
+	BoundApps bool `json:"bound_apps,omitempty"`
+}
+
+// BuilderImageRequest is the unstructured-friendly wrapper used when creating
+// a BuilderImage CR.
+type BuilderImageRequest struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec BuilderImageCreateRequest `json:"spec,omitempty"`
+}
+
+// BuilderImageCreateRequest carries the fields a client supplies when creating
+// a builder image. Name is required and lands in metadata.name; the remainder
+// land under spec.
+type BuilderImageCreateRequest struct {
+	Name             string `json:"name,omitempty"`
+	Image            string `json:"image,omitempty"`
+	Description      string `json:"description,omitempty"`
+	ShortDescription string `json:"short_description,omitempty"`
+}
+
+// BuilderImageUpdateRequest carries optional field updates. Empty fields are
+// ignored — name is taken from the URL, not the body.
+type BuilderImageUpdateRequest struct {
+	Image            string `json:"image,omitempty"`
+	Description      string `json:"description,omitempty"`
+	ShortDescription string `json:"short_description,omitempty"`
+}
+
+// BuilderImageList is a collection of builder images
+type BuilderImageList []BuilderImage
+
+// BuilderImageMatchResponse contains the list of names for matching builder images
+type BuilderImageMatchResponse struct {
 	Names []string `json:"names,omitempty"`
 }
 
