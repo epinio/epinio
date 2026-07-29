@@ -52,7 +52,14 @@ func (r Route) ToIngress(ingressName string) networkingv1.Ingress {
 								{
 									Path:     r.Path,
 									PathType: &pathTypeImplementationSpecific,
-								}}}}}}}}
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 // FromString converts a route string to a Route object.

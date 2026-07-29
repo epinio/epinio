@@ -27,9 +27,13 @@ var _ = Describe("GitProvider", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(provider).To(Equal(models.ProviderGitlab))
 
-		provider, err = models.GitProviderFromString("github_enterprise")
+		provider, err = models.GitProviderFromString("github_enterprise_cloud")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(provider).To(Equal(models.ProviderGithubEnterprise))
+		Expect(provider).To(Equal(models.ProviderGithubEnterpriseCloud))
+
+		provider, err = models.GitProviderFromString("github_enterprise_self_hosted")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(provider).To(Equal(models.ProviderGithubEnterpriseSelfHosted))
 
 		provider, err = models.GitProviderFromString("gitlab_enterprise")
 		Expect(err).ToNot(HaveOccurred())

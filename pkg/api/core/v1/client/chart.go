@@ -39,3 +39,29 @@ func (c *Client) ChartMatch(prefix string) (models.ChartMatchResponse, error) {
 
 	return Get(c, endpoint, response)
 }
+
+// ChartCreate creates an application chart. The name travels in the request
+// body.
+func (c *Client) ChartCreate(request models.AppChartCreateRequest) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ChartCreate")
+
+	return Post(c, endpoint, request, response)
+}
+
+// ChartUpdate updates the named application chart. The name travels in the URL;
+// omitted request fields leave the corresponding values unchanged.
+func (c *Client) ChartUpdate(name string, request models.AppChartUpdateRequest) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ChartUpdate", name)
+
+	return Patch(c, endpoint, request, response)
+}
+
+// ChartDelete deletes the named application chart.
+func (c *Client) ChartDelete(name string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ChartDelete", name)
+
+	return Delete(c, endpoint, nil, response)
+}

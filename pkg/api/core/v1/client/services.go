@@ -41,6 +41,32 @@ func (c *Client) ServiceCatalogMatch(prefix string) (models.CatalogMatchResponse
 	return Get(c, endpoint, response)
 }
 
+// ServiceCatalogCreate creates a catalog service. The name travels in the
+// request body.
+func (c *Client) ServiceCatalogCreate(request models.CatalogServiceCreateRequest) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ServiceCatalogCreate")
+
+	return Post(c, endpoint, request, response)
+}
+
+// ServiceCatalogUpdate updates the named catalog service. The name travels in
+// the URL; omitted request fields leave the corresponding values unchanged.
+func (c *Client) ServiceCatalogUpdate(name string, request models.CatalogServiceUpdateRequest) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ServiceCatalogUpdate", name)
+
+	return Patch(c, endpoint, request, response)
+}
+
+// ServiceCatalogDelete deletes the named catalog service.
+func (c *Client) ServiceCatalogDelete(name string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("ServiceCatalogDelete", name)
+
+	return Delete(c, endpoint, nil, response)
+}
+
 func (c *Client) AllServices() (models.ServiceList, error) {
 	response := models.ServiceList{}
 	endpoint := api.Routes.Path("AllServices")

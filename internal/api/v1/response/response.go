@@ -116,6 +116,12 @@ func GetPaginationParams(c *gin.Context, defaultPage, defaultPageSize int) (page
 // Use this when pagination happened before enrichment (e.g. ListPaginated), so the caller
 // already holds only the page items and knows the total independently.
 func BuildPaginatedResponse[T any](items []T, page, pageSize, totalItems int) PaginatedResponse[T] {
+	// A nil slice marshals to null, which clients that type `items` as an
+	// array cannot consume. An empty page is [] on the wire.
+	if items == nil {
+		items = []T{}
+	}
+
 	totalPages := 1
 	if pageSize > 0 {
 		totalPages = int(math.Ceil(float64(totalItems) / float64(pageSize)))
@@ -135,6 +141,12 @@ func BuildPaginatedResponse[T any](items []T, page, pageSize, totalItems int) Pa
 // PaginateSlice applies simple page/pageSize slicing over a slice and returns
 // a PaginatedResponse with metadata.
 func PaginateSlice[T any](items []T, page, pageSize int) PaginatedResponse[T] {
+	// A nil slice marshals to null, which clients that type `items` as an
+	// array cannot consume. An empty page is [] on the wire.
+	if items == nil {
+		items = []T{}
+	}
+
 	total := len(items)
 
 	if pageSize <= 0 {
