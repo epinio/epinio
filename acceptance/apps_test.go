@@ -333,9 +333,14 @@ var _ = Describe("Apps", LApplication, func() {
 			It("pushes the app when providing a proper token", func() {
 				Expect(os.Getenv("PRIVATE_REPO_IMPORT_PAT")).ToNot(BeEmpty(), "PRIVATE_REPO_IMPORT_PAT not set; this test requires a private repo token")
 
-				env.MakeGitconfig(catalog.NewGitconfigName())
+				// The server no longer URL-matches a config at import time, so
+				// the config has to be named explicitly or the clone is
+				// unauthenticated.
+				gitconfigName := catalog.NewGitconfigName()
+				env.MakeGitconfig(gitconfigName)
 
-				out, err := env.Epinio("", "push", "--name", appName, "--git", privateRepo)
+				out, err := env.Epinio("", "push", "--name", appName,
+					"--git", privateRepo, "--git-config", gitconfigName)
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 		})

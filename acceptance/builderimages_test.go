@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -28,7 +29,10 @@ import (
 // builderImagesURL returns the API URL for the builderimages collection or
 // a single named entry.
 func builderImagesURL(name string) string {
-	base := strings.TrimSuffix(serverURL, "/") + "/api/v1/builderimages"
+	// serverURL comes from the ingress host and carries no port, which would
+	// dial 443 instead of the port k3d maps the loadbalancer to.
+	withPort := testenv.AppRouteWithPort(serverURL)
+	base := strings.TrimSuffix(withPort, "/") + "/api/v1/builderimages"
 	if name == "" {
 		return base
 	}

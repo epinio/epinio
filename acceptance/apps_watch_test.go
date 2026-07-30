@@ -141,7 +141,7 @@ var _ = Describe("Apps watch", LApplication, func() {
 
 		By("waiting for the startup patch to complete")
 		Eventually(watchOutput, "10m").Should(
-			gbytes.Say("Watching for changes"),
+			gbytes.Say("Watching for file changes"),
 		)
 
 		By("verifying the app serves the original content")
