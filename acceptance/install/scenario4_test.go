@@ -29,7 +29,7 @@ import (
 )
 
 // This test uses AWS route53 to update the system domain's records
-var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
+var _ = Describe("<Scenario4> AWS RKE2, epinio-ca, on S3 storage", func() {
 	var (
 		flags           []string
 		epinioHelper    epinio.Epinio
@@ -144,7 +144,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		By("Allow internal HTTP registry on EKS 1.24+", func() {
+		By("Allow internal HTTP registry via CRI config", func() {
 			out, err := proc.Run(testenv.Root(), true, "kubectl", "apply", "-f", "./scripts/eks-cri-allow-http-registries.yaml")
 			Expect(err).ToNot(HaveOccurred(), out)
 			out, err = proc.Kubectl("wait", "--for=condition=complete", "job/setup-cri")
