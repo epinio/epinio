@@ -68,9 +68,8 @@ func DeploymentsStart(c *gin.Context) apierror.APIErrors {
 	if namespace != req.App.Namespace {
 		return apierror.NewBadRequestError("namespace parameter from URL does not match namespace param in body")
 	}
-	if req.ImageURL == "" && req.BlobUID == "" {
-		return apierror.NewBadRequestError("async deploy requires either `image` or `blobuid`")
-	}
+	// ImageURL and/or BlobUID may both be empty: retry of a failed build resolves
+	// the stored blobuid (or git origin) during async staging.
 
 	id, err := asyncDeployJobID()
 	if err != nil {
@@ -168,8 +167,9 @@ func runAsyncDeployment(ctx context.Context, deploymentID string, req models.Asy
 	var stageID string
 	var imageURL string
 
-	// Stage/build when we have a blob uid. Otherwise deploy the provided image.
-	if req.BlobUID != "" {
+	// Stage/build when a blob uid is provided, or when no image is provided (retry
+	// path: resolve stored blobuid / git origin). Otherwise deploy the provided image.
+	if req.BlobUID != "" || req.ImageURL == "" {
 		update(func(s *models.AsyncDeployStatus) { s.Status = "staging" })
 
 		stageResp, apiErr := stageForAsyncDeploy(ctx, cluster, req.App, req.BlobUID, req.BuilderImage, username)
@@ -323,9 +323,12 @@ func stageForAsyncDeploy(
 		return nil, apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	// Validate incoming blob id before attempting to stage (reuse existing helper)
-	if apiErr := validateBlob(ctx, blobUID, appRef, s3ConnectionDetails); apiErr != nil {
-		return nil, apiErr
+	// Resolve blob from request, CR, or git origin fallback (same as Stage endpoint).
+	blobUID, blobErr := resolveBlobUID(
+		ctx, cluster, s3ConnectionDetails, stageReq, app, username,
+	)
+	if blobErr != nil {
+		return nil, blobErr
 	}
 
 	uid, err := randstr.Hex16()

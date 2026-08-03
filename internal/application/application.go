@@ -1048,6 +1048,78 @@ func StageID(app *unstructured.Unstructured) (string, error) {
 }
 
 /*
+BlobUID returns the S3/seaweedfs blob UID of the last staged application
+sources, if one exists. It returns an empty string otherwise. The information
+is pulled out of the app resource itself, saved there by the staging endpoint.
+*/
+func BlobUID(app *unstructured.Unstructured) (string, error) {
+	blobUID, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"blobuid",
+	)
+	if err != nil {
+		return "", errors.New("blobuid should be string")
+	}
+
+	return blobUID, nil
+}
+
+// assignApplicationStatus sets Status (and StatusMessage when useful) from
+// StagingStatus and Workload. Staging/deploy failures without a running
+// workload must not look like a freshly "created" app.
+//
+// StagingStatus comes from live Jobs. Failed/completed Jobs are often removed
+// by TTL, so StageID on the app is used as a sticky signal that staging was
+// attempted and did not leave a running workload.
+func assignApplicationStatus(app *models.App) {
+	if app.StagingStatus == models.ApplicationStagingActive {
+		app.Status = models.ApplicationStaging
+		return
+	}
+
+	if app.Workload == nil {
+		switch app.StagingStatus {
+		case models.ApplicationStagingFailed:
+			app.Status = models.ApplicationError
+			if app.StatusMessage == "" {
+				app.StatusMessage = "staging failed"
+			}
+			return
+		case models.ApplicationStagingDone:
+			// Staging finished but nothing is running while instances are desired.
+			if wantsInstances(app) {
+				app.Status = models.ApplicationError
+				if app.StatusMessage == "" {
+					app.StatusMessage = "deployment failed"
+				}
+				return
+			}
+		default:
+			// Job gone (TTL/cleanup) but a stage was recorded → keep Error, not Created.
+			if app.StageID != "" && wantsInstances(app) {
+				app.Status = models.ApplicationError
+				if app.StatusMessage == "" {
+					app.StatusMessage = "staging failed"
+				}
+				return
+			}
+		}
+		app.Status = models.ApplicationCreated
+		return
+	}
+
+	app.Status = models.ApplicationRunning
+}
+
+// wantsInstances is true when the app is expected to run at least one instance.
+// Nil Instances is treated as desired (default deploy), so a missing Job after
+// a failed stage does not flip the app back to "created".
+func wantsInstances(app *models.App) bool {
+	return app.Configuration.Instances == nil || *app.Configuration.Instances > 0
+}
+
+/*
 ImageURL returns the image url of the currently running build, if one exists.
 It returns an empty string otherwise. The information is pulled out of the
 app resource itself, saved there by the deploy endpoint.
@@ -1594,6 +1666,11 @@ func aggregate(ctx context.Context,
 		return nil, errors.Wrap(err, "finding the stage id")
 	}
 
+	blobUID, err := BlobUID(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the blob uid")
+	}
+
 	imageURL, err := ImageURL(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding the image url")
@@ -1630,6 +1707,7 @@ func aggregate(ctx context.Context,
 	app.Configuration.Settings = settings
 	app.Origin = origin
 	app.StageID = stageID
+	app.BlobUID = blobUID
 	app.ImageURL = imageURL
 	app.Staging.Builder = builderURL
 
@@ -1653,21 +1731,8 @@ func aggregate(ctx context.Context,
 		return nil, err
 	}
 
-	// set app status and done ...
-
 	app.StagingStatus = aux.staging
-
-	if aux.staging == models.ApplicationStagingActive {
-		app.Status = models.ApplicationStaging
-		return app, nil
-	}
-
-	if app.Workload == nil {
-		app.Status = models.ApplicationCreated
-		return app, nil
-	}
-
-	app.Status = models.ApplicationRunning
+	assignApplicationStatus(app)
 	return app, nil
 }
 
@@ -1775,6 +1840,14 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	blobUID, err := BlobUID(applicationCR)
+	if err != nil {
+		err = errors.Wrap(err, "finding the blob uid")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
+	}
+
 	imageURL, err := ImageURL(applicationCR)
 	if err != nil {
 		err = errors.Wrap(err, "finding the image url")
@@ -1811,6 +1884,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Settings = settings
 	app.Origin = origin
 	app.StageID = stageID
+	app.BlobUID = blobUID
 	app.ImageURL = imageURL
 	app.Staging.Builder = builderURL
 
@@ -1834,18 +1908,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	}
 
 	app.StagingStatus = staging[EncodeConfigurationKey(app.Meta.Name, app.Meta.Namespace)]
-
-	if app.StagingStatus == models.ApplicationStagingActive {
-		app.Status = models.ApplicationStaging
-		return nil
-	}
-
-	if app.Workload == nil {
-		app.Status = models.ApplicationCreated
-		return nil
-	}
-
-	app.Status = models.ApplicationRunning
+	assignApplicationStatus(app)
 	return nil
 }
 

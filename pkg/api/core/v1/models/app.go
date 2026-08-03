@@ -107,6 +107,7 @@ type App struct {
 	Status        ApplicationStatus        `json:"status"`
 	StatusMessage string                   `json:"statusmessage"`
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
+	BlobUID       string                   `json:"blobuid,omitempty"`  // last staged source blob in S3/seaweedfs
 	ImageURL      string                   `json:"image_url"`
 }
 
