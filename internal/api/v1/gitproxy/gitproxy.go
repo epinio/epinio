@@ -21,8 +21,9 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -68,24 +69,45 @@ func Proxy(c *gin.Context, gitManager *gitbridge.Manager) apierror.APIErrors {
 		return apierror.InternalError(err, "creating proxy request")
 	}
 
-	// if specified look for the git configuration
+	// If a git configuration was specified, resolve it and verify the user is
+	// allowed to use it before its credentials are applied to the proxied request.
 	var gitConfig *gitbridge.Configuration
 	if proxyRequest.Gitconfig != "" {
-		for i := range gitManager.Configurations {
-			if proxyRequest.Gitconfig == gitManager.Configurations[i].ID {
-				gitConfig = &gitManager.Configurations[i]
-				break
-			}
+		user := requestctx.User(ctx)
+
+		config, found := gitManager.Configuration(proxyRequest.Gitconfig)
+		if !found {
+			return apierror.NewNotFoundError("gitconfig", proxyRequest.Gitconfig)
 		}
-		if gitConfig == nil {
-			requestctx.Logger(ctx).Infow("gitconfig not found", "id", proxyRequest.Gitconfig)
+		if !auth.CanUseGitconfig(user, *config) {
+			return apierror.NewAPIError(
+				fmt.Sprintf("user unauthorized to use gitconfig [%s]", proxyRequest.Gitconfig),
+				http.StatusForbidden,
+			)
 		}
+		// Bind the credential to its own instance: the proxied host must be one
+		// this config is allowed to reach, so a token is never forwarded onward.
+		if !config.AllowsHost(proxyRequest.URL) {
+			return apierror.NewAPIError(
+				fmt.Sprintf("gitconfig [%s] is not allowed for the requested host", proxyRequest.Gitconfig),
+				http.StatusForbidden,
+			)
+		}
+
+		gitConfig = config
 	}
 
-	if gitConfig != nil {
-		// check BasicAuth
-		if gitConfig.Username != "" && gitConfig.Password != "" {
-			req.SetBasicAuth(gitConfig.Username, gitConfig.Password)
+	// Apply the gitconfig credentials using the scheme the provider expects.
+	// GitHub accepts HTTP Basic (username + token); GitLab's REST API does not,
+	// it expects the token in the PRIVATE-TOKEN header.
+	if gitConfig != nil && gitConfig.Password != "" {
+		switch gitConfig.Provider {
+		case models.ProviderGitlab, models.ProviderGitlabEnterprise:
+			req.Header.Set("PRIVATE-TOKEN", gitConfig.Password)
+		default:
+			if gitConfig.Username != "" {
+				req.SetBasicAuth(gitConfig.Username, gitConfig.Password)
+			}
 		}
 	}
 
@@ -112,7 +134,11 @@ func ValidateURL(proxiedURL string) error {
 
 	// if the host is known (Github or Github Enterprise Cloud) just validate the path
 	// https://docs.github.com/en/enterprise-cloud@latest/rest/enterprise-admin
-	if u.Host == "api.github.com" {
+	//
+	// GitHub Enterprise Cloud with data residency serves the same API from a
+	// per-tenant subdomain, api.<subdomain>.ghe.com, with the same bare paths as
+	// api.github.com (no /api/v3 prefix). .ghe.com is GitHub-operated.
+	if u.Host == "api.github.com" || isGHEComAPIHost(u.Host) {
 		return validateGithubURL(u.EscapedPath())
 	}
 
@@ -133,6 +159,13 @@ func ValidateURL(proxiedURL string) error {
 	return fmt.Errorf("unknown URL '%s'", proxiedURL)
 }
 
+// isGHEComAPIHost reports whether host is a GitHub Enterprise Cloud data-residency
+// REST API host, i.e. api.<subdomain>.ghe.com. `.ghe.com` is a GitHub-operated
+// domain, so a token cannot be steered to an attacker-controlled host through it.
+func isGHEComAPIHost(host string) bool {
+	return strings.HasPrefix(host, "api.") && strings.HasSuffix(host, ".ghe.com")
+}
+
 // validateGithubURL will validate if the requested API is a whitelisted one.
 // We don't want to let the user call all the Github APIs with the provided tokens.
 // The supported APIs are:
@@ -141,14 +174,25 @@ func ValidateURL(proxiedURL string) error {
 // - /repos/USERNAME/REPO/branches
 // - /repos/USERNAME/REPO/branches/BRANCH
 // - /users/USERNAME/repos
+// - /users/USERNAME          (account info, used to detect user vs org)
+// - /user/repos              (authenticated user's repos, including private)
+// - /orgs/ORG/repos          (org repos, including private)
 // - /search/repositories
 func validateGithubURL(path string) error {
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
 
-	// with 2 parts we support this endpoint:
+	// with 2 parts we support these endpoints:
 	// - /search/repositories
+	// - /user/repos
+	// - /users/USERNAME
 	if len(parts) == 2 {
 		if parts[0] == "search" && parts[1] == "repositories" {
+			return nil
+		}
+		if parts[0] == "user" && parts[1] == "repos" {
+			return nil
+		}
+		if parts[0] == "users" {
 			return nil
 		}
 	}
@@ -156,9 +200,11 @@ func validateGithubURL(path string) error {
 	// with 3 parts we support these endpoints:
 	// - /repos/USERNAME/REPO
 	// - /users/USERNAME/repos
+	// - /orgs/ORG/repos
 	if len(parts) == 3 {
 		if parts[0] == "repos" ||
-			(parts[0] == "users" && parts[2] == "repos") {
+			(parts[0] == "users" && parts[2] == "repos") ||
+			(parts[0] == "orgs" && parts[2] == "repos") {
 			return nil
 		}
 	}
@@ -184,33 +230,43 @@ func validateGithubURL(path string) error {
 }
 
 // validateGitlabURL will validate if the requested API is a whitelisted one.
-// We don't want to let the user call all the Gitlab APIs with the provided tokens.
-// Gitlab use the project ID or the url encoded "USERNAME/REPO" string, hence we are checking for the second one.
+// We don't want to let the user call all the Gitlab APIs with the provided
+// tokens.
+// Gitlab use the project ID or the url encoded "USERNAME/REPO" string, hence
+// we are checking for the second one.
+//
 // The supported APIs are:
 // - /avatar
-// - /search/repositories
+// - /projects                (e.g. ?membership=true, the user's projects including private)
 // - /projects/USERNAME%2FREPO
+// - /users                   (e.g. ?username=NAME, to resolve a user)
 // - /users/USERNAME/projects
+// - /groups/GROUP            (group info, used to detect user vs group)
 // - /groups/USERNAME/projects
 // - /projects/USERNAME%2FREPO/repository/branches
 // - /projects/USERNAME%2FREPO/repository/commits
 // - /projects/REPO/repository/branches/BRANCH
+//
+// Project listing/search uses the `?search=` query on the list endpoints; GitLab
+// has no `/search/repositories` endpoint (that is GitHub-shaped).
 func validateGitlabURL(path string) error {
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
 
-	// with 1 part we support this endpoint:
+	// with 1 part we support these endpoints:
 	// - /avatar
+	// - /projects        (e.g. ?membership=true, the user's projects including private)
+	// - /users           (e.g. ?username=NAME, to resolve a user / detect namespace)
 	if len(parts) == 1 {
-		if parts[0] == "avatar" {
+		if parts[0] == "avatar" || parts[0] == "projects" || parts[0] == "users" {
 			return nil
 		}
 	}
 
 	// with 2 parts we support these endpoints:
-	// - /search/repositories
 	// - /projects/USERNAME%2FREPO
+	// - /groups/GROUP     (group info, used to detect user vs group)
 	if len(parts) == 2 {
-		if path == "/search/repositories" || parts[0] == "projects" {
+		if parts[0] == "projects" || parts[0] == "groups" {
 			return nil
 		}
 	}
@@ -252,6 +308,21 @@ func getProxyClient(gitConfig *gitbridge.Configuration) (*http.Client, error) {
 
 	if gitConfig == nil {
 		return client, nil
+	}
+
+	// Re-check the host binding on every redirect hop. Go drops the Authorization
+	// header on a cross-host redirect, but not a custom header such as GitLab's
+	// PRIVATE-TOKEN, so without this a redirect could forward the token to an
+	// unrelated host. Refusing the redirect stops the credential from leaving the
+	// configured instance.
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		if !gitConfig.AllowsHost(req.URL.String()) {
+			return fmt.Errorf("redirect to disallowed host %q blocked", req.URL.Host)
+		}
+		return nil
 	}
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()

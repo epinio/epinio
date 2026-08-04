@@ -53,13 +53,6 @@ func NamespaceAuthorization(c *gin.Context) {
 	authorization(c, "namespace", user.Namespaces)
 }
 
-// GitconfigAuthorization ensures the user is allowed to access the requested gitconfig.
-// Only admins may access any gitconfig; all other users are restricted to user.Gitconfigs.
-func GitconfigAuthorization(c *gin.Context) {
-	user := requestctx.User(c.Request.Context())
-	authorization(c, "gitconfig", user.Gitconfigs)
-}
-
 func authorization(c *gin.Context, label string, allowed []string) {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).With("component", "AuthorizationMiddleware")

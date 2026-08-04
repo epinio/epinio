@@ -39,18 +39,20 @@ const (
 type GitProvider string
 
 const (
-	ProviderGit              = GitProvider("git")
-	ProviderGithub           = GitProvider("github")
-	ProviderGithubEnterprise = GitProvider("github_enterprise")
-	ProviderGitlab           = GitProvider("gitlab")
-	ProviderGitlabEnterprise = GitProvider("gitlab_enterprise")
-	ProviderUnknown          = GitProvider("unknown")
+	ProviderGit                        = GitProvider("git")
+	ProviderGithub                     = GitProvider("github")
+	ProviderGithubEnterpriseCloud      = GitProvider("github_enterprise_cloud")
+	ProviderGithubEnterpriseSelfHosted = GitProvider("github_enterprise_self_hosted")
+	ProviderGitlab                     = GitProvider("gitlab")
+	ProviderGitlabEnterprise           = GitProvider("gitlab_enterprise")
+	ProviderUnknown                    = GitProvider("unknown")
 )
 
 var ValidProviders = []GitProvider{
 	ProviderGit,
 	ProviderGithub,
-	ProviderGithubEnterprise,
+	ProviderGithubEnterpriseCloud,
+	ProviderGithubEnterpriseSelfHosted,
 	ProviderGitlab,
 	ProviderGitlabEnterprise,
 }
@@ -85,10 +87,11 @@ type ApplicationStatus string
 type ApplicationStagingStatus string
 
 type GitRef struct {
-	Revision string      `json:"revision,omitempty" yaml:"revision,omitempty"`
-	URL      string      `json:"repository"         yaml:"url,omitempty"`
-	Provider GitProvider `json:"provider,omitempty" yaml:"provider,omitempty"`
-	Branch   string      `json:"branch,omitempty"   yaml:"branch,omitempty"`
+	Revision  string      `json:"revision,omitempty"  yaml:"revision,omitempty"`
+	URL       string      `json:"repository"          yaml:"url,omitempty"`
+	Provider  GitProvider `json:"provider,omitempty"  yaml:"provider,omitempty"`
+	Branch    string      `json:"branch,omitempty"    yaml:"branch,omitempty"`
+	Gitconfig string      `json:"gitconfig,omitempty" yaml:"gitconfig,omitempty"`
 }
 
 // App has all the application's properties, for at rest (Configuration), and active (Workload).

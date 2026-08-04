@@ -12,8 +12,10 @@
 package cmd_test
 
 import (
+	"context"
 	"errors"
 	"io"
+	"os"
 
 	"github.com/epinio/epinio/internal/cli/cmd"
 	"github.com/epinio/epinio/internal/cli/cmd/cmdfakes"
@@ -158,6 +160,90 @@ var _ = Describe("Command 'epinio app'", func() {
 				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
 				Expect(runErr).ToNot(HaveOccurred())
 				Expect(rootCfg.Output.Value).To(Equal("json"))
+			})
+		})
+	})
+
+	Context("app watch", func() {
+
+		When("called with no args", func() {
+			It("fails", func() {
+				appCmd := cmd.NewAppWatchCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).To(HaveOccurred())
+				Expect(runErr.Error()).To(Equal("accepts 1 arg(s), received 0"))
+			})
+		})
+
+		When("called with more than 1 arg", func() {
+			It("fails", func() {
+				args = append(args, "myapp", "more")
+
+				appCmd := cmd.NewAppWatchCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).To(HaveOccurred())
+				Expect(runErr.Error()).To(Equal("accepts 1 arg(s), received 2"))
+			})
+		})
+
+		When("the app watch fails", func() {
+			It("returns an error", func() {
+				args = append(args, "myapp")
+
+				mockAppService.AppWatchReturns(errors.New("something bad happened"))
+
+				appCmd := cmd.NewAppWatchCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).To(HaveOccurred())
+				Expect(runErr.Error()).To(Equal("error watching app: something bad happened"))
+			})
+		})
+
+		When("the app watch succeeds", func() {
+			It("passes the name, namespace, and path through", func() {
+				args = append(
+					args,
+					"myapp",
+					"--namespace", "myspace",
+					"--path", "/tmp/source",
+				)
+
+				mockAppService.AppWatchStub = func(
+					ctx context.Context,
+					name, namespace, path string,
+				) error {
+					Expect(name).To(Equal("myapp"))
+					Expect(namespace).To(Equal("myspace"))
+					Expect(path).To(Equal("/tmp/source"))
+					return nil
+				}
+
+				appCmd := cmd.NewAppWatchCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).ToNot(HaveOccurred())
+				Expect(mockAppService.AppWatchCallCount()).To(Equal(1))
+			})
+		})
+
+		When("called without a path", func() {
+			It("defaults the path to the working directory", func() {
+				args = append(args, "myapp")
+
+				workingDir, getWdError := os.Getwd()
+				Expect(getWdError).ToNot(HaveOccurred())
+
+				mockAppService.AppWatchStub = func(
+					ctx context.Context,
+					name, namespace, path string,
+				) error {
+					Expect(path).To(Equal(workingDir))
+					return nil
+				}
+
+				appCmd := cmd.NewAppWatchCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).ToNot(HaveOccurred())
+				Expect(mockAppService.AppWatchCallCount()).To(Equal(1))
 			})
 		})
 	})

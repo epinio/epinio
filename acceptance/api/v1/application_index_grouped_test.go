@@ -147,7 +147,7 @@ var _ = Describe("AllAppsGrouped Endpoint", LApplication, func() {
 		Expect(grouped[namespace2].Items).To(BeEmpty())
 	})
 
-	It("returns no apps for a user without namespace access", func() {
+	It("omits namespaces entirely for a user without namespace access", func() {
 		endpoint := groupedURL(1, 10)
 		req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 		Expect(err).ToNot(HaveOccurred())
@@ -162,9 +162,11 @@ var _ = Describe("AllAppsGrouped Endpoint", LApplication, func() {
 		Expect(resp.StatusCode).To(Equal(http.StatusOK), string(body))
 
 		grouped := parseGrouped(body)
-		for _, page := range grouped {
-			Expect(page.Items).To(BeEmpty())
-		}
+		// A user with no namespace access must get no namespace keys at all --
+		// not even with empty items. Leaking the key would expose the namespace
+		// name (and, via TotalItems, its app count), and would make the UI poll
+		// the per-namespace endpoint for it and hit a 403.
+		Expect(grouped).To(BeEmpty())
 	})
 
 	It("filters apps by search term within each namespace", func() {

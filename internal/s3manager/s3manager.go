@@ -38,8 +38,19 @@ import (
 // This interface allows for mocking in tests.
 type S3Manager interface {
 	Meta(ctx context.Context, blobUID string) (map[string]string, error)
-	UploadStream(ctx context.Context, file io.Reader, size int64, metadata map[string]string) (string, error)
-	Upload(ctx context.Context, filepath string, metadata map[string]string) (string, error)
+	Open(ctx context.Context, blobUID string) (io.ReadCloser, string, int64, error)
+	UploadStream(
+		ctx context.Context,
+		file io.Reader,
+		size int64,
+		metadata map[string]string,
+	) (string, error)
+	Upload(
+		ctx context.Context,
+		filepath string,
+		metadata map[string]string,
+	) (string, error)
+	Download(ctx context.Context, blobUID string) (io.ReadCloser, error)
 	EnsureBucket(ctx context.Context) error
 	DeleteObject(ctx context.Context, objectID string) error
 }
@@ -70,16 +81,20 @@ func (details *ConnectionDetails) Validate() error {
 		details.AccessKeyID != "" &&
 		details.SecretAccessKey != "" &&
 		details.Bucket != ""
+
 	allMandatoryEmpty := details.Endpoint == "" &&
 		details.AccessKeyID == "" &&
 		details.SecretAccessKey == "" &&
 		details.Bucket == ""
+
 	optionalSet := details.Location != ""
 
 	// If mandatory fields are partly set
 	partlyMandatory := !allMandatorySet && !allMandatoryEmpty
 	if partlyMandatory {
-		return errors.New("when specifying an external s3 server, you must set all mandatory S3 options")
+		return errors.New(
+			"when specifying an external s3 server, you must set all mandatory S3 options",
+		)
 	}
 
 	// If only optional fields are set
@@ -94,11 +109,16 @@ func (details *ConnectionDetails) Validate() error {
 // New returns an instance of an s3 manager
 func New(connectionDetails ConnectionDetails) (*Manager, error) {
 	var httpClient *http.Client
+
 	if len(connectionDetails.CA) > 0 {
 		rootCAs := x509.NewCertPool()
+
 		if ok := rootCAs.AppendCertsFromPEM(connectionDetails.CA); !ok {
-			return nil, errors.New("cannot append S3 CA from connection details to client")
+			return nil, errors.New(
+				"cannot append S3 CA from connection details to client",
+			)
 		}
+
 		transport := http.DefaultTransport.(*http.Transport).Clone()
 		transport.TLSClientConfig = &tls.Config{
 			RootCAs:    rootCAs,
@@ -125,7 +145,8 @@ func New(connectionDetails ConnectionDetails) (*Manager, error) {
 	}
 
 	// if no credentials are provided then we are going to try to connect with the IAM Role
-	if connectionDetails.AccessKeyID == "" && connectionDetails.SecretAccessKey == "" {
+	if connectionDetails.AccessKeyID == "" &&
+		connectionDetails.SecretAccessKey == "" {
 		cfg.Credentials = nil // SDK will use default credential chain (e.g. IAM)
 	}
 
@@ -232,6 +253,29 @@ func (m *Manager) Meta(ctx context.Context, blobUID string) (map[string]string, 
 	return meta, nil
 }
 
+// Open retrieves the blob specified by blobUID from the S3 endpoint.
+func (m *Manager) Open(ctx context.Context, blobUID string) (io.ReadCloser, string, int64, error) {
+	out, err := m.s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(m.connectionDetails.Bucket),
+		Key:    aws.String(blobUID),
+	})
+	if err != nil {
+		return nil, "", 0, errors.Wrap(err, "reading the object")
+	}
+
+	contentType := "application/tar"
+	if out.ContentType != nil && *out.ContentType != "" {
+		contentType = *out.ContentType
+	}
+
+	var contentLength int64 = -1
+	if out.ContentLength != nil {
+		contentLength = *out.ContentLength
+	}
+
+	return out.Body, contentType, contentLength, nil
+}
+
 // UploadStream uploads the given Reader to the S3 endpoint and returns a blobUID which
 // can later be used to fetch the same file.
 func (m *Manager) UploadStream(ctx context.Context, file io.Reader, size int64, metadata map[string]string) (string, error) {
@@ -286,6 +330,23 @@ func (m *Manager) Upload(ctx context.Context, filepath string, metadata map[stri
 	}
 
 	return m.UploadStream(ctx, file, info.Size(), metadata)
+}
+
+func (m *Manager) Download(
+	ctx context.Context,
+	blobUID string,
+) (io.ReadCloser, error) {
+
+	codeBlob, getError := m.s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(m.connectionDetails.Bucket),
+		Key:    aws.String(blobUID),
+	})
+
+	if getError != nil {
+		return nil, errors.Wrap(getError, "getting the object")
+	}
+
+	return codeBlob.Body, nil
 }
 
 // EnsureBucket creates our bucket if it's missing

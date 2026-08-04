@@ -109,7 +109,7 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	// Chart changes always require a settings check (existing or requested). Running apps also
 	// validate when new settings are supplied.
 	if chartChanging || (app.Workload != nil && settingsInRequest) {
-		appChart, err := appchart.Lookup(ctx, cluster, targetChartName)
+		appChart, err := appchart.LookupViaCluster(ctx, cluster, targetChartName)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
@@ -279,7 +279,7 @@ func updateAppChart(
 	appName string,
 	appChart string,
 ) error {
-	found, err := appchart.Exists(ctx, cluster, appChart)
+	found, err := appchart.ExistsViaCluster(ctx, cluster, appChart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

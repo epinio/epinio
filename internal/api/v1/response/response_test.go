@@ -12,8 +12,11 @@
 package response_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -198,5 +201,93 @@ func TestGetPaginationParams(t *testing.T) {
 				t.Errorf("pageSize: got %d want %d", pageSize, tc.wantPageSize)
 			}
 		})
+	}
+}
+
+func TestPaginateSlice(t *testing.T) {
+	items := []string{"a", "b", "c", "d", "e"}
+
+	tests := []struct {
+		name      string
+		items     []string
+		page      int
+		pageSize  int
+		wantPage  int
+		wantTotal int
+		wantPages int
+		wantItems []string
+	}{
+		{
+			name:  "first page of three",
+			items: items,
+			page:  1, pageSize: 2,
+			wantPage: 1, wantTotal: 5, wantPages: 3,
+			wantItems: []string{"a", "b"},
+		},
+		{
+			name:  "last partial page",
+			items: items,
+			page:  3, pageSize: 2,
+			wantPage: 3, wantTotal: 5, wantPages: 3,
+			wantItems: []string{"e"},
+		},
+		{
+			name:  "page past the end clamps to the last page",
+			items: items,
+			page:  99, pageSize: 2,
+			wantPage: 3, wantTotal: 5, wantPages: 3,
+			wantItems: []string{"e"},
+		},
+		{
+			name:  "no matches yields an empty page, not null",
+			items: nil,
+			page:  1, pageSize: 10,
+			wantPage: 1, wantTotal: 0, wantPages: 1,
+			wantItems: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := response.PaginateSlice(tc.items, tc.page, tc.pageSize)
+
+			if got.Page != tc.wantPage {
+				t.Errorf("Page: got %d want %d", got.Page, tc.wantPage)
+			}
+			if got.TotalItems != tc.wantTotal {
+				t.Errorf("TotalItems: got %d want %d", got.TotalItems, tc.wantTotal)
+			}
+			if got.TotalPages != tc.wantPages {
+				t.Errorf("TotalPages: got %d want %d", got.TotalPages, tc.wantPages)
+			}
+			if !reflect.DeepEqual(got.Items, tc.wantItems) {
+				t.Errorf("Items: got %v want %v", got.Items, tc.wantItems)
+			}
+		})
+	}
+}
+
+// A nil item slice must still marshal as [], because clients type `items` as
+// an array: a null there is a decode error for the CLI, and the dashboard
+// treats the page as a single resource instead of a list.
+func TestPaginatedResponseNeverMarshalsNullItems(t *testing.T) {
+	built, err := json.Marshal(
+		response.BuildPaginatedResponse[string](nil, 1, 10, 0),
+	)
+	if err != nil {
+		t.Fatalf("marshal BuildPaginatedResponse: %v", err)
+	}
+
+	if !strings.Contains(string(built), `"items":[]`) {
+		t.Errorf("BuildPaginatedResponse: got %s want items []", built)
+	}
+
+	paged, err := json.Marshal(response.PaginateSlice[string](nil, 1, 10))
+	if err != nil {
+		t.Fatalf("marshal PaginateSlice: %v", err)
+	}
+
+	if !strings.Contains(string(paged), `"items":[]`) {
+		t.Errorf("PaginateSlice: got %s want items []", paged)
 	}
 }
