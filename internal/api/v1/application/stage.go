@@ -896,38 +896,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		},
 	}
 
-	buildMode := models.NormalizeBuildMode(app.BuildMode)
-	var buildContainer corev1.Container
-	if buildMode == models.BuildModeDockerfile {
-		buildContainer = corev1.Container{
-			Name:         "dockerfile",
-			Image:        app.DockerBuildImage,
-			VolumeMounts: volumeMounts,
-			Command:      []string{"/busybox/sh", "-c"},
-			Args: []string{
-				dockerfileScript,
-			},
-			Env:       stageEnv,
-			Resources: app.HelmValues.Resources,
-		}
-	} else {
-		buildContainer = corev1.Container{
-			Name:    "buildpack",
-			Image:   app.BuilderImage,
-			Command: []string{"/bin/bash"},
-			Args: []string{
-				"-c",
-				buildpackScript,
-			},
-			Env:          stageEnv,
-			VolumeMounts: volumeMounts,
-			SecurityContext: &corev1.SecurityContext{
-				RunAsUser:  ptr.To[int64](app.UserID),
-				RunAsGroup: ptr.To[int64](app.GroupID),
-			},
-			Resources: app.HelmValues.Resources,
-		}
-	}
+	buildContainer := stagingBuildContainer(app, volumeMounts, stageEnv, buildpackScript, dockerfileScript)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -980,6 +949,41 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	}
 
 	return job, jobenv
+}
+
+// stagingBuildContainer picks the final staging container for buildpack or Dockerfile mode.
+func stagingBuildContainer(
+	app stageParam,
+	volumeMounts []corev1.VolumeMount,
+	stageEnv []corev1.EnvVar,
+	buildpackScript string,
+	dockerfileScript string,
+) corev1.Container {
+	if models.NormalizeBuildMode(app.BuildMode) == models.BuildModeDockerfile {
+		return corev1.Container{
+			Name:         "dockerfile",
+			Image:        app.DockerBuildImage,
+			VolumeMounts: volumeMounts,
+			Command:      []string{"/busybox/sh", "-c"},
+			Args:         []string{dockerfileScript},
+			Env:          stageEnv,
+			Resources:    app.HelmValues.Resources,
+		}
+	}
+
+	return corev1.Container{
+		Name:         "buildpack",
+		Image:        app.BuilderImage,
+		Command:      []string{"/bin/bash"},
+		Args:         []string{"-c", buildpackScript},
+		Env:          stageEnv,
+		VolumeMounts: volumeMounts,
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser:  ptr.To[int64](app.UserID),
+			RunAsGroup: ptr.To[int64](app.GroupID),
+		},
+		Resources: app.HelmValues.Resources,
+	}
 }
 
 func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
