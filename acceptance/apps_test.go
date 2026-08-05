@@ -500,6 +500,86 @@ var _ = Describe("Apps", LApplication, func() {
 					))
 				})
 
+				It("updates the app chart without redeploying when --no-restart is set", func() {
+					releaseName := names.ReleaseName(appName)
+
+					By("recording the helm chart package before the switch")
+					beforeStatus, err := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+					Expect(err).ToNot(HaveOccurred(), beforeStatus)
+					Expect(beforeStatus).ToNot(ContainSubstring(`"version":"0.1.21"`))
+
+					By("patching the app chart with --no-restart")
+					out, err := env.Epinio("", "app", "update", appName,
+						"--app-chart", chartName, "--no-restart")
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					By("waiting until the app CR reports the new chart")
+					Eventually(func() string {
+						out, err := env.Epinio("", "app", "show", appName)
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+						return out
+					}, "2m").Should(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", chartName),
+						),
+					)
+
+					By("keeping the existing helm release on the previous chart package")
+					Consistently(func() string {
+						status, statusErr := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+						ExpectWithOffset(1, statusErr).ToNot(HaveOccurred(), status)
+						return status
+					}, "20s", "5s").ShouldNot(ContainSubstring(`"version":"0.1.21"`))
+				})
+
+				It("switches onto another AppChart wrapping the same helm package with different Spec.Values", func() {
+					samePackageChart := catalog.NewTmpName("chart-same-")
+					samePackageFile := env.MakeAppchartSamePackageWithValues(samePackageChart)
+					defer env.DeleteAppchart(samePackageFile)
+
+					releaseName := names.ReleaseName(appName)
+
+					By("switching onto an AppChart with the same package but Spec.Values set")
+					out, err := env.Epinio("", "app", "update", appName,
+						"--app-chart", samePackageChart)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					By("waiting until the app CR reports the new chart")
+					Eventually(func() string {
+						out, err := env.Epinio("", "app", "show", appName)
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+						return out
+					}, "2m").Should(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", samePackageChart),
+						),
+					)
+
+					By("waiting until the workload is healthy again")
+					Eventually(func() string {
+						out, err := env.Epinio("", "app", "list")
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+						return out
+					}, "5m").Should(
+						HaveATable(
+							WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+							WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+						),
+					)
+
+					By("verifying helm stayed on the same package version")
+					Eventually(func() string {
+						status, statusErr := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+						ExpectWithOffset(1, statusErr).ToNot(HaveOccurred(), status)
+						return status
+					}, "2m").Should(And(
+						ContainSubstring(`"version":"0.1.26"`),
+						ContainSubstring(`"status":"deployed"`),
+					))
+				})
+
 				It("rejects a chart switch when existing settings are incompatible", func() {
 					incompatibleChart := catalog.NewTmpName("chart-bad-")
 					incompatibleFile := env.MakeAppchart(incompatibleChart)

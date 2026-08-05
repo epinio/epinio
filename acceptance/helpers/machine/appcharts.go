@@ -138,13 +138,47 @@ spec:
 	return tempFile
 }
 
+// MakeAppchartSamePackageWithValues installs an AppChart that wraps the same helm
+// package as "standard" (0.1.26) but sets Spec.Values. Used to cover switches between
+// two AppChart CRs that share a package while differing in chartConfig.
+func (m *Machine) MakeAppchartSamePackageWithValues(chartName string) string {
+	tempFile := chartName + `.yaml`
+	err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
+kind: AppChart
+metadata:
+  namespace: epinio
+  name: %s
+  labels:
+    app.kubernetes.io/component: epinio
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: epinio-same-package-app-chart
+    app.kubernetes.io/part-of: epinio
+spec:
+  shortDescription: Same package as standard with Spec.Values
+  description: Same epinio-application package as standard, different Spec.Values
+  helmChart: https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.26/epinio-application-0.1.26.tgz
+  values:
+    tuning: speed
+  settings:
+    appListeningPort:
+      type: integer
+      minimum: "0"
+`, chartName)), 0600)
+	Expect(err).ToNot(HaveOccurred())
+
+	out, err := proc.Kubectl("apply", "-f", tempFile)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	return tempFile
+}
+
 func (m *Machine) DeleteAppchart(tempFile string) {
 	GinkgoHelper()
 
 	out, err := proc.Kubectl("delete", "-f", tempFile)
 	Expect(err).ToNot(HaveOccurred(), out)
 	tempFileRemoveError := os.Remove(tempFile)
-	
+
 	if tempFileRemoveError != nil {
 		fmt.Sprintf("The App Chart file was not deleted: %s", tempFileRemoveError)
 	}

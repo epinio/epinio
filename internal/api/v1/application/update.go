@@ -206,16 +206,16 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		}
 	}
 
-	// backward compatibility: if no flag provided then restart the app.
-	// Chart changes on an active app always redeploy: the workload must pick up the new
-	// helm chart. On failure, roll the CRD chart name back so we do not leave a partial update.
+	// Honor Restart explicitly: chart changes with --no-restart only patch the CRD.
+	// Redeploy (default when Restart is omitted or true) picks up the new helm chart.
+	// On deploy failure after a chart change, roll the CRD chart name back.
 	restart := updateRequest.Restart == nil || *updateRequest.Restart
-	forceChartRedeploy := chartChanging && app.Workload != nil
-	if restart || forceChartRedeploy {
+	if restart {
 		instancesChanged := appInstancesChanged(app, updateRequest.Instances)
+		chartRedeploy := chartChanging && app.Workload != nil
 
 		var apierr apierror.APIErrors
-		if instancesChanged || forceChartRedeploy {
+		if instancesChanged || chartRedeploy {
 			log.Infow("updating app -- deploying", "chartChanging", chartChanging, "instancesChanged", instancesChanged)
 			_, apierr = deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 		} else if app.Workload != nil && app.Status == models.ApplicationRunning {
