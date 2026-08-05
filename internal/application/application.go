@@ -730,6 +730,10 @@ Delete removes the named application, its workload (if active), bindings
 application was staged (if active). Waits for the application's deployment's
 pods to disappear (if active).
 
+When deletePVC is true, staging PVCs (cache/source blobs) and application data
+PVCs (e.g. from StatefulSet volumeClaimTemplates) are removed as well.
+When deletePVC is false (the default), PVCs are preserved.
+
 Returns a DeleteResult containing any warnings (e.g., incomplete blob cleanup).
 */
 func Delete(
@@ -737,6 +741,7 @@ func Delete(
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
 	deleteImage bool,
+	deletePVC bool,
 ) (*DeleteResult, error) {
 	result := &DeleteResult{}
 
@@ -760,6 +765,15 @@ func Delete(
 			} else if imageURL == "" {
 				log.Infow("No image URL found in application, skipping image deletion", "app", appRef.Name)
 			}
+		}
+	}
+
+	// Collect app data PVC names before helm uninstall removes the StatefulSet.
+	var appDataPVCs []string
+	if deletePVC {
+		appDataPVCs, err = listAppDataPVCNames(ctx, cluster, appRef)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -805,15 +819,22 @@ func Delete(
 		log.Info("warning: "+warning, "failedBlobs", unstageResult.FailedBlobCleanups)
 	}
 
-	// delete staging PVC (the one that holds the "source" and "cache" workspaces)
-	err = deleteCacheStagePVC(ctx, cluster, appRef)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, err
-	}
+	if deletePVC {
+		// delete staging PVC (the one that holds the "source" and "cache" workspaces)
+		err = deleteCacheStagePVC(ctx, cluster, appRef)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return nil, err
+		}
 
-	err = deleteSourceBlobsStagePVC(ctx, cluster, appRef)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, err
+		err = deleteSourceBlobsStagePVC(ctx, cluster, appRef)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+
+		err = deleteAppDataPVCs(ctx, cluster, appRef.Namespace, appDataPVCs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = cluster.WaitForPodBySelectorMissing(ctx,
@@ -990,6 +1011,58 @@ func deleteSourceBlobsStagePVC(
 		PersistentVolumeClaims(
 			helmchart.Namespace(),
 		).Delete(ctx, appRef.MakeSourceBlobsPVCName(), metav1.DeleteOptions{})
+}
+
+// listAppDataPVCNames finds PersistentVolumeClaims owned by the application's
+// StatefulSets via volumeClaimTemplates. Must be called before the workload is
+// removed so the StatefulSet still exists.
+func listAppDataPVCNames(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+) ([]string, error) {
+	stsList, err := cluster.Kubectl.AppsV1().StatefulSets(appRef.Namespace).List(
+		ctx,
+		metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var pvcNames []string
+	for _, sts := range stsList.Items {
+		replicas := int32(1)
+		if sts.Spec.Replicas != nil {
+			replicas = *sts.Spec.Replicas
+		}
+		for _, vct := range sts.Spec.VolumeClaimTemplates {
+			for i := int32(0); i < replicas; i++ {
+				pvcNames = append(pvcNames, fmt.Sprintf("%s-%s-%d", vct.Name, sts.Name, i))
+			}
+		}
+	}
+	return pvcNames, nil
+}
+
+func deleteAppDataPVCs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+	pvcNames []string,
+) error {
+	for _, pvcName := range pvcNames {
+		err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(namespace).Delete(
+			ctx,
+			pvcName,
+			metav1.DeleteOptions{},
+		)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 /*

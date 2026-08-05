@@ -1088,7 +1088,7 @@ var _ = Describe("Apps", LApplication, func() {
 			})
 		})
 		When("deleting the app", func() {
-			It("deletes the cache PVC too", func() {
+			It("deletes the cache PVC when --delete-pvc is set", func() {
 				pvcName := names.GenerateResourceName(namespace, "cache", appName)
 				// Wait for build cache PVC to appear.
 				var found bool
@@ -1105,6 +1105,31 @@ var _ = Describe("Apps", LApplication, func() {
 				out, err := proc.Kubectl("get", "pvc", "--namespace", testenv.Namespace, pvcName)
 				Expect(err).To(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring(`persistentvolumeclaims "%s" not found`, pvcName))
+			})
+
+			It("keeps the cache PVC when --delete-pvc is not set", func() {
+				pvcName := names.GenerateResourceName(namespace, "cache", appName)
+				var found bool
+				for deadline := time.Now().Add(2 * time.Minute); time.Now().Before(deadline); time.Sleep(5 * time.Second) {
+					_, err := proc.Kubectl("get", "pvc", "--namespace", testenv.Namespace, pvcName)
+					if err == nil {
+						found = true
+						break
+					}
+				}
+				Expect(found).To(BeTrue(), "build cache PVC %q was not present in namespace %q after waiting 2m", pvcName, testenv.Namespace)
+
+				out, err := env.Epinio("", "app", "delete", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = proc.Kubectl("get", "pvc", "--namespace", testenv.Namespace, pvcName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(pvcName))
+
+				// Cleanup leftover staging PVCs
+				_, _ = proc.Kubectl("delete", "pvc", "--namespace", testenv.Namespace, pvcName, "--ignore-not-found=true")
+				sourcePVC := names.GenerateResourceName(namespace, "sourceblobs", appName)
+				_, _ = proc.Kubectl("delete", "pvc", "--namespace", testenv.Namespace, sourcePVC, "--ignore-not-found=true")
 			})
 		})
 	})

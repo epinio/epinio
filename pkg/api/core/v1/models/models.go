@@ -333,6 +333,10 @@ type AsyncDeployStatus struct {
 // ApplicationDeleteRequest represents and contains the data needed to delete an application
 type ApplicationDeleteRequest struct {
 	DeleteImage bool `json:"deleteImage"`
+	// DeletePVC when true removes staging PVCs (cache/source blobs) and
+	// application data PVCs (e.g. StatefulSet volumeClaimTemplates).
+	// Defaults to false so PVCs are preserved unless explicitly requested.
+	DeletePVC bool `json:"deletePVC"`
 }
 
 // ApplicationDeleteResponse represents the server's response to a successful app deletion

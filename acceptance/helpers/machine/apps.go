@@ -144,7 +144,7 @@ func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool
 func (m *Machine) DeleteApp(appName string) {
 	By("deleting app " + appName)
 
-	out, err := m.Epinio("", "app", "delete", appName)
+	out, err := m.Epinio("", "app", "delete", "--delete-pvc", appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	EventuallyWithOffset(1, func() string {
@@ -155,7 +155,7 @@ func (m *Machine) DeleteApp(appName string) {
 }
 
 func (m *Machine) CleanupApp(appName string) {
-	out, err := m.Epinio("", "app", "delete", appName)
+	out, err := m.Epinio("", "app", "delete", "--delete-pvc", appName)
 	if err != nil {
 		fmt.Printf("deleting app failed : %s\n%s", err.Error(), out)
 	}

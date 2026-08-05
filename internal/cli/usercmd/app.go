@@ -557,7 +557,7 @@ func (c *EpinioClient) AppPortForward(ctx context.Context, appName, instance str
 }
 
 // Delete removes one or more applications, specified by name
-func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, deleteImage bool) error {
+func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, deleteImage, deletePVC bool) error {
 	if all {
 		c.ui.Note().
 			WithStringValue("Namespace", c.Settings.Namespace).
@@ -626,7 +626,7 @@ func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, de
 		return match.Names
 	})
 
-	response, err := c.API.AppDelete(c.Settings.Namespace, appNames, deleteImage)
+	response, err := c.API.AppDelete(c.Settings.Namespace, appNames, deleteImage, deletePVC)
 	if err != nil {
 		return err
 	}
