@@ -19,9 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - id: setup-pack
-        uses: buildpacks/github-actions/setup-pack@v5.4.0
+        uses: buildpacks/github-actions/setup-pack@v5.12.3
       - name: Pack Remote Build
         run: pack build epinio/sample-app:latest --builder paketobuildpacks/builder:full --path ./assets/sample-app
       -

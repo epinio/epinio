@@ -68,6 +68,7 @@ func NewGitconfigListCmd(client *usercmd.EpinioClient) *cobra.Command {
 
 type GitconfigCreateConfig struct {
 	skipSSL     bool
+	global      bool
 	username    string
 	password    string
 	userOrg     string
@@ -93,7 +94,7 @@ func NewGitconfigCreateCmd(client *usercmd.EpinioClient) *cobra.Command {
 			err := client.CreateGitconfig(
 				id, cfg.gitProvider, url,
 				cfg.username, cfg.password, cfg.userOrg,
-				cfg.repository, cfg.certFile, cfg.skipSSL,
+				cfg.repository, cfg.certFile, cfg.skipSSL, cfg.global,
 			)
 			if err != nil {
 				return errors.Wrap(err, "error creating git configuration")
@@ -104,13 +105,19 @@ func NewGitconfigCreateCmd(client *usercmd.EpinioClient) *cobra.Command {
 	}
 
 	gitconfigCreateCmd.Flags().BoolVar(&cfg.skipSSL, "skip-ssl", false, "skip SSL")
+	gitconfigCreateCmd.Flags().BoolVar(&cfg.global, "global", false, "make the configuration available to all users")
 	gitconfigCreateCmd.Flags().StringVar(&cfg.username, "username", "", "user name for logging into the host")
 	gitconfigCreateCmd.Flags().StringVar(&cfg.password, "password", "", "password for logging into the host")
 	gitconfigCreateCmd.Flags().StringVar(&cfg.userOrg, "user-org", "", "user/org holding repository")
 	gitconfigCreateCmd.Flags().StringVar(&cfg.repository, "repository", "", "specific repository")
 	gitconfigCreateCmd.Flags().StringVar(&cfg.certFile, "cert-file", "", "path to file holding supporting certificates")
 
-	gitconfigCreateCmd.Flags().StringVar(&cfg.gitProvider, "git-provider", "git", "Git provider code [git|github|github_enterprise|gitlab|gitlab_enterprise]")
+	gitconfigCreateCmd.Flags().StringVar(
+		&cfg.gitProvider,
+		"git-provider",
+		"git",
+		"Git provider code [git|github|github_enterprise_cloud|github_enterprise_self_hosted|gitlab|gitlab_enterprise]",
+	)
 	bindFlagCompletionFunc(gitconfigCreateCmd, "git-provider", NewStaticFlagsCompletionFunc(models.ValidProviders))
 
 	return gitconfigCreateCmd

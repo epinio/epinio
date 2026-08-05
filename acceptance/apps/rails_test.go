@@ -96,10 +96,12 @@ var _ = Describe("RubyOnRails", func() {
 		err := rails.CreateDir()
 		Expect(err).ToNot(HaveOccurred())
 
-		// Patch Ruby version to one supported by the builder (jammy stack has 3.3.9/3.3.10, not 3.3.5)
-		out, err := proc.Run(rails.Dir, false, "sed", "-i", "-e", "s/3.3.5/3.3.10/g", ".ruby-version")
+		// Patch the Ruby version to one the pinned builder still ships. This
+		// has to be revisited whenever image.builder.tag moves, as Paketo drops
+		// aged-out patch releases.
+		out, err := proc.Run(rails.Dir, false, "sed", "-i", "-e", "s/3.3.5/3.3.12/g", ".ruby-version")
 		Expect(err).ToNot(HaveOccurred(), out)
-		out, err = proc.Run(rails.Dir, false, "sed", "-i", "-e", "s/3.3.5/3.3.10/g", "Gemfile")
+		out, err = proc.Run(rails.Dir, false, "sed", "-i", "-e", "s/3.3.5/3.3.12/g", "Gemfile")
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Create the app

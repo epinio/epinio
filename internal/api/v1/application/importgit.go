@@ -76,6 +76,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	nethttp "net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -83,6 +84,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -102,11 +104,13 @@ import (
 // of the repo and puts it on S3.
 func ImportGit(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	user := requestctx.User(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
 	giturl := c.PostForm("giturl")
 	revision := c.PostForm("gitrev")
+	gitconfigName := c.PostForm("gitconfig")
 
 	if apiErr := validateGitURL(giturl); apiErr != nil {
 		return apiErr
@@ -117,9 +121,13 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(clusterError, "failed to get access to a kube client")
 	}
 
-	username := requestctx.User(ctx).Username
+	gitConfig, resolveError := resolveGitconfig(cluster, user, gitconfigName)
+	if resolveError != nil {
+		return resolveError
+	}
+
 	blobUID, branch, resolvedRevision, uploadError := cloneAndUpload(
-		ctx, cluster, giturl, revision, namespace, name, username,
+		ctx, cluster, giturl, revision, namespace, name, user.Username, gitConfig,
 	)
 	if uploadError != nil {
 		return uploadError
@@ -133,23 +141,87 @@ func ImportGit(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
+// resolveGitconfig returns the explicitly selected git configuration, or nil when
+// none was requested. Selection is intentional: there is no implicit URL matching.
+// An unknown name is rejected, and the user must be permitted to use the config.
+func resolveGitconfig(
+	cluster *kubernetes.Cluster,
+	user auth.User,
+	name string,
+) (*gitbridge.Configuration, apierror.APIErrors) {
+	if name == "" {
+		return nil, nil
+	}
+
+	manager, managerError := gitbridge.NewManager(
+		cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
+	)
+	if managerError != nil {
+		return nil, apierror.InternalError(
+			managerError,
+			"creating git configuration manager",
+		)
+	}
+
+	gitConfig, found := manager.Configuration(name)
+	if !found {
+		return nil, apierror.NewNotFoundError("gitconfig", name)
+	}
+
+	if !auth.CanUseGitconfig(user, *gitConfig) {
+		return nil, apierror.NewAPIError(
+			fmt.Sprintf("user unauthorized to use gitconfig [%s]", name),
+			nethttp.StatusForbidden,
+		)
+	}
+
+	return gitConfig, nil
+}
+
+// authorizeOrigin verifies that the git configuration referenced by an app
+// origin (if any) exists, that the user is permitted to use it, and that it is
+// bound to the origin's host, before the origin is persisted onto the App CR.
+// This stops a caller from stamping a config they may not use, or one whose
+// credentials would then be sent to an unrelated host on a later re-clone.
+func authorizeOrigin(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	origin models.ApplicationOrigin,
+) apierror.APIErrors {
+	if origin.Git == nil || origin.Git.Gitconfig == "" {
+		return nil
+	}
+
+	user := requestctx.User(ctx)
+
+	gitConfig, resolveError := resolveGitconfig(cluster, user, origin.Git.Gitconfig)
+	if resolveError != nil {
+		return resolveError
+	}
+
+	if !gitConfig.AllowsHost(origin.Git.URL) {
+		return apierror.NewAPIError(
+			fmt.Sprintf(
+				"gitconfig [%s] is not allowed for the host of url [%s]",
+				origin.Git.Gitconfig,
+				origin.Git.URL,
+			),
+			nethttp.StatusForbidden,
+		)
+	}
+
+	return nil
+}
+
 // cloneAndUpload clones the git repository, tarballs it, uploads to S3,
 // and returns the blobUID plus resolved branch and revision.
 func cloneAndUpload(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	gitURL, revision, namespace, appName, username string,
+	gitConfig *gitbridge.Configuration,
 ) (string, string, string, apierror.APIErrors) {
 	log := requestctx.Logger(ctx)
-
-	gitManager, managerError := gitbridge.NewManager(
-		cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
-	)
-	if managerError != nil {
-		return "", "", "", apierror.InternalError(
-			managerError, "creating git configuration manager",
-		)
-	}
 
 	gitRepo, mkdirError := os.MkdirTemp("", "epinio-app")
 	if mkdirError != nil {
@@ -162,18 +234,18 @@ func cloneAndUpload(
 		}
 	}()
 
-	gitConfig, configError := gitManager.FindConfiguration(gitURL)
-	if configError != nil {
-		return "", "", "", apierror.InternalError(
-			configError,
-			fmt.Sprintf("finding git configuration for gitURL [%s]", gitURL),
-		)
-	}
-
 	if gitConfig != nil {
-		log.Infow("loaded git config", "gitConfig", gitConfig.ID)
+		// Bind the credential to its own instance: never send a config's
+		// username/token/cert to a host it does not belong to.
+		if !gitConfig.AllowsHost(gitURL) {
+			return "", "", "", apierror.NewAPIError(
+				fmt.Sprintf("gitconfig [%s] is not allowed for the host of url [%s]", gitConfig.ID, gitURL),
+				nethttp.StatusForbidden,
+			)
+		}
+		log.Infow("cloning with git config", "gitConfig", gitConfig.ID)
 	} else {
-		log.Infow("git config not found for giturl", "giturl", gitURL)
+		log.Infow("cloning without a git config", "giturl", gitURL)
 	}
 
 	ref, checkoutError := checkoutRepository(ctx, gitRepo, gitURL, revision, gitConfig)

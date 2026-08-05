@@ -173,8 +173,12 @@ generate:
 generate-cli-docs:
 	@./scripts/cli-docs-generate.sh ../docs/docs/references/commands/cli
 
+# Keep in sync with GOLANGCI_LINT_VERSION in .github/workflows/golangci-lint.yml.
+# Newer versions carry extra govet analyzers that CI does not run.
+GOLANGCI_LINT_VERSION ?= v2.4.0
+
 lint:
-	golangci-lint run --skip-files docs.go
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run --timeout=10m
 
 tidy:
 	go mod tidy
@@ -192,7 +196,7 @@ appchart:
 # Docs
 
 getswagger:
-	( [ -x "$$(command -v swagger)" ] || go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0 )
+	( [ -x "$$(command -v swagger)" ] || go install github.com/go-swagger/go-swagger/cmd/swagger@v0.33.2 )
 
 swagger: getswagger
 	swagger generate spec > docs/references/api/swagger.json

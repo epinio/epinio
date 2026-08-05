@@ -187,6 +187,20 @@ type FakeApplicationsService struct {
 	appUpdateReturnsOnCall map[int]struct {
 		result1 error
 	}
+	AppWatchStub        func(context.Context, string, string, string) error
+	appWatchMutex       sync.RWMutex
+	appWatchArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 string
+	}
+	appWatchReturns struct {
+		result1 error
+	}
+	appWatchReturnsOnCall map[int]struct {
+		result1 error
+	}
 	AppsStub        func(bool) error
 	appsMutex       sync.RWMutex
 	appsArgsForCall []struct {
@@ -209,6 +223,18 @@ type FakeApplicationsService struct {
 	appsMatchingReturnsOnCall map[int]struct {
 		result1 []string
 	}
+	ChartCreateStub        func(context.Context, models.AppChartCreateRequest) error
+	chartCreateMutex       sync.RWMutex
+	chartCreateArgsForCall []struct {
+		arg1 context.Context
+		arg2 models.AppChartCreateRequest
+	}
+	chartCreateReturns struct {
+		result1 error
+	}
+	chartCreateReturnsOnCall map[int]struct {
+		result1 error
+	}
 	ChartDefaultSetStub        func(context.Context, string) error
 	chartDefaultSetMutex       sync.RWMutex
 	chartDefaultSetArgsForCall []struct {
@@ -230,6 +256,18 @@ type FakeApplicationsService struct {
 		result1 error
 	}
 	chartDefaultShowReturnsOnCall map[int]struct {
+		result1 error
+	}
+	ChartDeleteStub        func(context.Context, string) error
+	chartDeleteMutex       sync.RWMutex
+	chartDeleteArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+	}
+	chartDeleteReturns struct {
+		result1 error
+	}
+	chartDeleteReturnsOnCall map[int]struct {
 		result1 error
 	}
 	ChartListStub        func(context.Context) error
@@ -264,6 +302,19 @@ type FakeApplicationsService struct {
 		result1 error
 	}
 	chartShowReturnsOnCall map[int]struct {
+		result1 error
+	}
+	ChartUpdateStub        func(context.Context, string, models.AppChartUpdateRequest) error
+	chartUpdateMutex       sync.RWMutex
+	chartUpdateArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 models.AppChartUpdateRequest
+	}
+	chartUpdateReturns struct {
+		result1 error
+	}
+	chartUpdateReturnsOnCall map[int]struct {
 		result1 error
 	}
 	ConfigurationMatchingStub        func(string) []string
@@ -362,6 +413,17 @@ type FakeApplicationsService struct {
 	}
 	getAPIReturnsOnCall map[int]struct {
 		result1 usercmd.APIClient
+	}
+	GitconfigsMatchingStub        func(string) []string
+	gitconfigsMatchingMutex       sync.RWMutex
+	gitconfigsMatchingArgsForCall []struct {
+		arg1 string
+	}
+	gitconfigsMatchingReturns struct {
+		result1 []string
+	}
+	gitconfigsMatchingReturnsOnCall map[int]struct {
+		result1 []string
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
@@ -1197,6 +1259,70 @@ func (fake *FakeApplicationsService) AppUpdateReturnsOnCall(i int, result1 error
 	}{result1}
 }
 
+func (fake *FakeApplicationsService) AppWatch(arg1 context.Context, arg2 string, arg3 string, arg4 string) error {
+	fake.appWatchMutex.Lock()
+	ret, specificReturn := fake.appWatchReturnsOnCall[len(fake.appWatchArgsForCall)]
+	fake.appWatchArgsForCall = append(fake.appWatchArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 string
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.AppWatchStub
+	fakeReturns := fake.appWatchReturns
+	fake.recordInvocation("AppWatch", []interface{}{arg1, arg2, arg3, arg4})
+	fake.appWatchMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) AppWatchCallCount() int {
+	fake.appWatchMutex.RLock()
+	defer fake.appWatchMutex.RUnlock()
+	return len(fake.appWatchArgsForCall)
+}
+
+func (fake *FakeApplicationsService) AppWatchCalls(stub func(context.Context, string, string, string) error) {
+	fake.appWatchMutex.Lock()
+	defer fake.appWatchMutex.Unlock()
+	fake.AppWatchStub = stub
+}
+
+func (fake *FakeApplicationsService) AppWatchArgsForCall(i int) (context.Context, string, string, string) {
+	fake.appWatchMutex.RLock()
+	defer fake.appWatchMutex.RUnlock()
+	argsForCall := fake.appWatchArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeApplicationsService) AppWatchReturns(result1 error) {
+	fake.appWatchMutex.Lock()
+	defer fake.appWatchMutex.Unlock()
+	fake.AppWatchStub = nil
+	fake.appWatchReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) AppWatchReturnsOnCall(i int, result1 error) {
+	fake.appWatchMutex.Lock()
+	defer fake.appWatchMutex.Unlock()
+	fake.AppWatchStub = nil
+	if fake.appWatchReturnsOnCall == nil {
+		fake.appWatchReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.appWatchReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeApplicationsService) Apps(arg1 bool) error {
 	fake.appsMutex.Lock()
 	ret, specificReturn := fake.appsReturnsOnCall[len(fake.appsArgsForCall)]
@@ -1319,6 +1445,68 @@ func (fake *FakeApplicationsService) AppsMatchingReturnsOnCall(i int, result1 []
 	}{result1}
 }
 
+func (fake *FakeApplicationsService) ChartCreate(arg1 context.Context, arg2 models.AppChartCreateRequest) error {
+	fake.chartCreateMutex.Lock()
+	ret, specificReturn := fake.chartCreateReturnsOnCall[len(fake.chartCreateArgsForCall)]
+	fake.chartCreateArgsForCall = append(fake.chartCreateArgsForCall, struct {
+		arg1 context.Context
+		arg2 models.AppChartCreateRequest
+	}{arg1, arg2})
+	stub := fake.ChartCreateStub
+	fakeReturns := fake.chartCreateReturns
+	fake.recordInvocation("ChartCreate", []interface{}{arg1, arg2})
+	fake.chartCreateMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) ChartCreateCallCount() int {
+	fake.chartCreateMutex.RLock()
+	defer fake.chartCreateMutex.RUnlock()
+	return len(fake.chartCreateArgsForCall)
+}
+
+func (fake *FakeApplicationsService) ChartCreateCalls(stub func(context.Context, models.AppChartCreateRequest) error) {
+	fake.chartCreateMutex.Lock()
+	defer fake.chartCreateMutex.Unlock()
+	fake.ChartCreateStub = stub
+}
+
+func (fake *FakeApplicationsService) ChartCreateArgsForCall(i int) (context.Context, models.AppChartCreateRequest) {
+	fake.chartCreateMutex.RLock()
+	defer fake.chartCreateMutex.RUnlock()
+	argsForCall := fake.chartCreateArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeApplicationsService) ChartCreateReturns(result1 error) {
+	fake.chartCreateMutex.Lock()
+	defer fake.chartCreateMutex.Unlock()
+	fake.ChartCreateStub = nil
+	fake.chartCreateReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) ChartCreateReturnsOnCall(i int, result1 error) {
+	fake.chartCreateMutex.Lock()
+	defer fake.chartCreateMutex.Unlock()
+	fake.ChartCreateStub = nil
+	if fake.chartCreateReturnsOnCall == nil {
+		fake.chartCreateReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.chartCreateReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeApplicationsService) ChartDefaultSet(arg1 context.Context, arg2 string) error {
 	fake.chartDefaultSetMutex.Lock()
 	ret, specificReturn := fake.chartDefaultSetReturnsOnCall[len(fake.chartDefaultSetArgsForCall)]
@@ -1438,6 +1626,68 @@ func (fake *FakeApplicationsService) ChartDefaultShowReturnsOnCall(i int, result
 		})
 	}
 	fake.chartDefaultShowReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) ChartDelete(arg1 context.Context, arg2 string) error {
+	fake.chartDeleteMutex.Lock()
+	ret, specificReturn := fake.chartDeleteReturnsOnCall[len(fake.chartDeleteArgsForCall)]
+	fake.chartDeleteArgsForCall = append(fake.chartDeleteArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.ChartDeleteStub
+	fakeReturns := fake.chartDeleteReturns
+	fake.recordInvocation("ChartDelete", []interface{}{arg1, arg2})
+	fake.chartDeleteMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) ChartDeleteCallCount() int {
+	fake.chartDeleteMutex.RLock()
+	defer fake.chartDeleteMutex.RUnlock()
+	return len(fake.chartDeleteArgsForCall)
+}
+
+func (fake *FakeApplicationsService) ChartDeleteCalls(stub func(context.Context, string) error) {
+	fake.chartDeleteMutex.Lock()
+	defer fake.chartDeleteMutex.Unlock()
+	fake.ChartDeleteStub = stub
+}
+
+func (fake *FakeApplicationsService) ChartDeleteArgsForCall(i int) (context.Context, string) {
+	fake.chartDeleteMutex.RLock()
+	defer fake.chartDeleteMutex.RUnlock()
+	argsForCall := fake.chartDeleteArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeApplicationsService) ChartDeleteReturns(result1 error) {
+	fake.chartDeleteMutex.Lock()
+	defer fake.chartDeleteMutex.Unlock()
+	fake.ChartDeleteStub = nil
+	fake.chartDeleteReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) ChartDeleteReturnsOnCall(i int, result1 error) {
+	fake.chartDeleteMutex.Lock()
+	defer fake.chartDeleteMutex.Unlock()
+	fake.ChartDeleteStub = nil
+	if fake.chartDeleteReturnsOnCall == nil {
+		fake.chartDeleteReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.chartDeleteReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -1622,6 +1872,69 @@ func (fake *FakeApplicationsService) ChartShowReturnsOnCall(i int, result1 error
 		})
 	}
 	fake.chartShowReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) ChartUpdate(arg1 context.Context, arg2 string, arg3 models.AppChartUpdateRequest) error {
+	fake.chartUpdateMutex.Lock()
+	ret, specificReturn := fake.chartUpdateReturnsOnCall[len(fake.chartUpdateArgsForCall)]
+	fake.chartUpdateArgsForCall = append(fake.chartUpdateArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 models.AppChartUpdateRequest
+	}{arg1, arg2, arg3})
+	stub := fake.ChartUpdateStub
+	fakeReturns := fake.chartUpdateReturns
+	fake.recordInvocation("ChartUpdate", []interface{}{arg1, arg2, arg3})
+	fake.chartUpdateMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) ChartUpdateCallCount() int {
+	fake.chartUpdateMutex.RLock()
+	defer fake.chartUpdateMutex.RUnlock()
+	return len(fake.chartUpdateArgsForCall)
+}
+
+func (fake *FakeApplicationsService) ChartUpdateCalls(stub func(context.Context, string, models.AppChartUpdateRequest) error) {
+	fake.chartUpdateMutex.Lock()
+	defer fake.chartUpdateMutex.Unlock()
+	fake.ChartUpdateStub = stub
+}
+
+func (fake *FakeApplicationsService) ChartUpdateArgsForCall(i int) (context.Context, string, models.AppChartUpdateRequest) {
+	fake.chartUpdateMutex.RLock()
+	defer fake.chartUpdateMutex.RUnlock()
+	argsForCall := fake.chartUpdateArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeApplicationsService) ChartUpdateReturns(result1 error) {
+	fake.chartUpdateMutex.Lock()
+	defer fake.chartUpdateMutex.Unlock()
+	fake.ChartUpdateStub = nil
+	fake.chartUpdateReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) ChartUpdateReturnsOnCall(i int, result1 error) {
+	fake.chartUpdateMutex.Lock()
+	defer fake.chartUpdateMutex.Unlock()
+	fake.ChartUpdateStub = nil
+	if fake.chartUpdateReturnsOnCall == nil {
+		fake.chartUpdateReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.chartUpdateReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -2113,6 +2426,67 @@ func (fake *FakeApplicationsService) GetAPIReturnsOnCall(i int, result1 usercmd.
 	}
 	fake.getAPIReturnsOnCall[i] = struct {
 		result1 usercmd.APIClient
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) GitconfigsMatching(arg1 string) []string {
+	fake.gitconfigsMatchingMutex.Lock()
+	ret, specificReturn := fake.gitconfigsMatchingReturnsOnCall[len(fake.gitconfigsMatchingArgsForCall)]
+	fake.gitconfigsMatchingArgsForCall = append(fake.gitconfigsMatchingArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.GitconfigsMatchingStub
+	fakeReturns := fake.gitconfigsMatchingReturns
+	fake.recordInvocation("GitconfigsMatching", []interface{}{arg1})
+	fake.gitconfigsMatchingMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) GitconfigsMatchingCallCount() int {
+	fake.gitconfigsMatchingMutex.RLock()
+	defer fake.gitconfigsMatchingMutex.RUnlock()
+	return len(fake.gitconfigsMatchingArgsForCall)
+}
+
+func (fake *FakeApplicationsService) GitconfigsMatchingCalls(stub func(string) []string) {
+	fake.gitconfigsMatchingMutex.Lock()
+	defer fake.gitconfigsMatchingMutex.Unlock()
+	fake.GitconfigsMatchingStub = stub
+}
+
+func (fake *FakeApplicationsService) GitconfigsMatchingArgsForCall(i int) string {
+	fake.gitconfigsMatchingMutex.RLock()
+	defer fake.gitconfigsMatchingMutex.RUnlock()
+	argsForCall := fake.gitconfigsMatchingArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeApplicationsService) GitconfigsMatchingReturns(result1 []string) {
+	fake.gitconfigsMatchingMutex.Lock()
+	defer fake.gitconfigsMatchingMutex.Unlock()
+	fake.GitconfigsMatchingStub = nil
+	fake.gitconfigsMatchingReturns = struct {
+		result1 []string
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) GitconfigsMatchingReturnsOnCall(i int, result1 []string) {
+	fake.gitconfigsMatchingMutex.Lock()
+	defer fake.gitconfigsMatchingMutex.Unlock()
+	fake.GitconfigsMatchingStub = nil
+	if fake.gitconfigsMatchingReturnsOnCall == nil {
+		fake.gitconfigsMatchingReturnsOnCall = make(map[int]struct {
+			result1 []string
+		})
+	}
+	fake.gitconfigsMatchingReturnsOnCall[i] = struct {
+		result1 []string
 	}{result1}
 }
 

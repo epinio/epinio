@@ -124,17 +124,6 @@ type AppPartResponse struct {
 
 // swagger:route GET /namespaces/{Namespace}/applications/{App}/logs application AppLogs
 // Return logs of the named `App` in the `Namespace` streamed over a websocket.
-// Query parameters:
-//   - follow: Stream logs in real-time (true/false)
-//   - tail: Limit to last N lines from the end (integer)
-//   - since: Show logs from duration ago (e.g., "1h", "30m")
-//   - since_time: Show logs since RFC3339 timestamp
-//   - include_containers: Comma-separated list of container names/patterns to include.
-//     Literal container names are automatically escaped. To use regex patterns, include
-//     regex special characters (e.g., "app-.*" to match containers starting with "app-").
-//   - exclude_containers: Comma-separated list of container names/patterns to exclude.
-//     Literal container names are automatically escaped. To use regex patterns, include
-//     regex special characters (e.g., "istio-.*" to match containers starting with "istio-").
 // responses:
 //   200: AppLogsResponse
 
@@ -144,16 +133,22 @@ type AppLogsParam struct {
 	Namespace string
 	// in: path
 	App string
+	// Stream logs in real-time (true/false)
 	// in: query
 	Follow string `json:"follow"`
+	// Limit to last N lines
 	// in: query
 	Tail string `json:"tail"`
+	// Show logs from duration ago (e.g. "1h", "30m")
 	// in: query
 	Since string `json:"since"`
+	// Show logs since RFC3339 timestamp
 	// in: query
 	SinceTime string `json:"since_time"`
+	// Comma-separated container names/patterns to include
 	// in: query
 	IncludeContainers string `json:"include_containers"`
+	// Comma-separated container names/patterns to exclude
 	// in: query
 	ExcludeContainers string `json:"exclude_containers"`
 }
@@ -199,17 +194,6 @@ type AppPortForwardResponse struct{}
 
 // swagger:route GET /namespaces/{Namespace}/staging/{StageID}/logs application StagingLogs
 // Return logs of the named `StageID` in the `Namespace` streamed over a websocket.
-// Query parameters:
-//   - follow: Stream logs in real-time (true/false)
-//   - tail: Limit to last N lines from the end (integer)
-//   - since: Show logs from duration ago (e.g., "1h", "30m")
-//   - since_time: Show logs since RFC3339 timestamp
-//   - include_containers: Comma-separated list of container names/patterns to include.
-//     Literal container names are automatically escaped. To use regex patterns, include
-//     regex special characters (e.g., "app-.*" to match containers starting with "app-").
-//   - exclude_containers: Comma-separated list of container names/patterns to exclude.
-//     Literal container names are automatically escaped. To use regex patterns, include
-//     regex special characters (e.g., "istio-.*" to match containers starting with "istio-").
 // responses:
 //   200: StagingLogsResponse
 
@@ -219,16 +203,22 @@ type StagingLogsParam struct {
 	Namespace string
 	// in: path
 	StageID string
+	// Stream logs in real-time (true/false)
 	// in: query
 	Follow string `json:"follow"`
+	// Limit to last N lines
 	// in: query
 	Tail string `json:"tail"`
+	// Show logs from duration ago (e.g. "1h", "30m")
 	// in: query
 	Since string `json:"since"`
+	// Show logs since RFC3339 timestamp
 	// in: query
 	SinceTime string `json:"since_time"`
+	// Comma-separated container names/patterns to include
 	// in: query
 	IncludeContainers string `json:"include_containers"`
+	// Comma-separated container names/patterns to exclude
 	// in: query
 	ExcludeContainers string `json:"exclude_containers"`
 }
@@ -381,6 +371,43 @@ type AppStageParam struct {
 type AppStageResponse struct {
 	// in: body
 	Body models.StageResponse
+}
+
+// swagger:route PATCH /namespaces/{Namespace}/applications/{App}/source application AppSourcePatch
+// Replace the source of the named `App` in the `Namespace` and restage it.
+// The multipart body carries the source archive and an optional `process_cmd`
+// form field (supervisor fallback command for non-Paketo buildpacks).
+// responses:
+//   200: AppStageResponse
+
+// swagger:parameters AppSourcePatch
+type AppSourcePatchParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/sync application AppSync
+// Sync changed files or a compiled binary into the running pod of the named
+// `App` in the `Namespace`. The multipart body carries the tar archive plus
+// `mode` ("files" or "binary"), and optional `dest` and `binary_name` form
+// fields.
+// responses:
+//   200: AppSyncResponse
+
+// swagger:parameters AppSync
+type AppSyncParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:response AppSyncResponse
+type AppSyncResponse struct {
+	// in: body
+	Body models.Response
 }
 
 // swagger:route POST /namespaces/{Namespace}/applications/{App}/deploy application AppDeploy

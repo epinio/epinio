@@ -267,6 +267,43 @@ func (s *ServiceClient) ListAll(ctx context.Context) (models.ServiceList, error)
 	return s.list(ctx, "")
 }
 
+// CatalogServicesInUse returns the set of catalog service names that have at
+// least one provisioned service instance across all namespaces. The map value
+// is always true; absence means no instance derives from that catalog service.
+//
+// Instances are tracked as labeled Secrets (see list). The CatalogServiceLabelKey
+// label on each instance secret names the catalog service it was provisioned
+// from. This is the 1-hop "is it in use" signal: it does not resolve which apps
+// are bound to those instances.
+func (s *ServiceClient) CatalogServicesInUse(ctx context.Context) (map[string]bool, error) {
+	listOpts := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf(
+			"%s,%s",
+			ServiceNameLabelKey,
+			CatalogServiceLabelKey,
+		),
+	}
+
+	secrets, err := s.kubeClient.Kubectl.CoreV1().Secrets("").List(ctx, listOpts)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return map[string]bool{}, nil
+		}
+		return nil, errors.Wrap(err, "listing service instances")
+	}
+
+	result := map[string]bool{}
+	for _, secret := range secrets.Items {
+		name := secret.GetLabels()[CatalogServiceLabelKey]
+		if name == "" {
+			continue
+		}
+		result[name] = true
+	}
+
+	return result, nil
+}
+
 // ListInNamespace will return all the Epinio Services available in the specified namespace
 func (s *ServiceClient) ListInNamespace(ctx context.Context, namespace string) (models.ServiceList, error) {
 	return s.list(ctx, namespace)
