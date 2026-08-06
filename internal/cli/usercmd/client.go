@@ -55,6 +55,8 @@ type APIClient interface {
 	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)
 	AppDelete(namespace string, names []string, deleteImage bool) (models.ApplicationDeleteResponse, error)
 	AppUpload(namespace string, name string, file client.FormFile) (models.UploadResponse, error)
+	AppSourcePatch(namespace, name string, file client.FormFile, processCmd string) (*models.StageResponse, error)
+	AppSync(namespace, name string, file client.FormFile, mode, dest, binaryName string) (models.Response, error)
 	AppImportGit(namespace string, name string, gitRef models.GitRef) (models.ImportGitResponse, error)
 	AppStage(req models.StageRequest) (*models.StageResponse, error)
 	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
@@ -107,6 +109,9 @@ type APIClient interface {
 	ServiceCatalog() (models.CatalogServices, error)
 	ServiceCatalogShow(serviceName string) (*models.CatalogService, error)
 	ServiceCatalogMatch(prefix string) (models.CatalogMatchResponse, error)
+	ServiceCatalogCreate(request models.CatalogServiceCreateRequest) (models.Response, error)
+	ServiceCatalogUpdate(name string, request models.CatalogServiceUpdateRequest) (models.Response, error)
+	ServiceCatalogDelete(name string) (models.Response, error)
 
 	AllServices() (models.ServiceList, error)
 	ServiceShow(namespace, name string) (*models.Service, error)
@@ -125,6 +130,17 @@ type APIClient interface {
 	ChartList() ([]models.AppChart, error)
 	ChartShow(name string) (models.AppChart, error)
 	ChartMatch(prefix string) (models.ChartMatchResponse, error)
+	ChartCreate(request models.AppChartCreateRequest) (models.Response, error)
+	ChartUpdate(name string, request models.AppChartUpdateRequest) (models.Response, error)
+	ChartDelete(name string) (models.Response, error)
+
+	// builder images
+	BuilderImageList() (models.BuilderImageList, error)
+	BuilderImageShow(name string) (models.BuilderImage, error)
+	BuilderImageMatch(prefix string) (models.BuilderImageMatchResponse, error)
+	BuilderImageCreate(request models.BuilderImageCreateRequest) (models.Response, error)
+	BuilderImageUpdate(name string, request models.BuilderImageUpdateRequest) (models.Response, error)
+	BuilderImageDelete(name string) (models.Response, error)
 
 	// gitconfigs
 	GitconfigCreate(req models.GitconfigCreateRequest) (models.Response, error)

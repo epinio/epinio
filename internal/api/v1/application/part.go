@@ -127,7 +127,7 @@ func fetchAppChart(
 ) apierror.APIErrors {
 	log := requestctx.Logger(ctx)
 	// Get the application's app chart
-	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
+	appChart, err := appchart.LookupViaCluster(ctx, cluster, theApp.Configuration.AppChart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -251,7 +251,7 @@ func fetchAppArchive(
 	}
 
 	// 2. Chart (local path)
-	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
+	appChart, err := appchart.LookupViaCluster(ctx, cluster, theApp.Configuration.AppChart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

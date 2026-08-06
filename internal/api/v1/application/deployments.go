@@ -18,8 +18,8 @@ import (
 
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
@@ -91,8 +91,13 @@ func DeploymentsStart(c *gin.Context) apierror.APIErrors {
 	asyncDeployJobs[id] = job
 	asyncDeployJobsMu.Unlock()
 
-	username := requestctx.User(ctx).Username
-	go runAsyncDeployment(context.Background(), id, req, username)
+	user := requestctx.User(ctx)
+	// Detach from the request lifecycle (background), but carry the authenticated
+	// user so the async origin authorization (authorizeOrigin) can still see who
+	// triggered the deployment. context.Background() alone has no user, which
+	// would reject any non-global gitconfig.
+	asyncCtx := requestctx.WithUser(context.Background(), user)
+	go runAsyncDeployment(asyncCtx, id, req, user.Username)
 
 	// Help clients recover deployment id even when intermediaries strip 202 bodies.
 	c.Header("Location", c.Request.URL.Path+"/"+id)
@@ -237,6 +242,11 @@ func runAsyncDeployment(ctx context.Context, deploymentID string, req models.Asy
 		return
 	}
 
+	if apiErr := authorizeOrigin(ctx, cluster, req.Origin); apiErr != nil {
+		failAPI(apiErr)
+		return
+	}
+
 	if err := application.SetOrigin(ctx, cluster, req.App, req.Origin); err != nil {
 		failErr(err)
 		return
@@ -281,8 +291,8 @@ func stageForAsyncDeploy(
 
 	// determine builder image (request overrides)
 	stageReq := models.StageRequest{
-		App:         appRef,
-		BlobUID:     blobUID,
+		App:          appRef,
+		BlobUID:      blobUID,
 		BuilderImage: builderImage,
 	}
 
@@ -291,7 +301,10 @@ func stageForAsyncDeploy(
 		return nil, builderErr
 	}
 	if builder == "" {
-		builder = viper.GetString("default-builder-image")
+		builder, err = resolveDefaultBuilderImage(ctx, cluster)
+		if err != nil {
+			return nil, apierror.InternalError(err, "failed to resolve the default builder image")
+		}
 		if builder == "" {
 			return nil, apierror.NewBadRequestError("no builder image specified and no default configured")
 		}
@@ -413,4 +426,3 @@ func stageForAsyncDeploy(
 		ImageURL: imageURL,
 	}, nil
 }
-

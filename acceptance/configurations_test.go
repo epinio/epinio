@@ -150,6 +150,28 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			Expect(out).To(ContainSubstring("Configuration Details"))
 			Expect(out).To(ContainSubstring("No parameters"))
 		})
+
+		It("creates a configuration with values containing '='", func() {
+			// A trailing `=` is regular base64 padding. It must not be mistaken for
+			// the separator of the single-argument `KEY=VALUE` assignment form.
+			secret := "HTBCcNaoiW+piphiHQZSVq+JelIp3F6W4/FV1rfWdQI="
+
+			out, err := env.Epinio("", "configuration", "create", configurationName1,
+				"PAIRED", secret,
+				"JOINED="+secret)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			out, err = env.Epinio("", "configuration", "show", configurationName1, "--output", "json")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			configuration := models.ConfigurationResponse{}
+			err = json.Unmarshal([]byte(extractJSONPayload(out)), &configuration)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(configuration.Configuration.Details).To(Equal(map[string]string{
+				"PAIRED": secret,
+				"JOINED": secret,
+			}))
+		})
 	})
 
 	Describe("configuration create failures", func() {
@@ -175,6 +197,18 @@ var _ = Describe("Configurations", LConfiguration, func() {
 			out, err := env.Epinio("", "configuration", "create", "foo", "a")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Last Key has no value"))
+		})
+
+		It("fails for missing arguments, trailing key without value", func() {
+			out, err := env.Epinio("", "configuration", "create", "foo", "a=b", "c")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Last Key has no value"))
+		})
+
+		It("rejects keys not fitting kubernetes requirements", func() {
+			out, err := env.Epinio("", "configuration", "create", "foo", "BAD KEY", "value")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("invalid configuration key `BAD KEY`"))
 		})
 
 		It("fails for a missing path", func() {

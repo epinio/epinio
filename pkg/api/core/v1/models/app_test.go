@@ -27,9 +27,13 @@ var _ = Describe("GitProvider", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(provider).To(Equal(models.ProviderGitlab))
 
-		provider, err = models.GitProviderFromString("github_enterprise")
+		provider, err = models.GitProviderFromString("github_enterprise_cloud")
 		Expect(err).ToNot(HaveOccurred())
-		Expect(provider).To(Equal(models.ProviderGithubEnterprise))
+		Expect(provider).To(Equal(models.ProviderGithubEnterpriseCloud))
+
+		provider, err = models.GitProviderFromString("github_enterprise_self_hosted")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(provider).To(Equal(models.ProviderGithubEnterpriseSelfHosted))
 
 		provider, err = models.GitProviderFromString("gitlab_enterprise")
 		Expect(err).ToNot(HaveOccurred())
@@ -49,7 +53,7 @@ var _ = Describe("GitProvider", func() {
 	It("has the right number of valid providers", func() {
 		// This test will fail when we update the length of the valid providers.
 		// This will remind us to update the tests, or the code, if needed.
-		Expect(len(models.ValidProviders)).To(Equal(5))
+		Expect(len(models.ValidProviders)).To(Equal(6))
 	})
 
 	It("does not fail for the right git URL, or unknown", func() {

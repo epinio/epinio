@@ -80,6 +80,12 @@ func init() {
 	err = viper.BindEnv("ingress-class-name", "INGRESS_CLASS_NAME")
 	checkErr(err)
 
+	flags.String("gateway-class-name", "", "(GATEWAY_CLASS_NAME) Name of the gateway class to use for apps. Leave empty to add no gatewayClassName to the gateway.")
+	err = viper.BindPFlag("gateway-class-name", flags.Lookup("gateway-class-name"))
+	checkErr(err)
+	err = viper.BindEnv("gateway-class-name", "GATEWAY_CLASS_NAME")
+	checkErr(err)
+
 	flags.String("app-image-exporter", "", "(APP_IMAGE_EXPORTER) Name of the container image used to download the application image from the 'export' API.")
 	err = viper.BindPFlag("app-image-exporter", flags.Lookup("app-image-exporter"))
 	checkErr(err)

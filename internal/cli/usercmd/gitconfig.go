@@ -25,7 +25,7 @@ import (
 // CreateGitconfig creates a gitconfig
 func (c *EpinioClient) CreateGitconfig(id,
 	providerString, url, user, password, userorg, repo, certfile string,
-	skipssl bool) error {
+	skipssl, global bool) error {
 
 	log := c.Log.WithName("CreateGitconfig").WithValues("gitconfig", id)
 	log.Info("start")
@@ -40,6 +40,7 @@ func (c *EpinioClient) CreateGitconfig(id,
 		WithStringValue("Username", user).
 		WithStringValue("Password", password).
 		WithBoolValue("Skip SSL", skipssl).
+		WithBoolValue("Global", global).
 		WithStringValue("Certificates from", certfile).
 		Msg("Creating gitconfig...")
 
@@ -72,6 +73,7 @@ func (c *EpinioClient) CreateGitconfig(id,
 		Username:     user,
 		Password:     password,
 		SkipSSL:      skipssl,
+		Global:       global,
 		Certificates: certs,
 	})
 	if err != nil {
@@ -118,7 +120,7 @@ func (c *EpinioClient) Gitconfigs() error {
 	}
 
 	sort.Sort(gitconfigs)
-	msg := c.ui.Success().WithTable("ID", "Provider", "URL", "User/Org", "Repository", "Skip SSL", "Username")
+	msg := c.ui.Success().WithTable("ID", "Provider", "URL", "User/Org", "Repository", "Skip SSL", "Username", "Global")
 
 	for _, gitconfig := range gitconfigs {
 		msg = msg.WithTableRow(
@@ -130,6 +132,7 @@ func (c *EpinioClient) Gitconfigs() error {
 			gitconfig.Repository,
 			fmt.Sprintf("%v", gitconfig.SkipSSL),
 			gitconfig.Username,
+			fmt.Sprintf("%v", gitconfig.Global),
 		)
 	}
 
@@ -225,6 +228,7 @@ func (c *EpinioClient) ShowGitconfig(gcName string) error {
 		WithTableRow("Repository", gitconfig.Repository).
 		WithTableRow("Skip SSL", fmt.Sprintf("%v", gitconfig.SkipSSL)).
 		WithTableRow("Username", gitconfig.Username).
+		WithTableRow("Global", fmt.Sprintf("%v", gitconfig.Global)).
 		Msg("Details:")
 
 	return nil
