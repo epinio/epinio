@@ -12,18 +12,11 @@
 package application
 
 import (
-	"testing"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
-
-func TestAssignApplicationStatus(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "assignApplicationStatus Suite")
-}
 
 var _ = Describe("assignApplicationStatus", func() {
 	one := int32(1)
