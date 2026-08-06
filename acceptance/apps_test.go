@@ -443,18 +443,207 @@ var _ = Describe("Apps", LApplication, func() {
 
 				BeforeEach(func() {
 					chartName = catalog.NewTmpName("chart-")
-					tempFile = env.MakeAppchart(chartName)
+					tempFile = env.MakeAppchartAlternate(chartName)
 				})
 
 				AfterEach(func() {
 					env.DeleteAppchart(tempFile)
 				})
 
-				It("fails to change the app chart of the running app", func() {
+				It("changes the app chart of the running app and keeps the workload healthy", func() {
+					releaseName := names.ReleaseName(appName)
+
+					By("recording the helm chart package before the switch")
+					beforeStatus, err := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+					Expect(err).ToNot(HaveOccurred(), beforeStatus)
+					Expect(beforeStatus).To(ContainSubstring(`"name":"epinio-application"`))
+					Expect(beforeStatus).ToNot(ContainSubstring(`"version":"0.1.21"`))
+
+					By("switching the running app onto a different helm chart package")
 					out, err := env.Epinio("", "app", "update", appName,
 						"--app-chart", chartName)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					By("waiting until the app CR reports the new chart")
+					Eventually(func() string {
+						out, err := env.Epinio("", "app", "show", appName)
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+						return out
+					}, "2m").Should(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", chartName),
+						),
+					)
+
+					By("waiting until the workload is healthy again")
+					Eventually(func() string {
+						out, err := env.Epinio("", "app", "list")
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+						return out
+					}, "5m").Should(
+						HaveATable(
+							WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+							WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+						),
+					)
+
+					By("verifying helm upgraded onto the alternate chart package")
+					Eventually(func() string {
+						status, statusErr := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+						ExpectWithOffset(1, statusErr).ToNot(HaveOccurred(), status)
+						return status
+					}, "2m").Should(And(
+						ContainSubstring(`"version":"0.1.21"`),
+						ContainSubstring(`"status":"deployed"`),
+					))
+				})
+
+				It("updates the app chart without redeploying when --no-restart is set", func() {
+					releaseName := names.ReleaseName(appName)
+
+					By("recording the helm chart package before the switch")
+					beforeStatus, err := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+					Expect(err).ToNot(HaveOccurred(), beforeStatus)
+					Expect(beforeStatus).ToNot(ContainSubstring(`"version":"0.1.21"`))
+
+					By("patching the app chart with --no-restart")
+					out, err := env.Epinio("", "app", "update", appName,
+						"--app-chart", chartName, "--no-restart")
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					By("waiting until the app CR reports the new chart")
+					Eventually(func() string {
+						out, err := env.Epinio("", "app", "show", appName)
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+						return out
+					}, "2m").Should(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", chartName),
+						),
+					)
+
+					By("keeping the existing helm release on the previous chart package")
+					Consistently(func() string {
+						status, statusErr := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+						ExpectWithOffset(1, statusErr).ToNot(HaveOccurred(), status)
+						return status
+					}, "20s", "5s").ShouldNot(ContainSubstring(`"version":"0.1.21"`))
+				})
+
+				It("drops the previous chart's values when switching between AppCharts sharing a helm package", func() {
+					// Both charts wrap epinio-application 0.1.26, so the package
+					// comparison cannot see the switch. Only the Spec.Values
+					// comparison can, and a surviving staleValue key is exactly
+					// what ReuseValues would leave behind.
+					staleChart := catalog.NewTmpName("chart-stale-")
+					staleFile := env.MakeAppchartSamePackageWithValues(staleChart,
+						map[string]string{"staleValue": "1"})
+					defer env.DeleteAppchart(staleFile)
+
+					freshChart := catalog.NewTmpName("chart-fresh-")
+					freshFile := env.MakeAppchartSamePackageWithValues(freshChart,
+						map[string]string{"freshValue": "2"})
+					defer env.DeleteAppchart(freshFile)
+
+					releaseName := names.ReleaseName(appName)
+
+					appShow := func() string {
+						out, err := env.Epinio("", "app", "show", appName)
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+						return out
+					}
+
+					releaseValues := func() string {
+						values, valuesErr := proc.RunW("helm", "get", "values", releaseName,
+							"--namespace", namespace, "-o", "json")
+						ExpectWithOffset(1, valuesErr).ToNot(HaveOccurred(), values)
+						return values
+					}
+
+					By("switching onto the AppChart carrying staleValue")
+					out, err := env.Epinio("", "app", "update", appName,
+						"--app-chart", staleChart)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					Eventually(appShow, "2m").Should(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", staleChart),
+						),
+					)
+
+					By("confirming staleValue reached the release")
+					Eventually(releaseValues, "2m").Should(ContainSubstring("staleValue"))
+
+					By("switching onto the AppChart carrying freshValue instead")
+					out, err = env.Epinio("", "app", "update", appName,
+						"--app-chart", freshChart)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					Eventually(appShow, "2m").Should(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", freshChart),
+						),
+					)
+
+					By("waiting until the workload is healthy again")
+					Eventually(func() string {
+						out, err := env.Epinio("", "app", "list")
+						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+						return out
+					}, "5m").Should(
+						HaveATable(
+							WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+							WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+						),
+					)
+
+					By("verifying the release dropped the previous chart's values")
+					Eventually(releaseValues, "2m").Should(And(
+						ContainSubstring("freshValue"),
+						Not(ContainSubstring("staleValue")),
+					))
+
+					By("verifying helm stayed on the same package version")
+					Eventually(func() string {
+						status, statusErr := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
+						ExpectWithOffset(1, statusErr).ToNot(HaveOccurred(), status)
+						return status
+					}, "2m").Should(And(
+						ContainSubstring(`"version":"0.1.26"`),
+						ContainSubstring(`"status":"deployed"`),
+					))
+				})
+
+				It("rejects a chart switch when existing settings are incompatible", func() {
+					incompatibleChart := catalog.NewTmpName("chart-bad-")
+					incompatibleFile := env.MakeAppchart(incompatibleChart)
+					defer env.DeleteAppchart(incompatibleFile)
+
+					By("setting a chart value that the target chart does not declare")
+					out, err := env.Epinio("", "app", "update", appName,
+						"--chart-value", "appListeningPort=8080")
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					By("attempting to switch onto a chart that does not allow that setting")
+					out, err = env.Epinio("", "app", "update", appName,
+						"--app-chart", incompatibleChart)
 					Expect(err).To(HaveOccurred(), out)
-					Expect(out).To(ContainSubstring("unable to change app chart of active application"))
+					Expect(out).To(ContainSubstring(`setting "appListeningPort": not known`))
+
+					By("keeping the original app chart when validation fails")
+					showOut, showErr := env.Epinio("", "app", "show", appName)
+					Expect(showErr).ToNot(HaveOccurred(), showOut)
+					Expect(showOut).To(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", "standard"),
+						),
+					)
 				})
 
 				When("no workload is present", func() {
