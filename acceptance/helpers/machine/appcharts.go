@@ -14,6 +14,8 @@ package machine
 import (
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	. "github.com/onsi/ginkgo/v2"
@@ -139,9 +141,13 @@ spec:
 }
 
 // MakeAppchartSamePackageWithValues installs an AppChart that wraps the same helm
-// package as "standard" (0.1.26) but sets Spec.Values. Used to cover switches between
-// two AppChart CRs that share a package while differing in chartConfig.
-func (m *Machine) MakeAppchartSamePackageWithValues(chartName string) string {
+// package as "standard" (0.1.26) but carries the given Spec.Values. Used to cover
+// switches between two AppChart CRs that share a package while differing in
+// chartConfig.
+func (m *Machine) MakeAppchartSamePackageWithValues(
+	chartName string,
+	values map[string]string,
+) string {
 	tempFile := chartName + `.yaml`
 	err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
 kind: AppChart
@@ -157,19 +163,40 @@ spec:
   shortDescription: Same package as standard with Spec.Values
   description: Same epinio-application package as standard, different Spec.Values
   helmChart: https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.26/epinio-application-0.1.26.tgz
-  values:
-    tuning: speed
-  settings:
+%s  settings:
     appListeningPort:
       type: integer
       minimum: "0"
-`, chartName)), 0600)
+`, chartName, chartValuesBlock(values))), 0600)
 	Expect(err).ToNot(HaveOccurred())
 
 	out, err := proc.Kubectl("apply", "-f", tempFile)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return tempFile
+}
+
+// chartValuesBlock renders a Spec.Values map as YAML, sorted for stable output.
+func chartValuesBlock(values map[string]string) string {
+	if len(values) == 0 {
+		return ""
+	}
+
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	var block strings.Builder
+	block.WriteString("  values:\n")
+
+	for _, key := range keys {
+		fmt.Fprintf(&block, "    %s: %q\n", key, values[key])
+	}
+
+	return block.String()
 }
 
 func (m *Machine) DeleteAppchart(tempFile string) {

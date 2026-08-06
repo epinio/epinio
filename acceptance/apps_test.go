@@ -533,27 +533,60 @@ var _ = Describe("Apps", LApplication, func() {
 					}, "20s", "5s").ShouldNot(ContainSubstring(`"version":"0.1.21"`))
 				})
 
-				It("switches onto another AppChart wrapping the same helm package with different Spec.Values", func() {
-					samePackageChart := catalog.NewTmpName("chart-same-")
-					samePackageFile := env.MakeAppchartSamePackageWithValues(samePackageChart)
-					defer env.DeleteAppchart(samePackageFile)
+				It("drops the previous chart's values when switching between AppCharts sharing a helm package", func() {
+					// Both charts wrap epinio-application 0.1.26, so the package
+					// comparison cannot see the switch. Only the Spec.Values
+					// comparison can, and a surviving staleValue key is exactly
+					// what ReuseValues would leave behind.
+					staleChart := catalog.NewTmpName("chart-stale-")
+					staleFile := env.MakeAppchartSamePackageWithValues(staleChart,
+						map[string]string{"staleValue": "1"})
+					defer env.DeleteAppchart(staleFile)
+
+					freshChart := catalog.NewTmpName("chart-fresh-")
+					freshFile := env.MakeAppchartSamePackageWithValues(freshChart,
+						map[string]string{"freshValue": "2"})
+					defer env.DeleteAppchart(freshFile)
 
 					releaseName := names.ReleaseName(appName)
 
-					By("switching onto an AppChart with the same package but Spec.Values set")
-					out, err := env.Epinio("", "app", "update", appName,
-						"--app-chart", samePackageChart)
-					Expect(err).ToNot(HaveOccurred(), out)
-
-					By("waiting until the app CR reports the new chart")
-					Eventually(func() string {
+					appShow := func() string {
 						out, err := env.Epinio("", "app", "show", appName)
 						ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 						return out
-					}, "2m").Should(
+					}
+
+					releaseValues := func() string {
+						values, valuesErr := proc.RunW("helm", "get", "values", releaseName,
+							"--namespace", namespace, "-o", "json")
+						ExpectWithOffset(1, valuesErr).ToNot(HaveOccurred(), values)
+						return values
+					}
+
+					By("switching onto the AppChart carrying staleValue")
+					out, err := env.Epinio("", "app", "update", appName,
+						"--app-chart", staleChart)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					Eventually(appShow, "2m").Should(
 						HaveATable(
 							WithHeaders("KEY", "VALUE"),
-							WithRow("App Chart", samePackageChart),
+							WithRow("App Chart", staleChart),
+						),
+					)
+
+					By("confirming staleValue reached the release")
+					Eventually(releaseValues, "2m").Should(ContainSubstring("staleValue"))
+
+					By("switching onto the AppChart carrying freshValue instead")
+					out, err = env.Epinio("", "app", "update", appName,
+						"--app-chart", freshChart)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					Eventually(appShow, "2m").Should(
+						HaveATable(
+							WithHeaders("KEY", "VALUE"),
+							WithRow("App Chart", freshChart),
 						),
 					)
 
@@ -568,6 +601,12 @@ var _ = Describe("Apps", LApplication, func() {
 							WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
 						),
 					)
+
+					By("verifying the release dropped the previous chart's values")
+					Eventually(releaseValues, "2m").Should(And(
+						ContainSubstring("freshValue"),
+						Not(ContainSubstring("staleValue")),
+					))
 
 					By("verifying helm stayed on the same package version")
 					Eventually(func() string {
