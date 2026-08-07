@@ -134,28 +134,14 @@ docker save \
   | sudo k3s ctr images import -
 ```
 
-On this VM, Cilium's shared ingress Service is ClusterIP-only and stopped being reachable from the host after a Cilium restart. The audited workaround uses a documented Kubernetes Service port-forward to the Epinio API and a local TLS bridge using Epinio's own certificate. Start the port-forward in one terminal:
-
-```bash
-kubectl -n epinio port-forward --address 127.0.0.1 \
-  service/epinio-server 18081:80
-```
-
-In another terminal, create a temporary combined PEM without printing its contents and start the TLS bridge:
-
-```bash
-umask 077
-kubectl -n epinio get secret epinio-tls \
-  -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/epinio-poc-tls.pem
-kubectl -n epinio get secret epinio-tls \
-  -o jsonpath='{.data.tls\.key}' | base64 -d >> /tmp/epinio-poc-tls.pem
-
-sudo socat \
-  OPENSSL-LISTEN:443,bind=10.42.0.42,reuseaddr,fork,cert=/tmp/epinio-poc-tls.pem,verify=0 \
-  TCP:127.0.0.1:18081
-```
-
-This bridge is only for the host CLI; it is not an Epinio or Kubernetes component. Restart the port-forward if the Epinio server pod is replaced. If the cluster already exposes its ingress normally, omit both commands.
+The original audit used baseline revision `2026-08-06.3`, whose Cilium
+host-network ingress listeners used ports 8000/8443 while Epinio generated
+portless URLs for the standard ports 80/443. The audit's Service port-forward
+and local TLS bridge worked around that port mismatch; the shared ingress
+Service being `ClusterIP` was not the underlying problem. Baseline revision
+`2026-08-06.4` serves ingress directly on 80/443 and needs no workaround. On a
+different cluster, ensure the Epinio wildcard domain resolves to ingress that
+is reachable on those standard ports.
 
 Log in and select a workspace:
 
@@ -204,7 +190,7 @@ go list ./... | rg -v '/acceptance($|/)' | xargs go test -count=1
 
 `scripts/verify-static.sh` passed focused Go tests, Helm lint, exact prebuilt/staged resource assertions, Kubernetes client-side dry runs, and `git diff --check`; rendering explicitly covered `replicas: 0`. The retained `evidence/static/verification.log` was subsequently overwritten by the experimental `0.2.2` naming run, so it is not claimed as an exact final-tree rerun. The application Go code did not change afterward, the complete live matrix used the final `0.2.1` chart, and the final post-reconciliation check was limited to `git diff --check` at the user's direction. The broader Go run is in `evidence/non-acceptance-go-test.log`.
 
-At audit completion, `multiprocess-audit3` revision 8 remained deployed with the experimental chart `0.2.2`, staged web `2/2`, worker `3/3`, a staged CronJob, successful staged migration Job, ready Certificate, and TLS Ingress. The complete behavioral matrix immediately preceding it used the final-tree chart `0.2.1`. Application traffic was proven through a Kubernetes Service port-forward. End-to-end traffic through Cilium ingress from the VM was not proven because the ClusterIP-only ingress path was unavailable after Cilium restarted; this is an infrastructure limitation and the route claim is limited accordingly.
+At audit completion, `multiprocess-audit3` revision 8 remained deployed with the experimental chart `0.2.2`, staged web `2/2`, worker `3/3`, a staged CronJob, successful staged migration Job, ready Certificate, and TLS Ingress. The complete behavioral matrix immediately preceding it used the final-tree chart `0.2.1`. During that matrix, application traffic was proven through a Kubernetes Service port-forward because the then-current baseline listened on 8000/8443. A subsequent infrastructure validation moved Cilium to 80/443, restarted the operator, agent, and Envoy, and verified both direct Epinio CLI access and the staged application response over standard HTTPS without a port-forward or TLS bridge. The earlier limitation was therefore baseline port configuration, not the chart's route or Cilium's `ClusterIP` ingress Service.
 
 The API acceptance suite was rerun with its application label filter. Its `SynchronizedBeforeSuite` received 404 for `/.well-known/openid-configuration` because this cluster deliberately has Dex/OIDC disabled. It ran 0 of 253 specs. The exact output is `evidence/acceptance/api-v1-blocker.log`; no acceptance result is claimed.
 

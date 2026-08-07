@@ -34,7 +34,7 @@ The audit treated the earlier README as unverified and inspected:
 | One coordinated application release | Met | All ordinary resources are owned by one hashed Helm release; history is in `evidence/live-audit3/*/helm-history.json`. Hook Jobs are Helm hooks and deliberately retained outside the ordinary manifest lifecycle. |
 | Same staged image, different commands | Met | Revision 7 uses one runtime image in both Deployments, CronJob, and release Job; commands use the CNB launcher plus process-specific args. |
 | Process-specific replicas | Met | v1 web/worker `2/2`; v2 and staged web `2/2`, worker `3/3`. Zero replicas is render/unit tested but was not deployed live. |
-| Web Deployment + Service/route | Partially met | Deployment, Service, TLS Certificate, and Ingress are live; Service traffic returned the expected version. VM-to-Cilium ingress traffic was not available, so no end-to-end ingress traffic claim is made. |
+| Web Deployment + Service/route | Met after infrastructure follow-up | The matrix proved the Deployment, Service, TLS Certificate, Ingress, and Service response. After the baseline listeners moved from 8000/8443 to 80/443, direct standard-port HTTPS returned the staged web response after Cilium component restarts with no local bridge. |
 | Worker Deployment | Met | Healthy and deliberately crashing worker revisions were deployed. Kubernetes events record all three v4 worker pods in `BackOff`. |
 | Scheduler CronJob | Met | The Kubernetes CronJob controller created Jobs for revisions 1, 2, 5, and 7. Captured v1, v2, and staged logs report the expected versions. |
 | Successful release/migration | Met | Revision-named hook Jobs for v1, v2, v4, and staged images completed and have retained logs. |
@@ -43,7 +43,7 @@ The audit treated the earlier README as unverified and inspected:
 | Rollback restores every prior ordinary process/image/replica state | Met with qualification | The final harness asserted web `2/2` v2, worker `3/3` v2, CronJob v2, Service response v2, zero candidate Deployment pods, and zero nonzero candidate ReplicaSets before snapshotting. Independent convergence evidence records the same result. Hook Jobs, CronJob-created Jobs, and external migration effects are not rollback targets. |
 | Services remain independent | Source-confirmed only | No service code was changed and service instances still use separate Helm releases. The chart mounts Epinio binding/configuration Secrets into each process pod. No live database/service instance was created in this follow-up. |
 | One-off CLI commands | Not implemented | This is a missing first-class capability, not a passing deliverable. It requires a revision-aware ephemeral Job API/CLI. |
-| Reproduction instructions | Met after correction | README now uses repeatable install, static verification, and live audit scripts and documents the VM networking workaround accurately. |
+| Reproduction instructions | Met after correction | README uses repeatable install, static verification, and live audit scripts and explains the historical baseline port mismatch and its correction. |
 | Existing assumptions needing work | Met | Status, readiness, logs, exec, scale, restart, routes, stage tracking, bindings, hooks, and desired/deployed state are documented. |
 | Production effort and assessment | Met | README retains an 8-12 engineer-week estimate and “feasible but invasive” assessment. |
 
@@ -154,7 +154,7 @@ The separate `multiprocess-audit` rollback capture ended at revision 6 and recor
 - No rollback of migration side effects or CronJob-created work.
 - No production CRD/API version migration, generated client/OpenAPI update, compatibility matrix, or upgrade tests.
 - No live bound database/service test in this follow-up.
-- No end-to-end application request through Cilium ingress from the VM; only TLS resource readiness and Service traffic were proven.
+- Cilium ingress was validated after the audit rather than inside the seven-revision matrix; the matrix itself captured only Service traffic.
 - No UI work, generalized multi-image model, per-process health schema, route-to-process mapping beyond one target, or hook retention policy.
 - No collision-safe, per-kind resource naming for maximum-length application/process names; CronJobs require a 52-character bound.
 - Acceptance specs remain blocked by this cluster's intentional Dex-disabled installation.
