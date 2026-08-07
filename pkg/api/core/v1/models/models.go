@@ -151,7 +151,31 @@ type ApplicationConfiguration struct {
 	AppChart           string                      `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings           ChartValueSettings          `json:"settings,omitempty" yaml:"settings,omitempty"`
 	Ignore             []string                    `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
+	Processes          ApplicationProcesses        `json:"processes,omitempty" yaml:"processes,omitempty"`
 }
+
+// ApplicationProcessKind describes the Kubernetes workload rendered for an
+// application process. All process kinds use the application's staged image.
+type ApplicationProcessKind string
+
+const (
+	ApplicationProcessDeployment ApplicationProcessKind = "deployment"
+	ApplicationProcessCron       ApplicationProcessKind = "cron"
+	ApplicationProcessRelease    ApplicationProcessKind = "release"
+)
+
+// ApplicationProcess describes one named, release-scoped process of an app.
+// Replicas only applies to deployments, Schedule only applies to cron
+// processes, and Routes marks the deployment targeted by the app's routes.
+type ApplicationProcess struct {
+	Kind     ApplicationProcessKind `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Command  []string               `json:"command" yaml:"command"`
+	Replicas *int32                 `json:"replicas,omitempty" yaml:"replicas,omitempty"`
+	Schedule string                 `json:"schedule,omitempty" yaml:"schedule,omitempty"`
+	Routes   bool                   `json:"routes,omitempty" yaml:"routes,omitempty"`
+}
+
+type ApplicationProcesses map[string]ApplicationProcess
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
 // (sources). At most one of the fields may be specified / not empty.
@@ -219,19 +243,20 @@ type ApplicationCreateRequest struct {
 // Note: Instances is a pointer to give us a nil value separate from
 // actual integers, as means of communicating `default`/`no change`.
 type ApplicationUpdateRequest struct {
-	Restart        *bool              `json:"restart,omitempty"`
-	Instances      *int32             `json:"instances"          yaml:"instances,omitempty"`
-	Configurations []string           `json:"configurations"     yaml:"configurations,omitempty"`
-	Environment    EnvVariableMap     `json:"environment"        yaml:"environment,omitempty"`
-	ReplaceEnv     *bool              `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
-	Routes         []string           `json:"routes"             yaml:"routes,omitempty"`
-	AppChart       string             `json:"appchart,omitempty" yaml:"appchart,omitempty"`
-	Settings       ChartValueSettings `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Restart        *bool                 `json:"restart,omitempty"`
+	Instances      *int32                `json:"instances"          yaml:"instances,omitempty"`
+	Configurations []string              `json:"configurations"     yaml:"configurations,omitempty"`
+	Environment    EnvVariableMap        `json:"environment"        yaml:"environment,omitempty"`
+	ReplaceEnv     *bool                 `json:"replace_env,omitempty" yaml:"replace_env,omitempty"`
+	Routes         []string              `json:"routes"             yaml:"routes,omitempty"`
+	AppChart       string                `json:"appchart,omitempty" yaml:"appchart,omitempty"`
+	Settings       ChartValueSettings    `json:"settings,omitempty" yaml:"settings,omitempty"`
+	Processes      *ApplicationProcesses `json:"processes,omitempty" yaml:"processes,omitempty"`
 }
 
 func NewApplicationUpdateRequest(manifest ApplicationManifest) ApplicationUpdateRequest {
 	manifestConfig := manifest.Configuration
-	return ApplicationUpdateRequest{
+	request := ApplicationUpdateRequest{
 		Instances:      manifestConfig.Instances,
 		Configurations: manifestConfig.Configurations,
 		Environment:    manifestConfig.Environment,
@@ -240,6 +265,10 @@ func NewApplicationUpdateRequest(manifest ApplicationManifest) ApplicationUpdate
 		AppChart:       manifestConfig.AppChart,
 		Settings:       manifestConfig.Settings,
 	}
+	if manifestConfig.Processes != nil {
+		request.Processes = &manifestConfig.Processes
+	}
+	return request
 }
 
 type ImportGitResponse struct {

@@ -12,11 +12,59 @@
 package helm
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
+
+var _ = Describe("multi-process values", func() {
+	It("passes structured process definitions under epinio.processes", func() {
+		two := int32(2)
+		values, err := getValuesYAML(&models.AppChartFull{}, ChartParameters{
+			AppRef: models.NewAppRef("demo", "workspace"),
+			Processes: models.ApplicationProcesses{
+				"web": {
+					Kind:     models.ApplicationProcessDeployment,
+					Command:  []string{"python", "app.py"},
+					Replicas: &two,
+					Routes:   true,
+				},
+			},
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(values).To(ContainSubstring("processes:"))
+		Expect(values).To(ContainSubstring("command:"))
+		Expect(values).To(ContainSubstring("replicas: 2"))
+		Expect(strings.Count(values, "python")).To(Equal(1))
+	})
+
+	It("marks a staged application image so charts preserve the CNB launcher", func() {
+		values, err := getValuesYAML(&models.AppChartFull{}, ChartParameters{
+			AppRef:   models.NewAppRef("demo", "workspace"),
+			ImageURL: "registry.example/apps/demo:stage-123",
+			StageID:  "stage-123",
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(values).To(ContainSubstring("staged: true"))
+	})
+
+	It("does not mark a prebuilt image containing the stage ID as staged", func() {
+		values, err := getValuesYAML(&models.AppChartFull{}, ChartParameters{
+			AppRef:   models.NewAppRef("demo", "workspace"),
+			ImageURL: "registry.example/stage-123/demo:not-stage-123-suffix",
+			StageID:  "stage-123",
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(values).ToNot(ContainSubstring("staged: true"))
+	})
+
+	It("requires a non-empty stage ID", func() {
+		Expect(isStagedImage("registry.example/demo:", "")).To(BeFalse())
+	})
+})
 
 var _ = Describe("ValidateField()", func() {
 

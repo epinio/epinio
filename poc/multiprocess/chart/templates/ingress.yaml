@@ -1,0 +1,60 @@
+{{- $routeProcess := "" -}}
+{{- range $name, $process := .Values.epinio.processes -}}
+  {{- if and (or (not $process.kind) (eq $process.kind "deployment")) $process.routes -}}
+    {{- $routeProcess = $name -}}
+  {{- end -}}
+{{- end -}}
+{{- if $routeProcess }}
+{{- range .Values.epinio.routes }}
+{{- $routeName := printf "%s-%s" $.Values.epinio.appName .id | trunc 63 | trimSuffix "-" }}
+{{- $tlsSecret := printf "%s-%s-tls" $.Values.epinio.appName .id | trunc 63 | trimSuffix "-" }}
+{{- if not .secret }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $routeName }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "epinio-multiprocess.labels" (dict "root" $ "process" $routeProcess) | nindent 4 }}
+  annotations:
+    epinio.io/created-by: {{ $.Values.epinio.username | quote }}
+spec:
+  secretName: {{ $tlsSecret }}
+  dnsNames:
+  - {{ .domain | quote }}
+  issuerRef:
+    name: {{ $.Values.epinio.tlsIssuer | quote }}
+    kind: ClusterIssuer
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $routeName }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "epinio-multiprocess.labels" (dict "root" $ "process" $routeProcess) | nindent 4 }}
+  annotations:
+    epinio.io/created-by: {{ $.Values.epinio.username | quote }}
+spec:
+  {{- with $.Values.epinio.ingress }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  rules:
+  - host: {{ .domain | quote }}
+    http:
+      paths:
+      - path: {{ .path | quote }}
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ include "epinio-multiprocess.serviceName" $ }}
+            port:
+              number: 8080
+  tls:
+  - hosts:
+    - {{ .domain | quote }}
+    secretName: {{ default $tlsSecret .secret | quote }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,26 @@
+name: multiprocess-poc
+configuration:
+  appchart: multiprocess-poc
+  environment:
+    IMAGE_VERSION: staged-v5
+  routes:
+  - multiprocess-poc.poc.10.42.0.42.sslip.io
+  processes:
+    web:
+      kind: deployment
+      command: ["python", "app.py", "web"]
+      replicas: 2
+      routes: true
+    worker:
+      kind: deployment
+      command: ["python", "app.py", "worker"]
+      replicas: 3
+    scheduler:
+      kind: cron
+      command: ["python", "app.py", "cron"]
+      schedule: "* * * * *"
+    release:
+      kind: release
+      command: ["python", "app.py", "migrate"]
+origin:
+  path: test-app

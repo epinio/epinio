@@ -1,0 +1,32 @@
+[
+  {
+    "op": "add",
+    "path": "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/processes",
+    "value": {
+      "description": "Named release-scoped application processes (multi-process POC).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["command"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["deployment", "cron", "release"]
+          },
+          "command": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string"}
+          },
+          "replicas": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "schedule": {"type": "string"},
+          "routes": {"type": "boolean"}
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,24 @@
+name: multiprocess-poc
+configuration:
+  appchart: multiprocess-poc
+  routes:
+  - multiprocess-poc.poc.10.42.0.42.sslip.io
+  processes:
+    web:
+      kind: deployment
+      command: ["python", "/app/app.py", "web"]
+      replicas: 2
+      routes: true
+    worker:
+      kind: deployment
+      command: ["python", "/app/app.py", "worker"]
+      replicas: 3
+    scheduler:
+      kind: cron
+      command: ["python", "/app/app.py", "cron"]
+      schedule: "* * * * *"
+    release:
+      kind: release
+      command: ["python", "/app/app.py", "migrate"]
+origin:
+  container: docker.io/epinio-poc/multiprocess:v2

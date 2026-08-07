@@ -153,6 +153,7 @@ func Create(
 	routes []string,
 	chart string,
 	settings models.ChartValueSettings,
+	processes models.ApplicationProcesses,
 ) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -177,6 +178,15 @@ func Create(
 	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
 		return err
+	}
+	if processes != nil {
+		processData, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&processes)
+		if err != nil {
+			return err
+		}
+		if err := unstructured.SetNestedMap(u, processData, "spec", "processes"); err != nil {
+			return err
+		}
 	}
 	us := &unstructured.Unstructured{Object: u}
 	us.SetAPIVersion("application.epinio.io/v1")
@@ -1028,6 +1038,28 @@ func Settings(app *unstructured.Unstructured) (models.ChartValueSettings, error)
 	return settings, nil
 }
 
+// Processes returns the release-scoped process definitions stored on the app.
+// A missing field preserves the existing single-process application behavior.
+func Processes(app *unstructured.Unstructured) (models.ApplicationProcesses, error) {
+	processData, found, err := unstructured.NestedMap(
+		app.UnstructuredContent(),
+		"spec",
+		"processes",
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "processes should be an object")
+	}
+	if !found {
+		return nil, nil
+	}
+
+	processes := models.ApplicationProcesses{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(processData, &processes); err != nil {
+		return nil, errors.Wrap(err, "decoding processes")
+	}
+	return processes, nil
+}
+
 /*
 StageID returns the stage ID of the last attempt at staging, if one exists.
 It returns an empty string otherwise. The information is pulled out of the
@@ -1609,6 +1641,11 @@ func aggregate(ctx context.Context,
 		return nil, errors.Wrap(err, "finding settings")
 	}
 
+	processes, err := Processes(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding processes")
+	}
+
 	desiredRoutes, err := DesiredRoutes(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding desired routes")
@@ -1628,6 +1665,7 @@ func aggregate(ctx context.Context,
 	app.Configuration.Routes = desiredRoutes
 	app.Configuration.AppChart = chartName
 	app.Configuration.Settings = settings
+	app.Configuration.Processes = processes
 	app.Origin = origin
 	app.StageID = stageID
 	app.ImageURL = imageURL
@@ -1799,6 +1837,14 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	processes, err := Processes(applicationCR)
+	if err != nil {
+		err = errors.Wrap(err, "finding processes")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
+	}
+
 	app.Meta.CreatedAt = applicationCR.GetCreationTimestamp()
 
 	app.Configuration.Instances = &instances
@@ -1809,6 +1855,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Routes = desiredRoutes
 	app.Configuration.AppChart = chartName
 	app.Configuration.Settings = settings
+	app.Configuration.Processes = processes
 	app.Origin = origin
 	app.StageID = stageID
 	app.ImageURL = imageURL

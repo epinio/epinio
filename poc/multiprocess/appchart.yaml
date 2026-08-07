@@ -1,0 +1,14 @@
+apiVersion: application.epinio.io/v1
+kind: AppChart
+metadata:
+  name: multiprocess-poc
+  namespace: epinio
+  labels:
+    app.kubernetes.io/component: epinio
+    app.kubernetes.io/managed-by: epinio
+    app.kubernetes.io/name: epinio-multiprocess-poc-app-chart
+    app.kubernetes.io/part-of: epinio
+spec:
+  shortDescription: Multi-process application POC
+  description: Deployment, cron, and release processes in one Epinio Helm release
+  helmChart: http://multiprocess-chart.epinio.svc.cluster.local/chart.tgz?v=audit-2

@@ -1,0 +1,23 @@
+{{- range $name, $process := .Values.epinio.processes }}
+{{- if and (or (not $process.kind) (eq $process.kind "deployment")) $process.routes }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "epinio-multiprocess.serviceName" $ }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "epinio-multiprocess.labels" (dict "root" $ "process" $name) | nindent 4 }}
+  annotations:
+    epinio.io/created-by: {{ $.Values.epinio.username | quote }}
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: http
+  selector:
+    {{- include "epinio-multiprocess.selectorLabels" (dict "root" $ "process" $name) | nindent 4 }}
+{{- end }}
+{{- end }}

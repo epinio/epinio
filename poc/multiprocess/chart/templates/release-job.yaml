@@ -1,0 +1,28 @@
+{{- range $name, $process := .Values.epinio.processes }}
+{{- if eq (default "deployment" $process.kind) "release" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-%s-r%d" $.Values.epinio.appName $name $.Release.Revision | trunc 63 | trimSuffix "-" }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "epinio-multiprocess.labels" (dict "root" $ "process" $name) | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation
+    epinio.io/created-by: {{ $.Values.epinio.username | quote }}
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      {{- include "epinio-multiprocess.podMetadata" (dict "root" $ "process" $name) | nindent 6 }}
+    spec:
+      {{- include "epinio-multiprocess.podSpecPrefix" $ | nindent 6 }}
+      containers:
+      - {{ include "epinio-multiprocess.container" (dict "root" $ "process" $process "name" $name) | nindent 8 | trim }}
+      restartPolicy: Never
+      {{- include "epinio-multiprocess.podScheduling" $ | nindent 6 }}
+{{- end }}
+{{- end }}

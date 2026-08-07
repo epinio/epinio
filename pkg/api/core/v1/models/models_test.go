@@ -124,5 +124,25 @@ var _ = Describe("ApplicationOrigin String()", func() {
 			update := models.NewApplicationUpdateRequest(m)
 			Expect(update.ReplaceEnv).To(BeNil())
 		})
+
+		It("copies process definitions while preserving an explicit zero replica count", func() {
+			zero := int32(0)
+			m := models.ApplicationManifest{
+				Configuration: models.ApplicationConfiguration{
+					Processes: models.ApplicationProcesses{
+						"worker": {Command: []string{"worker"}, Replicas: &zero},
+					},
+				},
+			}
+
+			update := models.NewApplicationUpdateRequest(m)
+			Expect(update.Processes).ToNot(BeNil())
+			Expect(*(*update.Processes)["worker"].Replicas).To(Equal(int32(0)))
+		})
+
+		It("keeps process definitions nil when unset", func() {
+			update := models.NewApplicationUpdateRequest(models.ApplicationManifest{})
+			Expect(update.Processes).To(BeNil())
+		})
 	})
 })

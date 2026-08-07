@@ -1,0 +1,7 @@
+FROM python:3.13-alpine
+ARG IMAGE_VERSION=dev
+ENV IMAGE_VERSION=$IMAGE_VERSION
+WORKDIR /app
+COPY app.py /app/app.py
+EXPOSE 8080
+

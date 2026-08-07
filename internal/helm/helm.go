@@ -77,6 +77,7 @@ type ChartParameters struct {
 	Domains        domain.DomainMap      // Map of domains with secrets covering them
 	Start          *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
 	Settings       models.ChartValueSettings
+	Processes      models.ApplicationProcesses
 }
 
 func Values(
@@ -322,19 +323,21 @@ type RouteParam struct {
 	Secret string `yaml:"secret,omitempty"` // nolint:gosec // route secret for ingress, not credentials
 }
 type EpinioParam struct {
-	AppName        string               `yaml:"appName"`
-	Configurations []string             `yaml:"configurations"`
-	ConfigPaths    []ConfigParameter    `yaml:"configpaths"`
-	Env            []models.EnvVariable `yaml:"env"`
-	ImageUrl       string               `yaml:"imageURL"`
-	Ingress        string               `yaml:"ingress,omitempty"`
-	Gateway        string               `yaml:"gateway,omitempty"`
-	ReplicaCount   int32                `yaml:"replicaCount"`
-	Routes         []RouteParam         `yaml:"routes"`
-	StageID        string               `yaml:"stageID"`
-	Start          string               `yaml:"start,omitempty"`
-	TlsIssuer      string               `yaml:"tlsIssuer"`
-	Username       string               `yaml:"username"`
+	AppName        string                      `yaml:"appName"`
+	Configurations []string                    `yaml:"configurations"`
+	ConfigPaths    []ConfigParameter           `yaml:"configpaths"`
+	Env            []models.EnvVariable        `yaml:"env"`
+	ImageUrl       string                      `yaml:"imageURL"`
+	Ingress        string                      `yaml:"ingress,omitempty"`
+	Gateway        string                      `yaml:"gateway,omitempty"`
+	ReplicaCount   int32                       `yaml:"replicaCount"`
+	Routes         []RouteParam                `yaml:"routes"`
+	StageID        string                      `yaml:"stageID"`
+	Staged         bool                        `yaml:"staged,omitempty"`
+	Start          string                      `yaml:"start,omitempty"`
+	TlsIssuer      string                      `yaml:"tlsIssuer"`
+	Username       string                      `yaml:"username"`
+	Processes      models.ApplicationProcesses `yaml:"processes,omitempty"`
 }
 type ChartParam struct {
 	Epinio EpinioParam            `yaml:"epinio"`
@@ -717,8 +720,10 @@ func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (s
 			Configurations: configurationNames,
 			ConfigPaths:    parameters.Configurations,
 			StageID:        parameters.StageID,
+			Staged:         isStagedImage(parameters.ImageURL, parameters.StageID),
 			TlsIssuer:      viper.GetString("tls-issuer"),
 			Username:       parameters.Username,
+			Processes:      parameters.Processes,
 			// Ingress, Gateway, Start, Routes: see below
 		},
 		// Chart, User: see below
@@ -823,4 +828,12 @@ func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (s
 	logger.Infow("deploy app", "helm values.yaml", yamlString)
 	logger.Infow("deploy app, return values.yaml")
 	return yamlString, nil
+}
+
+// isStagedImage identifies the image naming contract produced by Epinio's
+// staging pipeline. Matching the complete tag avoids classifying an unrelated
+// prebuilt image as staged merely because its repository or tag contains the
+// stage ID as a substring.
+func isStagedImage(imageURL, stageID string) bool {
+	return stageID != "" && strings.HasSuffix(imageURL, ":"+stageID)
 }

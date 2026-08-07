@@ -1,0 +1,31 @@
+{{- range $name, $process := .Values.epinio.processes }}
+{{- if eq (default "deployment" $process.kind) "cron" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "epinio-multiprocess.resourceName" (dict "root" $ "process" $name) }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "epinio-multiprocess.labels" (dict "root" $ "process" $name) | nindent 4 }}
+spec:
+  schedule: {{ $process.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "epinio-multiprocess.labels" (dict "root" $ "process" $name) | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          {{- include "epinio-multiprocess.podMetadata" (dict "root" $ "process" $name) | nindent 10 }}
+        spec:
+          {{- include "epinio-multiprocess.podSpecPrefix" $ | nindent 10 }}
+          containers:
+          - {{ include "epinio-multiprocess.container" (dict "root" $ "process" $process "name" $name) | nindent 12 | trim }}
+          restartPolicy: Never
+          {{- include "epinio-multiprocess.podScheduling" $ | nindent 10 }}
+{{- end }}
+{{- end }}

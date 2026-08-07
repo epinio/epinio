@@ -104,6 +104,12 @@ configuration:
   environment:
     CREDO: up
     DOGMA: "no"
+  processes:
+    web:
+      kind: deployment
+      command: ["python", "app.py", "web"]
+      replicas: 0
+      routes: true
 `), 0600)
 				Expect(err).ToNot(HaveOccurred())
 			})
@@ -127,6 +133,14 @@ configuration:
 						Environment: models.EnvVariableMap{
 							"DOGMA": "no",
 							"CREDO": "up",
+						},
+						Processes: models.ApplicationProcesses{
+							"web": {
+								Kind:     models.ApplicationProcessDeployment,
+								Command:  []string{"python", "app.py", "web"},
+								Replicas: func() *int32 { value := int32(0); return &value }(),
+								Routes:   true,
+							},
 						},
 					},
 					Self: path.Join(workdir, "goodyaml.yml"),

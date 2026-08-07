@@ -1,0 +1,22 @@
+image:
+  pullPolicy: IfNotPresent
+
+epinio:
+  appName: placeholder
+  imageURL: ""
+  stageID: ""
+  staged: false
+  tlsIssuer: ""
+  username: ""
+  routes: []
+  env: []
+  configurations: []
+  configpaths: []
+  processes: {}
+
+resources: {}
+imagePullSecrets: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+userConfig: {}

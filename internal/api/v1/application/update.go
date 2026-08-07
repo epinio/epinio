@@ -13,6 +13,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -88,11 +89,34 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		len(updateRequest.Settings) == 0 &&
 		updateRequest.Configurations == nil &&
 		updateRequest.Routes == nil &&
-		updateRequest.AppChart == "" {
+		updateRequest.AppChart == "" &&
+		updateRequest.Processes == nil {
 
 		log.Infow("updating app -- no changes")
 		response.OK(c)
 		return nil
+	}
+
+	if updateRequest.Processes != nil {
+		if issues := application.ValidateProcesses(*updateRequest.Processes); len(issues) > 0 {
+			apiIssues := make([]apierror.APIError, 0, len(issues))
+			for _, issue := range issues {
+				apiIssues = append(apiIssues, apierror.NewBadRequestError(issue.Error()))
+			}
+			return apierror.NewMultiError(apiIssues)
+		}
+	}
+
+	effectiveProcesses := app.Configuration.Processes
+	if updateRequest.Processes != nil {
+		effectiveProcesses = *updateRequest.Processes
+	}
+	effectiveRoutes := app.Configuration.Routes
+	if updateRequest.Routes != nil {
+		effectiveRoutes = updateRequest.Routes
+	}
+	if issue := application.ValidateProcessRoutes(effectiveProcesses, effectiveRoutes); issue != nil {
+		return apierror.NewBadRequestError(issue.Error())
 	}
 
 	if app.Workload != nil {
@@ -195,6 +219,13 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 
 		err := updateChartValueSettings(ctx, client, namespace, appName, updateRequest.Settings)
 		if err != nil {
+			return apierror.InternalError(err)
+		}
+	}
+
+	if updateRequest.Processes != nil {
+		log.Infow("updating app", "processes", *updateRequest.Processes)
+		if err := updateProcesses(ctx, client, namespace, appName, *updateRequest.Processes); err != nil {
 			return apierror.InternalError(err)
 		}
 	}
@@ -373,5 +404,21 @@ func updateChartValueSettings(
 		strings.Join(values, ","))
 
 	_, err := client.Namespace(namespace).Patch(ctx, appName, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+	return err
+}
+
+func updateProcesses(
+	ctx context.Context,
+	client dynamic.NamespaceableResourceInterface,
+	namespace string,
+	appName string,
+	processes models.ApplicationProcesses,
+) error {
+	value, err := json.Marshal(processes)
+	if err != nil {
+		return err
+	}
+	patch := fmt.Sprintf(`[{"op":"add","path":"/spec/processes","value":%s}]`, value)
+	_, err = client.Namespace(namespace).Patch(ctx, appName, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 	return err
 }

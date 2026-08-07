@@ -1,0 +1,29 @@
+epinio:
+  appName: multiprocess-poc
+  imageURL: docker.io/epinio-poc/multiprocess:v1
+  stageID: ""
+  staged: false
+  tlsIssuer: epinio-ca
+  ingress: cilium
+  username: poc
+  routes:
+  - id: multiprocess-poc
+    domain: multiprocess-poc.example.test
+    path: /
+  processes:
+    web:
+      kind: deployment
+      command: ["python", "/app/app.py", "web"]
+      replicas: 2
+      routes: true
+    worker:
+      kind: deployment
+      command: ["python", "/app/app.py", "worker"]
+      replicas: 3
+    scheduler:
+      kind: cron
+      command: ["python", "/app/app.py", "cron"]
+      schedule: "* * * * *"
+    release:
+      kind: release
+      command: ["python", "/app/app.py", "migrate"]

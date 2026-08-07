@@ -1,0 +1,39 @@
+{{- range $name, $process := .Values.epinio.processes }}
+{{- if or (not $process.kind) (eq $process.kind "deployment") }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "epinio-multiprocess.resourceName" (dict "root" $ "process" $name) }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "epinio-multiprocess.labels" (dict "root" $ "process" $name) | nindent 4 }}
+  annotations:
+    epinio.io/created-by: {{ $.Values.epinio.username | quote }}
+spec:
+  replicas: {{ if hasKey $process "replicas" }}{{ $process.replicas }}{{ else }}1{{ end }}
+  selector:
+    matchLabels:
+      {{- include "epinio-multiprocess.selectorLabels" (dict "root" $ "process" $name) | nindent 6 }}
+  template:
+    metadata:
+      {{- include "epinio-multiprocess.podMetadata" (dict "root" $ "process" $name) | nindent 6 }}
+    spec:
+      {{- include "epinio-multiprocess.podSpecPrefix" $ | nindent 6 }}
+      containers:
+      - {{ include "epinio-multiprocess.container" (dict "root" $ "process" $process "name" $name) | nindent 8 | trim }}
+        {{- if $process.routes }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        readinessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 1
+          periodSeconds: 2
+        {{- end }}
+      restartPolicy: Always
+      {{- include "epinio-multiprocess.podScheduling" $ | nindent 6 }}
+{{- end }}
+{{- end }}

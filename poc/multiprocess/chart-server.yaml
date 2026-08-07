@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multiprocess-chart-server
+  namespace: epinio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multiprocess-chart-server
+  template:
+    metadata:
+      labels:
+        app: multiprocess-chart-server
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.29-alpine
+        ports:
+        - name: http
+          containerPort: 80
+        volumeMounts:
+        - name: chart
+          mountPath: /usr/share/nginx/html/chart.tgz
+          subPath: chart.tgz
+          readOnly: true
+      volumes:
+      - name: chart
+        configMap:
+          name: multiprocess-chart
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: multiprocess-chart
+  namespace: epinio
+spec:
+  selector:
+    app: multiprocess-chart-server
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+

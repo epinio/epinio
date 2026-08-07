@@ -94,6 +94,15 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewMultiError(theIssues)
 	}
 
+	if createRequest.Configuration.Processes != nil {
+		for _, issue := range application.ValidateProcesses(*createRequest.Configuration.Processes) {
+			theIssues = append(theIssues, apierror.NewBadRequestError(issue.Error()))
+		}
+		if len(theIssues) > 0 {
+			return apierror.NewMultiError(theIssues)
+		}
+	}
+
 	var routes []string
 	if createRequest.Configuration.Routes != nil {
 		// Note: Routes can be empty here!
@@ -114,6 +123,11 @@ func Create(c *gin.Context) apierror.APIErrors {
 			return apierror.InternalError(err)
 		}
 		routes = []string{route}
+	}
+	if createRequest.Configuration.Processes != nil {
+		if issue := application.ValidateProcessRoutes(*createRequest.Configuration.Processes, routes); issue != nil {
+			return apierror.NewBadRequestError(issue.Error())
+		}
 	}
 
 	apierr := validateRoutes(ctx, cluster, appRef.Name, appRef.Namespace, routes)
@@ -139,7 +153,7 @@ func Create(c *gin.Context) apierror.APIErrors {
 	// Arguments found OK, now we can modify the system state
 
 	err = application.Create(ctx, cluster, appRef, username, routes, chart,
-		createRequest.Configuration.Settings)
+		createRequest.Configuration.Settings, processValue(createRequest.Configuration.Processes))
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -170,6 +184,13 @@ func Create(c *gin.Context) apierror.APIErrors {
 
 	response.Created(c)
 	return nil
+}
+
+func processValue(processes *models.ApplicationProcesses) models.ApplicationProcesses {
+	if processes == nil {
+		return nil
+	}
+	return *processes
 }
 
 func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, appName, namespace string, desiredRoutes []string) apierror.APIErrors {

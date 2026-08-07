@@ -1,0 +1,12 @@
+name: multiprocess-invalid-route
+configuration:
+  appchart: multiprocess-poc
+  routes:
+  - multiprocess-invalid-route.poc.10.42.0.42.sslip.io
+  processes:
+    worker:
+      kind: deployment
+      command: ["python", "/app/app.py", "worker"]
+      replicas: 1
+origin:
+  container: docker.io/epinio-poc/multiprocess:v1

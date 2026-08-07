@@ -1,0 +1,6 @@
+apiVersion: v2
+name: epinio-multiprocess-poc
+description: Multi-process Epinio application chart proof of concept
+type: application
+version: 0.2.1
+appVersion: "0.2.1"
