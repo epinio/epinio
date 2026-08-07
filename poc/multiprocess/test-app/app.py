@@ -38,4 +38,3 @@ elif process == "crash":
     sys.exit(23)
 else:
     raise SystemExit(f"unknown process {process}")
-
