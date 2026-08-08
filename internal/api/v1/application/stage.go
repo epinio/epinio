@@ -60,6 +60,9 @@ type stageParam struct {
 	models.AppRef
 	BlobUID             string
 	BuilderImage        string
+	BuildMode           string
+	DockerfilePath      string
+	DockerBuildImage    string
 	DownloadImage       string
 	UnpackImage         string
 	Environment         models.EnvVariableList
@@ -228,29 +231,40 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError("staging job for image ID still running")
 	}
 
-	// get builder image from either request, application, or default as final fallback
+	// get builder image from either request, application, or default as final fallback.
+	// Dockerfile mode skips builder-image resolution (Kaniko image comes from stage scripts).
 
-	builderImage, builderErr := getBuilderImage(req, app)
-	if builderErr != nil {
-		return builderErr
-	}
-	if builderImage == "" {
-		builderImage, err = resolveDefaultBuilderImage(ctx, cluster)
-		if err != nil {
-			return apierror.InternalError(err, "failed to resolve the default builder image")
+	buildMode := resolveBuildMode(req, app)
+	dockerfilePath := resolveDockerfilePath(req, app)
+
+	var builderImage string
+	var builderErr apierror.APIErrors
+	if buildMode == models.BuildModeBuildpack {
+		builderImage, builderErr = getBuilderImage(req, app)
+		if builderErr != nil {
+			return builderErr
+		}
+		if builderImage == "" {
+			builderImage, err = resolveDefaultBuilderImage(ctx, cluster)
+			if err != nil {
+				return apierror.InternalError(err, "failed to resolve the default builder image")
+			}
 		}
 	}
 
 	// Find staging script spec based on the builder image and what images are supported by each spec
 	// This also resolves a `base` reference, if present.
 
-	config, err := DetermineStagingScripts(ctx, cluster, helmchart.Namespace(), builderImage)
+	config, err := loadStagingScriptsConfig(ctx, cluster, helmchart.Namespace(), builderImage, buildMode)
 	if err != nil {
 		return apierror.InternalError(err, "failed to retrieve staging configuration")
 	}
 
 	log.Infow("staging app", "scripts", config.Name)
+	log.Infow("staging app", "build mode", buildMode)
 	log.Infow("staging app", "builder", builderImage)
+	log.Infow("staging app", "dockerfile", dockerfilePath)
+	log.Infow("staging app", "docker build image", config.DockerfileBuildImage)
 	log.Infow("staging app", "download", config.DownloadImage)
 	log.Infow("staging app", "unpack", config.UnpackImage)
 	log.Infow("staging app", "userid", config.UserID)
@@ -324,6 +338,9 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
+		BuildMode:           buildMode,
+		DockerfilePath:      dockerfilePath,
+		DockerBuildImage:    config.DockerfileBuildImage,
 		BlobUID:             blobUID,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
@@ -704,8 +721,9 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	// runtime: BashImage
 	unpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageUnpack)
 
-	// runtime: app.BuilderImage
+	// runtime: app.BuilderImage or Kaniko image
 	buildpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageBuild)
+	dockerfileScript := fmt.Sprintf(`. /stage-support/%s`, helmchart.EpinioStageDockerfileBuild)
 
 	// build configuration
 	// - shared between all the phases, even if each phase uses only part of the set
@@ -878,6 +896,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		},
 	}
 
+	buildContainer := stagingBuildContainer(app, volumeMounts, stageEnv, buildpackScript, dockerfileScript)
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: jobName,
@@ -917,25 +937,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 				Spec: corev1.PodSpec{
 					ServiceAccountName: app.HelmValues.ServiceAccountName,
 					InitContainers:     initContainers,
-					Containers: []corev1.Container{
-						{
-							Name:    "buildpack",
-							Image:   app.BuilderImage,
-							Command: []string{"/bin/bash"},
-							Args: []string{
-								"-c",
-								buildpackScript,
-							},
-							Env:          stageEnv,
-							VolumeMounts: volumeMounts,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:  ptr.To[int64](app.UserID),
-								RunAsGroup: ptr.To[int64](app.GroupID),
-							},
-							Resources: app.HelmValues.Resources,
-						},
-					},
-					RestartPolicy: corev1.RestartPolicyNever,
+					Containers:         []corev1.Container{buildContainer},
+					RestartPolicy:      corev1.RestartPolicyNever,
 					Volumes:       volumes,
 					Tolerations:   app.HelmValues.Tolerations,
 					NodeSelector:  app.HelmValues.NodeSelector,
@@ -946,6 +949,41 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	}
 
 	return job, jobenv
+}
+
+// stagingBuildContainer picks the final staging container for buildpack or Dockerfile mode.
+func stagingBuildContainer(
+	app stageParam,
+	volumeMounts []corev1.VolumeMount,
+	stageEnv []corev1.EnvVar,
+	buildpackScript string,
+	dockerfileScript string,
+) corev1.Container {
+	if models.NormalizeBuildMode(app.BuildMode) == models.BuildModeDockerfile {
+		return corev1.Container{
+			Name:         "dockerfile",
+			Image:        app.DockerBuildImage,
+			VolumeMounts: volumeMounts,
+			Command:      []string{"/busybox/sh", "-c"},
+			Args:         []string{dockerfileScript},
+			Env:          stageEnv,
+			Resources:    app.HelmValues.Resources,
+		}
+	}
+
+	return corev1.Container{
+		Name:         "buildpack",
+		Image:        app.BuilderImage,
+		Command:      []string{"/bin/bash"},
+		Args:         []string{"-c", buildpackScript},
+		Env:          stageEnv,
+		VolumeMounts: volumeMounts,
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser:  ptr.To[int64](app.UserID),
+			RunAsGroup: ptr.To[int64](app.GroupID),
+		},
+		Resources: app.HelmValues.Resources,
+	}
 }
 
 func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
@@ -964,6 +1002,10 @@ func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
 	stageEnv = appendEnvVar(stageEnv, "APPIMAGE", app.ImageURL(app.RegistryURL))
 	stageEnv = appendEnvVar(stageEnv, "USERID", strconv.FormatInt(app.UserID, 10))
 	stageEnv = appendEnvVar(stageEnv, "GROUPID", strconv.FormatInt(app.GroupID, 10))
+
+	if models.NormalizeBuildMode(app.BuildMode) == models.BuildModeDockerfile {
+		stageEnv = appendEnvVar(stageEnv, "DOCKERFILE_PATH", app.DockerfilePath)
+	}
 
 	return stageEnv
 }
@@ -1263,9 +1305,13 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 	}
 
 	specPatch := map[string]any{
-		"stageid":      params.Stage.ID,
-		"builderimage": params.BuilderImage,
-		"blobuid":      params.BlobUID,
+		"stageid":        params.Stage.ID,
+		"blobuid":        params.BlobUID,
+		"buildmode":      params.BuildMode,
+		"dockerfilepath": params.DockerfilePath,
+	}
+	if models.NormalizeBuildMode(params.BuildMode) == models.BuildModeBuildpack {
+		specPatch["builderimage"] = params.BuilderImage
 	}
 
 	// Merge patch avoids resourceVersion update conflicts for these spec fields.
@@ -1336,15 +1382,16 @@ func appendEnvVar(envs []corev1.EnvVar, name, value string) []corev1.EnvVar {
 
 // StagingScriptConfig holds all the information for using a (set of) buildpack(s)
 type StagingScriptConfig struct {
-	Name          string                // config name. Needed to mount the resource in the pod
-	Builder       string                // glob pattern for builders supported by this resource
-	UserID        int64                 // user id to run the build phase with (`cnb` user)
-	GroupID       int64                 // group id to run the build phase with
-	Base          string                // optional, name of resource to pull the other parts from
-	DownloadImage string                // image to run the download phase with
-	UnpackImage   string                // image to run the unpack phase with
-	Env           models.EnvVariableMap // environment settings
-	HelmValues    HelmValuesMap         // Helm Values configuring the staging workload
+	Name                 string // config name. Needed to mount the resource in the pod
+	Builder              string // glob pattern for builders supported by this resource
+	UserID               int64  // user id to run the build phase with (`cnb` user)
+	GroupID              int64  // group id to run the build phase with
+	Base                 string // optional, name of resource to pull the other parts from
+	DownloadImage        string // image to run the download phase with
+	UnpackImage          string // image to run the unpack phase with
+	DockerfileBuildImage string // image to run Dockerfile builds with (Kaniko)
+	Env                  models.EnvVariableMap
+	HelmValues           HelmValuesMap
 }
 
 func DetermineStagingScripts(ctx context.Context,
@@ -1459,17 +1506,21 @@ func StagingScriptConfigResolve(ctx context.Context, cluster *kubernetes.Cluster
 	config.Name = base.Name
 	config.DownloadImage = base.Data["downloadImage"]
 	config.UnpackImage = base.Data["unpackImage"]
+	if config.DockerfileBuildImage == "" {
+		config.DockerfileBuildImage = base.Data["dockerfileBuildImage"]
+	}
 
 	return nil
 }
 
 func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, error) {
 	stagingScript := &StagingScriptConfig{
-		Name:          config.Name,
-		Builder:       config.Data["builder"],
-		Base:          config.Data["base"],
-		DownloadImage: config.Data["downloadImage"],
-		UnpackImage:   config.Data["unpackImage"],
+		Name:                 config.Name,
+		Builder:              config.Data["builder"],
+		Base:                 config.Data["base"],
+		DownloadImage:        config.Data["downloadImage"],
+		UnpackImage:          config.Data["unpackImage"],
+		DockerfileBuildImage: config.Data["dockerfileBuildImage"],
 		// env, user, group id, Helm Values, see below.
 	}
 
@@ -1507,4 +1558,57 @@ func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, erro
 
 func SortByName(s1, s2 *StagingScriptConfig) int {
 	return strings.Compare(s1.Name, s2.Name)
+}
+
+func resolveBuildMode(req models.StageRequest, app *unstructured.Unstructured) string {
+	if req.BuildMode != "" {
+		return models.NormalizeBuildMode(req.BuildMode)
+	}
+
+	mode, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "buildmode")
+	if err != nil || mode == "" {
+		return models.BuildModeBuildpack
+	}
+
+	return models.NormalizeBuildMode(mode)
+}
+
+func resolveDockerfilePath(req models.StageRequest, app *unstructured.Unstructured) string {
+	if req.DockerfilePath != "" {
+		return req.DockerfilePath
+	}
+
+	path, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "dockerfilepath")
+	if err != nil || path == "" {
+		return "Dockerfile"
+	}
+
+	return path
+}
+
+func loadStagingScriptsConfig(ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace, builderImage, buildMode string) (*StagingScriptConfig, error) {
+	if models.NormalizeBuildMode(buildMode) == models.BuildModeDockerfile {
+		configmap, err := cluster.GetConfigMap(ctx, namespace, "epinio-stage-scripts")
+		if err != nil {
+			return nil, err
+		}
+
+		config, err := NewStagingScriptConfig(*configmap)
+		if err != nil {
+			return nil, err
+		}
+
+		if config.DockerfileBuildImage == "" {
+			config.DockerfileBuildImage = viper.GetString("default-dockerfile-build-image")
+		}
+		if config.DockerfileBuildImage == "" {
+			return nil, fmt.Errorf("no dockerfile build image configured")
+		}
+
+		return config, nil
+	}
+
+	return DetermineStagingScripts(ctx, cluster, namespace, builderImage)
 }
