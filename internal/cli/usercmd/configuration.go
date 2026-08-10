@@ -324,6 +324,12 @@ func (c *EpinioClient) UpdateConfiguration(name string, removedKeys []string, as
 	log.Info("start")
 	defer log.Info("return")
 
+	for key := range assignments {
+		if err := validateConfigurationKey(key); err != nil {
+			return err
+		}
+	}
+
 	c.showChanges("Configuration", name, removedKeys, assignments)
 
 	if err := c.TargetOk(); err != nil {
@@ -358,6 +364,10 @@ func (c *EpinioClient) CreateConfiguration(name string, dict []string) error {
 	log.Info("start")
 	defer log.Info("return")
 
+	if len(dict)%2 != 0 {
+		return errors.New("bad key/value dictionary, last key has no value")
+	}
+
 	data := make(map[string]string)
 	msg := c.ui.Note().
 		WithStringValue("Name", name).
@@ -366,6 +376,9 @@ func (c *EpinioClient) CreateConfiguration(name string, dict []string) error {
 	for i := 0; i < len(dict); i += 2 {
 		key := dict[i]
 		value := dict[i+1]
+		if err := validateConfigurationKey(key); err != nil {
+			return err
+		}
 		path := fmt.Sprintf("/configurations/%s/%s", name, key)
 		msg = msg.WithTableRow(key, transformForDisplay(value), path)
 		data[key] = value
@@ -433,13 +446,15 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 	sort.Strings(boundApps)
 	sort.Strings(siblings)
 
+	// Empty fields are shown as "Unknown" instead of a blank value, so that
+	// unused configuration details are still clearly indicated to the user.
 	c.ui.Note().
 		WithStringValue("Created", formatCreatedAt(resp.Meta.CreatedAt)).
-		WithStringValue("User", resp.Configuration.Username).
-		WithStringValue("Type", resp.Configuration.Type).
-		WithStringValue("Origin", resp.Configuration.Origin).
-		WithStringValue("Used-By", strings.Join(boundApps, ", ")).
-		WithStringValue("Siblings", strings.Join(siblings, ", ")).
+		WithStringValue("User", orUnknown(resp.Configuration.Username)).
+		WithStringValue("Type", orUnknown(resp.Configuration.Type)).
+		WithStringValue("Origin", orUnknown(resp.Configuration.Origin)).
+		WithStringValue("Used-By", orUnknown(strings.Join(boundApps, ", "))).
+		WithStringValue("Siblings", orUnknown(strings.Join(siblings, ", "))).
 		Msg("")
 
 	msg := c.ui.Success()
@@ -488,6 +503,26 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		msg.Msg("No parameters")
 	}
 
+	return nil
+}
+
+// orUnknown returns the given value, or "Unknown" when the value is empty. It
+// is used to indicate unused configuration details in the configuration show
+// output, instead of rendering a blank field.
+func orUnknown(v string) string {
+	if v == "" {
+		return "Unknown"
+	}
+	return v
+}
+
+// validateConfigurationKey checks that the key can be used as the name of a key in the
+// kubernetes secret backing a configuration. Reporting this client-side keeps the user
+// from getting an opaque 500 with a raw kubernetes validation error out of the API.
+func validateConfigurationKey(key string) error {
+	if errorMsgs := validation.IsConfigMapKey(key); len(errorMsgs) > 0 {
+		return fmt.Errorf("invalid configuration key `%s`: a key must consist of alphanumeric characters, '-', '_' or '.' (e.g. 'key.name', or 'KEY_NAME', or 'key-name')", key)
+	}
 	return nil
 }
 

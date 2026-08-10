@@ -18,8 +18,8 @@ import (
 
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
@@ -291,8 +291,8 @@ func stageForAsyncDeploy(
 
 	// determine builder image (request overrides)
 	stageReq := models.StageRequest{
-		App:         appRef,
-		BlobUID:     blobUID,
+		App:          appRef,
+		BlobUID:      blobUID,
 		BuilderImage: builderImage,
 	}
 
@@ -301,7 +301,10 @@ func stageForAsyncDeploy(
 		return nil, builderErr
 	}
 	if builder == "" {
-		builder = viper.GetString("default-builder-image")
+		builder, err = resolveDefaultBuilderImage(ctx, cluster)
+		if err != nil {
+			return nil, apierror.InternalError(err, "failed to resolve the default builder image")
+		}
 		if builder == "" {
 			return nil, apierror.NewBadRequestError("no builder image specified and no default configured")
 		}
@@ -423,4 +426,3 @@ func stageForAsyncDeploy(
 		ImageURL: imageURL,
 	}, nil
 }
-

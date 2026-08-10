@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -61,7 +62,8 @@ var _ = Describe("Builder Image BoundApps", Label("builderimage"), func() {
 		By("discovering the cluster default builder image from /info")
 		infoResp, infoError := env.Curl(
 			"GET",
-			strings.TrimSuffix(serverURL, "/")+"/api/v1/info",
+			strings.TrimSuffix(testenv.AppRouteWithPort(serverURL), "/")+
+				"/api/v1/info",
 			nil,
 		)
 		Expect(infoError).ToNot(HaveOccurred())

@@ -22,31 +22,47 @@ import (
 var _ = Describe("--git-provider completion", func() {
 	var completionFunc func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective)
 
+	allProviders := []string{
+		"git",
+		"github",
+		"github_enterprise_cloud",
+		"github_enterprise_self_hosted",
+		"gitlab",
+		"gitlab_enterprise",
+	}
+
 	BeforeEach(func() {
 		completionFunc = cmd.NewStaticFlagsCompletionFunc(models.ValidProviders)
 	})
 
 	It("returns all valid providers when toComplete is empty", func() {
 		matches, directive := completionFunc(nil, nil, "")
-		Expect(matches).To(ConsistOf("git", "github", "github_enterprise", "gitlab", "gitlab_enterprise"))
+		Expect(matches).To(ConsistOf(allProviders))
 		Expect(directive).To(Equal(cobra.ShellCompDirectiveNoFileComp))
 	})
 
 	It("returns providers matching prefix 'git'", func() {
 		matches, directive := completionFunc(nil, nil, "git")
-		Expect(matches).To(ConsistOf("git", "github", "github_enterprise", "gitlab", "gitlab_enterprise"))
+		Expect(matches).To(ConsistOf(allProviders))
 		Expect(directive).To(Equal(cobra.ShellCompDirectiveNoFileComp))
 	})
 
-	It("returns only github and github_enterprise for prefix 'github'", func() {
+	It("returns github and both enterprise variants for prefix 'github'", func() {
 		matches, directive := completionFunc(nil, nil, "github")
-		Expect(matches).To(ConsistOf("github", "github_enterprise"))
+		Expect(matches).To(ConsistOf(
+			"github",
+			"github_enterprise_cloud",
+			"github_enterprise_self_hosted",
+		))
 		Expect(directive).To(Equal(cobra.ShellCompDirectiveNoFileComp))
 	})
 
-	It("returns only github_enterprise for prefix 'github_en'", func() {
+	It("returns both enterprise variants for prefix 'github_en'", func() {
 		matches, directive := completionFunc(nil, nil, "github_en")
-		Expect(matches).To(Equal([]string{"github_enterprise"}))
+		Expect(matches).To(ConsistOf(
+			"github_enterprise_cloud",
+			"github_enterprise_self_hosted",
+		))
 		Expect(directive).To(Equal(cobra.ShellCompDirectiveNoFileComp))
 	})
 

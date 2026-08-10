@@ -112,7 +112,12 @@ func NewGitconfigCreateCmd(client *usercmd.EpinioClient) *cobra.Command {
 	gitconfigCreateCmd.Flags().StringVar(&cfg.repository, "repository", "", "specific repository")
 	gitconfigCreateCmd.Flags().StringVar(&cfg.certFile, "cert-file", "", "path to file holding supporting certificates")
 
-	gitconfigCreateCmd.Flags().StringVar(&cfg.gitProvider, "git-provider", "git", "Git provider code [git|github|github_enterprise|gitlab|gitlab_enterprise]")
+	gitconfigCreateCmd.Flags().StringVar(
+		&cfg.gitProvider,
+		"git-provider",
+		"git",
+		"Git provider code [git|github|github_enterprise_cloud|github_enterprise_self_hosted|gitlab|gitlab_enterprise]",
+	)
 	bindFlagCompletionFunc(gitconfigCreateCmd, "git-provider", NewStaticFlagsCompletionFunc(models.ValidProviders))
 
 	return gitconfigCreateCmd

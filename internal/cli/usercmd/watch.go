@@ -76,6 +76,12 @@ func (c *EpinioClient) AppWatch(
 	appRef := models.NewAppRef(appName, namespace)
 	log := c.Log.WithName("AppWatch")
 
+	c.ui.Exclamation().Msg(
+		"app watch is experimental: it has been validated on a limited set" +
+			" of frameworks and builder images. Behavior on other app types" +
+			" and binary layouts is not yet guaranteed.",
+	)
+
 	absPath, resolvePathError := filepath.Abs(path)
 	if resolvePathError != nil {
 		return errors.Wrap(resolvePathError, "resolving source path")
