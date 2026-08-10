@@ -14,6 +14,7 @@ package response_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -196,6 +197,73 @@ func TestGetPaginationParams(t *testing.T) {
 			}
 			if pageSize != tc.wantPageSize {
 				t.Errorf("pageSize: got %d want %d", pageSize, tc.wantPageSize)
+			}
+		})
+	}
+}
+
+func TestGetNamespacesParam(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	makeCtx := func(query string) *gin.Context {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		req, _ := http.NewRequest("GET", "/test?"+query, nil)
+		c.Request = req
+		return c
+	}
+
+	tests := []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{name: "no namespaces param", query: "", want: nil},
+		{name: "empty namespaces param", query: "namespaces=", want: nil},
+		{name: "separators only", query: "namespaces=,,", want: nil},
+		{name: "whitespace only", query: "namespaces=%20,%20", want: nil},
+		{
+			name:  "single namespace",
+			query: "namespaces=workspace",
+			want:  []string{"workspace"},
+		},
+		{
+			name:  "comma separated",
+			query: "namespaces=alpha,beta",
+			want:  []string{"alpha", "beta"},
+		},
+		{
+			name:  "surrounding whitespace trimmed",
+			query: "namespaces=%20alpha%20,%20beta%20",
+			want:  []string{"alpha", "beta"},
+		},
+		{
+			name:  "trailing separator ignored",
+			query: "namespaces=alpha,",
+			want:  []string{"alpha"},
+		},
+		{
+			// Duplicates are harmless: the filter builds a set from these.
+			name:  "duplicates pass through",
+			query: "namespaces=alpha,alpha",
+			want:  []string{"alpha", "alpha"},
+		},
+		{
+			// One shape only. Repeated params are not part of the contract.
+			name:  "repeated param takes the first value",
+			query: "namespaces=alpha&namespaces=beta",
+			want:  []string{"alpha"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := makeCtx(tc.query)
+
+			got := response.GetNamespacesParam(c)
+
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("GetNamespacesParam: got %#v want %#v", got, tc.want)
 			}
 		})
 	}
