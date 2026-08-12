@@ -20,6 +20,8 @@ package models
 import (
 	"fmt"
 	"io"
+	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
@@ -139,14 +141,71 @@ const (
 	BuildModeDockerfile = "dockerfile"
 )
 
-// NormalizeBuildMode returns a known build mode, defaulting to buildpack.
-func NormalizeBuildMode(mode string) string {
-	switch strings.ToLower(mode) {
+// ValidateBuildMode returns a canonical build mode.
+// Empty defaults to buildpack. Unknown values (e.g. typos) return an error —
+// they must not silently fall back to buildpack.
+func ValidateBuildMode(mode string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", BuildModeBuildpack:
+		return BuildModeBuildpack, nil
 	case BuildModeDockerfile:
-		return BuildModeDockerfile
+		return BuildModeDockerfile, nil
 	default:
-		return BuildModeBuildpack
+		return "", fmt.Errorf("invalid build mode %q: must be %q or %q", mode, BuildModeBuildpack, BuildModeDockerfile)
 	}
+}
+
+// NormalizeBuildMode returns a known build mode for empty/"buildpack"/"dockerfile".
+// Prefer ValidateBuildMode at CLI/API boundaries so typos are rejected instead of
+// being coerced to buildpack.
+func NormalizeBuildMode(mode string) string {
+	normalized, err := ValidateBuildMode(mode)
+	if err != nil {
+		// Do not map unknown values to buildpack; callers should validate first.
+		return strings.ToLower(strings.TrimSpace(mode))
+	}
+	return normalized
+}
+
+// ValidateDockerfilePath returns a safe Dockerfile path relative to app sources.
+// Empty defaults to "Dockerfile". Absolute paths, ".." segments, and unexpected
+// characters are rejected so the value cannot escape /workspace/source/app or
+// break the staging scripts.
+func ValidateDockerfilePath(dockerfilePath string) (string, error) {
+	trimmed := strings.TrimSpace(dockerfilePath)
+	if trimmed == "" {
+		return "Dockerfile", nil
+	}
+
+	// Staging runs on Linux; keep the check host-agnostic for CLI callers.
+	if path.IsAbs(trimmed) || filepath.IsAbs(trimmed) ||
+		(len(trimmed) >= 2 && trimmed[1] == ':') ||
+		strings.HasPrefix(trimmed, `\\`) {
+		return "", fmt.Errorf("invalid dockerfile path %q: absolute paths are not allowed", dockerfilePath)
+	}
+
+	normalized := filepath.ToSlash(trimmed)
+	for _, part := range strings.Split(normalized, "/") {
+		if part == ".." {
+			return "", fmt.Errorf("invalid dockerfile path %q: paths must not contain '..'", dockerfilePath)
+		}
+	}
+
+	cleaned := path.Clean(normalized)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || path.IsAbs(cleaned) {
+		return "", fmt.Errorf("invalid dockerfile path %q: path must stay within application sources", dockerfilePath)
+	}
+
+	// Keep paths simple for shell/Kaniko usage (no spaces, globs, etc.).
+	for _, r := range cleaned {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '.' || r == '_' || r == '-' || r == '/' {
+			continue
+		}
+		return "", fmt.Errorf("invalid dockerfile path %q: only letters, digits, '.', '_', '-', and '/' are allowed", dockerfilePath)
+	}
+
+	return cleaned, nil
 }
 
 // ApplicationStage is the part of the manifest holding information

@@ -1083,6 +1083,34 @@ func BuilderURL(app *unstructured.Unstructured) (string, error) {
 	return builderURL, nil
 }
 
+// BuildMode returns the staging build mode stored on the app resource.
+func BuildMode(app *unstructured.Unstructured) (string, error) {
+	mode, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"buildmode",
+	)
+	if err != nil {
+		return "", errors.New("buildmode should be string")
+	}
+
+	return mode, nil
+}
+
+// DockerfilePath returns the Dockerfile path stored on the app resource.
+func DockerfilePath(app *unstructured.Unstructured) (string, error) {
+	path, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"dockerfilepath",
+	)
+	if err != nil {
+		return "", errors.New("dockerfilepath should be string")
+	}
+
+	return path, nil
+}
+
 // ErrBlobCleanupIncomplete is returned when blob cleanup could not complete
 // due to storage quota issues. The unstaging operation succeeded for jobs and
 // secrets, but some blobs remain in S3 storage. This is a non-fatal warning
@@ -1604,6 +1632,16 @@ func aggregate(ctx context.Context,
 		return nil, errors.Wrap(err, "finding the builder url")
 	}
 
+	buildMode, err := BuildMode(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the build mode")
+	}
+
+	dockerfilePath, err := DockerfilePath(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the dockerfile path")
+	}
+
 	settings, err := Settings(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding settings")
@@ -1632,6 +1670,8 @@ func aggregate(ctx context.Context,
 	app.StageID = stageID
 	app.ImageURL = imageURL
 	app.Staging.Builder = builderURL
+	app.Staging.BuildMode = buildMode
+	app.Staging.DockerfilePath = dockerfilePath
 
 	// IV. Assemble the deployment structure for active applications.
 
@@ -1791,6 +1831,22 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	buildMode, err := BuildMode(applicationCR)
+	if err != nil {
+		err = errors.Wrap(err, "finding the build mode")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
+	}
+
+	dockerfilePath, err := DockerfilePath(applicationCR)
+	if err != nil {
+		err = errors.Wrap(err, "finding the dockerfile path")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
+	}
+
 	settings, err := Settings(applicationCR)
 	if err != nil {
 		err = errors.Wrap(err, "finding settings")
@@ -1813,6 +1869,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.StageID = stageID
 	app.ImageURL = imageURL
 	app.Staging.Builder = builderURL
+	app.Staging.BuildMode = buildMode
+	app.Staging.DockerfilePath = dockerfilePath
 
 	// Check if app is active, and if yes, fill the associated parts.  May have to
 	// straighten the workload structure a bit further.

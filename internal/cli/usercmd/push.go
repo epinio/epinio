@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -97,6 +98,16 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 			strings.Join(manifest.Configuration.Configurations, ", "))
 	}
 
+	details.Info("validate app name")
+	errorMsgs := validation.IsDNS1123Subdomain(appRef.Name)
+	if len(errorMsgs) > 0 {
+		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
+	}
+
+	if err := validateLocalDockerfile(manifest); err != nil {
+		return err
+	}
+
 	msg = routeMessage(msg, manifest.Configuration.Routes)
 
 	msg.Msg("About to push an application with the given setup")
@@ -104,12 +115,6 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 	c.ui.Exclamation().
 		Timeout(duration.UserAbort()).
 		Msg("Hit Enter to continue or Ctrl+C to abort (deployment will continue automatically in 5 seconds)")
-
-	details.Info("validate app name")
-	errorMsgs := validation.IsDNS1123Subdomain(appRef.Name)
-	if len(errorMsgs) > 0 {
-		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
-	}
 
 	// AppCreate
 	c.ui.Normal().Msg("Create the application resource ...")
@@ -367,4 +372,47 @@ func (c *EpinioClient) reportOK(appRef models.AppRef, builder string, routes []s
 		}
 	}
 	msg.Msg("App is online.")
+}
+
+// validateLocalDockerfile checks that a Dockerfile path exists under a local
+// path origin before upload/staging. Git/archive origins are skipped.
+func validateLocalDockerfile(manifest models.ApplicationManifest) error {
+	mode := manifest.Staging.BuildMode
+	if mode == "" {
+		return nil
+	}
+	validatedMode, err := models.ValidateBuildMode(mode)
+	if err != nil {
+		return err
+	}
+	if validatedMode != models.BuildModeDockerfile {
+		return nil
+	}
+	if manifest.Origin.Kind != models.OriginPath || manifest.Origin.Path == "" {
+		return nil
+	}
+
+	// Ready archives (tar/zip) are valid push sources; only directories have a
+	// local Dockerfile tree to validate before upload.
+	if originInfo, err := os.Stat(manifest.Origin.Path); err != nil || !originInfo.IsDir() {
+		return nil
+	}
+
+	dockerfilePath, err := models.ValidateDockerfilePath(manifest.Staging.DockerfilePath)
+	if err != nil {
+		return err
+	}
+
+	fullPath := filepath.Join(manifest.Origin.Path, filepath.FromSlash(dockerfilePath))
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("dockerfile not found at %q (relative to application sources)", fullPath)
+		}
+		return errors.Wrap(err, "failed to access dockerfile path")
+	}
+	if info.IsDir() {
+		return fmt.Errorf("dockerfile path %q is a directory, not a file", fullPath)
+	}
+	return nil
 }

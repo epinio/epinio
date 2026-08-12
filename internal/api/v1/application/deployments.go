@@ -71,6 +71,16 @@ func DeploymentsStart(c *gin.Context) apierror.APIErrors {
 	if req.ImageURL == "" && req.BlobUID == "" {
 		return apierror.NewBadRequestError("async deploy requires either `image` or `blobuid`")
 	}
+	if req.BuildMode != "" {
+		if _, err := models.ValidateBuildMode(req.BuildMode); err != nil {
+			return apierror.NewBadRequestError(err.Error())
+		}
+	}
+	if req.DockerfilePath != "" {
+		if _, err := models.ValidateDockerfilePath(req.DockerfilePath); err != nil {
+			return apierror.NewBadRequestError(err.Error())
+		}
+	}
 
 	id, err := asyncDeployJobID()
 	if err != nil {
@@ -301,8 +311,14 @@ func stageForAsyncDeploy(
 		DockerfilePath: dockerfilePath,
 	}
 
-	resolvedBuildMode := resolveBuildMode(stageReq, app)
-	resolvedDockerfilePath := resolveDockerfilePath(stageReq, app)
+	resolvedBuildMode, resolveErr := resolveBuildMode(stageReq, app)
+	if resolveErr != nil {
+		return nil, resolveErr
+	}
+	resolvedDockerfilePath, pathErr := resolveDockerfilePath(stageReq, app)
+	if pathErr != nil {
+		return nil, pathErr
+	}
 
 	var builder string
 	var builderErr apierror.APIErrors
@@ -322,7 +338,12 @@ func stageForAsyncDeploy(
 		}
 	}
 
-	config, err := loadStagingScriptsConfig(ctx, cluster, helmchart.Namespace(), builder, resolvedBuildMode)
+	var config *StagingScriptConfig
+	if models.NormalizeBuildMode(resolvedBuildMode) == models.BuildModeDockerfile {
+		config, err = loadDockerfileStagingConfig(ctx, cluster, helmchart.Namespace())
+	} else {
+		config, err = DetermineStagingScripts(ctx, cluster, helmchart.Namespace(), builder)
+	}
 	if err != nil {
 		return nil, apierror.InternalError(err, "failed to retrieve staging configuration")
 	}

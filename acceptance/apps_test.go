@@ -1109,6 +1109,40 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 	})
 
+	Describe("dockerfile builds", func() {
+		It("make app environment files available inside the docker build context", func() {
+			tmpDir, err := os.MkdirTemp("", "epinio-dockerfile-env")
+			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(func() {
+				os.RemoveAll(tmpDir)
+			})
+
+			dockerfile := []byte(`FROM python:3.12-slim
+WORKDIR /app
+COPY . .
+RUN test -f env/TEST_ENV_FILE
+CMD ["python", "app.py"]
+`)
+			appCode := []byte("print('ok')\n")
+
+			err = os.WriteFile(path.Join(tmpDir, "Dockerfile"), dockerfile, 0o644)
+			Expect(err).ToNot(HaveOccurred())
+			err = os.WriteFile(path.Join(tmpDir, "app.py"), appCode, 0o644)
+			Expect(err).ToNot(HaveOccurred())
+
+			out, err := env.EpinioPush(
+				tmpDir,
+				appName,
+				"--name", appName,
+				"--build-mode", "dockerfile",
+				"--dockerfile-path", "Dockerfile",
+				"--env", "TEST_ENV_FILE=hello",
+				"--instances", "0",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+	})
+
 	Describe("push and delete", func() {
 		It("shows the staging logs", func() {
 			By("pushing the app")
