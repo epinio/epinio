@@ -207,15 +207,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	if namespace != req.App.Namespace {
 		return apierror.NewBadRequestError("namespace parameter from URL does not match namespace param in body")
 	}
-	if req.BuildMode != "" {
-		if _, err := models.ValidateBuildMode(req.BuildMode); err != nil {
-			return apierror.NewBadRequestError(err.Error())
-		}
-	}
-	if req.DockerfilePath != "" {
-		if _, err := models.ValidateDockerfilePath(req.DockerfilePath); err != nil {
-			return apierror.NewBadRequestError(err.Error())
-		}
+	if apiErr := validateStageRequestBuildSettings(req); apiErr != nil {
+		return apiErr
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -241,43 +234,9 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError("staging job for image ID still running")
 	}
 
-	// get builder image from either request, application, or default as final fallback.
-	// Dockerfile mode skips builder-image resolution (Kaniko image comes from stage scripts).
-
-	buildMode, resolveErr := resolveBuildMode(req, app)
-	if resolveErr != nil {
-		return resolveErr
-	}
-	dockerfilePath, pathErr := resolveDockerfilePath(req, app)
-	if pathErr != nil {
-		return pathErr
-	}
-
-	var builderImage string
-	var builderErr apierror.APIErrors
-	if buildMode == models.BuildModeBuildpack {
-		builderImage, builderErr = getBuilderImage(req, app)
-		if builderErr != nil {
-			return builderErr
-		}
-		if builderImage == "" {
-			builderImage, err = resolveDefaultBuilderImage(ctx, cluster)
-			if err != nil {
-				return apierror.InternalError(err, "failed to resolve the default builder image")
-			}
-		}
-	}
-
-	// Dockerfile: base ConfigMap only (no builder matching).
-	// Buildpack: match staging scripts to the builder image (may resolve `base`).
-	var config *StagingScriptConfig
-	if models.NormalizeBuildMode(buildMode) == models.BuildModeDockerfile {
-		config, err = loadDockerfileStagingConfig(ctx, cluster, helmchart.Namespace())
-	} else {
-		config, err = DetermineStagingScripts(ctx, cluster, helmchart.Namespace(), builderImage)
-	}
-	if err != nil {
-		return apierror.InternalError(err, "failed to retrieve staging configuration")
+	buildMode, dockerfilePath, builderImage, config, setupErr := resolveStagingImagesAndScripts(ctx, cluster, req, app)
+	if setupErr != nil {
+		return setupErr
 	}
 
 	log.Infow("staging app", "scripts", config.Name)
@@ -1589,6 +1548,70 @@ func NewStagingScriptConfig(config corev1.ConfigMap) (*StagingScriptConfig, erro
 
 func SortByName(s1, s2 *StagingScriptConfig) int {
 	return strings.Compare(s1.Name, s2.Name)
+}
+
+func validateStageRequestBuildSettings(req models.StageRequest) apierror.APIErrors {
+	if req.BuildMode != "" {
+		if _, err := models.ValidateBuildMode(req.BuildMode); err != nil {
+			return apierror.NewBadRequestError(err.Error())
+		}
+	}
+	if req.DockerfilePath != "" {
+		if _, err := models.ValidateDockerfilePath(req.DockerfilePath); err != nil {
+			return apierror.NewBadRequestError(err.Error())
+		}
+	}
+	return nil
+}
+
+// resolveStagingImagesAndScripts resolves build mode, Dockerfile path, builder
+// image, and the matching staging-script ConfigMap for a stage request.
+func resolveStagingImagesAndScripts(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	req models.StageRequest,
+	app *unstructured.Unstructured,
+) (string, string, string, *StagingScriptConfig, apierror.APIErrors) {
+	buildMode, resolveErr := resolveBuildMode(req, app)
+	if resolveErr != nil {
+		return "", "", "", nil, resolveErr
+	}
+	dockerfilePath, pathErr := resolveDockerfilePath(req, app)
+	if pathErr != nil {
+		return "", "", "", nil, pathErr
+	}
+
+	var builderImage string
+	if buildMode == models.BuildModeBuildpack {
+		var builderErr apierror.APIErrors
+		builderImage, builderErr = getBuilderImage(req, app)
+		if builderErr != nil {
+			return "", "", "", nil, builderErr
+		}
+		if builderImage == "" {
+			var err error
+			builderImage, err = resolveDefaultBuilderImage(ctx, cluster)
+			if err != nil {
+				return "", "", "", nil, apierror.InternalError(err, "failed to resolve the default builder image")
+			}
+			if builderImage == "" {
+				return "", "", "", nil, apierror.NewBadRequestError("no builder image specified and no default configured")
+			}
+		}
+	}
+
+	var config *StagingScriptConfig
+	var err error
+	if models.NormalizeBuildMode(buildMode) == models.BuildModeDockerfile {
+		config, err = loadDockerfileStagingConfig(ctx, cluster, helmchart.Namespace())
+	} else {
+		config, err = DetermineStagingScripts(ctx, cluster, helmchart.Namespace(), builderImage)
+	}
+	if err != nil {
+		return "", "", "", nil, apierror.InternalError(err, "failed to retrieve staging configuration")
+	}
+
+	return buildMode, dockerfilePath, builderImage, config, nil
 }
 
 func resolveBuildMode(req models.StageRequest, app *unstructured.Unstructured) (string, apierror.APIErrors) {
