@@ -1051,6 +1051,10 @@ func StageID(app *unstructured.Unstructured) (string, error) {
 BlobUID returns the S3/seaweedfs blob UID of the last staged application
 sources, if one exists. It returns an empty string otherwise. The information
 is pulled out of the app resource itself, saved there by the staging endpoint.
+
+This is the canonical helper for reading spec.blobuid from an app CR; staging,
+source export, and async retry paths should all use it instead of duplicating
+the unstructured lookup.
 */
 func BlobUID(app *unstructured.Unstructured) (string, error) {
 	blobUID, _, err := unstructured.NestedString(
@@ -1072,6 +1076,10 @@ func BlobUID(app *unstructured.Unstructured) (string, error) {
 // StagingStatus comes from live Jobs. Failed/completed Jobs are often removed
 // by TTL, so StageID on the app is used as a sticky signal that staging was
 // attempted and did not leave a running workload.
+//
+// StagingDone with no workload is transitional (Helm/pods still spinning up),
+// not a failure — report staging/deploying until a workload appears or the
+// staging Job is gone and only StageID remains.
 func assignApplicationStatus(app *models.App) {
 	if app.StagingStatus == models.ApplicationStagingActive {
 		app.Status = models.ApplicationStaging
@@ -1087,16 +1095,20 @@ func assignApplicationStatus(app *models.App) {
 			}
 			return
 		case models.ApplicationStagingDone:
-			// Staging finished but nothing is running while instances are desired.
+			// Staging succeeded; workload not visible yet while instances are
+			// desired (deploy in progress / waiting on k8s). Keep a non-error
+			// transitional status so the UI does not flash "deployment failed".
 			if wantsInstances(app) {
-				app.Status = models.ApplicationError
+				app.Status = models.ApplicationStaging
 				if app.StatusMessage == "" {
-					app.StatusMessage = "deployment failed"
+					app.StatusMessage = "deploying"
 				}
 				return
 			}
 		default:
 			// Job gone (TTL/cleanup) but a stage was recorded → keep Error, not Created.
+			// Covers failed staging after Job removal, and deploys that never
+			// produced a workload before the completed Job was garbage-collected.
 			if app.StageID != "" && wantsInstances(app) {
 				app.Status = models.ApplicationError
 				if app.StatusMessage == "" {

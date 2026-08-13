@@ -265,7 +265,7 @@ func stageForAsyncDeploy(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
-	blobUID string,
+	requestedBlobUID string,
 	builderImage string,
 	username string,
 ) (*models.StageResponse, apierror.APIErrors) {
@@ -292,7 +292,7 @@ func stageForAsyncDeploy(
 	// determine builder image (request overrides)
 	stageReq := models.StageRequest{
 		App:          appRef,
-		BlobUID:      blobUID,
+		BlobUID:      requestedBlobUID,
 		BuilderImage: builderImage,
 	}
 
@@ -323,8 +323,8 @@ func stageForAsyncDeploy(
 		return nil, apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	// Resolve blob from request, CR, or git origin fallback (same as Stage endpoint).
-	blobUID, blobErr := resolveBlobUID(
+	// Resolve blob: explicit request → stored CR blob (validated) → git re-clone.
+	resolvedBlobUID, blobErr := resolveBlobUID(
 		ctx, cluster, s3ConnectionDetails, stageReq, app, username,
 	)
 	if blobErr != nil {
@@ -383,7 +383,7 @@ func stageForAsyncDeploy(
 		BuilderImage:        builder,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
-		BlobUID:             blobUID,
+		BlobUID:             resolvedBlobUID,
 		Environment:         environment.List(),
 		Owner:               owner,
 		RegistryURL:         registryPublicURL,

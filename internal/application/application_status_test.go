@@ -35,14 +35,23 @@ var _ = Describe("assignApplicationStatus", func() {
 		Expect(app.StatusMessage).To(Equal("staging failed"))
 	})
 
-	It("marks deployment failure without workload as error", func() {
+	It("marks staging done without workload as deploying, not error", func() {
 		app := &models.App{
 			StagingStatus: models.ApplicationStagingDone,
 			Configuration: models.ApplicationConfiguration{Instances: &one},
 		}
 		assignApplicationStatus(app)
-		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
-		Expect(app.StatusMessage).To(Equal("deployment failed"))
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationStaging)))
+		Expect(app.StatusMessage).To(Equal("deploying"))
+	})
+
+	It("marks staging done without workload as deploying when instances nil", func() {
+		app := &models.App{
+			StagingStatus: models.ApplicationStagingDone,
+		}
+		assignApplicationStatus(app)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationStaging)))
+		Expect(app.StatusMessage).To(Equal("deploying"))
 	})
 
 	It("keeps created when never staged", func() {
@@ -85,6 +94,15 @@ var _ = Describe("assignApplicationStatus", func() {
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationRunning)))
 	})
 
+	It("keeps running when workload exists after staging done", func() {
+		app := &models.App{
+			StagingStatus: models.ApplicationStagingDone,
+			Workload:      &models.AppDeployment{Active: true},
+		}
+		assignApplicationStatus(app)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationRunning)))
+	})
+
 	It("preserves an existing status message on staging failure", func() {
 		app := &models.App{
 			StagingStatus: models.ApplicationStagingFailed,
@@ -93,5 +111,16 @@ var _ = Describe("assignApplicationStatus", func() {
 		assignApplicationStatus(app)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
 		Expect(app.StatusMessage).To(Equal("custom failure detail"))
+	})
+
+	It("preserves an existing status message while deploying", func() {
+		app := &models.App{
+			StagingStatus: models.ApplicationStagingDone,
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+			StatusMessage: "rolling out",
+		}
+		assignApplicationStatus(app)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationStaging)))
+		Expect(app.StatusMessage).To(Equal("rolling out"))
 	})
 })

@@ -1040,6 +1040,9 @@ func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (s
 	return builderImage, nil
 }
 
+// getBlobUID returns the blob to stage from the request or the app CR, and
+// validates S3 metadata (app name + namespace) before returning. Shared by
+// Stage(), resolveBlobUID(), and the async deploy staging path.
 func getBlobUID(
 	ctx context.Context,
 	s3ConnectionDetails s3manager.ConnectionDetails,
@@ -1051,7 +1054,7 @@ func getBlobUID(
 	if req.BlobUID != "" {
 		blobUID = req.BlobUID
 	} else {
-		previousUID, lookupError := findPreviousBlobUID(app)
+		previousUID, lookupError := application.BlobUID(app)
 		if lookupError != nil {
 			return "", apierror.InternalError(lookupError, "looking up the previous blob UID")
 		}
@@ -1067,15 +1070,6 @@ func getBlobUID(
 	validateError := validateBlob(ctx, blobUID, req.App, s3ConnectionDetails)
 	if validateError != nil {
 		return "", validateError
-	}
-
-	return blobUID, nil
-}
-
-func findPreviousBlobUID(app *unstructured.Unstructured) (string, error) {
-	blobUID, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "blobuid")
-	if err != nil {
-		return "", errors.New("blobuid should be string")
 	}
 
 	return blobUID, nil

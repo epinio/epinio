@@ -171,14 +171,22 @@ func (c *EpinioClient) Apps(all bool) error {
 			case models.ApplicationStagingActive:
 				statusDetails = "staging"
 			case models.ApplicationStagingDone:
-				if *app.Configuration.Instances == 0 {
+				if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
 					status = "0/0"
 				} else {
-					// staging is done, want > 0 instances, no workload
-					statusDetails = "deployment failed"
+					// Staging done; Helm/pods may still be coming up.
+					statusDetails = "deploying"
 				}
 			case models.ApplicationStagingFailed:
 				statusDetails = "staging failed"
+			default:
+				// Staging Job gone (TTL) but stage was attempted — sticky failure.
+				if app.StageID != "" && (app.Configuration.Instances == nil || *app.Configuration.Instances > 0) {
+					statusDetails = "staging failed"
+					if app.StatusMessage != "" {
+						statusDetails = app.StatusMessage
+					}
+				}
 			}
 		} else {
 			status = app.Workload.Status
@@ -683,13 +691,16 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 			case models.ApplicationStagingActive:
 				msg = msg.WithTableRow("Status", "not deployed, staging active")
 			case models.ApplicationStagingDone:
-				if *app.Configuration.Instances == 0 {
+				if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
 					msg = msg.WithTableRow("Status", "deployed, scaled to zero")
 				} else {
-					// staging is done, want > 0 instances, no workload
-					msg = msg.WithTableRow("Status", "staging ok, deployment failed")
+					// Staging ok; waiting on deploy / k8s pods (not a failure).
+					msg = msg.WithTableRow("Status", "staging ok, deploying")
 				}
 			case models.ApplicationStagingFailed:
+				msg = msg.WithTableRow("Status", "not deployed, staging failed")
+			default:
+				// Staging Job gone (TTL) with a recorded StageID — sticky failure.
 				msg = msg.WithTableRow("Status", "not deployed, staging failed")
 			}
 			msg = msg.WithTableRow("Last StageId", app.StageID)
