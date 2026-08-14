@@ -829,6 +829,36 @@
         ],
         "summary": "Return list of all controlled namespaces.",
         "operationId": "Namespaces",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Namespaces",
+            "description": "Comma-separated namespaces to filter by, e.g. \"ns1,ns2\". Matches the\nnamespace name exactly. Names the user cannot see are ignored.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the namespace name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/responses/NamespacesResponse"
