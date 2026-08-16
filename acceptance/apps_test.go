@@ -1298,6 +1298,48 @@ var _ = Describe("Apps", LApplication, func() {
 		})
 	})
 
+	Describe("dockerfile builds", func() {
+		It("passes app environment as build args without copying it into the build context", func() {
+			tmpDir, err := os.MkdirTemp("", "epinio-dockerfile-env")
+			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(func() {
+				os.RemoveAll(tmpDir)
+			})
+
+			// Two assertions, both enforced by the build itself:
+			//   1. A declared ARG receives the app environment value.
+			//   2. `COPY . .` does not pull an env/ directory into the image.
+			//      App environment must never enter the build context, or any
+			//      Dockerfile starting with `COPY . .` bakes secrets into a
+			//      published layer.
+			dockerfile := []byte(`FROM python:3.12-slim
+WORKDIR /app
+COPY . .
+RUN test ! -e env
+ARG TEST_BUILD_ARG
+RUN test "$TEST_BUILD_ARG" = "hello"
+CMD ["python", "app.py"]
+`)
+			appCode := []byte("print('ok')\n")
+
+			err = os.WriteFile(path.Join(tmpDir, "Dockerfile"), dockerfile, 0o644)
+			Expect(err).ToNot(HaveOccurred())
+			err = os.WriteFile(path.Join(tmpDir, "app.py"), appCode, 0o644)
+			Expect(err).ToNot(HaveOccurred())
+
+			out, err := env.EpinioPush(
+				tmpDir,
+				appName,
+				"--name", appName,
+				"--build-mode", "dockerfile",
+				"--dockerfile-path", "Dockerfile",
+				"--env", "TEST_BUILD_ARG=hello",
+				"--instances", "0",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+	})
+
 	Describe("push and delete", func() {
 		It("shows the staging logs", func() {
 			By("pushing the app")

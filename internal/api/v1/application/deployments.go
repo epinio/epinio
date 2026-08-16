@@ -71,6 +71,16 @@ func DeploymentsStart(c *gin.Context) apierror.APIErrors {
 	if req.ImageURL == "" && req.BlobUID == "" {
 		return apierror.NewBadRequestError("async deploy requires either `image` or `blobuid`")
 	}
+	if req.BuildMode != "" {
+		if _, err := models.ValidateBuildMode(req.BuildMode); err != nil {
+			return apierror.NewBadRequestError(err.Error())
+		}
+	}
+	if req.DockerfilePath != "" {
+		if _, err := models.ValidateDockerfilePath(req.DockerfilePath); err != nil {
+			return apierror.NewBadRequestError(err.Error())
+		}
+	}
 
 	id, err := asyncDeployJobID()
 	if err != nil {
@@ -172,7 +182,7 @@ func runAsyncDeployment(ctx context.Context, deploymentID string, req models.Asy
 	if req.BlobUID != "" {
 		update(func(s *models.AsyncDeployStatus) { s.Status = "staging" })
 
-		stageResp, apiErr := stageForAsyncDeploy(ctx, cluster, req.App, req.BlobUID, req.BuilderImage, username)
+		stageResp, apiErr := stageForAsyncDeploy(ctx, cluster, req.App, req.BlobUID, req.BuilderImage, req.BuildMode, req.DockerfilePath, username)
 		if apiErr != nil {
 			failAPI(apiErr)
 			return
@@ -267,6 +277,8 @@ func stageForAsyncDeploy(
 	appRef models.AppRef,
 	blobUID string,
 	builderImage string,
+	buildMode string,
+	dockerfilePath string,
 	username string,
 ) (*models.StageResponse, apierror.APIErrors) {
 	log := requestctx.Logger(ctx).With("component", "async-stage")
@@ -289,33 +301,20 @@ func stageForAsyncDeploy(
 		return nil, apierror.NewBadRequestError("staging job for image ID still running")
 	}
 
-	// determine builder image (request overrides)
 	stageReq := models.StageRequest{
-		App:          appRef,
-		BlobUID:      blobUID,
-		BuilderImage: builderImage,
+		App:            appRef,
+		BlobUID:        blobUID,
+		BuilderImage:   builderImage,
+		BuildMode:      buildMode,
+		DockerfilePath: dockerfilePath,
 	}
 
-	builder, builderErr := getBuilderImage(stageReq, app)
-	if builderErr != nil {
-		return nil, builderErr
-	}
-	if builder == "" {
-		builder, err = resolveDefaultBuilderImage(ctx, cluster)
-		if err != nil {
-			return nil, apierror.InternalError(err, "failed to resolve the default builder image")
-		}
-		if builder == "" {
-			return nil, apierror.NewBadRequestError("no builder image specified and no default configured")
-		}
+	resolvedBuildMode, resolvedDockerfilePath, builder, config, setupErr := resolveStagingImagesAndScripts(ctx, cluster, stageReq, app)
+	if setupErr != nil {
+		return nil, setupErr
 	}
 
-	config, err := DetermineStagingScripts(ctx, cluster, helmchart.Namespace(), builder)
-	if err != nil {
-		return nil, apierror.InternalError(err, "failed to retrieve staging configuration")
-	}
-
-	log.Infow("staging app", "scripts", config.Name, "builder", builder)
+	log.Infow("staging app", "scripts", config.Name, "builder", builder, "build mode", resolvedBuildMode)
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
@@ -378,6 +377,9 @@ func stageForAsyncDeploy(
 	params := stageParam{
 		AppRef:              appRef,
 		BuilderImage:        builder,
+		BuildMode:           resolvedBuildMode,
+		DockerfilePath:      resolvedDockerfilePath,
+		DockerBuildImage:    config.DockerfileBuildImage,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
 		BlobUID:             blobUID,
