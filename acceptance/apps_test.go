@@ -1110,17 +1110,25 @@ var _ = Describe("Apps", LApplication, func() {
 	})
 
 	Describe("dockerfile builds", func() {
-		It("make app environment files available inside the docker build context", func() {
+		It("passes app environment as build args without copying it into the build context", func() {
 			tmpDir, err := os.MkdirTemp("", "epinio-dockerfile-env")
 			Expect(err).ToNot(HaveOccurred())
 			DeferCleanup(func() {
 				os.RemoveAll(tmpDir)
 			})
 
+			// Two assertions, both enforced by the build itself:
+			//   1. A declared ARG receives the app environment value.
+			//   2. `COPY . .` does not pull an env/ directory into the image.
+			//      App environment must never enter the build context, or any
+			//      Dockerfile starting with `COPY . .` bakes secrets into a
+			//      published layer.
 			dockerfile := []byte(`FROM python:3.12-slim
 WORKDIR /app
 COPY . .
-RUN test -f env/TEST_ENV_FILE
+RUN test ! -e env
+ARG TEST_BUILD_ARG
+RUN test "$TEST_BUILD_ARG" = "hello"
 CMD ["python", "app.py"]
 `)
 			appCode := []byte("print('ok')\n")
@@ -1136,7 +1144,7 @@ CMD ["python", "app.py"]
 				"--name", appName,
 				"--build-mode", "dockerfile",
 				"--dockerfile-path", "Dockerfile",
-				"--env", "TEST_ENV_FILE=hello",
+				"--env", "TEST_BUILD_ARG=hello",
 				"--instances", "0",
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
