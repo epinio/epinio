@@ -882,7 +882,7 @@ var _ = Describe("Apps", LApplication, func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
-					WithRow("Status", "((0/1)|(staging ok, deploying)|(not deployed, staging failed))"),
+					WithRow("Status", "((0/1)|(staging ok, deploying)|(not deployed, deployment failed)|(not deployed, staging failed))"),
 				),
 			)
 

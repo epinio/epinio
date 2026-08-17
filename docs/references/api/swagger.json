@@ -2707,18 +2707,16 @@
         "environment": {
           "$ref": "#/definitions/EnvVariableMap"
         },
-<<<<<<< HEAD
+        "environment_grouped": {
+          "description": "Environment variables grouped by origin (user-set vs service-provided). Same structure as GET .../environment?grouped=true.",
+          "$ref": "#/definitions/EnvVariableGroupedResponse"
+        },
         "ignore": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "x-go-name": "Ignore"
-=======
-        "environment_grouped": {
-          "description": "Environment variables grouped by origin (user-set vs service-provided). Same structure as GET .../environment?grouped=true.",
-          "$ref": "#/definitions/EnvVariableGroupedResponse"
->>>>>>> ad3160bd64d5a9a5e0c1e84df04df5442bbfe441
         },
         "instances": {
           "type": "integer",

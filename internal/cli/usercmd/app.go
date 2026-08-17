@@ -39,6 +39,64 @@ import (
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
 )
 
+// appListStatusDetails returns the STATUS DETAILS column from API status fields.
+func appListStatusDetails(app models.App) string {
+	if app.Workload != nil {
+		return app.StatusMessage
+	}
+	if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
+		return ""
+	}
+	switch app.Status {
+	case models.ApplicationStaging:
+		return "staging"
+	case models.ApplicationDeploying:
+		return "deploying"
+	case models.ApplicationError:
+		if app.StatusMessage != "" {
+			return app.StatusMessage
+		}
+		return "error"
+	default:
+		if app.StatusMessage != "" {
+			return app.StatusMessage
+		}
+		return ""
+	}
+}
+
+// appShowStatusLine returns the Status row for app show from API status fields.
+func appShowStatusLine(app models.App) string {
+	if app.Workload != nil {
+		if app.Status == models.ApplicationError && app.StatusMessage != "" {
+			return app.Workload.Status + ", " + app.StatusMessage
+		}
+		return app.Workload.Status
+	}
+	if app.StageID == "" {
+		return "not deployed"
+	}
+	if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
+		return "deployed, scaled to zero"
+	}
+	switch app.Status {
+	case models.ApplicationStaging:
+		return "not deployed, staging active"
+	case models.ApplicationDeploying:
+		return "staging ok, deploying"
+	case models.ApplicationError:
+		if app.StatusMessage != "" {
+			return "not deployed, " + app.StatusMessage
+		}
+		return "not deployed, error"
+	default:
+		if app.StatusMessage != "" {
+			return "not deployed, " + app.StatusMessage
+		}
+		return "not deployed"
+	}
+}
+
 // AppCreate creates an app without a workload
 func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpdateRequest) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
@@ -167,27 +225,10 @@ func (c *EpinioClient) Apps(all bool) error {
 			status = "n/a"
 			routes = "n/a"
 
-			switch app.StagingStatus {
-			case models.ApplicationStagingActive:
-				statusDetails = "staging"
-			case models.ApplicationStagingDone:
-				if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
-					status = "0/0"
-				} else {
-					// Staging done; Helm/pods may still be coming up.
-					statusDetails = "deploying"
-				}
-			case models.ApplicationStagingFailed:
-				statusDetails = "staging failed"
-			default:
-				// Staging Job gone (TTL) but stage was attempted — sticky failure.
-				if app.StageID != "" && (app.Configuration.Instances == nil || *app.Configuration.Instances > 0) {
-					statusDetails = "staging failed"
-					if app.StatusMessage != "" {
-						statusDetails = app.StatusMessage
-					}
-				}
+			if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
+				status = "0/0"
 			}
+			statusDetails = appListStatusDetails(app)
 		} else {
 			status = app.Workload.Status
 			routes = formatRoutes(app.Workload.Routes)
@@ -687,22 +728,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 		if app.StageID == "" {
 			msg = msg.WithTableRow("Status", "not deployed")
 		} else {
-			switch app.StagingStatus {
-			case models.ApplicationStagingActive:
-				msg = msg.WithTableRow("Status", "not deployed, staging active")
-			case models.ApplicationStagingDone:
-				if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
-					msg = msg.WithTableRow("Status", "deployed, scaled to zero")
-				} else {
-					// Staging ok; waiting on deploy / k8s pods (not a failure).
-					msg = msg.WithTableRow("Status", "staging ok, deploying")
-				}
-			case models.ApplicationStagingFailed:
-				msg = msg.WithTableRow("Status", "not deployed, staging failed")
-			default:
-				// Staging Job gone (TTL) with a recorded StageID — sticky failure.
-				msg = msg.WithTableRow("Status", "not deployed, staging failed")
-			}
+			msg = msg.WithTableRow("Status", appShowStatusLine(app))
 			msg = msg.WithTableRow("Last StageId", app.StageID)
 		}
 

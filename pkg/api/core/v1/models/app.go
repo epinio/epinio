@@ -26,10 +26,11 @@ const (
 
 	EpinioCreatedByAnnotation = "epinio.io/created-by"
 
-	ApplicationCreated = "created"
-	ApplicationStaging = "staging"
-	ApplicationRunning = "running"
-	ApplicationError   = "error"
+	ApplicationCreated   = "created"
+	ApplicationStaging   = "staging"
+	ApplicationDeploying = "deploying"
+	ApplicationRunning   = "running"
+	ApplicationError     = "error"
 
 	ApplicationStagingActive = "active"
 	ApplicationStagingDone   = "done"

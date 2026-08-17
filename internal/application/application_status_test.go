@@ -12,6 +12,8 @@
 package application
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -24,13 +26,13 @@ var _ = Describe("assignApplicationStatus", func() {
 
 	It("marks active staging as staging", func() {
 		app := &models.App{StagingStatus: models.ApplicationStagingActive}
-		assignApplicationStatus(app)
+		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationStaging)))
 	})
 
 	It("marks staging failure without workload as error", func() {
 		app := &models.App{StagingStatus: models.ApplicationStagingFailed}
-		assignApplicationStatus(app)
+		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
 		Expect(app.StatusMessage).To(Equal("staging failed"))
 	})
@@ -40,8 +42,8 @@ var _ = Describe("assignApplicationStatus", func() {
 			StagingStatus: models.ApplicationStagingDone,
 			Configuration: models.ApplicationConfiguration{Instances: &one},
 		}
-		assignApplicationStatus(app)
-		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationStaging)))
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationDeploying)))
 		Expect(app.StatusMessage).To(Equal("deploying"))
 	})
 
@@ -49,14 +51,14 @@ var _ = Describe("assignApplicationStatus", func() {
 		app := &models.App{
 			StagingStatus: models.ApplicationStagingDone,
 		}
-		assignApplicationStatus(app)
-		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationStaging)))
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationDeploying)))
 		Expect(app.StatusMessage).To(Equal("deploying"))
 	})
 
 	It("keeps created when never staged", func() {
 		app := &models.App{}
-		assignApplicationStatus(app)
+		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationCreated)))
 	})
 
@@ -65,15 +67,25 @@ var _ = Describe("assignApplicationStatus", func() {
 			StagingStatus: models.ApplicationStagingDone,
 			Configuration: models.ApplicationConfiguration{Instances: &zero},
 		}
-		assignApplicationStatus(app)
+		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationCreated)))
 	})
 
-	It("marks error when stage id remains after staging job is gone", func() {
+	It("marks staging failed when stage id remains after staging job is gone", func() {
 		app := &models.App{StageID: "abc123"}
-		assignApplicationStatus(app)
+		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
 		Expect(app.StatusMessage).To(Equal("staging failed"))
+	})
+
+	It("marks deployment failed when stage id and image remain after staging job is gone", func() {
+		app := &models.App{
+			StageID:  "abc123",
+			ImageURL: "registry.example/apps/ns-app:deadbeef",
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.StatusMessage).To(Equal("deployment failed"))
 	})
 
 	It("keeps created when stage id remains but scaled to zero", func() {
@@ -81,7 +93,7 @@ var _ = Describe("assignApplicationStatus", func() {
 			StageID:       "abc123",
 			Configuration: models.ApplicationConfiguration{Instances: &zero},
 		}
-		assignApplicationStatus(app)
+		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationCreated)))
 	})
 
@@ -90,7 +102,7 @@ var _ = Describe("assignApplicationStatus", func() {
 			StagingStatus: models.ApplicationStagingFailed,
 			Workload:      &models.AppDeployment{Active: true},
 		}
-		assignApplicationStatus(app)
+		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationRunning)))
 	})
 
@@ -99,7 +111,40 @@ var _ = Describe("assignApplicationStatus", func() {
 			StagingStatus: models.ApplicationStagingDone,
 			Workload:      &models.AppDeployment{Active: true},
 		}
-		assignApplicationStatus(app)
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationRunning)))
+	})
+
+	It("marks error when workload pods are crash-looping", func() {
+		app := &models.App{
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+			Workload: &models.AppDeployment{
+				Active:          true,
+				DesiredReplicas: 1,
+				ReadyReplicas:   0,
+				Replicas: map[string]*models.PodInfo{
+					"pod-1": {Restarts: 2, Ready: false},
+				},
+			},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.StatusMessage).To(Equal("deployment failed"))
+	})
+
+	It("keeps running when workload pods are starting without restarts", func() {
+		app := &models.App{
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+			Workload: &models.AppDeployment{
+				Active:          true,
+				DesiredReplicas: 1,
+				ReadyReplicas:   0,
+				Replicas: map[string]*models.PodInfo{
+					"pod-1": {Restarts: 0, Ready: false},
+				},
+			},
+		}
+		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationRunning)))
 	})
 
@@ -108,7 +153,7 @@ var _ = Describe("assignApplicationStatus", func() {
 			StagingStatus: models.ApplicationStagingFailed,
 			StatusMessage: "custom failure detail",
 		}
-		assignApplicationStatus(app)
+		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
 		Expect(app.StatusMessage).To(Equal("custom failure detail"))
 	})
@@ -119,8 +164,34 @@ var _ = Describe("assignApplicationStatus", func() {
 			Configuration: models.ApplicationConfiguration{Instances: &one},
 			StatusMessage: "rolling out",
 		}
-		assignApplicationStatus(app)
-		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationStaging)))
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationDeploying)))
 		Expect(app.StatusMessage).To(Equal("rolling out"))
+	})
+
+	It("marks deployment failed when staging done long ago without workload", func() {
+		completedAt := time.Now().Add(-3 * time.Minute)
+		app := &models.App{
+			StagingStatus: models.ApplicationStagingDone,
+			ImageURL:      "registry.example/apps/ns-app:deadbeef",
+			StageID:       "abc123",
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+		}
+		assignApplicationStatus(app, &completedAt)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.StatusMessage).To(Equal("deployment failed"))
+	})
+
+	It("keeps deploying when staging recently completed without workload", func() {
+		completedAt := time.Now().Add(-30 * time.Second)
+		app := &models.App{
+			StagingStatus: models.ApplicationStagingDone,
+			ImageURL:      "registry.example/apps/ns-app:deadbeef",
+			StageID:       "abc123",
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+		}
+		assignApplicationStatus(app, &completedAt)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationDeploying)))
+		Expect(app.StatusMessage).To(Equal("deploying"))
 	})
 })
