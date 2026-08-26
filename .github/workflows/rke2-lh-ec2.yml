@@ -247,7 +247,7 @@ jobs:
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          # Use a random host name, so we don't collide with our workflows on EKS
+          # Use a random host name, so we don't collide with other acceptance workflows
           AWS_DOMAIN: id${{ steps.provision-ec2-instances.outputs.ID }}-${{ secrets.AWS_RKE2_DOMAIN }}
           EPINIO_SYSTEM_DOMAIN: id${{ steps.provision-ec2-instances.outputs.ID }}-${{ secrets.AWS_RKE2_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
