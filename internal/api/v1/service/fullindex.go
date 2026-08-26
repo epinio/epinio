@@ -12,8 +12,6 @@
 package service
 
 import (
-	"strings"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -50,16 +48,11 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 	filteredServices := auth.FilterResources(user, serviceList)
 	filteredServices = auth.FilterByNamespaces(filteredServices, namespaces)
 
-	if search := response.GetSearchParam(c); search != "" {
-		lower := strings.ToLower(search)
-		var searched models.ServiceList
-		for _, svc := range filteredServices {
-			if strings.Contains(strings.ToLower(svc.Meta.Name), lower) {
-				searched = append(searched, svc)
-			}
-		}
-		filteredServices = searched
-	}
+	filteredServices = filterServices(
+		filteredServices,
+		response.GetSearchParam(c),
+		getCatalogServiceParam(c),
+	)
 
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
 		total := len(filteredServices)
