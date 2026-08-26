@@ -175,6 +175,12 @@ func (e *Epinio) Install(args ...string) (string, error) {
 		"--wait",
 	}
 
+	// The released chart still ships the upgrade-responder client, so tracking
+	// stays off here until a release without it is published.
+	if isupgraded || isreleased {
+		opts = append(opts, "--set", "server.disableTracking=true")
+	}
+
 	out, err = proc.Run(testenv.Root(), false, "helm", append(opts, args...)...)
 	if err != nil {
 		return out, err
