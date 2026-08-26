@@ -158,6 +158,36 @@
         ],
         "summary": "Return list of applications in all namespaces.",
         "operationId": "AllApps",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Namespaces",
+            "description": "Comma-separated namespaces to filter by, e.g. \"ns1,ns2\". Names the user\ncannot see, or that do not exist, are ignored.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the application name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/responses/AppsResponse"
@@ -438,6 +468,36 @@
         ],
         "summary": "Return list of configurations in all namespaces.",
         "operationId": "AllConfigurations",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Namespaces",
+            "description": "Comma-separated namespaces to filter by, e.g. \"ns1,ns2\". Names the user\ncannot see, or that do not exist, are ignored.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the configuration name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/responses/ConfigurationsResponse"
@@ -769,6 +829,36 @@
         ],
         "summary": "Return list of all controlled namespaces.",
         "operationId": "Namespaces",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Namespaces",
+            "description": "Comma-separated namespaces to filter by, e.g. \"ns1,ns2\". Matches the\nnamespace name exactly. Names the user cannot see are ignored.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the namespace name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/responses/NamespacesResponse"
@@ -936,6 +1026,7 @@
     },
     "/namespaces/{Namespace}/applications/{App}": {
       "get": {
+        "description": "The response includes `configuration.environment` (user-set variables only) and\n`configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).",
         "tags": [
           "application"
         ],
@@ -1613,6 +1704,35 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/{App}/source": {
+      "patch": {
+        "description": "The multipart body carries the source archive and an optional `process_cmd`\nform field (supervisor fallback command for non-Paketo buildpacks).",
+        "tags": [
+          "application"
+        ],
+        "summary": "Replace the source of the named `App` in the `Namespace` and restage it.",
+        "operationId": "AppSourcePatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppStageResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/applications/{App}/stage": {
       "post": {
         "tags": [
@@ -1672,6 +1792,34 @@
         "responses": {
           "200": {
             "$ref": "#/responses/AppUploadResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/applications/{App}/sync": {
+      "post": {
+        "description": "Sync changed files or a compiled binary into the running pod of the named\n`App` in the `Namespace`. The multipart body carries the tar archive plus\n`mode` (\"files\" or \"binary\"), and optional `dest` and `binary_name` form\nfields.",
+        "tags": [
+          "application"
+        ],
+        "operationId": "AppSync",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppSyncResponse"
           }
         }
       }
@@ -2355,6 +2503,36 @@
         ],
         "summary": "Return all the `Services` where the User has authorization.",
         "operationId": "AllServices",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Namespaces",
+            "description": "Comma-separated namespaces to filter by, e.g. \"ns1,ns2\". Names the user\ncannot see, or that do not exist, are ignored.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the service name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceListResponse"
@@ -2446,11 +2624,11 @@
           "type": "string",
           "x-go-name": "Description"
         },
-        "helmChart": {
+        "helm_chart": {
           "type": "string",
           "x-go-name": "HelmChart"
         },
-        "helmRepo": {
+        "helm_repo": {
           "type": "string",
           "x-go-name": "HelmRepo"
         },
@@ -2465,7 +2643,50 @@
           },
           "x-go-name": "Settings"
         },
-        "shortDescription": {
+        "short_description": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Values"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppChartFull": {
+      "type": "object",
+      "properties": {
+        "bound_apps": {
+          "type": "boolean",
+          "x-go-name": "BoundApps"
+        },
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "helm_chart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
+        "helm_repo": {
+          "type": "string",
+          "x-go-name": "HelmRepo"
+        },
+        "meta": {
+          "$ref": "#/definitions/MetaLite"
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ChartSetting"
+          },
+          "x-go-name": "Settings"
+        },
+        "short_description": {
           "type": "string",
           "x-go-name": "ShortDescription"
         },
@@ -2483,7 +2704,7 @@
       "description": "AppChartList is a collection of app charts",
       "type": "array",
       "items": {
-        "$ref": "#/definitions/AppChart"
+        "$ref": "#/definitions/AppChartFull"
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
@@ -2494,11 +2715,11 @@
           "type": "string",
           "x-go-name": "Description"
         },
-        "helmChart": {
+        "helm_chart": {
           "type": "string",
           "x-go-name": "HelmChart"
         },
-        "helmRepo": {
+        "helm_repo": {
           "type": "string",
           "x-go-name": "HelmRepo"
         },
@@ -2509,7 +2730,7 @@
           },
           "x-go-name": "Settings"
         },
-        "shortDescription": {
+        "short_description": {
           "type": "string",
           "x-go-name": "ShortDescription"
         },
@@ -2707,18 +2928,15 @@
         "environment": {
           "$ref": "#/definitions/EnvVariableMap"
         },
-<<<<<<< HEAD
+        "environment_grouped": {
+          "$ref": "#/definitions/EnvVariableGroupedResponse"
+        },
         "ignore": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "x-go-name": "Ignore"
-=======
-        "environment_grouped": {
-          "description": "Environment variables grouped by origin (user-set vs service-provided). Same structure as GET .../environment?grouped=true.",
-          "$ref": "#/definitions/EnvVariableGroupedResponse"
->>>>>>> ad3160bd64d5a9a5e0c1e84df04df5442bbfe441
         },
         "instances": {
           "type": "integer",
@@ -2906,6 +3124,16 @@
       "description": "BuilderImage is the REST DTO for the BuilderImage CRD\n(application.epinio.io/v1, kind BuilderImage). The CRD shape is intentionally\nnot re-exported here — we keep a domain wrapper so CRD revisions do not\nbecome breaking client changes.",
       "type": "object",
       "properties": {
+        "bound_apps": {
+          "description": "BoundApps reports whether at least one application is currently staged\nwith this builder image. Read-only, computed from live app resources.",
+          "type": "boolean",
+          "x-go-name": "BoundApps"
+        },
+        "default": {
+          "description": "Default reports whether this builder image is the cluster default.\nRead-only: it is set as operator policy (helm seed / kubectl), never\nthrough the create or update API.",
+          "type": "boolean",
+          "x-go-name": "Default"
+        },
         "description": {
           "type": "string",
           "x-go-name": "Description"
@@ -2940,7 +3168,7 @@
           "type": "string",
           "x-go-name": "Name"
         },
-        "shortDescription": {
+        "short_description": {
           "type": "string",
           "x-go-name": "ShortDescription"
         }
@@ -2981,7 +3209,7 @@
           "type": "string",
           "x-go-name": "Image"
         },
-        "shortDescription": {
+        "short_description": {
           "type": "string",
           "x-go-name": "ShortDescription"
         }
@@ -3006,15 +3234,20 @@
       "description": "CatalogService mostly matches github.com/epinio/application/api/v1 ServiceSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
       "properties": {
-        "appVersion": {
+        "app_version": {
           "type": "string",
           "x-go-name": "AppVersion"
+        },
+        "bound_services": {
+          "description": "BoundServices reports whether at least one provisioned service instance\nderives from this catalog service. Read-only, computed from live service\ninstances. Named for what actually binds to a catalog service (instances),\nnot apps, which attach to instances rather than the catalog entry.",
+          "type": "boolean",
+          "x-go-name": "BoundServices"
         },
         "chart": {
           "type": "string",
           "x-go-name": "HelmChart"
         },
-        "chartVersion": {
+        "chart_version": {
           "type": "string",
           "x-go-name": "ChartVersion"
         },
@@ -3028,14 +3261,14 @@
         "meta": {
           "$ref": "#/definitions/MetaLite"
         },
-        "secretTypes": {
+        "secret_types": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "x-go-name": "SecretTypes"
         },
-        "serviceIcon": {
+        "service_icon": {
           "type": "string",
           "x-go-name": "ServiceIcon"
         },
@@ -3061,7 +3294,7 @@
       "description": "CatalogServiceCreateRequest carries the fields a client supplies when\ncreating a catalog service. Name is required and lands in metadata.name;\nthe remainder land under spec.",
       "type": "object",
       "properties": {
-        "appVersion": {
+        "app_version": {
           "type": "string",
           "x-go-name": "AppVersion"
         },
@@ -3069,7 +3302,7 @@
           "type": "string",
           "x-go-name": "HelmChart"
         },
-        "chartVersion": {
+        "chart_version": {
           "type": "string",
           "x-go-name": "ChartVersion"
         },
@@ -3077,21 +3310,21 @@
           "type": "string",
           "x-go-name": "Description"
         },
-        "helmRepo": {
+        "helm_repo": {
           "$ref": "#/definitions/HelmRepoRequest"
         },
         "name": {
           "type": "string",
           "x-go-name": "Name"
         },
-        "secretTypes": {
+        "secret_types": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "x-go-name": "SecretTypes"
         },
-        "serviceIcon": {
+        "service_icon": {
           "type": "string",
           "x-go-name": "ServiceIcon"
         },
@@ -3102,7 +3335,7 @@
           },
           "x-go-name": "Settings"
         },
-        "shortDescription": {
+        "short_description": {
           "type": "string",
           "x-go-name": "ShortDescription"
         },
@@ -3117,7 +3350,7 @@
       "description": "CatalogServiceUpdateRequest carries optional field updates. Empty string\nfields are ignored — name is taken from the URL, not the body. Settings\nand SecretTypes are replaced when non-nil; pass nil to leave untouched.",
       "type": "object",
       "properties": {
-        "appVersion": {
+        "app_version": {
           "type": "string",
           "x-go-name": "AppVersion"
         },
@@ -3125,7 +3358,7 @@
           "type": "string",
           "x-go-name": "HelmChart"
         },
-        "chartVersion": {
+        "chart_version": {
           "type": "string",
           "x-go-name": "ChartVersion"
         },
@@ -3133,17 +3366,17 @@
           "type": "string",
           "x-go-name": "Description"
         },
-        "helmRepo": {
+        "helm_repo": {
           "$ref": "#/definitions/HelmRepoRequest"
         },
-        "secretTypes": {
+        "secret_types": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "x-go-name": "SecretTypes"
         },
-        "serviceIcon": {
+        "service_icon": {
           "type": "string",
           "x-go-name": "ServiceIcon"
         },
@@ -3154,7 +3387,7 @@
           },
           "x-go-name": "Settings"
         },
-        "shortDescription": {
+        "short_description": {
           "type": "string",
           "x-go-name": "ShortDescription"
         },
@@ -3519,13 +3752,13 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "EnvVariableGroupedResponse": {
-      "description": "Environment variables grouped by their origin (user vs service-provided)",
+      "description": "EnvVariableGroupedResponse represents environment variables grouped by their origin",
       "type": "object",
       "properties": {
-        "user": {
+        "service": {
           "$ref": "#/definitions/EnvVariableMap"
         },
-        "service": {
+        "user": {
           "$ref": "#/definitions/EnvVariableMap"
         }
       },
@@ -3592,6 +3825,10 @@
           "type": "string",
           "x-go-name": "Branch"
         },
+        "gitconfig": {
+          "type": "string",
+          "x-go-name": "Gitconfig"
+        },
         "provider": {
           "$ref": "#/definitions/GitProvider"
         },
@@ -3610,6 +3847,10 @@
       "description": "Gitconfig contains the public parts of git.Configuration\nPassword and cert data are private and excluded.\nTODO : Track creating user of the config.",
       "type": "object",
       "properties": {
+        "global": {
+          "type": "boolean",
+          "x-go-name": "Global"
+        },
         "meta": {
           "$ref": "#/definitions/MetaLite"
         },
@@ -3650,6 +3891,10 @@
             "format": "uint8"
           },
           "x-go-name": "Certificates"
+        },
+        "global": {
+          "type": "boolean",
+          "x-go-name": "Global"
         },
         "id": {
           "type": "string",
@@ -4383,6 +4628,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/StageResponse"
+      }
+    },
+    "AppSyncResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
       }
     },
     "AppUpdateResponse": {
