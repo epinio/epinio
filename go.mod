@@ -33,7 +33,6 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/h2non/filetype v1.1.3
 	github.com/kyokomi/emoji v2.2.4+incompatible
-	github.com/longhorn/upgrade-responder v0.2.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.12.1
 	github.com/mholt/archives v0.1.5
