@@ -1072,43 +1072,13 @@ func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (s
 	return builderImage, nil
 }
 
-// getBlobUID returns the blob to stage from the request or the app CR, and
-// validates S3 metadata (app name + namespace) before returning. Shared by
-// Stage(), resolveBlobUID(), and the async deploy staging path.
-func getBlobUID(
-	ctx context.Context,
-	s3ConnectionDetails s3manager.ConnectionDetails,
-	req models.StageRequest,
-	app *unstructured.Unstructured,
-) (string, apierror.APIErrors) {
-	var blobUID string
-
-	if req.BlobUID != "" {
-		blobUID = req.BlobUID
-	} else {
-		previousUID, lookupError := application.BlobUID(app)
-		if lookupError != nil {
-			return "", apierror.InternalError(lookupError, "looking up the previous blob UID")
-		}
-		blobUID = previousUID
-	}
-
-	if blobUID == "" {
-		return "", apierror.NewBadRequestError(
-			"request didn't provide a blobUID and a previous one doesn't exist",
-		)
-	}
-
-	validateError := validateBlob(ctx, blobUID, req.App, s3ConnectionDetails)
-	if validateError != nil {
-		return "", validateError
-	}
-
-	return blobUID, nil
-}
-
-// resolveBlobUID returns the blob to stage. When the stored blob is missing
-// and the app has a git origin, it re-clones and uploads a fresh blob.
+// resolveBlobUID returns the blob to stage, in three cases.
+//
+// A blob named explicitly in the request must validate: a caller that asked for
+// a specific blob and cannot have it gets an error, never a silent substitute.
+// A blob recorded on the app CR may have been reaped from S3, so failing to use
+// it falls through to the git origin. With neither, the git origin is the only
+// source left.
 func resolveBlobUID(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
@@ -1121,14 +1091,43 @@ func resolveBlobUID(
 	namespace := req.App.Namespace
 	name := req.App.Name
 
-	blobUID, blobError := getBlobUID(ctx, s3ConnectionDetails, req, app)
-	if blobError == nil {
-		return blobUID, nil
+	if req.BlobUID != "" {
+		validateError := validateBlob(
+			ctx, req.BlobUID, req.App, s3ConnectionDetails,
+		)
+		if validateError != nil {
+			return "", validateError
+		}
+
+		return req.BlobUID, nil
 	}
 
-	log.Infow("blob lookup failed, checking for git origin fallback",
-		"namespace", namespace, "app", name, "error", blobError,
+	storedBlobUID, lookupError := application.BlobUID(app)
+	if lookupError != nil {
+		return "", apierror.InternalError(
+			lookupError, "looking up the previous blob UID",
+		)
+	}
+
+	if storedBlobUID != "" {
+		validateError := validateBlob(
+			ctx, storedBlobUID, req.App, s3ConnectionDetails,
+		)
+		if validateError == nil {
+			return storedBlobUID, nil
+		}
+
+		log.Infow("stored blob unusable, checking for git origin fallback",
+			"namespace", namespace, "app", name,
+			"blobUID", storedBlobUID, "error", validateError,
+		)
+	}
+
+	blobError := apierror.NewBadRequestError(
+		"application has no usable source: no blobuid was provided, " +
+			"no stored blob is available, and it has no git origin to re-clone",
 	)
+
 	origin, originError := application.Origin(app)
 	if originError != nil || origin.Git == nil {
 		log.Infow("no git origin available for fallback",

@@ -2557,6 +2557,10 @@
         "deployment": {
           "$ref": "#/definitions/AppDeployment"
         },
+        "failure_reason": {
+          "type": "string",
+          "x-go-name": "FailureReason"
+        },
         "image_url": {
           "type": "string",
           "x-go-name": "ImageURL"
@@ -4198,6 +4202,11 @@
         "createdAt": {
           "type": "string",
           "x-go-name": "CreatedAt"
+        },
+        "failure_reason": {
+          "description": "FailureReason is non-empty when the pod will not become ready without\nintervention: an image pull failure, a container config error, a crash\nloop, or never having been scheduled.",
+          "type": "string",
+          "x-go-name": "FailureReason"
         },
         "memoryBytes": {
           "type": "integer",

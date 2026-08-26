@@ -226,7 +226,7 @@ func Exists(
 
 // IsCurrentlyStaging returns true if the named application is staging
 // (there is an active Job for this application). If this information is needed
-// for more than one application use StagingStatuses instead.
+// for more than one application use stagingStatus instead.
 func IsCurrentlyStaging(
 	ctx context.Context,
 	cluster JobLister,
@@ -239,41 +239,6 @@ func IsCurrentlyStaging(
 	}
 	status := staging[EncodeConfigurationKey(appName, namespace)]
 	return status.status == models.ApplicationStagingActive, nil
-}
-
-// StagingStatuses returns a map of applications and their staging statuses
-func StagingStatuses(
-	ctx context.Context,
-	cluster JobLister,
-	namespace string,
-) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
-	infos, err := stagingStatus(ctx, cluster, namespace, nil)
-	return stagingStatusesFromInfo(infos, err)
-}
-
-// StagingStatusesForApps returns staging statuses scoped to the given app names.
-func StagingStatusesForApps(
-	ctx context.Context,
-	cluster JobLister,
-	namespace string,
-	appNames []string,
-) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
-	infos, err := stagingStatus(ctx, cluster, namespace, appNames)
-	return stagingStatusesFromInfo(infos, err)
-}
-
-func stagingStatusesFromInfo(
-	infos map[ConfigurationKey]stagingJobInfo,
-	err error,
-) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
-	if err != nil {
-		return nil, err
-	}
-	result := make(map[ConfigurationKey]models.ApplicationStagingStatus, len(infos))
-	for key, info := range infos {
-		result[key] = info.status
-	}
-	return result, nil
 }
 
 /*
@@ -421,7 +386,7 @@ type stagingJobInfo struct {
 // deployGracePeriod is how long to keep reporting "deploying" after staging
 // completes when no workload is visible yet. Beyond this, with a built image
 // and no pods, the deploy is treated as failed rather than still in progress.
-const deployGracePeriod = 90 * time.Second
+const deployGracePeriod = 180 * time.Second
 
 type AppData struct {
 	scaling            *v1.Secret
@@ -1165,15 +1130,20 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 		return
 	}
 
-	if wantsInstances(app) &&
+	notReady := wantsInstances(app) &&
 		app.Workload.ReadyReplicas == 0 &&
-		app.Workload.DesiredReplicas > 0 &&
-		workloadLooksFailed(app.Workload) {
-		app.Status = models.ApplicationError
-		if app.StatusMessage == "" {
-			app.StatusMessage = "deployment failed"
+		app.Workload.DesiredReplicas > 0
+
+	if notReady {
+		failureReason := workloadFailureReason(app.Workload)
+		if failureReason != "" {
+			app.Status = models.ApplicationError
+			app.FailureReason = failureReason
+			if app.StatusMessage == "" {
+				app.StatusMessage = "deployment failed: " + failureReason
+			}
+			return
 		}
-		return
 	}
 
 	app.Status = models.ApplicationRunning
@@ -1190,15 +1160,28 @@ func stagingDeployTimedOut(app *models.App, stagingCompletedAt *time.Time) bool 
 	return time.Since(*stagingCompletedAt) > deployGracePeriod
 }
 
-// workloadLooksFailed is true when pods are crash-looping (restarts) rather than
-// in a normal not-ready-yet startup window.
-func workloadLooksFailed(workload *models.AppDeployment) bool {
+// workloadFailureReason returns why the workload's pods cannot become ready, or
+// "" when they are healthy or still inside a normal startup window.
+//
+// A reason reported by kubernetes wins over the restart count, which is only an
+// inference. Two loops keep that precedence deterministic, since map iteration
+// order is not.
+func workloadFailureReason(workload *models.AppDeployment) string {
 	for _, replica := range workload.Replicas {
-		if replica.Restarts > 0 {
-			return true
+		if replica.FailureReason != "" {
+			return replica.FailureReason
 		}
 	}
-	return false
+
+	// A container that died and restarted has not been given a CrashLoopBackOff
+	// waiting reason yet, so the count is the only evidence.
+	for _, replica := range workload.Replicas {
+		if replica.Restarts > 0 {
+			return "Restarting"
+		}
+	}
+
+	return ""
 }
 
 // wantsInstances is true when the app is expected to run at least one instance.

@@ -129,7 +129,7 @@ var _ = Describe("assignApplicationStatus", func() {
 		}
 		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
-		Expect(app.StatusMessage).To(Equal("deployment failed"))
+		Expect(app.StatusMessage).To(Equal("deployment failed: Restarting"))
 	})
 
 	It("keeps running when workload pods are starting without restarts", func() {
@@ -193,5 +193,73 @@ var _ = Describe("assignApplicationStatus", func() {
 		assignApplicationStatus(app, &completedAt)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationDeploying)))
 		Expect(app.StatusMessage).To(Equal("deploying"))
+	})
+
+	It("marks error when a pod cannot pull its image", func() {
+		app := &models.App{
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+			Workload: &models.AppDeployment{
+				Active:          true,
+				DesiredReplicas: 1,
+				ReadyReplicas:   0,
+				Replicas: map[string]*models.PodInfo{
+					"pod-1": {Restarts: 0, Ready: false, FailureReason: "ImagePullBackOff"},
+				},
+			},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.FailureReason).To(Equal("ImagePullBackOff"))
+		Expect(app.StatusMessage).To(Equal("deployment failed: ImagePullBackOff"))
+	})
+
+	It("marks error when a pod has a bad config reference", func() {
+		app := &models.App{
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+			Workload: &models.AppDeployment{
+				Active:          true,
+				DesiredReplicas: 1,
+				ReadyReplicas:   0,
+				Replicas: map[string]*models.PodInfo{
+					"pod-1": {Restarts: 0, Ready: false, FailureReason: "CreateContainerConfigError"},
+				},
+			},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.StatusMessage).To(Equal("deployment failed: CreateContainerConfigError"))
+	})
+
+	It("marks error when a pod was never scheduled", func() {
+		app := &models.App{
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+			Workload: &models.AppDeployment{
+				Active:          true,
+				DesiredReplicas: 1,
+				ReadyReplicas:   0,
+				Replicas: map[string]*models.PodInfo{
+					"pod-1": {Restarts: 0, Ready: false, FailureReason: "Unschedulable"},
+				},
+			},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.StatusMessage).To(Equal("deployment failed: Unschedulable"))
+	})
+
+	It("reports a kubernetes reason in preference to the restart count", func() {
+		app := &models.App{
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+			Workload: &models.AppDeployment{
+				Active:          true,
+				DesiredReplicas: 1,
+				ReadyReplicas:   0,
+				Replicas: map[string]*models.PodInfo{
+					"pod-1": {Restarts: 3, Ready: false, FailureReason: "ImagePullBackOff"},
+				},
+			},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.FailureReason).To(Equal("ImagePullBackOff"))
 	})
 })
