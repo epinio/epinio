@@ -97,6 +97,27 @@ func init() {
 	err = viper.BindEnv("default-builder-image", "DEFAULT_BUILDER_IMAGE")
 	checkErr(err)
 
+<<<<<<< HEAD
+=======
+	flags.Bool("disable-tracking", false, "(DISABLE_TRACKING) Disable tracking of the running Epinio and Kubernetes versions")
+	err = viper.BindPFlag("disable-tracking", flags.Lookup("disable-tracking"))
+	checkErr(err)
+	err = viper.BindEnv("disable-tracking", "DISABLE_TRACKING")
+	checkErr(err)
+
+	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Disable tracking of the running Epinio and Kubernetes versions")
+	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
+	checkErr(err)
+	err = viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS")
+	checkErr(err)
+
+	flags.String("install-method", "unknown", "(INSTALL_METHOD) How this Epinio instance was installed (helm|cli). Used when creating a missing instance id.")
+	err = viper.BindPFlag("install-method", flags.Lookup("install-method"))
+	checkErr(err)
+	err = viper.BindEnv("install-method", "INSTALL_METHOD")
+	checkErr(err)
+
+>>>>>>> 1349ac40 (feat(EPINIO-683): add persistent instance ID for Epinio installs)
 	flags.Float32("kube-api-qps", rest.DefaultQPS, "(KUBE_API_QPS) The QPS indicates the maximum QPS of the Kubernetes client.")
 	err = viper.BindPFlag("kube-api-qps", flags.Lookup("kube-api-qps"))
 	checkErr(err)

@@ -456,6 +456,8 @@ type InfoResponse struct {
 	Platform            string `json:"platform,omitempty"`
 	DefaultBuilderImage string `json:"default_builder_image,omitempty"`
 	OIDCEnabled         bool   `json:"oidc_enabled,omitempty"`
+	InstanceID          string `json:"instance_id,omitempty"`
+	InstallMethod       string `json:"install_method,omitempty"`
 }
 
 // MeResponse contains information about the current authenticated user
