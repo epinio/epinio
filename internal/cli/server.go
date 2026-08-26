@@ -110,6 +110,12 @@ func init() {
 	err = viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS")
 	checkErr(err)
 
+	flags.String("install-method", "unknown", "(INSTALL_METHOD) How this Epinio instance was installed (helm|cli). Used when creating a missing instance id.")
+	err = viper.BindPFlag("install-method", flags.Lookup("install-method"))
+	checkErr(err)
+	err = viper.BindEnv("install-method", "INSTALL_METHOD")
+	checkErr(err)
+
 	flags.Float32("kube-api-qps", rest.DefaultQPS, "(KUBE_API_QPS) The QPS indicates the maximum QPS of the Kubernetes client.")
 	err = viper.BindPFlag("kube-api-qps", flags.Lookup("kube-api-qps"))
 	checkErr(err)

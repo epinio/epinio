@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/instance"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/go-logr/logr"
 	"github.com/longhorn/upgrade-responder/client"
@@ -26,12 +27,19 @@ func NewChecker(ctx context.Context, logger logr.Logger, upgradeResponderAddress
 		return nil, err
 	}
 
+	instanceInfo, err := instance.GetOrCreate(ctx, cluster)
+	if err != nil {
+		return nil, err
+	}
+
 	return client.NewUpgradeChecker(upgradeResponderAddress, &EpinioUpgradeRequester{
 		Logger:              logger,
 		EpinioVersion:       version.ChartVersion,
 		EpinioServerVersion: version.Version,
 		KubernetesPlatform:  cluster.GetPlatform().String(),
 		KubernetesVersion:   kubeVersion,
+		InstanceID:          instanceInfo.ID,
+		InstallMethod:       instanceInfo.InstallMethod,
 	}), nil
 }
 
@@ -41,6 +49,8 @@ type EpinioUpgradeRequester struct {
 	EpinioServerVersion string
 	KubernetesPlatform  string
 	KubernetesVersion   string
+	InstanceID          string
+	InstallMethod       string
 }
 
 func (e *EpinioUpgradeRequester) GetCurrentVersion() string {
@@ -52,6 +62,8 @@ func (e *EpinioUpgradeRequester) GetExtraInfo() map[string]string {
 		"epinioServerVersion": e.EpinioServerVersion,
 		"kubernetesVersion":   e.KubernetesVersion,
 		"kubernetesPlatform":  e.KubernetesPlatform,
+		"instanceId":          e.InstanceID,
+		"installMethod":       e.InstallMethod,
 	}
 }
 
