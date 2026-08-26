@@ -2547,11 +2547,19 @@
       "type": "object",
       "title": "App has all the application's properties, for at rest (Configuration), and active (Workload).",
       "properties": {
+        "blobuid": {
+          "type": "string",
+          "x-go-name": "BlobUID"
+        },
         "configuration": {
           "$ref": "#/definitions/ApplicationConfiguration"
         },
         "deployment": {
           "$ref": "#/definitions/AppDeployment"
+        },
+        "failure_reason": {
+          "type": "string",
+          "x-go-name": "FailureReason"
         },
         "image_url": {
           "type": "string",
@@ -3030,12 +3038,20 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "ApplicationStage": {
-      "description": "ApplicationStage is the part of the manifest holding information\nrelevant to staging the application's sources. This is, currently,\nonly the reference to the Paketo builder image to use.",
+      "description": "ApplicationStage is the part of the manifest holding information\nrelevant to staging the application's sources.",
       "type": "object",
       "properties": {
+        "buildMode": {
+          "type": "string",
+          "x-go-name": "BuildMode"
+        },
         "builder": {
           "type": "string",
           "x-go-name": "Builder"
+        },
+        "dockerfilePath": {
+          "type": "string",
+          "x-go-name": "DockerfilePath"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -3847,6 +3863,11 @@
       "description": "Gitconfig contains the public parts of git.Configuration\nPassword and cert data are private and excluded.\nTODO : Track creating user of the config.",
       "type": "object",
       "properties": {
+        "bound_apps": {
+          "description": "BoundApps reports whether at least one application currently references\nthis git configuration. Read-only, computed from live app resources.",
+          "type": "boolean",
+          "x-go-name": "BoundApps"
+        },
         "global": {
           "type": "boolean",
           "x-go-name": "Global"
@@ -4182,6 +4203,11 @@
           "type": "string",
           "x-go-name": "CreatedAt"
         },
+        "failure_reason": {
+          "description": "FailureReason is non-empty when the pod will not become ready without\nintervention: an image pull failure, a container config error, a crash\nloop, or never having been scheduled.",
+          "type": "string",
+          "x-go-name": "FailureReason"
+        },
         "memoryBytes": {
           "type": "integer",
           "format": "int64",
@@ -4486,6 +4512,14 @@
         "builderimage": {
           "type": "string",
           "x-go-name": "BuilderImage"
+        },
+        "buildmode": {
+          "type": "string",
+          "x-go-name": "BuildMode"
+        },
+        "dockerfilepath": {
+          "type": "string",
+          "x-go-name": "DockerfilePath"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"

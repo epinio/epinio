@@ -181,7 +181,7 @@ func sourceInfo(
 		)
 	}
 
-	currentBlobUID, findBlobError := findPreviousBlobUID(app)
+	currentBlobUID, findBlobError := application.BlobUID(app)
 	if findBlobError != nil {
 		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
 			findBlobError,

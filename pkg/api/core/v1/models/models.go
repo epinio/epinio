@@ -387,6 +387,8 @@ type DeployResponse struct {
 //
 // For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
 // `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
+// Both may be omitted to retry a failed build: staging then resolves the stored blobuid from the app CR,
+// or re-clones from git origin when the blob is missing.
 type AsyncDeployRequest struct {
 	App            AppRef            `json:"app,omitempty"`
 	BlobUID        string            `json:"blobuid,omitempty"`

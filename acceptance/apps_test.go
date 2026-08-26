@@ -1066,11 +1066,13 @@ var _ = Describe("Apps", LApplication, func() {
 		It("shows the proper status", func() {
 			out, err := env.Epinio("", "app", "show", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
-			// Status may be deployment failed (staging ok) or staging failed depending on timing
+			// Staging ok then deploy may still be rolling (deploying), pods may
+			// already exist at 0/1 (with a failure reason appended once one is
+			// known), or staging itself may have failed.
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
-					WithRow("Status", "((0/1)|(staging ok, deployment failed)|(not deployed, staging failed))"),
+					WithRow("Status", "((0/1(, .*)?)|(staging ok, deploying)|(not deployed, deployment failed)|(not deployed, staging failed))"),
 				),
 			)
 
