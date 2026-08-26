@@ -43,7 +43,10 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	namespaces := response.GetNamespacesParam(c)
+
 	filteredServices := auth.FilterResources(user, serviceList)
+	filteredServices = auth.FilterByNamespaces(filteredServices, namespaces)
 
 	filteredServices = filterServices(
 		filteredServices,

@@ -20,6 +20,9 @@ package models
 import (
 	"fmt"
 	"io"
+	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/epinio/epinio/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -132,11 +135,85 @@ type ApplicationManifest struct {
 	Namespace     string                   `yaml:"namespace,omitempty"`
 }
 
+// Build mode constants for staging.
+const (
+	BuildModeBuildpack  = "buildpack"
+	BuildModeDockerfile = "dockerfile"
+)
+
+// ValidateBuildMode returns a canonical build mode.
+// Empty defaults to buildpack. Unknown values (e.g. typos) return an error —
+// they must not silently fall back to buildpack.
+func ValidateBuildMode(mode string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", BuildModeBuildpack:
+		return BuildModeBuildpack, nil
+	case BuildModeDockerfile:
+		return BuildModeDockerfile, nil
+	default:
+		return "", fmt.Errorf("invalid build mode %q: must be %q or %q", mode, BuildModeBuildpack, BuildModeDockerfile)
+	}
+}
+
+// NormalizeBuildMode returns a known build mode for empty/"buildpack"/"dockerfile".
+// Prefer ValidateBuildMode at CLI/API boundaries so typos are rejected instead of
+// being coerced to buildpack.
+func NormalizeBuildMode(mode string) string {
+	normalized, err := ValidateBuildMode(mode)
+	if err != nil {
+		// Do not map unknown values to buildpack; callers should validate first.
+		return strings.ToLower(strings.TrimSpace(mode))
+	}
+	return normalized
+}
+
+// ValidateDockerfilePath returns a safe Dockerfile path relative to app sources.
+// Empty defaults to "Dockerfile". Absolute paths, ".." segments, and unexpected
+// characters are rejected so the value cannot escape /workspace/source/app or
+// break the staging scripts.
+func ValidateDockerfilePath(dockerfilePath string) (string, error) {
+	trimmed := strings.TrimSpace(dockerfilePath)
+	if trimmed == "" {
+		return "Dockerfile", nil
+	}
+
+	// Staging runs on Linux; keep the check host-agnostic for CLI callers.
+	if path.IsAbs(trimmed) || filepath.IsAbs(trimmed) ||
+		(len(trimmed) >= 2 && trimmed[1] == ':') ||
+		strings.HasPrefix(trimmed, `\\`) {
+		return "", fmt.Errorf("invalid dockerfile path %q: absolute paths are not allowed", dockerfilePath)
+	}
+
+	normalized := filepath.ToSlash(trimmed)
+	for _, part := range strings.Split(normalized, "/") {
+		if part == ".." {
+			return "", fmt.Errorf("invalid dockerfile path %q: paths must not contain '..'", dockerfilePath)
+		}
+	}
+
+	cleaned := path.Clean(normalized)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || path.IsAbs(cleaned) {
+		return "", fmt.Errorf("invalid dockerfile path %q: path must stay within application sources", dockerfilePath)
+	}
+
+	// Keep paths simple for shell/Kaniko usage (no spaces, globs, etc.).
+	for _, r := range cleaned {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '.' || r == '_' || r == '-' || r == '/' {
+			continue
+		}
+		return "", fmt.Errorf("invalid dockerfile path %q: only letters, digits, '.', '_', '-', and '/' are allowed", dockerfilePath)
+	}
+
+	return cleaned, nil
+}
+
 // ApplicationStage is the part of the manifest holding information
-// relevant to staging the application's sources. This is, currently,
-// only the reference to the Paketo builder image to use.
+// relevant to staging the application's sources.
 type ApplicationStage struct {
-	Builder string `yaml:"builder,omitempty" json:"builder,omitempty"`
+	Builder        string `yaml:"builder,omitempty" json:"builder,omitempty"`
+	BuildMode      string `yaml:"buildMode,omitempty" json:"buildMode,omitempty"`
+	DockerfilePath string `yaml:"dockerfilePath,omitempty" json:"dockerfilePath,omitempty"`
 }
 
 // ApplicationConfiguration is the part of the manifest describing the configuration of the application
@@ -257,9 +334,11 @@ type UploadResponse struct {
 
 // StageRequest represents and contains the data needed to stage an application
 type StageRequest struct {
-	App          AppRef `json:"app,omitempty"`
-	BlobUID      string `json:"blobuid,omitempty"`
-	BuilderImage string `json:"builderimage,omitempty"`
+	App            AppRef `json:"app,omitempty"`
+	BlobUID        string `json:"blobuid,omitempty"`
+	BuilderImage   string `json:"builderimage,omitempty"`
+	BuildMode      string `json:"buildmode,omitempty"`
+	DockerfilePath string `json:"dockerfilepath,omitempty"`
 }
 
 // StageResponse represents the server's response to a successful app staging
@@ -309,11 +388,13 @@ type DeployResponse struct {
 // For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
 // `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
 type AsyncDeployRequest struct {
-	App          AppRef            `json:"app,omitempty"`
-	BlobUID      string            `json:"blobuid,omitempty"`
-	BuilderImage string            `json:"builderimage,omitempty"`
-	ImageURL     string            `json:"image,omitempty"`
-	Origin       ApplicationOrigin `json:"origin,omitempty"`
+	App            AppRef            `json:"app,omitempty"`
+	BlobUID        string            `json:"blobuid,omitempty"`
+	BuilderImage   string            `json:"builderimage,omitempty"`
+	BuildMode      string            `json:"buildmode,omitempty"`
+	DockerfilePath string            `json:"dockerfilepath,omitempty"`
+	ImageURL       string            `json:"image,omitempty"`
+	Origin         ApplicationOrigin `json:"origin,omitempty"`
 }
 
 // AsyncDeployStatus represents the status of an asynchronous deploy operation.
