@@ -1297,6 +1297,7 @@ var _ = Describe("Apps", LApplication, func() {
 				Expect(err).To(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring(`persistentvolumeclaims "%s" not found`, pvcName))
 			})
+
 		})
 	})
 

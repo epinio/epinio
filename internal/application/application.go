@@ -730,6 +730,13 @@ Delete removes the named application, its workload (if active), bindings
 application was staged (if active). Waits for the application's deployment's
 pods to disappear (if active).
 
+Staging PVCs (build cache and source blobs) are always removed; they hold only
+data rebuilt from S3 on the next stage, and nothing else ever reaps them.
+
+When deletePVC is true, application data PVCs (e.g. from StatefulSet
+volumeClaimTemplates) are removed as well. When it is false (the default) that
+data is preserved.
+
 Returns a DeleteResult containing any warnings (e.g., incomplete blob cleanup).
 */
 func Delete(
@@ -737,6 +744,7 @@ func Delete(
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
 	deleteImage bool,
+	deletePVC bool,
 ) (*DeleteResult, error) {
 	result := &DeleteResult{}
 
@@ -760,6 +768,15 @@ func Delete(
 			} else if imageURL == "" {
 				log.Infow("No image URL found in application, skipping image deletion", "app", appRef.Name)
 			}
+		}
+	}
+
+	// Collect app data PVC names up front, while the StatefulSet still exists.
+	var appDataPVCs []string
+	if deletePVC {
+		appDataPVCs, err = listAppDataPVCNames(ctx, cluster, appRef)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -814,6 +831,13 @@ func Delete(
 	err = deleteSourceBlobsStagePVC(ctx, cluster, appRef)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, err
+	}
+
+	if deletePVC {
+		err = deleteAppDataPVCs(ctx, cluster, appRef.Namespace, appDataPVCs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = cluster.WaitForPodBySelectorMissing(ctx,
@@ -990,6 +1014,58 @@ func deleteSourceBlobsStagePVC(
 		PersistentVolumeClaims(
 			helmchart.Namespace(),
 		).Delete(ctx, appRef.MakeSourceBlobsPVCName(), metav1.DeleteOptions{})
+}
+
+// listAppDataPVCNames finds application data PersistentVolumeClaims by label
+// selector. Listing by label (instead of reconstructing names from the current
+// replica count) also finds PVCs left behind after scale-down.
+//
+// Only app.kubernetes.io/name is matched. A claim built from a StatefulSet
+// volumeClaimTemplate inherits spec.selector.matchLabels, which the app charts
+// set to that one label; app.kubernetes.io/component lives on the StatefulSet
+// and its pod template, neither of which reaches the claim. Matching on a
+// subset also keeps working if a chart later adds labels of its own.
+func listAppDataPVCNames(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+) ([]string, error) {
+	selector := labels.Set{
+		"app.kubernetes.io/name": appRef.Name,
+	}.AsSelector().String()
+
+	pvcList, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(appRef.Namespace).List(
+		ctx,
+		metav1.ListOptions{LabelSelector: selector},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	pvcNames := make([]string, 0, len(pvcList.Items))
+	for _, pvc := range pvcList.Items {
+		pvcNames = append(pvcNames, pvc.Name)
+	}
+	return pvcNames, nil
+}
+
+func deleteAppDataPVCs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+	pvcNames []string,
+) error {
+	for _, pvcName := range pvcNames {
+		err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(namespace).Delete(
+			ctx,
+			pvcName,
+			metav1.DeleteOptions{},
+		)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 /*
