@@ -730,9 +730,12 @@ Delete removes the named application, its workload (if active), bindings
 application was staged (if active). Waits for the application's deployment's
 pods to disappear (if active).
 
-When deletePVC is true, staging PVCs (cache/source blobs) and application data
-PVCs (e.g. from StatefulSet volumeClaimTemplates) are removed as well.
-When deletePVC is false (the default), PVCs are preserved.
+Staging PVCs (build cache and source blobs) are always removed; they hold only
+data rebuilt from S3 on the next stage, and nothing else ever reaps them.
+
+When deletePVC is true, application data PVCs (e.g. from StatefulSet
+volumeClaimTemplates) are removed as well. When it is false (the default) that
+data is preserved.
 
 Returns a DeleteResult containing any warnings (e.g., incomplete blob cleanup).
 */
@@ -768,7 +771,7 @@ func Delete(
 		}
 	}
 
-	// Collect app data PVC names up front (label-selected; independent of workload).
+	// Collect app data PVC names up front, while the StatefulSet still exists.
 	var appDataPVCs []string
 	if deletePVC {
 		appDataPVCs, err = listAppDataPVCNames(ctx, cluster, appRef)
@@ -819,18 +822,18 @@ func Delete(
 		log.Info("warning: "+warning, "failedBlobs", unstageResult.FailedBlobCleanups)
 	}
 
+	// delete staging PVC (the one that holds the "source" and "cache" workspaces)
+	err = deleteCacheStagePVC(ctx, cluster, appRef)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, err
+	}
+
+	err = deleteSourceBlobsStagePVC(ctx, cluster, appRef)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, err
+	}
+
 	if deletePVC {
-		// delete staging PVC (the one that holds the "source" and "cache" workspaces)
-		err = deleteCacheStagePVC(ctx, cluster, appRef)
-		if err != nil && !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-
-		err = deleteSourceBlobsStagePVC(ctx, cluster, appRef)
-		if err != nil && !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-
 		err = deleteAppDataPVCs(ctx, cluster, appRef.Namespace, appDataPVCs)
 		if err != nil {
 			return nil, err
@@ -1014,18 +1017,21 @@ func deleteSourceBlobsStagePVC(
 }
 
 // listAppDataPVCNames finds application data PersistentVolumeClaims by label
-// selector. PVCs from StatefulSet volumeClaimTemplates should carry
-// app.kubernetes.io/name and app.kubernetes.io/component=application.
-// Listing by labels (instead of reconstructing names from the current replica
-// count) also finds PVCs left behind after scale-down.
+// selector. Listing by label (instead of reconstructing names from the current
+// replica count) also finds PVCs left behind after scale-down.
+//
+// Only app.kubernetes.io/name is matched. A claim built from a StatefulSet
+// volumeClaimTemplate inherits spec.selector.matchLabels, which the app charts
+// set to that one label; app.kubernetes.io/component lives on the StatefulSet
+// and its pod template, neither of which reaches the claim. Matching on a
+// subset also keeps working if a chart later adds labels of its own.
 func listAppDataPVCNames(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
 ) ([]string, error) {
 	selector := labels.Set{
-		"app.kubernetes.io/name":      appRef.Name,
-		"app.kubernetes.io/component": "application",
+		"app.kubernetes.io/name": appRef.Name,
 	}.AsSelector().String()
 
 	pvcList, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(appRef.Namespace).List(

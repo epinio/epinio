@@ -171,7 +171,7 @@ func NewAppDeleteCmd(client ApplicationsService) *cobra.Command {
 
 	cmd.Flags().BoolVar(&cfg.all, "all", false, "Delete all applications")
 	cmd.Flags().BoolVar(&cfg.deleteImage, "delete-image", false, "Delete the application's container image from the registry")
-	cmd.Flags().BoolVar(&cfg.deletePVC, "delete-pvc", false, "Delete the application's staging and data PersistentVolumeClaims")
+	cmd.Flags().BoolVar(&cfg.deletePVC, "delete-pvc", false, "Delete the application's data PersistentVolumeClaims (e.g. StatefulSet volumes)")
 
 	return cmd
 }

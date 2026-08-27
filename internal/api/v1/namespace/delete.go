@@ -116,10 +116,7 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, namespace stri
 	}()
 
 	p, err := ants.NewPoolWithFunc(maxConcurrent, func(i interface{}) {
-		// Namespaces are deleted without an explicit request body. Keep matching
-		// existing behavior for images (do not delete), but remove PVCs so
-		// staging storage in the epinio namespace is not left behind.
-		_, err := application.Delete(ctx, cluster, i.(models.AppRef), false, true)
+		_, err := application.Delete(ctx, cluster, i.(models.AppRef), false, false)
 		if err != nil {
 			errChan <- err
 		}

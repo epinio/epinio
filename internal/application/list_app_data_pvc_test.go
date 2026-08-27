@@ -35,8 +35,7 @@ var _ = Describe("listAppDataPVCNames", func() {
 	var ctx context.Context
 
 	appLabels := map[string]string{
-		"app.kubernetes.io/name":      appName,
-		"app.kubernetes.io/component": "application",
+		"app.kubernetes.io/name": appName,
 	}
 
 	BeforeEach(func() {
@@ -53,7 +52,7 @@ var _ = Describe("listAppDataPVCNames", func() {
 		}
 	}
 
-	It("returns PVCs matching the app label selector", func() {
+	It("returns every PVC for the app, including ordinals left by a scale-down", func() {
 		cluster := &kubernetesPkg.Cluster{
 			Kubectl: k8sfake.NewSimpleClientset(
 				makePVC("stateful-myapp-0", appLabels),
@@ -66,18 +65,23 @@ var _ = Describe("listAppDataPVCNames", func() {
 		Expect(names).To(ConsistOf("stateful-myapp-0", "stateful-myapp-1"))
 	})
 
-	It("finds scaled-down orphan PVCs that still carry the app labels", func() {
-		// Replica count may be 1, but ordinal-1 PVC remains after scale-down.
+	It("still matches when a claim carries extra labels", func() {
+		// Guards the subset match: a chart that adds labels of its own must not
+		// fall out of the selector.
+		extraLabels := map[string]string{
+			"app.kubernetes.io/name":       appName,
+			"app.kubernetes.io/component":  "application",
+			"app.kubernetes.io/managed-by": "epinio",
+		}
 		cluster := &kubernetesPkg.Cluster{
 			Kubectl: k8sfake.NewSimpleClientset(
-				makePVC("stateful-myapp-0", appLabels),
-				makePVC("stateful-myapp-1", appLabels),
+				makePVC("stateful-myapp-0", extraLabels),
 			),
 		}
 
 		names, err := application.ListAppDataPVCNames(ctx, cluster, models.NewAppRef(appName, namespace))
 		Expect(err).ToNot(HaveOccurred())
-		Expect(names).To(ConsistOf("stateful-myapp-0", "stateful-myapp-1"))
+		Expect(names).To(ConsistOf("stateful-myapp-0"))
 	})
 
 	It("ignores PVCs for other apps and unlabeled claims", func() {
