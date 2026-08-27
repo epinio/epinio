@@ -768,7 +768,7 @@ func Delete(
 		}
 	}
 
-	// Collect app data PVC names before helm uninstall removes the StatefulSet.
+	// Collect app data PVC names up front (label-selected; independent of workload).
 	var appDataPVCs []string
 	if deletePVC {
 		appDataPVCs, err = listAppDataPVCNames(ctx, cluster, appRef)
@@ -1013,35 +1013,32 @@ func deleteSourceBlobsStagePVC(
 		).Delete(ctx, appRef.MakeSourceBlobsPVCName(), metav1.DeleteOptions{})
 }
 
-// listAppDataPVCNames finds PersistentVolumeClaims owned by the application's
-// StatefulSets via volumeClaimTemplates. Must be called before the workload is
-// removed so the StatefulSet still exists.
+// listAppDataPVCNames finds application data PersistentVolumeClaims by label
+// selector. PVCs from StatefulSet volumeClaimTemplates should carry
+// app.kubernetes.io/name and app.kubernetes.io/component=application.
+// Listing by labels (instead of reconstructing names from the current replica
+// count) also finds PVCs left behind after scale-down.
 func listAppDataPVCNames(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
 ) ([]string, error) {
-	stsList, err := cluster.Kubectl.AppsV1().StatefulSets(appRef.Namespace).List(
+	selector := labels.Set{
+		"app.kubernetes.io/name":      appRef.Name,
+		"app.kubernetes.io/component": "application",
+	}.AsSelector().String()
+
+	pvcList, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(appRef.Namespace).List(
 		ctx,
-		metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name),
-		},
+		metav1.ListOptions{LabelSelector: selector},
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	var pvcNames []string
-	for _, sts := range stsList.Items {
-		replicas := int32(1)
-		if sts.Spec.Replicas != nil {
-			replicas = *sts.Spec.Replicas
-		}
-		for _, vct := range sts.Spec.VolumeClaimTemplates {
-			for i := int32(0); i < replicas; i++ {
-				pvcNames = append(pvcNames, fmt.Sprintf("%s-%s-%d", vct.Name, sts.Name, i))
-			}
-		}
+	pvcNames := make([]string, 0, len(pvcList.Items))
+	for _, pvc := range pvcList.Items {
+		pvcNames = append(pvcNames, pvc.Name)
 	}
 	return pvcNames, nil
 }
