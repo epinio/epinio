@@ -111,7 +111,7 @@ func init() {
 	err = viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS")
 	checkErr(err)
 
-	flags.String("install-method", "unknown", "(INSTALL_METHOD) How this Epinio instance was installed (helm|cli). Used when creating a missing instance id.")
+	flags.String("install-method", "helm", "(INSTALL_METHOD) How this Epinio instance was installed (helm|cli). Used when creating a missing instance id. Defaults to helm; CLI/installer wrappers should set INSTALL_METHOD=cli.")
 	err = viper.BindPFlag("install-method", flags.Lookup("install-method"))
 	checkErr(err)
 	err = viper.BindEnv("install-method", "INSTALL_METHOD")
