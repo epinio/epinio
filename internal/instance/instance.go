@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -80,33 +81,45 @@ func GetOrCreate(ctx context.Context, cluster *kubernetes.Cluster) (Info, error)
 	}
 
 	info := fromConfigMap(cm)
-	needsUpdate := false
-
-	if info.ID == "" {
-		info.ID = uuid.NewString()
-		needsUpdate = true
-	}
-	if info.InstallMethod == "" {
-		info.InstallMethod = defaultInstallMethod()
-		needsUpdate = true
-	}
-	if !needsUpdate {
+	if info.ID != "" && info.InstallMethod != "" {
 		storeCache(info)
 		return info, nil
 	}
 
-	if cm.Data == nil {
-		cm.Data = map[string]string{}
-	}
-	cm.Data[dataKeyID] = info.ID
-	cm.Data[dataKeyInstallMethod] = info.InstallMethod
-
-	_, err = cluster.Kubectl.CoreV1().ConfigMaps(namespace).Update(ctx, cm, metav1.UpdateOptions{})
+	// Backfill missing fields. Retry on conflict in case another replica
+	// updates the ConfigMap at the same time (one-time upgrade path).
+	var result Info
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current, getErr := cluster.GetConfigMap(ctx, namespace, helmchart.EpinioInstanceConfigMapName)
+		if getErr != nil {
+			return getErr
+		}
+		result = fromConfigMap(current)
+		changed := false
+		if result.ID == "" {
+			result.ID = uuid.NewString()
+			changed = true
+		}
+		if result.InstallMethod == "" {
+			result.InstallMethod = defaultInstallMethod()
+			changed = true
+		}
+		if !changed {
+			return nil
+		}
+		if current.Data == nil {
+			current.Data = map[string]string{}
+		}
+		current.Data[dataKeyID] = result.ID
+		current.Data[dataKeyInstallMethod] = result.InstallMethod
+		_, updateErr := cluster.Kubectl.CoreV1().ConfigMaps(namespace).Update(ctx, current, metav1.UpdateOptions{})
+		return updateErr
+	})
 	if err != nil {
 		return Info{}, errors.Wrap(err, "updating epinio-instance ConfigMap")
 	}
-	storeCache(info)
-	return info, nil
+	storeCache(result)
+	return result, nil
 }
 
 func create(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (Info, error) {
@@ -162,10 +175,11 @@ func fromConfigMap(cm *corev1.ConfigMap) Info {
 func defaultInstallMethod() string {
 	method := strings.TrimSpace(strings.ToLower(viper.GetString("install-method")))
 	switch method {
-	case InstallMethodHelm, InstallMethodCLI:
-		return method
-	case "":
-		return InstallMethodUnknown
+	case InstallMethodCLI:
+		return InstallMethodCLI
+	case InstallMethodHelm, "":
+		// Helm is the only in-tree install path; empty means chart/env not set yet.
+		return InstallMethodHelm
 	default:
 		return method
 	}
