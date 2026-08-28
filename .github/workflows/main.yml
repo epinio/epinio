@@ -828,7 +828,7 @@ jobs:
         uses: actions/download-artifact@v8
 
       - name: Upload unittests coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
@@ -838,7 +838,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload acceptance-api coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
@@ -848,7 +848,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload acceptance-cli coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
@@ -858,7 +858,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload acceptance-apps coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
