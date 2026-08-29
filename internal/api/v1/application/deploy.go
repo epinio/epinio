@@ -22,6 +22,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/metrics"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -111,9 +112,11 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 
 	err = application.SetOrigin(ctx, cluster, req.App, req.Origin)
 	if err != nil {
+		metrics.RecordDeployment("failure")
 		return apierror.InternalError(err, "saving the app origin")
 	}
 
+	metrics.RecordDeployment("success")
 	response.OKReturn(c, models.DeployResponse{
 		Routes:   deployResult.Routes,
 		Warnings: deployResult.Warnings,

@@ -45,6 +45,7 @@ require (
 	github.com/panjf2000/ants/v2 v2.11.3
 	github.com/pkg/errors v0.9.1
 	github.com/schollz/progressbar/v3 v3.19.1
+	github.com/prometheus/client_golang v1.22.0
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
