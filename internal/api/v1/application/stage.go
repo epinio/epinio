@@ -49,6 +49,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/metrics"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
@@ -505,10 +506,12 @@ func Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 	if !success {
+		metrics.RecordStaging("failure")
 		return apierror.NewInternalError("Failed to stage",
 			fmt.Sprintf("stage-id = %s", id))
 	}
 
+	metrics.RecordStaging("success")
 	response.OK(c)
 	return nil
 }
@@ -573,8 +576,10 @@ func StagedWebsocket(c *gin.Context) {
 	// If the job already completed before the websocket upgrade, send the final state immediately.
 	if done, success := jobDoneState(jobs); done {
 		if success {
+			metrics.RecordStaging("success")
 			_ = sendUpdate(models.StageStatusSucceeded, "", true)
 		} else {
+			metrics.RecordStaging("failure")
 			_ = sendUpdate(models.StageStatusFailed, fmt.Sprintf("stage-id = %s failed to complete", stageID), true)
 		}
 		return
@@ -610,13 +615,16 @@ func StagedWebsocket(c *gin.Context) {
 		case res := <-resultCh:
 			if res.err != nil {
 				log.Errorw("staging completion watcher failed", "error", res.err)
+				metrics.RecordStaging("error")
 				_ = sendUpdate(models.StageStatusError, res.err.Error(), true)
 				return
 			}
 			if res.success {
+				metrics.RecordStaging("success")
 				_ = sendUpdate(models.StageStatusSucceeded, "", true)
 				return
 			}
+			metrics.RecordStaging("failure")
 			_ = sendUpdate(
 				models.StageStatusFailed,
 				fmt.Sprintf("stage-id = %s failed to complete", stageID),
