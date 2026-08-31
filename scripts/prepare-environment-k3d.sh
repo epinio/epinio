@@ -75,12 +75,14 @@ function deploy_epinio_latest_released {
   helm repo add epinio https://epinio.github.io/helm-charts
   helm repo update
   echo "using epinio system domain and port: ${EPINIO_DOMAIN_AND_PORT}"
+  # The released chart still ships the upgrade-responder client, so tracking
+  # stays off here until a release without it is published.
   helm upgrade --wait --install -n epinio --create-namespace epinio epinio/epinio \
+    --set server.disableTracking="true" \
     --set global.domain="${EPINIO_SYSTEM_DOMAIN}" \
     --set dex.issuer.port="${EPINIO_PORT}" \
     --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
-    --set server.disableTracking="true" \
     --set ingress.nginxSSLRedirect="false" \
     --set dex.ui.redirectURI="https://epinio.${EPINIO_DOMAIN_AND_PORT}/auth/verify"
 }
@@ -123,7 +125,6 @@ else
     --set dex.issuer.port="${EPINIO_PORT}" \
     --set image.epinio.tag="${IMAGE_TAG}" \
     --set image.bash.tag="${IMAGE_TAG}" \
-    --set server.disableTracking="true" \
     --set "extraEnv[0].name=KUBE_API_QPS" --set-string "extraEnv[0].value=50" \
     --set "extraEnv[1].name=KUBE_API_BURST" --set-string "extraEnv[1].value=100" \
     --set ingress.nginxSSLRedirect="false" \
