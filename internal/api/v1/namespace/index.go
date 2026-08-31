@@ -47,6 +47,11 @@ func Index(c *gin.Context) apierror.APIErrors {
 	}
 	namespaceList = auth.FilterResources(user, namespaceList)
 
+	// Namespace() returns a namespace's own name, so this is an exact-name
+	// filter here, unlike the substring match that ?search= applies below.
+	requestedNamespaces := response.GetNamespacesParam(c)
+	namespaceList = auth.FilterByNamespaces(namespaceList, requestedNamespaces)
+
 	if search := response.GetSearchParam(c); search != "" {
 		lower := strings.ToLower(search)
 		var filtered []namespaces.Namespace
