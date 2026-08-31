@@ -22,7 +22,6 @@ import (
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -182,7 +181,7 @@ func sourceInfo(
 		)
 	}
 
-	currentBlobUID, findBlobError := findPreviousBlobUID(app)
+	currentBlobUID, findBlobError := application.BlobUID(app)
 	if findBlobError != nil {
 		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
 			findBlobError,
@@ -259,20 +258,46 @@ func buildAndPatch(
 		BlobUID: newBlobUID,
 	}
 
-	builderImage, builderError := getBuilderImage(req, app)
-	if builderError != nil {
-		return models.StageResponse{}, stageParam{}, builderError
+	buildMode, resolveErr := resolveBuildMode(req, app)
+	if resolveErr != nil {
+		return models.StageResponse{}, stageParam{}, resolveErr
 	}
-	if builderImage == "" {
-		builderImage = viper.GetString("default-builder-image")
+	dockerfilePath, pathErr := resolveDockerfilePath(req, app)
+	if pathErr != nil {
+		return models.StageResponse{}, stageParam{}, pathErr
 	}
 
-	config, determineStagingError := DetermineStagingScripts(
-		ctx,
-		cluster,
-		helmchart.Namespace(),
-		builderImage,
-	)
+	var builderImage string
+	var builderError apierror.APIErrors
+	if models.NormalizeBuildMode(buildMode) == models.BuildModeBuildpack {
+		builderImage, builderError = getBuilderImage(req, app)
+		if builderError != nil {
+			return models.StageResponse{}, stageParam{}, builderError
+		}
+		if builderImage == "" {
+			resolvedBuilderImage, resolveError := resolveDefaultBuilderImage(ctx, cluster)
+			if resolveError != nil {
+				return models.StageResponse{}, stageParam{}, apierror.InternalError(
+					resolveError,
+					"failed to resolve the default builder image",
+				)
+			}
+			builderImage = resolvedBuilderImage
+		}
+	}
+
+	var config *StagingScriptConfig
+	var determineStagingError error
+	if models.NormalizeBuildMode(buildMode) == models.BuildModeDockerfile {
+		config, determineStagingError = loadDockerfileStagingConfig(ctx, cluster, helmchart.Namespace())
+	} else {
+		config, determineStagingError = DetermineStagingScripts(
+			ctx,
+			cluster,
+			helmchart.Namespace(),
+			builderImage,
+		)
+	}
 	if determineStagingError != nil {
 		return models.StageResponse{}, stageParam{}, apierror.InternalError(
 			determineStagingError,
@@ -343,6 +368,9 @@ func buildAndPatch(
 	params := stageParam{
 		AppRef:              appRef,
 		BuilderImage:        builderImage,
+		BuildMode:           buildMode,
+		DockerfilePath:      dockerfilePath,
+		DockerBuildImage:    config.DockerfileBuildImage,
 		BlobUID:             newBlobUID,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
