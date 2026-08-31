@@ -99,6 +99,30 @@ func UpdateBuilder(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 		manifest.Staging.Builder = builderImage
 	}
 
+	buildMode, err := cmd.Flags().GetString("build-mode")
+	if err != nil {
+		return manifest, errors.Wrap(err, "could not read option --build-mode")
+	}
+	if buildMode != "" {
+		validated, err := models.ValidateBuildMode(buildMode)
+		if err != nil {
+			return manifest, errors.Wrap(err, "invalid --build-mode")
+		}
+		manifest.Staging.BuildMode = validated
+	}
+
+	dockerfilePath, err := cmd.Flags().GetString("dockerfile-path")
+	if err != nil {
+		return manifest, errors.Wrap(err, "could not read option --dockerfile-path")
+	}
+	if dockerfilePath != "" {
+		validated, err := models.ValidateDockerfilePath(dockerfilePath)
+		if err != nil {
+			return manifest, errors.Wrap(err, "invalid --dockerfile-path")
+		}
+		manifest.Staging.DockerfilePath = validated
+	}
+
 	return manifest, nil
 }
 
@@ -397,6 +421,22 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 	err = yaml.Unmarshal(yamlFile, &manifest)
 	if err != nil {
 		return empty, errors.Wrapf(err, "bad yaml")
+	}
+
+	if manifest.Staging.BuildMode != "" {
+		validated, err := models.ValidateBuildMode(manifest.Staging.BuildMode)
+		if err != nil {
+			return empty, errors.Wrap(err, "invalid staging.buildMode")
+		}
+		manifest.Staging.BuildMode = validated
+	}
+
+	if manifest.Staging.DockerfilePath != "" {
+		validated, err := models.ValidateDockerfilePath(manifest.Staging.DockerfilePath)
+		if err != nil {
+			return empty, errors.Wrap(err, "invalid staging.dockerfilePath")
+		}
+		manifest.Staging.DockerfilePath = validated
 	}
 
 	// Verify that origin information is one-of only.
