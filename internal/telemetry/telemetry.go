@@ -39,15 +39,16 @@ import (
 // echo it back in the publish response, so it can be inspected (e.g. from
 // Postman) without needing to open Grafana Cloud.
 type Snapshot struct {
-	EpinioVersion string `json:"epinio_version"`
-	ChartVersion  string `json:"chart_version"`
-	KubeVersion   string `json:"kube_version"`
-	Platform      string `json:"platform"`
-	InstanceID    string `json:"instance_id"`
-	InstallMethod string `json:"install_method"`
-	Applications  int    `json:"applications"`
-	Namespaces    int    `json:"namespaces"`
-	Services      int    `json:"services"`
+	CollectedAt   time.Time `json:"timestamp"`
+	EpinioVersion string    `json:"epinio_version"`
+	ChartVersion  string    `json:"chart_version"`
+	KubeVersion   string    `json:"kube_version"`
+	Platform      string    `json:"platform"`
+	InstanceID    string    `json:"instance_id"`
+	InstallMethod string    `json:"install_method"`
+	Applications  int       `json:"applications"`
+	Namespaces    int       `json:"namespaces"`
+	Services      int       `json:"services"`
 }
 
 // Config carries the Grafana Cloud OTLP destination and auth. All fields are
@@ -96,6 +97,7 @@ func Collect(ctx context.Context, cluster *kubernetes.Cluster) (Snapshot, error)
 	}
 
 	return Snapshot{
+		CollectedAt:   time.Now().UTC(),
 		EpinioVersion: version.Version,
 		ChartVersion:  version.ChartVersion,
 		KubeVersion:   kubeVersion,
@@ -203,7 +205,7 @@ func Push(ctx context.Context, snapshot Snapshot, cfg Config) error {
 	if err := registerGauge("epinio_inventory_services", "Number of Epinio services", float64(snapshot.Services), inventoryAttrs); err != nil {
 		return err
 	}
-	if err := registerGauge("epinio_telemetry_last_success_timestamp", "Unix timestamp of the last successful telemetry push", float64(time.Now().Unix()), inventoryAttrs); err != nil {
+	if err := registerGauge("epinio_telemetry_last_success_timestamp", "Unix timestamp of the last successful telemetry push", float64(snapshot.CollectedAt.Unix()), inventoryAttrs); err != nil {
 		return err
 	}
 

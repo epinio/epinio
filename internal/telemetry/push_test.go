@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/internal/telemetry"
 	. "github.com/onsi/ginkgo/v2"
@@ -55,6 +56,7 @@ var _ = Describe("Push", func() {
 
 	BeforeEach(func() {
 		snapshot = telemetry.Snapshot{
+			CollectedAt:   time.Now().UTC(),
 			EpinioVersion: "v1.14.1",
 			ChartVersion:  "v1.14.1",
 			KubeVersion:   "v1.30.0",
