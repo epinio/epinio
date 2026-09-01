@@ -79,6 +79,6 @@ func PublishTelemetry(c *gin.Context) APIErrors {
 		return NewInternalError("failed to publish telemetry", err.Error())
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "snapshot": snapshot})
 	return nil
 }

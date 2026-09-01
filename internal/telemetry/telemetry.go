@@ -35,17 +35,19 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
-// Snapshot is a single fleet inventory reading.
+// Snapshot is a single fleet inventory reading. JSON tags let the API handler
+// echo it back in the publish response, so it can be inspected (e.g. from
+// Postman) without needing to open Grafana Cloud.
 type Snapshot struct {
-	EpinioVersion string
-	ChartVersion  string
-	KubeVersion   string
-	Platform      string
-	InstanceID    string
-	InstallMethod string
-	Applications  int
-	Namespaces    int
-	Services      int
+	EpinioVersion string `json:"epinio_version"`
+	ChartVersion  string `json:"chart_version"`
+	KubeVersion   string `json:"kube_version"`
+	Platform      string `json:"platform"`
+	InstanceID    string `json:"instance_id"`
+	InstallMethod string `json:"install_method"`
+	Applications  int    `json:"applications"`
+	Namespaces    int    `json:"namespaces"`
+	Services      int    `json:"services"`
 }
 
 // Config carries the Grafana Cloud OTLP destination and auth. All fields are
