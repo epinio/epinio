@@ -105,6 +105,14 @@ func NewHandler() (*gin.Engine, error) {
 		apiv1.ErrorHandler(apiv1.Info),
 	)
 
+	// No cookie/session authentication - protected instead by its own shared
+	// trigger-token check (see PublishTelemetry). Called by the in-cluster
+	// epinio-telemetry CronJob, not by end users.
+	router.POST("/api/v1/telemetry/publish",
+		middleware.EpinioVersion,
+		apiv1.ErrorHandler(apiv1.PublishTelemetry),
+	)
+
 	// authenticated /me endpoint returns the current user (no other checks/middlewares needed)
 	router.GET("/api/v1/me",
 		middleware.Authentication,

@@ -128,6 +128,48 @@ func init() {
 	err = viper.BindEnv("kube-api-burst", "KUBE_API_BURST")
 	checkErr(err)
 
+	flags.Bool("telemetry-enabled", true, "(TELEMETRY_ENABLED) Enable the daily fleet telemetry push to Grafana Cloud")
+	err = viper.BindPFlag("telemetry-enabled", flags.Lookup("telemetry-enabled"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-enabled", "TELEMETRY_ENABLED")
+	checkErr(err)
+
+	flags.String("telemetry-otlp-endpoint", "", "(TELEMETRY_OTLP_ENDPOINT) Grafana Cloud OTLP/HTTP metrics endpoint")
+	err = viper.BindPFlag("telemetry-otlp-endpoint", flags.Lookup("telemetry-otlp-endpoint"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-otlp-endpoint", "TELEMETRY_OTLP_ENDPOINT")
+	checkErr(err)
+
+	flags.String("telemetry-grafana-instance-id", "", "(TELEMETRY_GRAFANA_INSTANCE_ID) Grafana Cloud stack instance ID, used as the OTLP Basic auth username")
+	err = viper.BindPFlag("telemetry-grafana-instance-id", flags.Lookup("telemetry-grafana-instance-id"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-grafana-instance-id", "TELEMETRY_GRAFANA_INSTANCE_ID")
+	checkErr(err)
+
+	flags.String("telemetry-grafana-token", "", "(TELEMETRY_GRAFANA_TOKEN) Grafana Cloud access-policy token, used as the OTLP Basic auth password")
+	err = viper.BindPFlag("telemetry-grafana-token", flags.Lookup("telemetry-grafana-token"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-grafana-token", "TELEMETRY_GRAFANA_TOKEN")
+	checkErr(err)
+
+	flags.String("telemetry-trigger-token", "", "(TELEMETRY_TRIGGER_TOKEN) Shared secret the epinio-telemetry CronJob must send to trigger a telemetry push")
+	err = viper.BindPFlag("telemetry-trigger-token", flags.Lookup("telemetry-trigger-token"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-trigger-token", "TELEMETRY_TRIGGER_TOKEN")
+	checkErr(err)
+
+	flags.String("telemetry-cluster-label", "", "(TELEMETRY_CLUSTER_LABEL) Optional cluster label attached to pushed telemetry metrics")
+	err = viper.BindPFlag("telemetry-cluster-label", flags.Lookup("telemetry-cluster-label"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-cluster-label", "TELEMETRY_CLUSTER_LABEL")
+	checkErr(err)
+
+	flags.String("telemetry-environment-label", "", "(TELEMETRY_ENVIRONMENT_LABEL) Optional environment label attached to pushed telemetry metrics")
+	err = viper.BindPFlag("telemetry-environment-label", flags.Lookup("telemetry-environment-label"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-environment-label", "TELEMETRY_ENVIRONMENT_LABEL")
+	checkErr(err)
+
 	version.ChartVersion = os.Getenv("CHART_VERSION")
 	if !strings.HasPrefix(version.ChartVersion, "v") {
 		version.ChartVersion = "v" + version.ChartVersion
