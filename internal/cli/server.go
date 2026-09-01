@@ -115,6 +115,42 @@ func init() {
 	err = viper.BindEnv("kube-api-burst", "KUBE_API_BURST")
 	checkErr(err)
 
+	flags.Bool("telemetry-enabled", true, "(TELEMETRY_ENABLED) Enable fleet telemetry export to Grafana Cloud")
+	err = viper.BindPFlag("telemetry-enabled", flags.Lookup("telemetry-enabled"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-enabled", "TELEMETRY_ENABLED")
+	checkErr(err)
+
+	flags.String("telemetry-otlp-endpoint", "", "(TELEMETRY_OTLP_ENDPOINT) Grafana Cloud OTLP HTTP endpoint for metrics")
+	err = viper.BindPFlag("telemetry-otlp-endpoint", flags.Lookup("telemetry-otlp-endpoint"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-otlp-endpoint", "TELEMETRY_OTLP_ENDPOINT")
+	checkErr(err)
+
+	flags.String("telemetry-otlp-username", "", "(TELEMETRY_OTLP_USERNAME) Grafana Cloud instance ID for OTLP basic auth")
+	err = viper.BindPFlag("telemetry-otlp-username", flags.Lookup("telemetry-otlp-username"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-otlp-username", "TELEMETRY_OTLP_USERNAME")
+	checkErr(err)
+
+	flags.String("telemetry-otlp-password", "", "(TELEMETRY_OTLP_PASSWORD) Grafana Cloud access policy token for OTLP")
+	err = viper.BindPFlag("telemetry-otlp-password", flags.Lookup("telemetry-otlp-password"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-otlp-password", "TELEMETRY_OTLP_PASSWORD")
+	checkErr(err)
+
+	flags.String("telemetry-cluster-name", "", "(TELEMETRY_CLUSTER_NAME) Cluster label attached to exported fleet metrics")
+	err = viper.BindPFlag("telemetry-cluster-name", flags.Lookup("telemetry-cluster-name"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-cluster-name", "TELEMETRY_CLUSTER_NAME")
+	checkErr(err)
+
+	flags.String("telemetry-environment", "", "(TELEMETRY_ENVIRONMENT) Environment label attached to exported fleet metrics")
+	err = viper.BindPFlag("telemetry-environment", flags.Lookup("telemetry-environment"))
+	checkErr(err)
+	err = viper.BindEnv("telemetry-environment", "TELEMETRY_ENVIRONMENT")
+	checkErr(err)
+
 	version.ChartVersion = os.Getenv("CHART_VERSION")
 	if !strings.HasPrefix(version.ChartVersion, "v") {
 		version.ChartVersion = "v" + version.ChartVersion
