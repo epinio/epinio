@@ -3,8 +3,8 @@ package application
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -21,6 +21,8 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
+	"github.com/mholt/archives"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -208,7 +210,7 @@ func sourceInfo(
 		}
 	}()
 
-	patchedBlob, applyPatchError := applySourcePatch(existingBlob, file)
+	patchedBlob, applyPatchError := applySourcePatch(ctx, existingBlob, file)
 	if applyPatchError != nil {
 		return "", nil, s3manager.ConnectionDetails{}, apierror.InternalError(
 			applyPatchError,
@@ -624,47 +626,90 @@ func swapPodImage(
 	)
 }
 
-func extractTar(archive io.Reader) (map[string][]byte, error) {
+// extractArchive reads every regular file out of an archive into memory,
+// keyed by its path. The format is detected from the stream, not assumed:
+// Upload accepts zip, tar, gzip, bzip2 and xz (see validArchiveTypes), the
+// UI stores zip and the CLI stores plain tar, so a source patch has to cope
+// with whatever the last push happened to leave in the blob.
+func extractArchive(
+	ctx context.Context,
+	archive io.Reader,
+) (map[string][]byte, error) {
+	// Buffered because zip needs random access, and Identify has to rewind
+	// after sniffing. A bytes.Reader is both an io.ReaderAt and an io.Seeker.
 	data, readAllError := io.ReadAll(archive)
 	if readAllError != nil {
 		return nil, readAllError
 	}
 
-	// Detect gzip vs plain tar, epinio push stores plain tar, but client patches
-	// may be gzip.extractTar
-	var tarReader *tar.Reader
-	gz, gzError := gzip.NewReader(bytes.NewReader(data))
-	if gzError == nil {
-		defer func() {
-			closeError := gz.Close()
-			if closeError != nil {
-				log.Printf("error closing gzip reader: %v", closeError)
-			}
-		}()
-		tarReader = tar.NewReader(gz)
-	} else {
-		tarReader = tar.NewReader(bytes.NewReader(data))
+	stream := io.Reader(bytes.NewReader(data))
+
+	var extractor archives.Extractor
+
+	format, identified, identifyError := archives.Identify(ctx, "", stream)
+
+	switch {
+	case identifyError == nil:
+		stream = identified
+
+		asExtractor, isExtractor := format.(archives.Extractor)
+		if !isExtractor {
+			return nil, fmt.Errorf(
+				"archive format %q cannot be extracted",
+				format.Extension(),
+			)
+		}
+
+		extractor = asExtractor
+
+	case errors.Is(identifyError, archives.NoMatch):
+		// An empty tar is all zero bytes and matches nothing. Plain tar was
+		// the old default here, so keep it rather than reject the blob.
+		extractor = archives.Tar{}
+
+	default:
+		return nil, fmt.Errorf("identifying archive format: %w", identifyError)
 	}
 
 	files := make(map[string][]byte)
 
-	for {
-		header, tarError := tarReader.Next()
-		if tarError == io.EOF {
-			break
-		}
-		if tarError != nil {
-			return nil, tarError
-		}
-
-		if header.Typeflag == tar.TypeReg {
-			content, readError := io.ReadAll(tarReader)
-			if readError != nil {
-				return nil, readError
+	extractError := extractor.Extract(
+		ctx,
+		stream,
+		func(_ context.Context, info archives.FileInfo) error {
+			if info.IsDir() || !info.Mode().IsRegular() {
+				return nil
 			}
+
+			handle, openError := info.Open()
+			if openError != nil {
+				return openError
+			}
+			defer func() {
+				closeError := handle.Close()
+				if closeError != nil {
+					log.Printf(
+						"error closing %s: %v",
+						info.NameInArchive,
+						closeError,
+					)
+				}
+			}()
+
+			content, readError := io.ReadAll(handle)
+			if readError != nil {
+				return readError
+			}
+
 			// normalize leading ./ so patch keys match base blob keys
-			files[strings.TrimPrefix(header.Name, "./")] = content
-		}
+			name := strings.TrimPrefix(info.NameInArchive, "./")
+			files[name] = content
+
+			return nil
+		},
+	)
+	if extractError != nil {
+		return nil, extractError
 	}
 
 	return files, nil
@@ -701,15 +746,21 @@ func createTar(files map[string][]byte) (io.Reader, error) {
 	return bytes.NewReader(buffer.Bytes()), nil
 }
 
-func applySourcePatch(base io.Reader, patch io.Reader) (io.Reader, error) {
-	baseFiles, baseFilesError := extractTar(base)
+func applySourcePatch(
+	ctx context.Context,
+	base io.Reader,
+	patch io.Reader,
+) (io.Reader, error) {
+	baseFiles, baseFilesError := extractArchive(ctx, base)
 	if baseFilesError != nil {
-		return nil, baseFilesError
+		return nil, fmt.Errorf("reading the existing source blob: %w",
+			baseFilesError)
 	}
 
-	patchFiles, patchFilesError := extractTar(patch)
+	patchFiles, patchFilesError := extractArchive(ctx, patch)
 	if patchFilesError != nil {
-		return nil, patchFilesError
+		return nil, fmt.Errorf("reading the uploaded patch: %w",
+			patchFilesError)
 	}
 
 	for name, content := range patchFiles {
