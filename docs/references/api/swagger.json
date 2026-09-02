@@ -195,6 +195,58 @@
         }
       }
     },
+    "/applications/grouped": {
+      "get": {
+        "description": "Each namespace is paginated independently, replacing one call per namespace.\nNamespaces the user cannot access are omitted entirely.",
+        "tags": [
+          "application"
+        ],
+        "summary": "Return the applications of every visible namespace, grouped by namespace name.",
+        "operationId": "AllAppsGrouped",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the application name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based (default 1)",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 10)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AllAppsGroupedResponse"
+          }
+        }
+      }
+    },
+    "/authtoken": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Return a JWT token for the authenticated user, for use by subsequent logins.",
+        "operationId": "AuthToken",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AuthTokenResponse"
+          }
+        }
+      }
+    },
     "/builderimages": {
       "get": {
         "tags": [
@@ -439,6 +491,21 @@
         }
       }
     },
+    "/catalogservicesmatches": {
+      "get": {
+        "description": "(No prefix == empty prefix == match everything)",
+        "tags": [
+          "catalogservice"
+        ],
+        "summary": "Return list of names for all catalog services.",
+        "operationId": "ServiceCatalogMatch0",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/CatalogMatchResponse"
+          }
+        }
+      }
+    },
     "/catalogservicesmatches/{Pattern}": {
       "get": {
         "tags": [
@@ -555,42 +622,6 @@
         }
       }
     },
-    "/gitconfigmatches": {
-      "get": {
-        "description": "Return list of names for all controlled gitconfigs (No prefix = empty prefix = match everything)",
-        "tags": [
-          "gitconfig"
-        ],
-        "operationId": "GitconfigMatch0",
-        "responses": {
-          "200": {
-            "$ref": "#/responses/GitconfigMatchResponse"
-          }
-        }
-      }
-    },
-    "/gitconfigmatches/{Pattern}": {
-      "get": {
-        "tags": [
-          "gitconfig"
-        ],
-        "summary": "Return list of names for all controlled gitconfigs whose name matches the prefix `Pattern`.",
-        "operationId": "GitconfigMatch",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Pattern",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/GitconfigMatchResponse"
-          }
-        }
-      }
-    },
     "/gitconfigs": {
       "get": {
         "tags": [
@@ -688,6 +719,65 @@
         }
       }
     },
+    "/gitconfigsmatch": {
+      "get": {
+        "description": "Return list of names for all controlled gitconfigs (No prefix = empty prefix = match everything)",
+        "tags": [
+          "gitconfig"
+        ],
+        "operationId": "GitconfigMatch0",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigMatchResponse"
+          }
+        }
+      }
+    },
+    "/gitconfigsmatch/{Pattern}": {
+      "get": {
+        "tags": [
+          "gitconfig"
+        ],
+        "summary": "Return list of names for all controlled gitconfigs whose name matches the prefix `Pattern`.",
+        "operationId": "GitconfigMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigMatchResponse"
+          }
+        }
+      }
+    },
+    "/gitproxy": {
+      "post": {
+        "description": "Proxy a GET request to the posted git provider `url`, optionally authenticating\nwith the named `gitconfig`. The caller must be allowed to use that git\nconfiguration. The provider's response body is returned unchanged.",
+        "tags": [
+          "gitproxy"
+        ],
+        "operationId": "GitProxy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/GitProxyRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitProxyResponse"
+          }
+        }
+      }
+    },
     "/info": {
       "get": {
         "description": "Return server system information",
@@ -702,86 +792,16 @@
         }
       }
     },
-    "/namespace/{Namespace}/appsmatches/{Pattern}": {
+    "/me": {
       "get": {
+        "description": "Return the current user, their roles, and the namespaces and git configurations\nthey can access. The synthetic \"default\" action is not reported.",
         "tags": [
-          "application"
+          "auth"
         ],
-        "summary": "Return list of names for all applications whose name matches the prefix `Pattern`.",
-        "operationId": "AppMatch",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "Pattern",
-            "in": "path",
-            "required": true
-          }
-        ],
+        "operationId": "Me",
         "responses": {
           "200": {
-            "$ref": "#/responses/AppMatchResponse"
-          }
-        }
-      }
-    },
-    "/namespace/{Namespace}/configurationsmatches/{Pattern}": {
-      "get": {
-        "tags": [
-          "configuration"
-        ],
-        "summary": "Return list of names for all configurations whose name matches the prefix `Pattern`.",
-        "operationId": "ConfigurationMatch",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "Pattern",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ConfigurationMatchResponse"
-          }
-        }
-      }
-    },
-    "/namespace/{Namespace}/servicesmatches/{Pattern}": {
-      "get": {
-        "tags": [
-          "service"
-        ],
-        "summary": "Return list of names for all services whose name matches the prefix `Pattern`.",
-        "operationId": "ServiceMatch",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "Pattern",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ServiceMatchResponse"
+            "$ref": "#/responses/MeResponse"
           }
         }
       }
@@ -1212,6 +1232,77 @@
         "responses": {
           "200": {
             "$ref": "#/responses/AppDeployResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/applications/{App}/deployments": {
+      "post": {
+        "description": "Returns immediately with a deployment id; poll AppDeployment for its status.\nThe `Location` header repeats the status URL for clients behind intermediaries\nthat strip 202 bodies.",
+        "tags": [
+          "application"
+        ],
+        "summary": "Start an asynchronous stage-and-deploy of the named `App` in the `Namespace`.",
+        "operationId": "AppDeployments",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/AsyncDeployRequest"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "$ref": "#/responses/AppDeploymentsResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/applications/{App}/deployments/{DeploymentID}": {
+      "get": {
+        "description": "Deployment state is held in memory, so ids do not survive a server restart.",
+        "tags": [
+          "application"
+        ],
+        "summary": "Return the status of the asynchronous deployment `DeploymentID`.",
+        "operationId": "AppDeployment",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "DeploymentID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppDeploymentResponse"
           }
         }
       }
@@ -1704,7 +1795,70 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/{App}/servicebindings": {
+      "post": {
+        "description": "All services are validated before any binding is applied.",
+        "tags": [
+          "service"
+        ],
+        "summary": "Bind several services to the named `App` in the `Namespace` in one call.",
+        "operationId": "ServiceBatchBind",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceBatchBindRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceBatchBindResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/applications/{App}/source": {
+      "get": {
+        "description": "Fails with 400 when the application has no stored source.",
+        "tags": [
+          "application"
+        ],
+        "summary": "Return the stored source blob of the named `App` in the `Namespace` as a tar archive.",
+        "operationId": "AppSource",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppSourceResponse"
+          }
+        }
+      },
       "patch": {
         "description": "The multipart body carries the source archive and an optional `process_cmd`\nform field (supervisor fallback command for non-Paketo buildpacks).",
         "tags": [
@@ -1825,7 +1979,7 @@
       }
     },
     "/namespaces/{Namespace}/applications/{App}/validate-cv": {
-      "post": {
+      "get": {
         "description": "Validate the chart values configured for the named `App` in the given `Namespace` against the\nconfigured app chart.",
         "tags": [
           "application"
@@ -1848,6 +2002,57 @@
         "responses": {
           "200": {
             "$ref": "#/responses/AppValidateCVResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/appsmatches": {
+      "get": {
+        "description": "(No prefix == empty prefix == match everything)",
+        "tags": [
+          "application"
+        ],
+        "summary": "Return list of names for all applications in the `Namespace`.",
+        "operationId": "AppMatch0",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/appsmatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return list of names for all applications whose name matches the prefix `Pattern`.",
+        "operationId": "AppMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppMatchResponse"
           }
         }
       }
@@ -2079,6 +2284,57 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ConfigurationUpdateResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/configurationsmatches": {
+      "get": {
+        "description": "(No prefix == empty prefix == match everything)",
+        "tags": [
+          "configuration"
+        ],
+        "summary": "Return list of names for all configurations in the `Namespace`.",
+        "operationId": "ConfigurationMatch0",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ConfigurationMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/configurationsmatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "Return list of names for all configurations whose name matches the prefix `Pattern`.",
+        "operationId": "ConfigurationMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ConfigurationMatchResponse"
           }
         }
       }
@@ -2349,6 +2605,34 @@
         }
       }
     },
+    "/namespaces/{Namespace}/services/{Service}/portforward": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Forward a local port to the named `Service` in the `Namespace` over a websocket.",
+        "operationId": "ServicePortForward",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServicePortForwardResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/services/{Service}/unbind": {
       "post": {
         "tags": [
@@ -2380,6 +2664,57 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceUnbindResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/servicesmatches": {
+      "get": {
+        "description": "(No prefix == empty prefix == match everything)",
+        "tags": [
+          "service"
+        ],
+        "summary": "Return list of names for all services in the `Namespace`.",
+        "operationId": "ServiceMatch0",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/servicesmatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return list of names for all services whose name matches the prefix `Pattern`.",
+        "operationId": "ServiceMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceMatchResponse"
           }
         }
       }
@@ -2536,6 +2871,36 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceListResponse"
+          }
+        }
+      }
+    },
+    "/support-bundle": {
+      "get": {
+        "description": "Collect logs and diagnostics from the Epinio components and return them as a\ntar archive. Admin only.",
+        "tags": [
+          "support"
+        ],
+        "operationId": "SupportBundle",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "IncludeApps",
+            "description": "Include application logs as well (true/false, default false).\nAlso accepted as \"include_app_logs\".",
+            "name": "include_apps",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Tail",
+            "description": "Lines to tail from each component (default 1000, maximum 10000)",
+            "name": "tail",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/SupportBundleResponse"
           }
         }
       }
@@ -3104,6 +3469,137 @@
         },
         "settings": {
           "$ref": "#/definitions/ChartValueSettings"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppsPage": {
+      "type": "object",
+      "title": "AppsPage is one namespace's page of applications.",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/App"
+          },
+          "x-go-name": "Items"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Page"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "PageSize"
+        },
+        "totalItems": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TotalItems"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TotalPages"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/internal/api/v1/docs"
+    },
+    "AsyncDeployRequest": {
+      "description": "For \"source-based\" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally\n`BuilderImage` to run staging. For \"image-based\" deploys, the client can provide `ImageURL` directly.\nBoth may be omitted to retry a failed build: staging then resolves the stored blobuid from the app CR,\nor re-clones from git origin when the blob is missing.",
+      "type": "object",
+      "title": "AsyncDeployRequest represents and contains the data needed to stage/build and deploy an application asynchronously.",
+      "properties": {
+        "app": {
+          "$ref": "#/definitions/AppRef"
+        },
+        "blobuid": {
+          "type": "string",
+          "x-go-name": "BlobUID"
+        },
+        "builderimage": {
+          "type": "string",
+          "x-go-name": "BuilderImage"
+        },
+        "buildmode": {
+          "type": "string",
+          "x-go-name": "BuildMode"
+        },
+        "dockerfilepath": {
+          "type": "string",
+          "x-go-name": "DockerfilePath"
+        },
+        "image": {
+          "type": "string",
+          "x-go-name": "ImageURL"
+        },
+        "origin": {
+          "$ref": "#/definitions/ApplicationOrigin"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AsyncDeployStatus": {
+      "type": "object",
+      "title": "AsyncDeployStatus represents the status of an asynchronous deploy operation.",
+      "properties": {
+        "app": {
+          "$ref": "#/definitions/AppRef"
+        },
+        "error": {
+          "type": "string",
+          "x-go-name": "Error"
+        },
+        "finishedAt": {
+          "type": "string",
+          "x-go-name": "FinishedAt"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "ID"
+        },
+        "image": {
+          "type": "string",
+          "x-go-name": "ImageURL"
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Routes"
+        },
+        "stage_id": {
+          "type": "string",
+          "x-go-name": "StageID"
+        },
+        "startedAt": {
+          "type": "string",
+          "x-go-name": "StartedAt"
+        },
+        "status": {
+          "type": "string",
+          "x-go-name": "Status"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Warnings"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AuthTokenResponse": {
+      "description": "AuthTokenResponse contains an auth token",
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string",
+          "x-go-name": "Token"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -3834,6 +4330,20 @@
       "type": "string",
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "GitProxyRequest": {
+      "type": "object",
+      "properties": {
+        "gitconfig": {
+          "type": "string",
+          "x-go-name": "Gitconfig"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "GitRef": {
       "type": "object",
       "properties": {
@@ -4047,6 +4557,38 @@
         "version": {
           "type": "string",
           "x-go-name": "Version"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "MeResponse": {
+      "description": "MeResponse contains information about the current authenticated user",
+      "type": "object",
+      "properties": {
+        "gitconfigs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Gitconfigs"
+        },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Namespaces"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Role"
+          },
+          "x-go-name": "Roles"
+        },
+        "user": {
+          "type": "string",
+          "x-go-name": "User"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4301,6 +4843,35 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "Role": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Actions"
+        },
+        "default": {
+          "type": "boolean",
+          "x-go-name": "Default"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "ID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "namespace": {
+          "type": "string",
+          "x-go-name": "Namespace"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "Service": {
       "type": "object",
       "properties": {
@@ -4348,6 +4919,24 @@
         },
         "status": {
           "$ref": "#/definitions/ServiceStatus"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceBatchBindRequest": {
+      "description": "ServiceBatchBindRequest represents a request to bind multiple services to an application at once",
+      "type": "object",
+      "properties": {
+        "app_name": {
+          "type": "string",
+          "x-go-name": "AppName"
+        },
+        "service_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "ServiceNames"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4579,6 +5168,15 @@
     }
   },
   "responses": {
+    "AllAppsGroupedResponse": {
+      "description": "",
+      "schema": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/definitions/AppsPage"
+        }
+      }
+    },
     "AppChartsResponse": {
       "description": "",
       "schema": {
@@ -4601,6 +5199,18 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/DeployResponse"
+      }
+    },
+    "AppDeploymentResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AsyncDeployStatus"
+      }
+    },
+    "AppDeploymentsResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AsyncDeployStatus"
       }
     },
     "AppExecResponse": {
@@ -4658,6 +5268,16 @@
         "$ref": "#/definitions/App"
       }
     },
+    "AppSourceResponse": {
+      "description": "",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "format": "uint8"
+        }
+      }
+    },
     "AppStageResponse": {
       "description": "",
       "schema": {
@@ -4692,6 +5312,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/AppList"
+      }
+    },
+    "AuthTokenResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AuthTokenResponse"
       }
     },
     "BuilderImageCreateResponse": {
@@ -4853,6 +5479,16 @@
         "$ref": "#/definitions/ExportregistriesMatchResponse"
       }
     },
+    "GitProxyResponse": {
+      "description": "",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "format": "uint8"
+        }
+      }
+    },
     "GitconfigCreateResponse": {
       "description": "",
       "schema": {
@@ -4887,6 +5523,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/InfoResponse"
+      }
+    },
+    "MeResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/MeResponse"
       }
     },
     "NamespaceCreateResponse": {
@@ -4932,6 +5574,12 @@
         "additionalProperties": {
           "$ref": "#/definitions/AppList"
         }
+      }
+    },
+    "ServiceBatchBindResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
       }
     },
     "ServiceBindResponse": {
@@ -5023,6 +5671,16 @@
     },
     "StagingLogsResponse": {
       "description": ""
+    },
+    "SupportBundleResponse": {
+      "description": "",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "format": "uint8"
+        }
+      }
     }
   },
   "securityDefinitions": {

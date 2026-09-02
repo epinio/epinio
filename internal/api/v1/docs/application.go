@@ -96,7 +96,7 @@ type AppShowResponse struct {
 	Body models.App
 }
 
-// swagger:route GET /namespace/{Namespace}/appsmatches/{Pattern} application AppMatch
+// swagger:route GET /namespaces/{Namespace}/appsmatches/{Pattern} application AppMatch
 // Return list of names for all applications whose name matches the prefix `Pattern`.
 // responses:
 //   200: AppMatchResponse
@@ -485,7 +485,7 @@ type AppRunningResponse struct {
 	Body models.Response
 }
 
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/validate-cv application AppValidateCV
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/validate-cv application AppValidateCV
 // Validate the chart values configured for the named `App` in the given `Namespace` against the
 // configured app chart.
 // responses:
@@ -524,4 +524,122 @@ type AppExportParam struct {
 type AppExportResponse struct {
 	// in: body
 	Body models.Response
+}
+
+// swagger:route GET /applications/grouped application AllAppsGrouped
+// Return the applications of every visible namespace, grouped by namespace name.
+// Each namespace is paginated independently, replacing one call per namespace.
+// Namespaces the user cannot access are omitted entirely.
+// responses:
+//   200: AllAppsGroupedResponse
+
+// swagger:parameters AllAppsGrouped
+type AllAppsGroupedParam struct {
+	// Case-insensitive substring match on the application name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based (default 1)
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 10)
+	// in: query
+	PageSize string `json:"pageSize"`
+}
+
+// swagger:response AllAppsGroupedResponse
+type AllAppsGroupedResponse struct {
+	// Keyed by namespace name
+	// in: body
+	Body map[string]AppsPage
+}
+
+// AppsPage is one namespace's page of applications.
+//
+// swagger:model AppsPage
+type AppsPage struct {
+	Items      []models.App `json:"items"`
+	Page       int          `json:"page"`
+	PageSize   int          `json:"pageSize"`
+	TotalItems int          `json:"totalItems"`
+	TotalPages int          `json:"totalPages"`
+}
+
+// swagger:route GET /namespaces/{Namespace}/appsmatches application AppMatch0
+// Return list of names for all applications in the `Namespace`.
+// (No prefix == empty prefix == match everything)
+// responses:
+//   200: AppMatchResponse
+
+// swagger:parameters AppMatch0
+type AppMatch0Param struct {
+	// in: path
+	Namespace string
+}
+
+// response: See AppMatch.
+
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/source application AppSource
+// Return the stored source blob of the named `App` in the `Namespace` as a tar archive.
+// Fails with 400 when the application has no stored source.
+// responses:
+//   200: AppSourceResponse
+
+// swagger:parameters AppSource
+type AppSourceParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:response AppSourceResponse
+type AppSourceResponse struct {
+	// in: body
+	Body []byte
+}
+
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/deployments application AppDeployments
+// Start an asynchronous stage-and-deploy of the named `App` in the `Namespace`.
+// Returns immediately with a deployment id; poll AppDeployment for its status.
+// The `Location` header repeats the status URL for clients behind intermediaries
+// that strip 202 bodies.
+// responses:
+//   202: AppDeploymentsResponse
+
+// swagger:parameters AppDeployments
+type AppDeploymentsParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+	// in: body
+	Body models.AsyncDeployRequest
+}
+
+// swagger:response AppDeploymentsResponse
+type AppDeploymentsResponse struct {
+	// in: body
+	Body models.AsyncDeployStatus
+}
+
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/deployments/{DeploymentID} application AppDeployment
+// Return the status of the asynchronous deployment `DeploymentID`.
+// Deployment state is held in memory, so ids do not survive a server restart.
+// responses:
+//   200: AppDeploymentResponse
+
+// swagger:parameters AppDeployment
+type AppDeploymentParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+	// in: path
+	DeploymentID string
+}
+
+// swagger:response AppDeploymentResponse
+type AppDeploymentResponse struct {
+	// in: body
+	Body models.AsyncDeployStatus
 }

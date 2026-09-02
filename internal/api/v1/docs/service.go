@@ -226,7 +226,7 @@ type ServiceShowParam struct {
 	Service string
 }
 
-// swagger:route GET /namespace/{Namespace}/servicesmatches/{Pattern} service ServiceMatch
+// swagger:route GET /namespaces/{Namespace}/servicesmatches/{Pattern} service ServiceMatch
 // Return list of names for all services whose name matches the prefix `Pattern`.
 // responses:
 //   200: ServiceMatchResponse
@@ -340,6 +340,11 @@ type ServiceUnbindResponse struct {
 	Body models.Response
 }
 
+// swagger:route GET /namespaces/{Namespace}/services/{Service}/portforward service ServicePortForward
+// Forward a local port to the named `Service` in the `Namespace` over a websocket.
+// responses:
+//   200: ServicePortForwardResponse
+
 // swagger:parameters ServicePortForward
 type ServicePortForwardParam struct {
 	// in: path
@@ -350,3 +355,50 @@ type ServicePortForwardParam struct {
 
 // swagger:response ServicePortForwardResponse
 type ServicePortForwardResponse struct{}
+
+// swagger:route GET /namespaces/{Namespace}/servicesmatches service ServiceMatch0
+// Return list of names for all services in the `Namespace`.
+// (No prefix == empty prefix == match everything)
+// responses:
+//   200: ServiceMatchResponse
+
+// swagger:parameters ServiceMatch0
+type ServiceMatch0Param struct {
+	// in: path
+	Namespace string
+}
+
+// response: See ServiceMatch.
+
+// swagger:route GET /catalogservicesmatches catalogservice ServiceCatalogMatch0
+// Return list of names for all catalog services.
+// (No prefix == empty prefix == match everything)
+// responses:
+//   200: CatalogMatchResponse
+
+// swagger:parameters ServiceCatalogMatch0
+type ServiceCatalogMatch0Param struct{}
+
+// response: See CatalogServiceMatch.
+
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/servicebindings service ServiceBatchBind
+// Bind several services to the named `App` in the `Namespace` in one call.
+// All services are validated before any binding is applied.
+// responses:
+//   200: ServiceBatchBindResponse
+
+// swagger:parameters ServiceBatchBind
+type ServiceBatchBindParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+	// in: body
+	Body models.ServiceBatchBindRequest
+}
+
+// swagger:response ServiceBatchBindResponse
+type ServiceBatchBindResponse struct {
+	// in: body
+	Body models.Response
+}

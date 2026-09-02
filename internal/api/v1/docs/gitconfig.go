@@ -88,7 +88,7 @@ type GitconfigshowResponse struct {
 	Body models.Gitconfig
 }
 
-// swagger:route GET /gitconfigmatches/{Pattern} gitconfig GitconfigMatch
+// swagger:route GET /gitconfigsmatch/{Pattern} gitconfig GitconfigMatch
 // Return list of names for all controlled gitconfigs whose name matches the prefix `Pattern`.
 // responses:
 //   200: GitconfigMatchResponse
@@ -105,7 +105,7 @@ type GitconfigMatchResponse struct {
 	Body models.GitconfigsMatchResponse
 }
 
-// swagger:route GET /gitconfigmatches gitconfig GitconfigMatch0
+// swagger:route GET /gitconfigsmatch gitconfig GitconfigMatch0
 // Return list of names for all controlled gitconfigs (No prefix = empty prefix = match everything)
 // responses:
 //   200: GitconfigMatchResponse

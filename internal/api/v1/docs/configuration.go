@@ -106,7 +106,7 @@ type ConfigurationShowResponse struct {
 	Body models.ConfigurationResponse
 }
 
-// swagger:route GET /namespace/{Namespace}/configurationsmatches/{Pattern} configuration ConfigurationMatch
+// swagger:route GET /namespaces/{Namespace}/configurationsmatches/{Pattern} configuration ConfigurationMatch
 // Return list of names for all configurations whose name matches the prefix `Pattern`.
 // responses:
 //   200: ConfigurationMatchResponse
@@ -209,3 +209,17 @@ type ConfigurationAllConfigurationsParam struct {
 }
 
 // response: See Configurations.
+
+// swagger:route GET /namespaces/{Namespace}/configurationsmatches configuration ConfigurationMatch0
+// Return list of names for all configurations in the `Namespace`.
+// (No prefix == empty prefix == match everything)
+// responses:
+//   200: ConfigurationMatchResponse
+
+// swagger:parameters ConfigurationMatch0
+type ConfigurationMatch0Param struct {
+	// in: path
+	Namespace string
+}
+
+// response: See ConfigurationMatch.
