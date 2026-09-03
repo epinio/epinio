@@ -173,9 +173,10 @@ generate:
 generate-cli-docs:
 	@./scripts/cli-docs-generate.sh ../docs/docs/references/commands/cli
 
-# Keep in sync with GOLANGCI_LINT_VERSION in .github/workflows/golangci-lint.yml.
-# Newer versions carry extra govet analyzers that CI does not run.
-GOLANGCI_LINT_VERSION ?= v2.4.0
+# Keep in sync with GOLANGCI_LINT_VERSION in golangci-lint.yml and main.yml.
+# Must be built with a Go >= go.mod's directive, and newer versions carry extra
+# govet analyzers that CI does not run.
+GOLANGCI_LINT_VERSION ?= v2.9.0
 
 lint:
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run --timeout=10m
