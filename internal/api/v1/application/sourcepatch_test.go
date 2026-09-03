@@ -13,15 +13,19 @@ package application
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("extractTar", func() {
+var _ = Describe("extractArchive", func() {
+
+	ctx := context.Background()
 
 	makeTar := func(files map[string]string) *bytes.Buffer {
 		buffer := &bytes.Buffer{}
@@ -49,7 +53,7 @@ var _ = Describe("extractTar", func() {
 			"sub/util.go": "package sub",
 		})
 
-		files, extractError := extractTar(archive)
+		files, extractError := extractArchive(ctx, archive)
 		Expect(extractError).ToNot(HaveOccurred())
 		Expect(files).To(HaveLen(2))
 		Expect(string(files["main.go"])).To(Equal("package main"))
@@ -66,7 +70,7 @@ var _ = Describe("extractTar", func() {
 		closeError := gzipWriter.Close()
 		Expect(closeError).ToNot(HaveOccurred())
 
-		files, extractError := extractTar(gzipped)
+		files, extractError := extractArchive(ctx, gzipped)
 		Expect(extractError).ToNot(HaveOccurred())
 		Expect(files).To(HaveLen(1))
 		Expect(string(files["app.py"])).To(Equal("print('hi')"))
@@ -98,14 +102,35 @@ var _ = Describe("extractTar", func() {
 		closeError := tarWriter.Close()
 		Expect(closeError).ToNot(HaveOccurred())
 
-		files, extractError := extractTar(buffer)
+		files, extractError := extractArchive(ctx, buffer)
 		Expect(extractError).ToNot(HaveOccurred())
 		Expect(files).To(HaveLen(1))
 		Expect(files).To(HaveKey("subdir/file.txt"))
 	})
 
+	It("extracts regular files from a zip, as the UI stores them", func() {
+		buffer := &bytes.Buffer{}
+		zipWriter := zip.NewWriter(buffer)
+
+		entry, createError := zipWriter.Create("config/routes.rb")
+		Expect(createError).ToNot(HaveOccurred())
+		_, writeError := entry.Write([]byte("Rails.application"))
+		Expect(writeError).ToNot(HaveOccurred())
+
+		_, createDirError := zipWriter.Create("lib/assets/")
+		Expect(createDirError).ToNot(HaveOccurred())
+
+		closeError := zipWriter.Close()
+		Expect(closeError).ToNot(HaveOccurred())
+
+		files, extractError := extractArchive(ctx, buffer)
+		Expect(extractError).ToNot(HaveOccurred())
+		Expect(files).To(HaveLen(1))
+		Expect(string(files["config/routes.rb"])).To(Equal("Rails.application"))
+	})
+
 	It("fails on a corrupt archive", func() {
-		_, extractError := extractTar(
+		_, extractError := extractArchive(ctx,
 			strings.NewReader("this is not a tar archive"),
 		)
 		Expect(extractError).To(HaveOccurred())
@@ -114,7 +139,7 @@ var _ = Describe("extractTar", func() {
 	It("returns an empty map for an empty tar", func() {
 		archive := makeTar(map[string]string{})
 
-		files, extractError := extractTar(archive)
+		files, extractError := extractArchive(ctx, archive)
 		Expect(extractError).ToNot(HaveOccurred())
 		Expect(files).To(BeEmpty())
 	})

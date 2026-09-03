@@ -171,6 +171,130 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 			))
 		})
 
+		// listConfigurations GETs /configurations with the given query string
+		// and returns the plain, non-paginated list.
+		listConfigurations := func(
+			query string,
+		) models.ConfigurationResponseList {
+			url := fmt.Sprintf("%s%s/configurations?%s",
+				serverURL, api.Root, query)
+
+			response, err := env.Curl("GET", url, strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var configurations models.ConfigurationResponseList
+			err = json.Unmarshal(bodyBytes, &configurations)
+			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+			return configurations
+		}
+
+		configurationRefsOf := func(
+			configurations models.ConfigurationResponseList,
+		) [][]string {
+			var configurationRefs [][]string
+			for _, s := range configurations {
+				configurationRefs = append(configurationRefs, []string{
+					s.Meta.Name,
+					s.Meta.Namespace,
+					strings.Join(s.Configuration.BoundApps, ", "),
+				})
+			}
+
+			return configurationRefs
+		}
+
+		It("filters configurations to a single namespace", func() {
+			configurations := listConfigurations("namespaces=" + namespace1)
+
+			// Bound apps must survive the filter: the enrichment lookup is
+			// scoped to the namespaces that remain.
+			Expect(configurationRefsOf(configurations)).To(ConsistOf(
+				[]string{configuration1, namespace1, app1},
+			))
+		})
+
+		It("filters configurations to several namespaces", func() {
+			query := fmt.Sprintf("namespaces=%s,%s", namespace1, namespace2)
+
+			configurations := listConfigurations(query)
+
+			Expect(configurationRefsOf(configurations)).To(ConsistOf(
+				[]string{configuration1, namespace1, app1},
+				[]string{configuration1, namespace2, ""},
+				[]string{configuration2, namespace2, ""},
+			))
+		})
+
+		It("ignores a requested namespace that does not exist", func() {
+			query := fmt.Sprintf("namespaces=%s,does-not-exist", namespace1)
+
+			configurations := listConfigurations(query)
+
+			Expect(configurationRefsOf(configurations)).To(ConsistOf(
+				[]string{configuration1, namespace1, app1},
+			))
+		})
+
+		It("paginates within the filtered namespaces", func() {
+			url := fmt.Sprintf(
+				"%s%s/configurations?namespaces=%s,%s&page=1&pageSize=2",
+				serverURL, api.Root, namespace1, namespace2)
+
+			response, err := env.Curl("GET", url, strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var paged struct {
+				Items      models.ConfigurationResponseList `json:"items"`
+				Page       int                              `json:"page"`
+				PageSize   int                              `json:"pageSize"`
+				TotalItems int                              `json:"totalItems"`
+				TotalPages int                              `json:"totalPages"`
+			}
+			err = json.Unmarshal(bodyBytes, &paged)
+			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+			// The namespace filter makes the totals deterministic despite
+			// configurations left over from other specs running concurrently.
+			Expect(paged.TotalItems).To(Equal(3))
+			Expect(paged.TotalPages).To(Equal(2))
+			Expect(paged.Items).To(HaveLen(2))
+		})
+
+		It("cannot widen access beyond the user's namespaces", func() {
+			endpoint := fmt.Sprintf("%s%s/configurations?namespaces=%s",
+				serverURL, api.Root, namespace1)
+			request, err := http.NewRequest(http.MethodGet, endpoint, nil)
+			Expect(err).ToNot(HaveOccurred())
+			request.SetBasicAuth(user, password)
+
+			response, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var configurations models.ConfigurationResponseList
+			err = json.Unmarshal(bodyBytes, &configurations)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(configurations).To(BeEmpty())
+		})
+
 		It("returns a paginated response when page params are provided", func() {
 			response, err := env.Curl("GET", fmt.Sprintf("%s%s/configurations?page=1&pageSize=1",
 				serverURL, api.Root), strings.NewReader(""))

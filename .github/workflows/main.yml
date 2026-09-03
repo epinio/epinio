@@ -27,7 +27,7 @@ on:
     - '.goreleaser.yml'
 
 env:
-  SETUP_GO_VERSION: '1.25.0'
+  SETUP_GO_VERSION: '1.26.0'
   GOLANGCI_LINT_VERSION: v2.4.0
   GINKGO_NODES: 8
   GINKGO_VERSION: v2.27.2
@@ -47,7 +47,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -91,7 +91,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -101,7 +101,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -173,7 +173,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -183,7 +183,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -260,7 +260,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -270,7 +270,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -347,7 +347,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -357,7 +357,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -429,7 +429,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -439,7 +439,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -509,7 +509,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -519,7 +519,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -634,7 +634,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -644,7 +644,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -722,7 +722,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -732,7 +732,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@${{ env.GINKGO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -828,7 +828,7 @@ jobs:
         uses: actions/download-artifact@v8
 
       - name: Upload unittests coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
@@ -838,7 +838,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload acceptance-api coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
@@ -848,7 +848,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload acceptance-cli coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio
@@ -858,7 +858,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload acceptance-apps coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-epinio

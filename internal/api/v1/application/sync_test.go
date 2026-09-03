@@ -13,6 +13,7 @@ package application
 
 import (
 	"context"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -52,6 +53,19 @@ var _ = Describe("isPodReady", func() {
 
 	It("is false when there are no container statuses", func() {
 		pod := &corev1.Pod{}
+		Expect(isPodReady(pod)).To(BeFalse())
+	})
+
+	It("is false when the pod is terminating", func() {
+		now := metav1.Now()
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &now},
+			Status: corev1.PodStatus{
+				ContainerStatuses: []corev1.ContainerStatus{
+					{Ready: true},
+				},
+			},
+		}
 		Expect(isPodReady(pod)).To(BeFalse())
 	})
 })
@@ -148,6 +162,64 @@ var _ = Describe("findReadyPod", func() {
 		Expect(apiError).ToNot(BeNil())
 	})
 
+	It("skips a terminating pod for a rolling replacement", func() {
+		// The terminating pod is deliberately the newest and sorts first by
+		// name, so only the deletion check can keep sync off it.
+		terminating := makePod("myapp-aaa", "myapp", true)
+		now := metav1.Now()
+		terminating.DeletionTimestamp = &now
+		terminating.CreationTimestamp = now
+
+		survivor := makePod("myapp-new", "myapp", true)
+		survivor.CreationTimestamp = metav1.NewTime(
+			time.Now().Add(-1 * time.Hour),
+		)
+
+		cluster := &kubernetes.Cluster{
+			Kubectl: k8sfake.NewSimpleClientset(terminating, survivor),
+		}
+
+		podName, _, apiError := findReadyPod(
+			ctx, cluster, "workspace", "myapp",
+		)
+		Expect(apiError).To(BeNil())
+		Expect(*podName).To(Equal("myapp-new"))
+	})
+
+	It("prefers the newest pod when several are ready", func() {
+		older := makePod("myapp-older", "myapp", true)
+		older.CreationTimestamp = metav1.NewTime(
+			time.Now().Add(-1 * time.Hour),
+		)
+
+		newer := makePod("myapp-newer", "myapp", true)
+		newer.CreationTimestamp = metav1.NewTime(time.Now())
+
+		cluster := &kubernetes.Cluster{
+			Kubectl: k8sfake.NewSimpleClientset(older, newer),
+		}
+
+		podName, _, apiError := findReadyPod(
+			ctx, cluster, "workspace", "myapp",
+		)
+		Expect(apiError).To(BeNil())
+		Expect(*podName).To(Equal("myapp-newer"))
+	})
+
+	It("fails with 503 when a terminating pod is the only one", func() {
+		terminating := makePod("myapp-old", "myapp", true)
+		now := metav1.Now()
+		terminating.DeletionTimestamp = &now
+
+		cluster := &kubernetes.Cluster{
+			Kubectl: k8sfake.NewSimpleClientset(terminating),
+		}
+
+		_, _, apiError := findReadyPod(ctx, cluster, "workspace", "myapp")
+		Expect(apiError).ToNot(BeNil())
+		Expect(apiError.FirstStatus()).To(Equal(503))
+	})
+
 	It("fails with 503 when no pod is ready", func() {
 		cluster := &kubernetes.Cluster{
 			Kubectl: k8sfake.NewSimpleClientset(
@@ -158,6 +230,72 @@ var _ = Describe("findReadyPod", func() {
 		_, _, apiError := findReadyPod(ctx, cluster, "workspace", "myapp")
 		Expect(apiError).ToNot(BeNil())
 		Expect(apiError.FirstStatus()).To(Equal(503))
+	})
+})
+
+var _ = Describe("podStillServing", func() {
+
+	var ctx context.Context
+
+	BeforeEach(func() {
+		ctx = context.Background()
+	})
+
+	makePod := func(name string, ready bool) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "workspace",
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{Name: "app"}},
+			},
+			Status: corev1.PodStatus{
+				ContainerStatuses: []corev1.ContainerStatus{
+					{Ready: ready},
+				},
+			},
+		}
+	}
+
+	It("is true for a pod that is still ready", func() {
+		cluster := &kubernetes.Cluster{
+			Kubectl: k8sfake.NewSimpleClientset(makePod("myapp-pod", true)),
+		}
+
+		serving, apiError := podStillServing(
+			ctx, cluster, "workspace", "myapp-pod",
+		)
+		Expect(apiError).To(BeNil())
+		Expect(serving).To(BeTrue())
+	})
+
+	It("is false once the pod started terminating mid-sync", func() {
+		pod := makePod("myapp-pod", true)
+		now := metav1.Now()
+		pod.DeletionTimestamp = &now
+
+		cluster := &kubernetes.Cluster{
+			Kubectl: k8sfake.NewSimpleClientset(pod),
+		}
+
+		serving, apiError := podStillServing(
+			ctx, cluster, "workspace", "myapp-pod",
+		)
+		Expect(apiError).To(BeNil())
+		Expect(serving).To(BeFalse())
+	})
+
+	It("is false without an error when the pod is already gone", func() {
+		cluster := &kubernetes.Cluster{
+			Kubectl: k8sfake.NewSimpleClientset(),
+		}
+
+		serving, apiError := podStillServing(
+			ctx, cluster, "workspace", "myapp-pod",
+		)
+		Expect(apiError).To(BeNil())
+		Expect(serving).To(BeFalse())
 	})
 })
 
