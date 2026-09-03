@@ -12,10 +12,13 @@
 package catalog
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -46,6 +49,27 @@ func Index(c *gin.Context) apierror.APIErrors {
 		svc.BoundServices = inUse[svc.Meta.Name]
 	}
 
+	// Optional name filtering, applied before pagination so the page counts
+	// describe the filtered set.
+	if search := response.GetSearchParam(c); search != "" {
+		lower := strings.ToLower(search)
+		var filtered []*models.CatalogService
+		for _, svc := range serviceList {
+			if strings.Contains(strings.ToLower(svc.Meta.Name), lower) {
+				filtered = append(filtered, svc)
+			}
+		}
+		serviceList = filtered
+	}
+
+	// Apply optional pagination when page parameters are provided.
+	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
+		paged := response.PaginateSlice(serviceList, page, pageSize)
+		response.OKReturn(c, paged)
+		return nil
+	}
+
+	// Backwards-compatible: return full list when no page params are set.
 	response.OKReturn(c, serviceList)
 	return nil
 }
