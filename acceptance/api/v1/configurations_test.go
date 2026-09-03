@@ -215,9 +215,9 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 
 			// Bound apps must survive the filter: the enrichment lookup is
 			// scoped to the namespaces that remain.
-			Expect(configurationRefsOf(configurations)).To(ConsistOf(
-				[]string{configuration1, namespace1, app1},
-			))
+			Expect(configurationRefsOf(configurations)).To(ConsistOf([][]string{
+				{configuration1, namespace1, app1},
+			}))
 		})
 
 		It("filters configurations to several namespaces", func() {
@@ -225,11 +225,11 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 
 			configurations := listConfigurations(query)
 
-			Expect(configurationRefsOf(configurations)).To(ConsistOf(
-				[]string{configuration1, namespace1, app1},
-				[]string{configuration1, namespace2, ""},
-				[]string{configuration2, namespace2, ""},
-			))
+			Expect(configurationRefsOf(configurations)).To(ConsistOf([][]string{
+				{configuration1, namespace1, app1},
+				{configuration1, namespace2, ""},
+				{configuration2, namespace2, ""},
+			}))
 		})
 
 		It("ignores a requested namespace that does not exist", func() {
@@ -237,9 +237,9 @@ var _ = Describe("Configurations API Application Endpoints", LConfiguration, fun
 
 			configurations := listConfigurations(query)
 
-			Expect(configurationRefsOf(configurations)).To(ConsistOf(
-				[]string{configuration1, namespace1, app1},
-			))
+			Expect(configurationRefsOf(configurations)).To(ConsistOf([][]string{
+				{configuration1, namespace1, app1},
+			}))
 		})
 
 		It("paginates within the filtered namespaces", func() {

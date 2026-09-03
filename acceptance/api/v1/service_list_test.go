@@ -354,21 +354,24 @@ var _ = Describe("ServiceList Endpoint", LService, func() {
 		It("filters services by namespace", func() {
 			By("keeping only the requested namespace")
 			services := listServices("namespaces=" + namespace1)
-			Expect(serviceRefsOf(services)).To(ConsistOf(
-				[]string{serviceName1, namespace1}))
+			Expect(serviceRefsOf(services)).To(ConsistOf([][]string{
+				{serviceName1, namespace1},
+			}))
 
 			By("keeping the union of several namespaces")
 			query := fmt.Sprintf("namespaces=%s,%s", namespace1, namespace2)
 			services = listServices(query)
-			Expect(serviceRefsOf(services)).To(ConsistOf(
-				[]string{serviceName1, namespace1},
-				[]string{serviceName2, namespace2}))
+			Expect(serviceRefsOf(services)).To(ConsistOf([][]string{
+				{serviceName1, namespace1},
+				{serviceName2, namespace2},
+			}))
 
 			By("ignoring a requested namespace that does not exist")
 			query = fmt.Sprintf("namespaces=%s,does-not-exist", namespace1)
 			services = listServices(query)
-			Expect(serviceRefsOf(services)).To(ConsistOf(
-				[]string{serviceName1, namespace1}))
+			Expect(serviceRefsOf(services)).To(ConsistOf([][]string{
+				{serviceName1, namespace1},
+			}))
 
 			By("returning an empty list when nothing matches")
 			services = listServices("namespaces=does-not-exist")
@@ -378,8 +381,9 @@ var _ = Describe("ServiceList Endpoint", LService, func() {
 			query = fmt.Sprintf("namespaces=%s,%s&search=%s",
 				namespace1, namespace2, serviceName2)
 			services = listServices(query)
-			Expect(serviceRefsOf(services)).To(ConsistOf(
-				[]string{serviceName2, namespace2}))
+			Expect(serviceRefsOf(services)).To(ConsistOf([][]string{
+				{serviceName2, namespace2},
+			}))
 		})
 
 		It("cannot widen access beyond the user's namespaces", func() {
