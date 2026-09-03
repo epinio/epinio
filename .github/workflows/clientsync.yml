@@ -28,7 +28,7 @@ on:
   workflow_dispatch:
 
 env:
-  SETUP_GO_VERSION: '1.25.0'
+  SETUP_GO_VERSION: '1.26.0'
   GINKGO_NODES: 2
   INGRESS_CONTROLLER: nginx
 
