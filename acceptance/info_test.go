@@ -29,6 +29,8 @@ var _ = Describe("Info", LMisc, func() {
 		Expect(out).To(ContainSubstring(`Epinio Server Version: `))
 		Expect(out).To(ContainSubstring(`Epinio Client Version: `))
 		Expect(out).To(ContainSubstring(`OIDC enabled: `))
+		Expect(out).To(ContainSubstring(`Instance ID: `))
+		Expect(out).To(ContainSubstring(`Install Method: helm`))
 	})
 
 	It("succeeds with JSON", func() {
@@ -40,5 +42,7 @@ var _ = Describe("Info", LMisc, func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 		Expect(info.Platform).ToNot(BeEmpty())
 		Expect(info.Version).ToNot(BeEmpty())
+		Expect(info.InstanceID).ToNot(BeEmpty())
+		Expect(info.InstallMethod).To(Equal("helm"))
 	})
 })
