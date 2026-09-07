@@ -12,6 +12,7 @@
 package config
 
 import (
+	"github.com/epinio/epinio/internal/tracing"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -41,6 +42,11 @@ func KubeConfig() (*rest.Config, error) {
 
 	restConfig.QPS = float32(viper.GetFloat64("kube-api-qps"))
 	restConfig.Burst = viper.GetInt("kube-api-burst")
+
+	// Instrument all Kubernetes API HTTP traffic with OpenTelemetry client
+	// spans. Applied here so every consumer of KubeConfig (clientset, dynamic
+	// client, helm, metrics) inherits the same RoundTripper wrapper.
+	restConfig.Wrap(tracing.WrapHTTPRoundTripper)
 
 	return restConfig, nil
 }

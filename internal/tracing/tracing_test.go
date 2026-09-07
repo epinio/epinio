@@ -13,6 +13,9 @@ package tracing
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -25,6 +28,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
@@ -122,5 +126,54 @@ var _ = Describe("newTracerProvider", func() {
 		Expect(attrs).To(ContainElement(semconv.ServiceVersion("v1.2.3")))
 
 		Expect(tp.Shutdown(context.Background())).To(Succeed())
+	})
+})
+
+var _ = Describe("WrapHTTPRoundTripper", func() {
+	It("records a client span and injects W3C traceparent on outbound requests", func() {
+		exporter := tracetest.NewInMemoryExporter()
+		tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+		prev := otel.GetTracerProvider()
+		otel.SetTracerProvider(tp)
+		DeferCleanup(func() {
+			otel.SetTracerProvider(prev)
+			_ = tp.Shutdown(context.Background())
+		})
+
+		var gotTraceparent string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotTraceparent = r.Header.Get("traceparent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		}))
+		DeferCleanup(server.Close)
+
+		client := &http.Client{Transport: WrapHTTPRoundTripper(http.DefaultTransport)}
+		ctx, parent := tp.Tracer("test").Start(context.Background(), "parent")
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/api/v1/namespaces", nil)
+		Expect(err).ToNot(HaveOccurred())
+
+		resp, err := client.Do(req)
+		Expect(err).ToNot(HaveOccurred())
+		DeferCleanup(func() { _ = resp.Body.Close() })
+		_, _ = io.Copy(io.Discard, resp.Body)
+		parent.End()
+
+		Expect(gotTraceparent).ToNot(BeEmpty())
+
+		spans := exporter.GetSpans()
+		Expect(len(spans)).To(BeNumerically(">=", 1))
+
+		var clientSpan tracetest.SpanStub
+		found := false
+		for _, s := range spans {
+			if s.SpanKind == trace.SpanKindClient {
+				clientSpan = s
+				found = true
+				break
+			}
+		}
+		Expect(found).To(BeTrue(), "expected a client span from otelhttp")
+		Expect(clientSpan.Parent.SpanID()).To(Equal(parent.SpanContext().SpanID()))
 	})
 })
