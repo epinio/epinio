@@ -97,6 +97,12 @@ func init() {
 	err = viper.BindEnv("default-builder-image", "DEFAULT_BUILDER_IMAGE")
 	checkErr(err)
 
+	flags.String("install-method", "helm", "(INSTALL_METHOD) How this Epinio instance was installed (helm|cli). Used when creating a missing instance id. Defaults to helm; CLI/installer wrappers should set INSTALL_METHOD=cli.")
+	err = viper.BindPFlag("install-method", flags.Lookup("install-method"))
+	checkErr(err)
+	err = viper.BindEnv("install-method", "INSTALL_METHOD")
+	checkErr(err)
+
 	flags.Float32("kube-api-qps", rest.DefaultQPS, "(KUBE_API_QPS) The QPS indicates the maximum QPS of the Kubernetes client.")
 	err = viper.BindPFlag("kube-api-qps", flags.Lookup("kube-api-qps"))
 	checkErr(err)
