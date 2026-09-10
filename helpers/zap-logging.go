@@ -135,7 +135,7 @@ func (s stripContextCore) With(fields []zapcore.Field) zapcore.Core {
 }
 
 func (s stripContextCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
-	if s.Core.Enabled(ent.Level) {
+	if s.Enabled(ent.Level) {
 		return ce.AddCore(ent, s)
 	}
 	return ce
