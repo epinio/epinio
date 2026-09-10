@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/viper"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -130,7 +131,7 @@ var _ = Describe("newTracerProvider", func() {
 })
 
 var _ = Describe("WrapHTTPRoundTripper", func() {
-	It("records a client span and injects W3C traceparent on outbound requests", func() {
+	It("records a client span and injects trace context without forwarding baggage", func() {
 		exporter := tracetest.NewInMemoryExporter()
 		tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 		prev := otel.GetTracerProvider()
@@ -141,8 +142,10 @@ var _ = Describe("WrapHTTPRoundTripper", func() {
 		})
 
 		var gotTraceparent string
+		var gotBaggage string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotTraceparent = r.Header.Get("traceparent")
+			gotBaggage = r.Header.Get("baggage")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte("ok"))
 		}))
@@ -150,6 +153,11 @@ var _ = Describe("WrapHTTPRoundTripper", func() {
 
 		client := &http.Client{Transport: WrapHTTPRoundTripper(http.DefaultTransport)}
 		ctx, parent := tp.Tracer("test").Start(context.Background(), "parent")
+		member, err := baggage.NewMember("untrusted", "caller-controlled")
+		Expect(err).ToNot(HaveOccurred())
+		bag, err := baggage.New(member)
+		Expect(err).ToNot(HaveOccurred())
+		ctx = baggage.ContextWithBaggage(ctx, bag)
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/api/v1/namespaces", nil)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -160,6 +168,7 @@ var _ = Describe("WrapHTTPRoundTripper", func() {
 		parent.End()
 
 		Expect(gotTraceparent).ToNot(BeEmpty())
+		Expect(gotBaggage).To(BeEmpty())
 
 		spans := exporter.GetSpans()
 		Expect(len(spans)).To(BeNumerically(">=", 1))

@@ -103,7 +103,9 @@ func newTracerProvider(exporter sdktrace.SpanExporter, res *resource.Resource) *
 
 // WrapHTTPRoundTripper wraps an http.RoundTripper with OpenTelemetry client
 // instrumentation so outbound HTTP calls (notably Kubernetes API traffic)
-// emit client spans and propagate W3C trace context.
+// emit client spans and propagate W3C trace context. Baggage is deliberately
+// excluded so caller-controlled metadata is not forwarded to the privileged
+// Kubernetes API.
 //
 // Safe to install unconditionally: when Init installed a no-op
 // TracerProvider the spans are discarded; with an exporter configured they
@@ -115,9 +117,6 @@ func newTracerProvider(exporter sdktrace.SpanExporter, res *resource.Resource) *
 // accidentally leave an already-wrapped transport on a no-op propagator.
 func WrapHTTPRoundTripper(rt http.RoundTripper) http.RoundTripper {
 	return otelhttp.NewTransport(rt,
-		otelhttp.WithPropagators(propagation.NewCompositeTextMapPropagator(
-			propagation.TraceContext{},
-			propagation.Baggage{},
-		)),
+		otelhttp.WithPropagators(propagation.TraceContext{}),
 	)
 }
