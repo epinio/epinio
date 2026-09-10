@@ -116,7 +116,7 @@ func init() {
 	err = viper.BindEnv("otel-exporter-otlp-endpoint", "OTEL_EXPORTER_OTLP_ENDPOINT")
 	checkErr(err)
 
-	flags.String("otel-exporter-otlp-protocol", "", "(OTEL_EXPORTER_OTLP_PROTOCOL) OTLP export protocol: grpc or http/protobuf. Leave empty to use the OTel SDK default (grpc).")
+	flags.String("otel-exporter-otlp-protocol", "grpc", "(OTEL_EXPORTER_OTLP_PROTOCOL) OTLP export protocol: grpc or http/protobuf. Defaults to grpc.")
 	err = viper.BindPFlag("otel-exporter-otlp-protocol", flags.Lookup("otel-exporter-otlp-protocol"))
 	checkErr(err)
 	err = viper.BindEnv("otel-exporter-otlp-protocol", "OTEL_EXPORTER_OTLP_PROTOCOL")
@@ -149,6 +149,13 @@ var CmdServer = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "initializing tracing")
 		}
+		defer func() {
+			tracingCtx, tracingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer tracingCancel()
+			if err := shutdownTracing(tracingCtx); err != nil {
+				helpers.Logger.Errorw("tracer shutdown error", "error", err)
+			}
+		}()
 
 		handler, err := server.NewHandler()
 		if err != nil {
@@ -165,12 +172,12 @@ var CmdServer = &cobra.Command{
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 		helpers.Logger.Infow("listening on localhost", "port", listeningPort)
 
-		return startServerGracefully(listener, handler, shutdownTracing)
+		return startServerGracefully(listener, handler)
 	},
 }
 
 // startServerGracefully will start the server and will wait for a graceful shutdown
-func startServerGracefully(listener net.Listener, handler http.Handler, shutdownTracing func(context.Context) error) error {
+func startServerGracefully(listener net.Listener, handler http.Handler) error {
 	srv := &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second, // Prevent Slowloris attack
@@ -204,14 +211,6 @@ func startServerGracefully(listener net.Listener, handler http.Handler, shutdown
 	if err := srv.Shutdown(ctx); err != nil {
 		helpers.Logger.Fatalw("Server forced to shutdown", "error", err)
 		return err
-	}
-
-	// Only flush/close the tracer after the HTTP server has fully stopped,
-	// so spans for the last in-flight requests are recorded before export.
-	tracingCtx, tracingCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer tracingCancel()
-	if err := shutdownTracing(tracingCtx); err != nil {
-		helpers.Logger.Errorw("tracer shutdown error", "error", err)
 	}
 
 	helpers.Logger.Infow("Server exiting")

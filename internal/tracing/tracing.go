@@ -37,10 +37,10 @@ const ServiceName = "epinio-server"
 // shutdown function that must be called (after the HTTP server has stopped
 // serving requests) to flush and close the exporter.
 //
-// Tracing is opt-in: it stays a no-op unless
-// OTEL_EXPORTER_OTLP_ENDPOINT (or the --otel-exporter-otlp-endpoint flag) is
-// set, so an Epinio deployment without a collector behaves exactly as it
-// did before this package existed.
+// Tracing is opt-in: it stays a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT,
+// OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, or the --otel-exporter-otlp-endpoint
+// flag is set, so an Epinio deployment without a collector behaves exactly
+// as it did before this package existed.
 func Init(ctx context.Context) (shutdown func(context.Context) error, err error) {
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
@@ -50,7 +50,7 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 	noopShutdown := func(context.Context) error { return nil }
 
 	endpoint := viper.GetString("otel-exporter-otlp-endpoint")
-	if endpoint == "" {
+	if endpoint == "" && os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") == "" {
 		otel.SetTracerProvider(noop.NewTracerProvider())
 		return noopShutdown, nil
 	}
@@ -59,8 +59,10 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 	// there is a single source of truth (the standard OTel env vars) for the
 	// exporter construction below, regardless of whether the value came from
 	// a CLI flag or the environment directly.
-	if err := os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", endpoint); err != nil {
-		return nil, errors.Wrap(err, "setting OTEL_EXPORTER_OTLP_ENDPOINT")
+	if endpoint != "" {
+		if err := os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", endpoint); err != nil {
+			return nil, errors.Wrap(err, "setting OTEL_EXPORTER_OTLP_ENDPOINT")
+		}
 	}
 	if protocol := viper.GetString("otel-exporter-otlp-protocol"); protocol != "" {
 		if err := os.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", protocol); err != nil {
