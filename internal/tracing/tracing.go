@@ -14,6 +14,7 @@ package tracing
 
 import (
 	"context"
+	"net/http"
 	"os"
 
 	"github.com/epinio/epinio/internal/version"
@@ -21,6 +22,7 @@ import (
 	"github.com/spf13/viper"
 
 	"go.opentelemetry.io/contrib/exporters/autoexport"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -29,8 +31,8 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
-// ServiceName is the OpenTelemetry service.name used both for the tracer
-// resource and the otelgin middleware, kept as a single source of truth.
+// ServiceName is the OpenTelemetry service.name used for the tracer
+// resource and Gin/HTTP instrumentation, kept as a single source of truth.
 const ServiceName = "epinio-server"
 
 // Init configures OpenTelemetry tracing for the Epinio server and returns a
@@ -96,5 +98,25 @@ func newTracerProvider(exporter sdktrace.SpanExporter, res *resource.Resource) *
 	return sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(res),
+	)
+}
+
+// WrapHTTPRoundTripper wraps an http.RoundTripper with OpenTelemetry client
+// instrumentation so outbound HTTP calls (notably Kubernetes API traffic)
+// emit client spans and propagate W3C trace context. Baggage is deliberately
+// excluded so caller-controlled metadata is not forwarded to the privileged
+// Kubernetes API.
+//
+// Safe to install unconditionally: when Init installed a no-op
+// TracerProvider the spans are discarded; with an exporter configured they
+// are exported. Matches the Kubernetes component-base tracing pattern of
+// rest.Config.Wrap(otelhttp.NewTransport).
+//
+// Propagators are set explicitly (not read from the global at wrap time) so
+// injection works even if this runs before Init, and so a later Init cannot
+// accidentally leave an already-wrapped transport on a no-op propagator.
+func WrapHTTPRoundTripper(rt http.RoundTripper) http.RoundTripper {
+	return otelhttp.NewTransport(rt,
+		otelhttp.WithPropagators(propagation.TraceContext{}),
 	)
 }
