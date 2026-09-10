@@ -26,11 +26,14 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/tracing"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 // NewHandler creates and setup the gin router
@@ -93,6 +96,7 @@ func NewHandler() (*gin.Engine, error) {
 
 	// Add common middlewares to all the routes declared after
 	router.Use(
+		otelgin.Middleware(tracing.ServiceName),
 		middleware.GinLogger(),
 		middleware.Recovery,
 		middleware.InitContext(),
