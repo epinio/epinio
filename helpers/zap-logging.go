@@ -124,12 +124,41 @@ func TeeCore(extra zapcore.Core) {
 	if consoleCore == nil || extra == nil {
 		return
 	}
+	extra = levelFilteredCore{
+		Core:         extra,
+		LevelEnabler: consoleCore,
+	}
 	Logger = zap.New(
 		zapcore.NewTee(stripContextCore{Core: consoleCore}, extra),
 		zap.AddCaller(),
 		zap.Development(),
 		zap.AddStacktrace(zap.WarnLevel),
 	).Sugar()
+}
+
+// levelFilteredCore prevents an extra logging destination from receiving
+// entries that the configured console log level rejects.
+type levelFilteredCore struct {
+	zapcore.Core
+	zapcore.LevelEnabler
+}
+
+func (c levelFilteredCore) Enabled(level zapcore.Level) bool {
+	return c.LevelEnabler.Enabled(level) && c.Core.Enabled(level)
+}
+
+func (c levelFilteredCore) With(fields []zapcore.Field) zapcore.Core {
+	return levelFilteredCore{
+		Core:         c.Core.With(fields),
+		LevelEnabler: c.LevelEnabler,
+	}
+}
+
+func (c levelFilteredCore) Check(entry zapcore.Entry, checkedEntry *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+	if c.Enabled(entry.Level) {
+		return checkedEntry.AddCore(entry, c)
+	}
+	return checkedEntry
 }
 
 // stripContextCore drops fields whose value is a context.Context before

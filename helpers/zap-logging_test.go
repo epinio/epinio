@@ -41,6 +41,33 @@ var _ = Describe("TeeCore", func() {
 				"matching InitLogger's zap.NewDevelopmentConfig() behavior")
 	})
 
+	It("applies the configured log level to the extra core", func() {
+		Expect(helpers.InitLogger("info")).To(Succeed())
+
+		observedCore, logs := observer.New(zapcore.DebugLevel)
+		helpers.TeeCore(observedCore)
+
+		helpers.Logger.Debug("not exported")
+		helpers.Logger.Info("exported")
+
+		entries := logs.TakeAll()
+		Expect(entries).To(HaveLen(1))
+		Expect(entries[0].Message).To(Equal("exported"))
+	})
+
+	It("exports debug logs when the configured level is debug", func() {
+		Expect(helpers.InitLogger("debug")).To(Succeed())
+
+		observedCore, logs := observer.New(zapcore.DebugLevel)
+		helpers.TeeCore(observedCore)
+
+		helpers.Logger.Debug("exported")
+
+		entries := logs.TakeAll()
+		Expect(entries).To(HaveLen(1))
+		Expect(entries[0].Message).To(Equal("exported"))
+	})
+
 	It("does not replace Logger when given a nil extra core", func() {
 		Expect(helpers.InitLogger("info")).To(Succeed())
 		before := helpers.Logger
