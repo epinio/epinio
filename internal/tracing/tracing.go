@@ -9,7 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package tracing configures OpenTelemetry tracing for the Epinio server.
+// Package tracing configures OpenTelemetry tracing and log correlation for the Epinio server.
 package tracing
 
 import (
@@ -17,14 +17,17 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
+	"go.opentelemetry.io/contrib/bridges/otelzap"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
@@ -32,17 +35,16 @@ import (
 )
 
 // ServiceName is the OpenTelemetry service.name used for the tracer
-// resource and Gin/HTTP instrumentation, kept as a single source of truth.
+// resource, Gin/HTTP instrumentation, and the otelzap bridge.
 const ServiceName = "epinio-server"
 
-// Init configures OpenTelemetry tracing for the Epinio server and returns a
-// shutdown function that must be called (after the HTTP server has stopped
-// serving requests) to flush and close the exporter.
+// Init configures OpenTelemetry tracing (and, when enabled, log export via
+// otelzap) for the Epinio server. The returned shutdown function must be
+// called after the HTTP server has stopped serving requests so exporters
+// can flush.
 //
-// Tracing is opt-in: it stays a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT,
-// OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, or the --otel-exporter-otlp-endpoint
-// flag is set, so an Epinio deployment without a collector behaves exactly
-// as it did before this package existed.
+// Trace and log export are enabled independently by their signal-specific
+// endpoints. The global endpoint (or its CLI flag) enables both signals.
 func Init(ctx context.Context) (shutdown func(context.Context) error, err error) {
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
@@ -52,7 +54,9 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 	noopShutdown := func(context.Context) error { return nil }
 
 	endpoint := viper.GetString("otel-exporter-otlp-endpoint")
-	if endpoint == "" && os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") == "" {
+	tracesEnabled := endpoint != "" || os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") != ""
+	logsEnabled := endpoint != "" || os.Getenv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT") != ""
+	if !tracesEnabled && !logsEnabled {
 		otel.SetTracerProvider(noop.NewTracerProvider())
 		return noopShutdown, nil
 	}
@@ -72,11 +76,6 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 		}
 	}
 
-	exporter, err := autoexport.NewSpanExporter(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating OTLP span exporter")
-	}
-
 	res, err := resource.Merge(resource.Default(), resource.NewSchemaless(
 		semconv.ServiceName(ServiceName),
 		semconv.ServiceVersion(version.Version),
@@ -85,10 +84,53 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 		return nil, errors.Wrap(err, "building otel resource")
 	}
 
-	tp := newTracerProvider(exporter, res)
-	otel.SetTracerProvider(tp)
+	var tp *sdktrace.TracerProvider
+	if tracesEnabled {
+		spanExporter, err := autoexport.NewSpanExporter(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "creating OTLP span exporter")
+		}
 
-	return tp.Shutdown, nil
+		tp = newTracerProvider(spanExporter, res)
+		otel.SetTracerProvider(tp)
+	} else {
+		otel.SetTracerProvider(noop.NewTracerProvider())
+	}
+
+	var lp *sdklog.LoggerProvider
+	if logsEnabled {
+		logExporter, err := autoexport.NewLogExporter(ctx)
+		if err != nil {
+			if tp != nil {
+				_ = tp.Shutdown(ctx)
+			}
+			return nil, errors.Wrap(err, "creating OTLP log exporter")
+		}
+
+		lp = sdklog.NewLoggerProvider(
+			sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
+			sdklog.WithResource(res),
+		)
+
+		// Bridge zap -> OTel logs so collectors receive the same records that
+		// appear on stdout, correlated via requestctx.Logger's context field.
+		helpers.TeeCore(otelzap.NewCore(ServiceName, otelzap.WithLoggerProvider(lp)))
+	}
+
+	return func(ctx context.Context) error {
+		var firstErr error
+		if lp != nil {
+			if err := lp.Shutdown(ctx); err != nil {
+				firstErr = err
+			}
+		}
+		if tp != nil {
+			if err := tp.Shutdown(ctx); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		return firstErr
+	}, nil
 }
 
 // newTracerProvider builds a TracerProvider batching spans through the
