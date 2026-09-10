@@ -113,6 +113,13 @@ func InitLogger(logLevel string) error {
 // logs are both printed and exported via OpenTelemetry. Context fields
 // (used by otelzap for correlation) are stripped from the console path so
 // they do not clutter standard log output.
+//
+// zapcore.Core only carries the encoder/sink/level-enabler; the Development
+// and AddStacktrace(WarnLevel) behavior that InitLogger's
+// zap.NewDevelopmentConfig().Build() applies lives on the *zap.Logger
+// wrapper instead, so it must be re-added here to match InitLogger exactly
+// (otherwise it silently disappears the moment tracing/log export is
+// enabled).
 func TeeCore(extra zapcore.Core) {
 	if consoleCore == nil || extra == nil {
 		return
@@ -120,6 +127,8 @@ func TeeCore(extra zapcore.Core) {
 	Logger = zap.New(
 		zapcore.NewTee(stripContextCore{Core: consoleCore}, extra),
 		zap.AddCaller(),
+		zap.Development(),
+		zap.AddStacktrace(zap.WarnLevel),
 	).Sugar()
 }
 
