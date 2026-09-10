@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
 
+	"github.com/epinio/epinio/helpers"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -38,7 +39,30 @@ func TestTracing(t *testing.T) {
 	RunSpecs(t, "Tracing Suite")
 }
 
+func preserveEnv(name string) {
+	value, exists := os.LookupEnv(name)
+	DeferCleanup(func() {
+		if exists {
+			Expect(os.Setenv(name, value)).To(Succeed())
+		} else {
+			Expect(os.Unsetenv(name)).To(Succeed())
+		}
+	})
+}
+
 var _ = Describe("Init", func() {
+	BeforeEach(func() {
+		for _, name := range []string{
+			"OTEL_EXPORTER_OTLP_ENDPOINT",
+			"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+			"OTEL_EXPORTER_OTLP_LOGS_ENDPOINT",
+			"OTEL_EXPORTER_OTLP_PROTOCOL",
+		} {
+			preserveEnv(name)
+			Expect(os.Unsetenv(name)).To(Succeed())
+		}
+	})
+
 	AfterEach(func() {
 		viper.Set("otel-exporter-otlp-endpoint", "")
 		viper.Set("otel-exporter-otlp-protocol", "")
@@ -68,32 +92,38 @@ var _ = Describe("Init", func() {
 	})
 
 	When("only the signal-specific traces endpoint is configured", func() {
-		It("enables tracing", func() {
-			globalEndpoint, hadGlobalEndpoint := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
-			tracesEndpoint, hadTracesEndpoint := os.LookupEnv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
-			DeferCleanup(func() {
-				if hadGlobalEndpoint {
-					Expect(os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", globalEndpoint)).To(Succeed())
-				} else {
-					Expect(os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")).To(Succeed())
-				}
-				if hadTracesEndpoint {
-					Expect(os.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", tracesEndpoint)).To(Succeed())
-				} else {
-					Expect(os.Unsetenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")).To(Succeed())
-				}
-			})
-
-			Expect(os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")).To(Succeed())
+		It("enables tracing without enabling log export", func() {
 			Expect(os.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://127.0.0.1:4318")).To(Succeed())
 			viper.Set("otel-exporter-otlp-endpoint", "")
 			viper.Set("otel-exporter-otlp-protocol", "http/protobuf")
+			loggerBeforeInit := helpers.Logger
 
 			shutdown, err := Init(context.Background())
 			Expect(err).ToNot(HaveOccurred())
 
 			_, isSDKProvider := otel.GetTracerProvider().(*sdktrace.TracerProvider)
 			Expect(isSDKProvider).To(BeTrue())
+			Expect(helpers.Logger).To(BeIdenticalTo(loggerBeforeInit))
+			Expect(shutdown(context.Background())).To(Succeed())
+		})
+	})
+
+	When("only the signal-specific logs endpoint is configured", func() {
+		It("enables log export without enabling tracing", func() {
+			Expect(os.Setenv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "http://127.0.0.1:4318")).To(Succeed())
+			viper.Set("otel-exporter-otlp-endpoint", "")
+			viper.Set("otel-exporter-otlp-protocol", "http/protobuf")
+			loggerBeforeInit := helpers.Logger
+			DeferCleanup(func() {
+				helpers.Logger = loggerBeforeInit
+			})
+
+			shutdown, err := Init(context.Background())
+			Expect(err).ToNot(HaveOccurred())
+
+			_, isNoop := otel.GetTracerProvider().(noop.TracerProvider)
+			Expect(isNoop).To(BeTrue())
+			Expect(helpers.Logger).ToNot(BeIdenticalTo(loggerBeforeInit))
 			Expect(shutdown(context.Background())).To(Succeed())
 		})
 	})

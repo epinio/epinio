@@ -43,10 +43,8 @@ const ServiceName = "epinio-server"
 // called after the HTTP server has stopped serving requests so exporters
 // can flush.
 //
-// Tracing is opt-in: it stays a no-op unless OTEL_EXPORTER_OTLP_ENDPOINT,
-// OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, or the --otel-exporter-otlp-endpoint
-// flag is set, so an Epinio deployment without a collector behaves exactly
-// as it did before this package existed.
+// Trace and log export are enabled independently by their signal-specific
+// endpoints. The global endpoint (or its CLI flag) enables both signals.
 func Init(ctx context.Context) (shutdown func(context.Context) error, err error) {
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
@@ -56,7 +54,9 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 	noopShutdown := func(context.Context) error { return nil }
 
 	endpoint := viper.GetString("otel-exporter-otlp-endpoint")
-	if endpoint == "" && os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") == "" {
+	tracesEnabled := endpoint != "" || os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") != ""
+	logsEnabled := endpoint != "" || os.Getenv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT") != ""
+	if !tracesEnabled && !logsEnabled {
 		otel.SetTracerProvider(noop.NewTracerProvider())
 		return noopShutdown, nil
 	}
@@ -76,11 +76,6 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 		}
 	}
 
-	spanExporter, err := autoexport.NewSpanExporter(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating OTLP span exporter")
-	}
-
 	res, err := resource.Merge(resource.Default(), resource.NewSchemaless(
 		semconv.ServiceName(ServiceName),
 		semconv.ServiceVersion(version.Version),
@@ -89,31 +84,50 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 		return nil, errors.Wrap(err, "building otel resource")
 	}
 
-	tp := newTracerProvider(spanExporter, res)
-	otel.SetTracerProvider(tp)
+	var tp *sdktrace.TracerProvider
+	if tracesEnabled {
+		spanExporter, err := autoexport.NewSpanExporter(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "creating OTLP span exporter")
+		}
 
-	logExporter, err := autoexport.NewLogExporter(ctx)
-	if err != nil {
-		_ = tp.Shutdown(ctx)
-		return nil, errors.Wrap(err, "creating OTLP log exporter")
+		tp = newTracerProvider(spanExporter, res)
+		otel.SetTracerProvider(tp)
+	} else {
+		otel.SetTracerProvider(noop.NewTracerProvider())
 	}
 
-	lp := sdklog.NewLoggerProvider(
-		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
-		sdklog.WithResource(res),
-	)
+	var lp *sdklog.LoggerProvider
+	if logsEnabled {
+		logExporter, err := autoexport.NewLogExporter(ctx)
+		if err != nil {
+			if tp != nil {
+				_ = tp.Shutdown(ctx)
+			}
+			return nil, errors.Wrap(err, "creating OTLP log exporter")
+		}
 
-	// Bridge zap -> OTel logs so collectors receive the same records that
-	// appear on stdout, correlated via requestctx.Logger's context field.
-	helpers.TeeCore(otelzap.NewCore(ServiceName, otelzap.WithLoggerProvider(lp)))
+		lp = sdklog.NewLoggerProvider(
+			sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
+			sdklog.WithResource(res),
+		)
+
+		// Bridge zap -> OTel logs so collectors receive the same records that
+		// appear on stdout, correlated via requestctx.Logger's context field.
+		helpers.TeeCore(otelzap.NewCore(ServiceName, otelzap.WithLoggerProvider(lp)))
+	}
 
 	return func(ctx context.Context) error {
 		var firstErr error
-		if err := lp.Shutdown(ctx); err != nil {
-			firstErr = err
+		if lp != nil {
+			if err := lp.Shutdown(ctx); err != nil {
+				firstErr = err
+			}
 		}
-		if err := tp.Shutdown(ctx); err != nil && firstErr == nil {
-			firstErr = err
+		if tp != nil {
+			if err := tp.Shutdown(ctx); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 		return firstErr
 	}, nil
