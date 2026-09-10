@@ -13,6 +13,7 @@ package tracing
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -21,6 +22,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -35,6 +37,7 @@ var _ = Describe("Init", func() {
 	AfterEach(func() {
 		viper.Set("otel-exporter-otlp-endpoint", "")
 		viper.Set("otel-exporter-otlp-protocol", "")
+		otel.SetTracerProvider(noop.NewTracerProvider())
 	})
 
 	When("no endpoint is configured", func() {
@@ -55,6 +58,37 @@ var _ = Describe("Init", func() {
 				"traceparent", "baggage",
 			))
 
+			Expect(shutdown(context.Background())).To(Succeed())
+		})
+	})
+
+	When("only the signal-specific traces endpoint is configured", func() {
+		It("enables tracing", func() {
+			globalEndpoint, hadGlobalEndpoint := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
+			tracesEndpoint, hadTracesEndpoint := os.LookupEnv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+			DeferCleanup(func() {
+				if hadGlobalEndpoint {
+					Expect(os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", globalEndpoint)).To(Succeed())
+				} else {
+					Expect(os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")).To(Succeed())
+				}
+				if hadTracesEndpoint {
+					Expect(os.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", tracesEndpoint)).To(Succeed())
+				} else {
+					Expect(os.Unsetenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")).To(Succeed())
+				}
+			})
+
+			Expect(os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")).To(Succeed())
+			Expect(os.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://127.0.0.1:4318")).To(Succeed())
+			viper.Set("otel-exporter-otlp-endpoint", "")
+			viper.Set("otel-exporter-otlp-protocol", "http/protobuf")
+
+			shutdown, err := Init(context.Background())
+			Expect(err).ToNot(HaveOccurred())
+
+			_, isSDKProvider := otel.GetTracerProvider().(*sdktrace.TracerProvider)
+			Expect(isSDKProvider).To(BeTrue())
 			Expect(shutdown(context.Background())).To(Succeed())
 		})
 	})
