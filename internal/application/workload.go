@@ -364,14 +364,68 @@ func (a *Workload) generatePodInfo(pods []corev1.Pod) map[string]*models.PodInfo
 		}
 
 		result[pod.Name] = &models.PodInfo{
-			Name:      pod.Name,
-			Restarts:  restarts,
-			Ready:     podutils.IsPodReady(&pods[i]),
-			CreatedAt: pod.CreationTimestamp.Format(time.RFC3339), // ISO 8601
+			Name:          pod.Name,
+			Restarts:      restarts,
+			Ready:         podutils.IsPodReady(&pods[i]),
+			CreatedAt:     pod.CreationTimestamp.Format(time.RFC3339), // ISO 8601
+			FailureReason: podFailureReason(&pods[i]),
 		}
 	}
 
 	return result
+}
+
+// terminalWaitingReasons are container waiting reasons a pod will not leave on
+// its own.
+var terminalWaitingReasons = map[string]bool{
+	"CrashLoopBackOff":           true,
+	"ImagePullBackOff":           true,
+	"ErrImagePull":               true,
+	"InvalidImageName":           true,
+	"CreateContainerConfigError": true,
+	"CreateContainerError":       true,
+}
+
+// podFailureReason returns why a pod will not become ready without
+// intervention, or "" when it is healthy or still starting normally.
+func podFailureReason(pod *corev1.Pod) string {
+	for _, status := range pod.Status.ContainerStatuses {
+		waiting := status.State.Waiting
+		if waiting != nil && terminalWaitingReasons[waiting.Reason] {
+			return waiting.Reason
+		}
+
+		terminated := status.State.Terminated
+		if terminated != nil && terminated.ExitCode != 0 {
+			if terminated.Reason != "" {
+				return terminated.Reason
+			}
+
+			return "ContainerExited"
+		}
+	}
+
+	// A pod that was never scheduled has no container statuses at all, so this
+	// check has to sit outside the loop above.
+	if pod.Status.Phase != corev1.PodPending {
+		return ""
+	}
+
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type != corev1.PodScheduled {
+			continue
+		}
+
+		if condition.Status == corev1.ConditionFalse {
+			if condition.Reason != "" {
+				return condition.Reason
+			}
+
+			return "NotScheduled"
+		}
+	}
+
+	return ""
 }
 
 func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMetrics []metricsv1beta1.PodMetrics) error {

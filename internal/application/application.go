@@ -226,7 +226,7 @@ func Exists(
 
 // IsCurrentlyStaging returns true if the named application is staging
 // (there is an active Job for this application). If this information is needed
-// for more than one application use StagingStatuses instead.
+// for more than one application use stagingStatus instead.
 func IsCurrentlyStaging(
 	ctx context.Context,
 	cluster JobLister,
@@ -238,26 +238,7 @@ func IsCurrentlyStaging(
 		return false, err
 	}
 	status := staging[EncodeConfigurationKey(appName, namespace)]
-	return status == models.ApplicationStagingActive, nil
-}
-
-// StagingStatuses returns a map of applications and their staging statuses
-func StagingStatuses(
-	ctx context.Context,
-	cluster JobLister,
-	namespace string,
-) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
-	return stagingStatus(ctx, cluster, namespace, nil)
-}
-
-// StagingStatusesForApps returns staging statuses scoped to the given app names.
-func StagingStatusesForApps(
-	ctx context.Context,
-	cluster JobLister,
-	namespace string,
-	appNames []string,
-) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
-	return stagingStatus(ctx, cluster, namespace, appNames)
+	return status.status == models.ApplicationStagingActive, nil
 }
 
 /*
@@ -270,8 +251,8 @@ func stagingStatus(
 	cluster JobLister,
 	namespace string,
 	appNames []string,
-) (map[ConfigurationKey]models.ApplicationStagingStatus, error) {
-	stagingJobsMap := make(map[ConfigurationKey]models.ApplicationStagingStatus)
+) (map[ConfigurationKey]stagingJobInfo, error) {
+	stagingJobsMap := make(map[ConfigurationKey]stagingJobInfo)
 
 	labelsMap := make(map[string]string)
 	if namespace != "" {
@@ -302,18 +283,25 @@ func stagingStatus(
 		return condition.Status == v1.ConditionTrue && condition.Type == apibatchv1.JobFailed
 	}
 
-	jobStaging := func(job apibatchv1.Job) models.ApplicationStagingStatus {
+	jobStaging := func(job apibatchv1.Job) stagingJobInfo {
 		for _, condition := range job.Status.Conditions {
 			if failed(condition) {
-				return models.ApplicationStagingFailed
+				completedAt := condition.LastTransitionTime.Time
+				return stagingJobInfo{
+					status:      models.ApplicationStagingFailed,
+					completedAt: &completedAt,
+				}
 			}
 			if completed(condition) {
-				// Terminal, not staging
-				return models.ApplicationStagingDone
+				completedAt := condition.LastTransitionTime.Time
+				return stagingJobInfo{
+					status:      models.ApplicationStagingDone,
+					completedAt: &completedAt,
+				}
 			}
 		}
 		// No terminal condition found on the job, it is actively staging
-		return models.ApplicationStagingActive
+		return stagingJobInfo{status: models.ApplicationStagingActive}
 	}
 
 	for _, job := range jobList.Items {
@@ -327,11 +315,12 @@ func stagingStatus(
 
 func updateAppDataMapWithStagingJobStatus(
 	appDataMap map[ConfigurationKey]AppData,
-	stagingJobsMap map[ConfigurationKey]models.ApplicationStagingStatus,
+	stagingJobsMap map[ConfigurationKey]stagingJobInfo,
 ) map[ConfigurationKey]AppData {
-	for appName, stagingStatus := range stagingJobsMap {
+	for appName, stagingJob := range stagingJobsMap {
 		appData := appDataMap[appName]
-		appData.staging = stagingStatus
+		appData.staging = stagingJob.status
+		appData.stagingCompletedAt = stagingJob.completedAt
 		appDataMap[appName] = appData
 	}
 	return appDataMap
@@ -389,14 +378,25 @@ func ListAppRefs(
 	return apps, nil
 }
 
+type stagingJobInfo struct {
+	status      models.ApplicationStagingStatus
+	completedAt *time.Time
+}
+
+// deployGracePeriod is how long to keep reporting "deploying" after staging
+// completes when no workload is visible yet. Beyond this, with a built image
+// and no pods, the deploy is treated as failed rather than still in progress.
+const deployGracePeriod = 180 * time.Second
+
 type AppData struct {
-	scaling  *v1.Secret
-	bound    *v1.Secret
-	env      *v1.Secret
-	services *v1.Secret
-	routes   []string
-	pods     []v1.Pod
-	staging  models.ApplicationStagingStatus
+	scaling            *v1.Secret
+	bound              *v1.Secret
+	env                *v1.Secret
+	services           *v1.Secret
+	routes             []string
+	pods               []v1.Pod
+	staging            models.ApplicationStagingStatus
+	stagingCompletedAt *time.Time
 }
 
 // loadEnrichmentData fetches the auxiliary data needed to build full App structs.
@@ -444,7 +444,7 @@ func loadEnrichmentData(
 		helpers.Logger.Errorw("metrics not available", "error", metricsError)
 	}
 
-	stagingStatuses, stagingError := StagingStatusesForApps(
+	stagingJobs, stagingError := stagingStatus(
 		ctx,
 		cluster,
 		namespace,
@@ -455,7 +455,7 @@ func loadEnrichmentData(
 	}
 	appAuxiliary = updateAppDataMapWithStagingJobStatus(
 		appAuxiliary,
-		stagingStatuses,
+		stagingJobs,
 	)
 
 	return appAuxiliary, pageMetrics, nil
@@ -730,6 +730,13 @@ Delete removes the named application, its workload (if active), bindings
 application was staged (if active). Waits for the application's deployment's
 pods to disappear (if active).
 
+Staging PVCs (build cache and source blobs) are always removed; they hold only
+data rebuilt from S3 on the next stage, and nothing else ever reaps them.
+
+When deletePVC is true, application data PVCs (e.g. from StatefulSet
+volumeClaimTemplates) are removed as well. When it is false (the default) that
+data is preserved.
+
 Returns a DeleteResult containing any warnings (e.g., incomplete blob cleanup).
 */
 func Delete(
@@ -737,6 +744,7 @@ func Delete(
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
 	deleteImage bool,
+	deletePVC bool,
 ) (*DeleteResult, error) {
 	result := &DeleteResult{}
 
@@ -760,6 +768,15 @@ func Delete(
 			} else if imageURL == "" {
 				log.Infow("No image URL found in application, skipping image deletion", "app", appRef.Name)
 			}
+		}
+	}
+
+	// Collect app data PVC names up front, while the StatefulSet still exists.
+	var appDataPVCs []string
+	if deletePVC {
+		appDataPVCs, err = listAppDataPVCNames(ctx, cluster, appRef)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -814,6 +831,13 @@ func Delete(
 	err = deleteSourceBlobsStagePVC(ctx, cluster, appRef)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, err
+	}
+
+	if deletePVC {
+		err = deleteAppDataPVCs(ctx, cluster, appRef.Namespace, appDataPVCs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = cluster.WaitForPodBySelectorMissing(ctx,
@@ -992,6 +1016,58 @@ func deleteSourceBlobsStagePVC(
 		).Delete(ctx, appRef.MakeSourceBlobsPVCName(), metav1.DeleteOptions{})
 }
 
+// listAppDataPVCNames finds application data PersistentVolumeClaims by label
+// selector. Listing by label (instead of reconstructing names from the current
+// replica count) also finds PVCs left behind after scale-down.
+//
+// Only app.kubernetes.io/name is matched. A claim built from a StatefulSet
+// volumeClaimTemplate inherits spec.selector.matchLabels, which the app charts
+// set to that one label; app.kubernetes.io/component lives on the StatefulSet
+// and its pod template, neither of which reaches the claim. Matching on a
+// subset also keeps working if a chart later adds labels of its own.
+func listAppDataPVCNames(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+) ([]string, error) {
+	selector := labels.Set{
+		"app.kubernetes.io/name": appRef.Name,
+	}.AsSelector().String()
+
+	pvcList, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(appRef.Namespace).List(
+		ctx,
+		metav1.ListOptions{LabelSelector: selector},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	pvcNames := make([]string, 0, len(pvcList.Items))
+	for _, pvc := range pvcList.Items {
+		pvcNames = append(pvcNames, pvc.Name)
+	}
+	return pvcNames, nil
+}
+
+func deleteAppDataPVCs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+	pvcNames []string,
+) error {
+	for _, pvcName := range pvcNames {
+		err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(namespace).Delete(
+			ctx,
+			pvcName,
+			metav1.DeleteOptions{},
+		)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
+}
+
 /*
 AppChart returns the app chart (to be) used for application deployment, if
 one exists. It returns an empty string otherwise. The information is pulled
@@ -1048,6 +1124,150 @@ func StageID(app *unstructured.Unstructured) (string, error) {
 }
 
 /*
+BlobUID returns the S3/seaweedfs blob UID of the last staged application
+sources, if one exists. It returns an empty string otherwise. The information
+is pulled out of the app resource itself, saved there by the staging endpoint.
+
+This is the canonical helper for reading spec.blobuid from an app CR; staging,
+source export, and async retry paths should all use it instead of duplicating
+the unstructured lookup.
+*/
+func BlobUID(app *unstructured.Unstructured) (string, error) {
+	blobUID, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"blobuid",
+	)
+	if err != nil {
+		return "", errors.New("blobuid should be string")
+	}
+
+	return blobUID, nil
+}
+
+// assignApplicationStatus sets Status (and StatusMessage when useful) from
+// StagingStatus and Workload. Staging/deploy failures without a running
+// workload must not look like a freshly "created" app.
+//
+// StagingStatus comes from live Jobs. Failed/completed Jobs are often removed
+// by TTL, so StageID on the app is used as a sticky signal that staging was
+// attempted and did not leave a running workload.
+//
+// StagingDone with no workload is transitional (Helm/pods still spinning up),
+// not a failure — report deploying until a workload appears. Once the staging
+// Job is gone, use StageID and ImageURL to distinguish staging vs deploy failure.
+func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
+	if app.StagingStatus == models.ApplicationStagingActive {
+		app.Status = models.ApplicationStaging
+		return
+	}
+
+	if app.Workload == nil {
+		switch app.StagingStatus {
+		case models.ApplicationStagingFailed:
+			app.Status = models.ApplicationError
+			if app.StatusMessage == "" {
+				app.StatusMessage = "staging failed"
+			}
+			return
+		case models.ApplicationStagingDone:
+			// Staging succeeded; workload not visible yet while instances are
+			// desired (deploy in progress / waiting on k8s). Keep a non-error
+			// transitional status so the UI does not flash "deployment failed".
+			if wantsInstances(app) {
+				if stagingDeployTimedOut(app, stagingCompletedAt) {
+					app.Status = models.ApplicationError
+					if app.StatusMessage == "" {
+						app.StatusMessage = "deployment failed"
+					}
+					return
+				}
+				app.Status = models.ApplicationDeploying
+				if app.StatusMessage == "" {
+					app.StatusMessage = "deploying"
+				}
+				return
+			}
+		default:
+			// Job gone (TTL/cleanup) but a stage was recorded → keep Error, not Created.
+			if app.StageID != "" && wantsInstances(app) {
+				app.Status = models.ApplicationError
+				if app.StatusMessage == "" {
+					if app.ImageURL != "" {
+						app.StatusMessage = "deployment failed"
+					} else {
+						app.StatusMessage = "staging failed"
+					}
+				}
+				return
+			}
+		}
+		app.Status = models.ApplicationCreated
+		return
+	}
+
+	notReady := wantsInstances(app) &&
+		app.Workload.ReadyReplicas == 0 &&
+		app.Workload.DesiredReplicas > 0
+
+	if notReady {
+		failureReason := workloadFailureReason(app.Workload)
+		if failureReason != "" {
+			app.Status = models.ApplicationError
+			app.FailureReason = failureReason
+			if app.StatusMessage == "" {
+				app.StatusMessage = "deployment failed: " + failureReason
+			}
+			return
+		}
+	}
+
+	app.Status = models.ApplicationRunning
+}
+
+// stagingDeployTimedOut is true when staging finished long ago, a built image
+// exists, but no workload ever became visible — the deploy likely failed and
+// was rolled back (e.g. helm atomic uninstall) while the staging job still
+// exists.
+func stagingDeployTimedOut(app *models.App, stagingCompletedAt *time.Time) bool {
+	if app.ImageURL == "" || stagingCompletedAt == nil {
+		return false
+	}
+	return time.Since(*stagingCompletedAt) > deployGracePeriod
+}
+
+// workloadFailureReason returns why the workload's pods cannot become ready, or
+// "" when they are healthy or still inside a normal startup window.
+//
+// A reason reported by kubernetes wins over the restart count, which is only an
+// inference. Two loops keep that precedence deterministic, since map iteration
+// order is not.
+func workloadFailureReason(workload *models.AppDeployment) string {
+	for _, replica := range workload.Replicas {
+		if replica.FailureReason != "" {
+			return replica.FailureReason
+		}
+	}
+
+	// A container that died and restarted has not been given a CrashLoopBackOff
+	// waiting reason yet, so the count is the only evidence.
+	for _, replica := range workload.Replicas {
+		if replica.Restarts > 0 {
+			return "Restarting"
+		}
+	}
+
+	return ""
+}
+
+// wantsInstances is true when the app is expected to run at least one instance.
+// Nil Instances is treated as desired (default deploy), so a missing Job after
+// a failed stage does not flip the app back to "created".
+func wantsInstances(app *models.App) bool {
+	return app.Configuration.Instances == nil || *app.Configuration.Instances > 0
+}
+
+/*
 ImageURL returns the image url of the currently running build, if one exists.
 It returns an empty string otherwise. The information is pulled out of the
 app resource itself, saved there by the deploy endpoint.
@@ -1081,6 +1301,34 @@ func BuilderURL(app *unstructured.Unstructured) (string, error) {
 	}
 
 	return builderURL, nil
+}
+
+// BuildMode returns the staging build mode stored on the app resource.
+func BuildMode(app *unstructured.Unstructured) (string, error) {
+	mode, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"buildmode",
+	)
+	if err != nil {
+		return "", errors.New("buildmode should be string")
+	}
+
+	return mode, nil
+}
+
+// DockerfilePath returns the Dockerfile path stored on the app resource.
+func DockerfilePath(app *unstructured.Unstructured) (string, error) {
+	path, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"dockerfilepath",
+	)
+	if err != nil {
+		return "", errors.New("dockerfilepath should be string")
+	}
+
+	return path, nil
 }
 
 // ErrBlobCleanupIncomplete is returned when blob cleanup could not complete
@@ -1594,6 +1842,11 @@ func aggregate(ctx context.Context,
 		return nil, errors.Wrap(err, "finding the stage id")
 	}
 
+	blobUID, err := BlobUID(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the blob uid")
+	}
+
 	imageURL, err := ImageURL(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding the image url")
@@ -1602,6 +1855,16 @@ func aggregate(ctx context.Context,
 	builderURL, err := BuilderURL(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding the builder url")
+	}
+
+	buildMode, err := BuildMode(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the build mode")
+	}
+
+	dockerfilePath, err := DockerfilePath(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the dockerfile path")
 	}
 
 	settings, err := Settings(&appCR)
@@ -1630,8 +1893,11 @@ func aggregate(ctx context.Context,
 	app.Configuration.Settings = settings
 	app.Origin = origin
 	app.StageID = stageID
+	app.BlobUID = blobUID
 	app.ImageURL = imageURL
 	app.Staging.Builder = builderURL
+	app.Staging.BuildMode = buildMode
+	app.Staging.DockerfilePath = dockerfilePath
 
 	// IV. Assemble the deployment structure for active applications.
 
@@ -1653,21 +1919,8 @@ func aggregate(ctx context.Context,
 		return nil, err
 	}
 
-	// set app status and done ...
-
 	app.StagingStatus = aux.staging
-
-	if aux.staging == models.ApplicationStagingActive {
-		app.Status = models.ApplicationStaging
-		return app, nil
-	}
-
-	if app.Workload == nil {
-		app.Status = models.ApplicationCreated
-		return app, nil
-	}
-
-	app.Status = models.ApplicationRunning
+	assignApplicationStatus(app, aux.stagingCompletedAt)
 	return app, nil
 }
 
@@ -1688,6 +1941,25 @@ func loadEnvironmentData(
 	}
 
 	return environment, groupedEnv, nil
+}
+
+func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, error) {
+	builderURL, err := BuilderURL(applicationCR)
+	if err != nil {
+		return "", "", "", errors.Wrap(err, "finding the builder url")
+	}
+
+	buildMode, err := BuildMode(applicationCR)
+	if err != nil {
+		return "", "", "", errors.Wrap(err, "finding the build mode")
+	}
+
+	dockerfilePath, err := DockerfilePath(applicationCR)
+	if err != nil {
+		return "", "", "", errors.Wrap(err, "finding the dockerfile path")
+	}
+
+	return builderURL, buildMode, dockerfilePath, nil
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
@@ -1775,6 +2047,14 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	blobUID, err := BlobUID(applicationCR)
+	if err != nil {
+		err = errors.Wrap(err, "finding the blob uid")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
+	}
+
 	imageURL, err := ImageURL(applicationCR)
 	if err != nil {
 		err = errors.Wrap(err, "finding the image url")
@@ -1783,9 +2063,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	builderURL, err := BuilderURL(applicationCR)
+	builderURL, buildMode, dockerfilePath, err := loadStagingFields(applicationCR)
 	if err != nil {
-		err = errors.Wrap(err, "finding the builder url")
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
 		return err
@@ -1811,8 +2090,11 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Settings = settings
 	app.Origin = origin
 	app.StageID = stageID
+	app.BlobUID = blobUID
 	app.ImageURL = imageURL
 	app.Staging.Builder = builderURL
+	app.Staging.BuildMode = buildMode
+	app.Staging.DockerfilePath = dockerfilePath
 
 	// Check if app is active, and if yes, fill the associated parts.  May have to
 	// straighten the workload structure a bit further.
@@ -1833,19 +2115,9 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	app.StagingStatus = staging[EncodeConfigurationKey(app.Meta.Name, app.Meta.Namespace)]
-
-	if app.StagingStatus == models.ApplicationStagingActive {
-		app.Status = models.ApplicationStaging
-		return nil
-	}
-
-	if app.Workload == nil {
-		app.Status = models.ApplicationCreated
-		return nil
-	}
-
-	app.Status = models.ApplicationRunning
+	stagingJob := staging[EncodeConfigurationKey(app.Meta.Name, app.Meta.Namespace)]
+	app.StagingStatus = stagingJob.status
+	assignApplicationStatus(app, stagingJob.completedAt)
 	return nil
 }
 

@@ -20,6 +20,23 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 // responses:
 //   200: NamespacesResponse
 
+// swagger:parameters Namespaces
+type NamespacesParam struct {
+	// Comma-separated namespaces to filter by, e.g. "ns1,ns2". Matches the
+	// namespace name exactly. Names the user cannot see are ignored.
+	// in: query
+	Namespaces string `json:"namespaces"`
+	// Case-insensitive substring match on the namespace name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based. Pagination is off unless page or pageSize is set.
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 25)
+	// in: query
+	PageSize string `json:"pageSize"`
+}
+
 // swagger:response NamespacesResponse
 type NamespacesResponse struct {
 	// in: body

@@ -95,6 +95,122 @@ var _ = Describe("AllApps Endpoints", LApplication, func() {
 			[]string{app2, namespace2}))
 	})
 
+	// listApps GETs /applications with the given query string and returns the
+	// plain, non-paginated list.
+	listApps := func(query string) models.AppList {
+		url := fmt.Sprintf("%s%s/applications?%s", serverURL, v1.Root, query)
+
+		response, err := env.Curl("GET", url, strings.NewReader(""))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+
+		defer response.Body.Close()
+		bodyBytes, err := io.ReadAll(response.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+		var apps models.AppList
+		err = json.Unmarshal(bodyBytes, &apps)
+		Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+		return apps
+	}
+
+	appRefsOf := func(apps models.AppList) [][]string {
+		var appRefs [][]string
+		for _, a := range apps {
+			appRefs = append(appRefs, []string{a.Meta.Name, a.Meta.Namespace})
+		}
+
+		return appRefs
+	}
+
+	It("filters applications to a single namespace", func() {
+		apps := listApps("namespaces=" + namespace1)
+
+		Expect(appRefsOf(apps)).To(ConsistOf([]string{app1, namespace1}))
+	})
+
+	It("filters applications to several namespaces", func() {
+		query := fmt.Sprintf("namespaces=%s,%s", namespace1, namespace2)
+
+		apps := listApps(query)
+
+		Expect(appRefsOf(apps)).To(ConsistOf(
+			[]string{app1, namespace1},
+			[]string{app2, namespace2}))
+	})
+
+	It("ignores a requested namespace that does not exist", func() {
+		query := fmt.Sprintf("namespaces=%s,does-not-exist", namespace1)
+
+		apps := listApps(query)
+
+		Expect(appRefsOf(apps)).To(ConsistOf([]string{app1, namespace1}))
+	})
+
+	It("combines the namespace filter with the search term", func() {
+		query := fmt.Sprintf("namespaces=%s,%s&search=%s",
+			namespace1, namespace2, app1)
+
+		apps := listApps(query)
+
+		Expect(appRefsOf(apps)).To(ConsistOf([]string{app1, namespace1}))
+	})
+
+	It("paginates within the filtered namespaces", func() {
+		url := fmt.Sprintf(
+			"%s%s/applications?namespaces=%s,%s&page=1&pageSize=1",
+			serverURL, v1.Root, namespace1, namespace2)
+
+		response, err := env.Curl("GET", url, strings.NewReader(""))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+
+		defer response.Body.Close()
+		bodyBytes, err := io.ReadAll(response.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+		var paged struct {
+			Items      []models.App `json:"items"`
+			Page       int          `json:"page"`
+			PageSize   int          `json:"pageSize"`
+			TotalItems int          `json:"totalItems"`
+			TotalPages int          `json:"totalPages"`
+		}
+		err = json.Unmarshal(bodyBytes, &paged)
+		Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+		// The namespace filter makes the totals deterministic despite apps
+		// left over from other specs running concurrently.
+		Expect(paged.TotalItems).To(Equal(2))
+		Expect(paged.TotalPages).To(Equal(2))
+		Expect(paged.Items).To(HaveLen(1))
+	})
+
+	It("cannot widen access beyond the user's namespaces", func() {
+		endpoint := fmt.Sprintf("%s%s/applications?namespaces=%s",
+			serverURL, v1.Root, namespace1)
+		request, err := http.NewRequest(http.MethodGet, endpoint, nil)
+		Expect(err).ToNot(HaveOccurred())
+		request.SetBasicAuth(user, password)
+
+		response, err := env.Client().Do(request)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+
+		defer response.Body.Close()
+		bodyBytes, err := io.ReadAll(response.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+		var apps models.AppList
+		err = json.Unmarshal(bodyBytes, &apps)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(apps).To(BeEmpty())
+	})
+
 	It("doesn't list applications belonging to non-accessible namespaces", func() {
 		endpoint := fmt.Sprintf("%s%s/applications", serverURL, v1.Root)
 		request, err := http.NewRequest(http.MethodGet, endpoint, nil)

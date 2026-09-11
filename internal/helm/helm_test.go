@@ -13,6 +13,7 @@ package helm
 
 import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	helmrelease "helm.sh/helm/v3/pkg/release"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -218,5 +219,62 @@ var _ = Describe("ValidateField()", func() {
 		})
 		Expect(err).To(HaveOccurred(), err.Error())
 		Expect(err.Error()).To(Equal(`setting "field": expected boolean, got "hound"`))
+	})
+})
+
+var _ = Describe("sameStringMap()", func() {
+	It("treats nil and empty maps as equal", func() {
+		Expect(sameStringMap(nil, nil)).To(BeTrue())
+		Expect(sameStringMap(nil, map[string]string{})).To(BeTrue())
+		Expect(sameStringMap(map[string]string{}, nil)).To(BeTrue())
+	})
+
+	It("requires exact key/value equality", func() {
+		Expect(sameStringMap(
+			map[string]string{"tuning": "speed"},
+			map[string]string{"tuning": "speed"},
+		)).To(BeTrue())
+		Expect(sameStringMap(
+			map[string]string{"tuning": "speed"},
+			map[string]string{"tuning": "slow"},
+		)).To(BeFalse())
+		Expect(sameStringMap(
+			map[string]string{"tuning": "speed"},
+			map[string]string{},
+		)).To(BeFalse())
+	})
+
+	It("does not treat a prefix key set as equal", func() {
+		// Guards the same class of bug as substring chart matching:
+		// overlapping names must not count as equal.
+		Expect(sameStringMap(
+			map[string]string{"epinio-application": "1"},
+			map[string]string{"epinio-application-gateway-api": "1"},
+		)).To(BeFalse())
+	})
+})
+
+var _ = Describe("releaseChartConfig()", func() {
+	It("returns an empty map when chartConfig is absent", func() {
+		Expect(releaseChartConfig(nil)).To(Equal(map[string]string{}))
+		Expect(releaseChartConfig(&helmrelease.Release{})).To(Equal(map[string]string{}))
+		Expect(releaseChartConfig(&helmrelease.Release{
+			Config: map[string]interface{}{},
+		})).To(Equal(map[string]string{}))
+	})
+
+	It("flattens chartConfig from the release values", func() {
+		rel := &helmrelease.Release{
+			Config: map[string]interface{}{
+				"chartConfig": map[string]interface{}{
+					"tuning": "speed",
+					"port":   8080,
+				},
+			},
+		}
+		Expect(releaseChartConfig(rel)).To(Equal(map[string]string{
+			"tuning": "speed",
+			"port":   "8080",
+		}))
 	})
 })

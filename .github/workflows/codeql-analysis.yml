@@ -43,7 +43,7 @@ jobs:
         submodules: recursive
 
     - name: Setup Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       timeout-minutes: 5
       with:
         go-version: ${{ env.SETUP_GO_VERSION }}

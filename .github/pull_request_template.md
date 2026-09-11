@@ -4,6 +4,7 @@
 - [ ] Unit Tests are passing
 - [ ] Acceptance Tests are passing
 - [ ] Code is well documented
+- [ ] Swagger is regenerated if there was an API update
 - [ ] Does the [MCP](https://github.com/epinio/mcp) server need an update?
 - [ ] If applicable, a PR in the [epinio/docs](https://github.com/epinio/docs) repository has been opened
  

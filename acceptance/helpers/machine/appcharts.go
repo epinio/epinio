@@ -14,6 +14,8 @@ package machine
 import (
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	. "github.com/onsi/ginkgo/v2"
@@ -106,13 +108,104 @@ spec:
 	return tempFile
 }
 
+// MakeAppchartAlternate installs a deployable app chart that uses a different helm
+// package version than the default "standard" chart (0.1.26). It keeps the standard
+// settings schema so an already-running app can switch onto it safely in tests.
+func (m *Machine) MakeAppchartAlternate(chartName string) string {
+	tempFile := chartName + `.yaml`
+	err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
+kind: AppChart
+metadata:
+  namespace: epinio
+  name: %s
+  labels:
+    app.kubernetes.io/component: epinio
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: epinio-alternate-app-chart
+    app.kubernetes.io/part-of: epinio
+spec:
+  shortDescription: Alternate application chart for upgrade tests
+  description: Different epinio-application package version than standard
+  helmChart: https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.21/epinio-application-0.1.21.tgz
+  settings:
+    appListeningPort:
+      type: integer
+      minimum: "0"
+`, chartName)), 0600)
+	Expect(err).ToNot(HaveOccurred())
+
+	out, err := proc.Kubectl("apply", "-f", tempFile)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	return tempFile
+}
+
+// MakeAppchartSamePackageWithValues installs an AppChart that wraps the same helm
+// package as "standard" (0.1.26) but carries the given Spec.Values. Used to cover
+// switches between two AppChart CRs that share a package while differing in
+// chartConfig.
+func (m *Machine) MakeAppchartSamePackageWithValues(
+	chartName string,
+	values map[string]string,
+) string {
+	tempFile := chartName + `.yaml`
+	err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
+kind: AppChart
+metadata:
+  namespace: epinio
+  name: %s
+  labels:
+    app.kubernetes.io/component: epinio
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: epinio-same-package-app-chart
+    app.kubernetes.io/part-of: epinio
+spec:
+  shortDescription: Same package as standard with Spec.Values
+  description: Same epinio-application package as standard, different Spec.Values
+  helmChart: https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.26/epinio-application-0.1.26.tgz
+%s  settings:
+    appListeningPort:
+      type: integer
+      minimum: "0"
+`, chartName, chartValuesBlock(values))), 0600)
+	Expect(err).ToNot(HaveOccurred())
+
+	out, err := proc.Kubectl("apply", "-f", tempFile)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	return tempFile
+}
+
+// chartValuesBlock renders a Spec.Values map as YAML, sorted for stable output.
+func chartValuesBlock(values map[string]string) string {
+	if len(values) == 0 {
+		return ""
+	}
+
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	var block strings.Builder
+	block.WriteString("  values:\n")
+
+	for _, key := range keys {
+		fmt.Fprintf(&block, "    %s: %q\n", key, values[key])
+	}
+
+	return block.String()
+}
+
 func (m *Machine) DeleteAppchart(tempFile string) {
 	GinkgoHelper()
 
 	out, err := proc.Kubectl("delete", "-f", tempFile)
 	Expect(err).ToNot(HaveOccurred(), out)
 	tempFileRemoveError := os.Remove(tempFile)
-	
+
 	if tempFileRemoveError != nil {
 		fmt.Sprintf("The App Chart file was not deleted: %s", tempFileRemoveError)
 	}

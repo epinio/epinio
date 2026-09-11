@@ -39,6 +39,64 @@ import (
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
 )
 
+// appListStatusDetails returns the STATUS DETAILS column from API status fields.
+func appListStatusDetails(app models.App) string {
+	if app.Workload != nil {
+		return app.StatusMessage
+	}
+	if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
+		return ""
+	}
+	switch app.Status {
+	case models.ApplicationStaging:
+		return "staging"
+	case models.ApplicationDeploying:
+		return "deploying"
+	case models.ApplicationError:
+		if app.StatusMessage != "" {
+			return app.StatusMessage
+		}
+		return "error"
+	default:
+		if app.StatusMessage != "" {
+			return app.StatusMessage
+		}
+		return ""
+	}
+}
+
+// appShowStatusLine returns the Status row for app show from API status fields.
+func appShowStatusLine(app models.App) string {
+	if app.Workload != nil {
+		if app.Status == models.ApplicationError && app.StatusMessage != "" {
+			return app.Workload.Status + ", " + app.StatusMessage
+		}
+		return app.Workload.Status
+	}
+	if app.StageID == "" {
+		return "not deployed"
+	}
+	if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
+		return "deployed, scaled to zero"
+	}
+	switch app.Status {
+	case models.ApplicationStaging:
+		return "not deployed, staging active"
+	case models.ApplicationDeploying:
+		return "staging ok, deploying"
+	case models.ApplicationError:
+		if app.StatusMessage != "" {
+			return "not deployed, " + app.StatusMessage
+		}
+		return "not deployed, error"
+	default:
+		if app.StatusMessage != "" {
+			return "not deployed, " + app.StatusMessage
+		}
+		return "not deployed"
+	}
+}
+
 // AppCreate creates an app without a workload
 func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpdateRequest) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
@@ -167,19 +225,10 @@ func (c *EpinioClient) Apps(all bool) error {
 			status = "n/a"
 			routes = "n/a"
 
-			switch app.StagingStatus {
-			case models.ApplicationStagingActive:
-				statusDetails = "staging"
-			case models.ApplicationStagingDone:
-				if *app.Configuration.Instances == 0 {
-					status = "0/0"
-				} else {
-					// staging is done, want > 0 instances, no workload
-					statusDetails = "deployment failed"
-				}
-			case models.ApplicationStagingFailed:
-				statusDetails = "staging failed"
+			if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
+				status = "0/0"
 			}
+			statusDetails = appListStatusDetails(app)
 		} else {
 			status = app.Workload.Status
 			routes = formatRoutes(app.Workload.Routes)
@@ -557,7 +606,7 @@ func (c *EpinioClient) AppPortForward(ctx context.Context, appName, instance str
 }
 
 // Delete removes one or more applications, specified by name
-func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, deleteImage bool) error {
+func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, deleteImage, deletePVC bool) error {
 	if all {
 		c.ui.Note().
 			WithStringValue("Namespace", c.Settings.Namespace).
@@ -626,7 +675,7 @@ func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, de
 		return match.Names
 	})
 
-	response, err := c.API.AppDelete(c.Settings.Namespace, appNames, deleteImage)
+	response, err := c.API.AppDelete(c.Settings.Namespace, appNames, deleteImage, deletePVC)
 	if err != nil {
 		return err
 	}
@@ -679,19 +728,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 		if app.StageID == "" {
 			msg = msg.WithTableRow("Status", "not deployed")
 		} else {
-			switch app.StagingStatus {
-			case models.ApplicationStagingActive:
-				msg = msg.WithTableRow("Status", "not deployed, staging active")
-			case models.ApplicationStagingDone:
-				if *app.Configuration.Instances == 0 {
-					msg = msg.WithTableRow("Status", "deployed, scaled to zero")
-				} else {
-					// staging is done, want > 0 instances, no workload
-					msg = msg.WithTableRow("Status", "staging ok, deployment failed")
-				}
-			case models.ApplicationStagingFailed:
-				msg = msg.WithTableRow("Status", "not deployed, staging failed")
-			}
+			msg = msg.WithTableRow("Status", appShowStatusLine(app))
 			msg = msg.WithTableRow("Last StageId", app.StageID)
 		}
 

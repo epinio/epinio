@@ -191,7 +191,7 @@ func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, er
 }
 
 // AppDelete deletes an app
-func (c *Client) AppDelete(namespace string, names []string, deleteImage bool) (models.ApplicationDeleteResponse, error) {
+func (c *Client) AppDelete(namespace string, names []string, deleteImage, deletePVC bool) (models.ApplicationDeleteResponse, error) {
 	response := models.ApplicationDeleteResponse{}
 
 	queryParams := url.Values{}
@@ -207,6 +207,7 @@ func (c *Client) AppDelete(namespace string, names []string, deleteImage bool) (
 
 	request := models.ApplicationDeleteRequest{
 		DeleteImage: deleteImage,
+		DeletePVC:   deletePVC,
 	}
 
 	return Delete(c, endpoint, request, response)

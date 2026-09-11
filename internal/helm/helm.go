@@ -37,6 +37,7 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/registry"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
@@ -392,6 +393,10 @@ func Deploy(parameters ChartParameters) error {
 		return errors.Wrap(err, "cleaning up release")
 	}
 
+	// When the helm chart package or AppChart Spec.Values change, do not reuse values
+	// from the previous release. Old chart-specific values can break the upgrade.
+	reuseValues := shouldReuseHelmValues(client, releaseName, appChart, helmChart, helmVersion)
+
 	chartSpec := hc.ChartSpec{
 		ReleaseName: releaseName,
 		ChartName:   helmChart,
@@ -401,12 +406,134 @@ func Deploy(parameters ChartParameters) error {
 		Atomic:      true, // implies `Wait true`
 		ValuesYaml:  params,
 		Timeout:     duration.ToDeployment(),
-		ReuseValues: true,
+		ReuseValues: reuseValues,
 	}
 
 	_, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil)
 
 	return err
+}
+
+// shouldReuseHelmValues is false when an existing release was installed from a different
+// chart package than the one about to be deployed, or when AppChart Spec.Values differ
+// from the release's chartConfig (two AppChart CRs wrapping the same package).
+//
+// chartRef/chartVersion come from getChartReference for the next AppChart so identity is
+// taken from loaded chart metadata (exact name + version), never from URL substrings.
+func shouldReuseHelmValues(
+	client hc.Client,
+	releaseName string,
+	appChart *models.AppChartFull,
+	chartRef string,
+	chartVersion string,
+) bool {
+	logger := helpers.Logger.With("component", "helm-deploy")
+
+	rel, err := client.GetRelease(releaseName)
+	if err != nil || rel == nil || rel.Chart == nil || rel.Chart.Metadata == nil {
+		return true
+	}
+
+	prevName := rel.Chart.Metadata.Name
+	prevVersion := rel.Chart.Metadata.Version
+	if prevName == "" || prevVersion == "" {
+		logger.Infow("release chart metadata incomplete, disabling ReuseValues",
+			"release", releaseName)
+		return false
+	}
+
+	nextName, nextVersion, err := loadChartIdentity(client, appChart, chartRef, chartVersion)
+	if err != nil || nextName == "" || nextVersion == "" {
+		logger.Infow("unable to resolve next chart identity, disabling ReuseValues",
+			"release", releaseName, "error", err, "chartRef", chartRef, "chartVersion", chartVersion)
+		return false
+	}
+
+	if nextName != prevName || nextVersion != prevVersion {
+		logger.Infow("app chart package changed, disabling ReuseValues",
+			"release", releaseName,
+			"previous", fmt.Sprintf("%s-%s", prevName, prevVersion),
+			"next", fmt.Sprintf("%s-%s", nextName, nextVersion))
+		return false
+	}
+
+	if !sameStringMap(releaseChartConfig(rel), appChart.Values) {
+		logger.Infow("app chart Spec.Values changed, disabling ReuseValues",
+			"release", releaseName, "chart", nextName, "version", nextVersion)
+		return false
+	}
+
+	return true
+}
+
+// loadChartIdentity resolves the Helm chart name and version for the next AppChart from
+// the already-resolved chart reference (local path for URL charts, repo ref otherwise).
+func loadChartIdentity(
+	client hc.Client,
+	appChart *models.AppChartFull,
+	chartRef string,
+	chartVersion string,
+) (string, string, error) {
+	if appChart.HelmRepo == "" {
+		ch, err := loader.Load(chartRef)
+		if err != nil {
+			return "", "", err
+		}
+		if ch.Metadata == nil {
+			return "", "", fmt.Errorf("chart metadata missing for %s", chartRef)
+		}
+		return ch.Metadata.Name, ch.Metadata.Version, nil
+	}
+
+	ch, _, err := client.GetChart(chartRef, &action.ChartPathOptions{Version: chartVersion})
+	if err != nil {
+		return "", "", err
+	}
+	if ch == nil || ch.Metadata == nil {
+		return "", "", fmt.Errorf("chart metadata missing for %s", chartRef)
+	}
+	return ch.Metadata.Name, ch.Metadata.Version, nil
+}
+
+// releaseChartConfig extracts the chartConfig map written by getValuesYAML from a release.
+func releaseChartConfig(rel *helmrelease.Release) map[string]string {
+	out := map[string]string{}
+	if rel == nil || rel.Config == nil {
+		return out
+	}
+
+	raw, ok := rel.Config["chartConfig"]
+	if !ok || raw == nil {
+		return out
+	}
+
+	switch m := raw.(type) {
+	case map[string]string:
+		for k, v := range m {
+			out[k] = v
+		}
+	case map[string]interface{}:
+		for k, v := range m {
+			out[k] = fmt.Sprint(v)
+		}
+	}
+
+	return out
+}
+
+func sameStringMap(a, b map[string]string) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
 }
 
 // Status is the status of a release

@@ -127,6 +127,57 @@ var _ = Describe("Namespaces API Application Endpoints", LNamespace, func() {
 				Expect(found).To(BeTrue(), "expected search results to contain %q", namespace)
 			})
 
+			It("filters namespaces by name", func() {
+				ns2 := catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(ns2)
+				defer env.DeleteNamespace(ns2)
+
+				listNames := func(query string) []string {
+					response, err := env.Curl("GET",
+						fmt.Sprintf("%s%s/namespaces?%s", serverURL, api.Root, query),
+						strings.NewReader(""))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response).ToNot(BeNil())
+
+					defer response.Body.Close()
+					bodyBytes, err := io.ReadAll(response.Body)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+					var namespaceList models.NamespaceList
+					err = json.Unmarshal(bodyBytes, &namespaceList)
+					Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+					names := []string{}
+					for _, ns := range namespaceList {
+						names = append(names, ns.Meta.Name)
+					}
+
+					return names
+				}
+
+				By("keeping only the requested namespace")
+				Expect(listNames("namespaces=" + namespace)).To(ConsistOf(namespace))
+
+				By("keeping the union of several namespaces")
+				query := fmt.Sprintf("namespaces=%s,%s", namespace, ns2)
+				Expect(listNames(query)).To(ConsistOf(namespace, ns2))
+
+				By("ignoring a requested namespace that does not exist")
+				query = fmt.Sprintf("namespaces=%s,does-not-exist", namespace)
+				Expect(listNames(query)).To(ConsistOf(namespace))
+
+				By("returning an empty list when nothing matches")
+				Expect(listNames("namespaces=does-not-exist")).To(BeEmpty())
+
+				// The distinction that matters on this endpoint: namespaces
+				// matches the name exactly, search matches a substring.
+				By("matching the name exactly, unlike search")
+				partial := namespace[:len(namespace)-2]
+				Expect(listNames("namespaces=" + partial)).To(BeEmpty())
+				Expect(listNames("search=" + partial)).To(ContainElement(namespace))
+			})
+
 			When("basic auth credentials are not provided", func() {
 				It("returns a 401 response", func() {
 					request, err := http.NewRequest("GET", fmt.Sprintf("%s%s/namespaces",

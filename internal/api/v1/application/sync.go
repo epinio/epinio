@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -13,6 +14,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
@@ -141,6 +143,30 @@ func Sync(c *gin.Context) apierror.APIErrors {
 		)
 	}
 
+	// The pod can be marked for deletion between selection and exec. The
+	// exec still reports success, but the files go away with the pod, so
+	// report a retryable conflict instead of a success the caller can't use.
+	stillServing, verifyError := podStillServing(
+		ctx,
+		cluster,
+		namespace,
+		*podName,
+	)
+	if verifyError != nil {
+		return verifyError
+	}
+
+	if !stillServing {
+		return apierror.NewAPIError(
+			fmt.Sprintf(
+				"pod %s was replaced during the sync, retry once the "+
+					"rollout has settled",
+				*podName,
+			),
+			http.StatusConflict,
+		)
+	}
+
 	log.Infow("sync complete",
 		"namespace", namespace,
 		"app", appName,
@@ -150,6 +176,34 @@ func Sync(c *gin.Context) apierror.APIErrors {
 
 	response.OK(c)
 	return nil
+}
+
+// podStillServing reports whether the pod is still present and usable. It is
+// checked after the exec so a sync into a pod that started terminating
+// mid-request is surfaced rather than reported as a success.
+func podStillServing(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace, podName string,
+) (bool, apierror.APIErrors) {
+	pod, getError := cluster.Kubectl.CoreV1().Pods(namespace).Get(
+		ctx,
+		podName,
+		metav1.GetOptions{},
+	)
+
+	if apierrors.IsNotFound(getError) {
+		return false, nil
+	}
+
+	if getError != nil {
+		return false, apierror.InternalError(
+			getError,
+			"verifying the pod after sync",
+		)
+	}
+
+	return isPodReady(pod), nil
 }
 
 // buildSyncCommand returns the in-pod command for the given sync mode. For
@@ -216,26 +270,46 @@ func findReadyPod(
 		return nil, nil, apierror.InternalError(listError, "listing pods for app")
 	}
 
+	readyPods := make([]*corev1.Pod, 0, len(pods.Items))
+
 	for i := range pods.Items {
 		pod := &pods.Items[i]
-		if !isPodReady(pod) {
-			continue
+		if isPodReady(pod) {
+			readyPods = append(readyPods, pod)
 		}
-
-		containerName := ""
-		if len(pod.Spec.Containers) > 0 {
-			containerName = pod.Spec.Containers[0].Name
-		}
-		return &pod.Name, &containerName, nil
 	}
 
-	return nil, nil, apierror.NewAPIError(
-		fmt.Sprintf("no ready pod found for app %s", appName),
-		http.StatusServiceUnavailable,
-	)
+	if len(readyPods) == 0 {
+		return nil, nil, apierror.NewAPIError(
+			fmt.Sprintf("no ready pod found for app %s", appName),
+			http.StatusServiceUnavailable,
+		)
+	}
+
+	// Newest first. During a rolling update the new pod is the one that
+	// survives, and the order the API returns pods in is not guaranteed.
+	sort.Slice(readyPods, func(i, j int) bool {
+		return readyPods[j].CreationTimestamp.
+			Before(&readyPods[i].CreationTimestamp)
+	})
+
+	pod := readyPods[0]
+
+	containerName := ""
+	if len(pod.Spec.Containers) > 0 {
+		containerName = pod.Spec.Containers[0].Name
+	}
+
+	return &pod.Name, &containerName, nil
 }
 
 func isPodReady(pod *corev1.Pod) bool {
+	// A terminating pod reports Ready until its container actually stops, so
+	// a sync would succeed against it and then be discarded with the pod.
+	if pod.DeletionTimestamp != nil {
+		return false
+	}
+
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		if containerStatus.Ready {
 			return true
