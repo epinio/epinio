@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2026 SUSE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -9,20 +9,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package helmchart
+package instance_test
 
-import "github.com/spf13/viper"
+import (
+	"testing"
 
-const (
-	S3ConnectionDetailsSecretName = "epinio-s3-connection-details" // nolint:gosec // Not credentials
-	EpinioCertificateName         = "epinio"
-	EpinioInstanceConfigMapName   = "epinio-instance"
-	EpinioStageDownload           = "download"
-	EpinioStageUnpack             = "unpack"
-	EpinioStageBuild              = "build"
-	EpinioStageDockerfileBuild    = "dockerfile-build"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-func Namespace() string {
-	return viper.GetString("namespace")
+func TestInstance(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Instance Suite")
 }
