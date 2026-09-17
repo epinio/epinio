@@ -16,6 +16,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -46,6 +47,14 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
+
+	// Otherwise otel's default handler writes straight to stderr, bypassing
+	// the structured zap logging the rest of the server uses.
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+		if helpers.Logger != nil {
+			helpers.Logger.Errorw("otel error", "error", err)
+		}
+	}))
 
 	noopShutdown := func(context.Context) error { return nil }
 

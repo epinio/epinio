@@ -66,6 +66,7 @@ var _ = Describe("Init", func() {
 		It("enables tracing", func() {
 			globalEndpoint, hadGlobalEndpoint := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
 			tracesEndpoint, hadTracesEndpoint := os.LookupEnv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+			protocol, hadProtocol := os.LookupEnv("OTEL_EXPORTER_OTLP_PROTOCOL")
 			DeferCleanup(func() {
 				if hadGlobalEndpoint {
 					Expect(os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", globalEndpoint)).To(Succeed())
@@ -76,6 +77,11 @@ var _ = Describe("Init", func() {
 					Expect(os.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", tracesEndpoint)).To(Succeed())
 				} else {
 					Expect(os.Unsetenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")).To(Succeed())
+				}
+				if hadProtocol {
+					Expect(os.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", protocol)).To(Succeed())
+				} else {
+					Expect(os.Unsetenv("OTEL_EXPORTER_OTLP_PROTOCOL")).To(Succeed())
 				}
 			})
 
