@@ -26,12 +26,23 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/tracing"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
+
+// tracedPath reports whether a request should be traced by the otelgin
+// middleware. Websocket connections are long-running, so a span covering
+// their whole lifetime doesn't represent a meaningful unit of work and
+// would just sit open in the collector.
+func tracedPath(r *http.Request) bool {
+	return !strings.HasPrefix(r.URL.Path, apiv1.WsRoot)
+}
 
 // NewHandler creates and setup the gin router
 func NewHandler() (*gin.Engine, error) {
@@ -93,6 +104,7 @@ func NewHandler() (*gin.Engine, error) {
 
 	// Add common middlewares to all the routes declared after
 	router.Use(
+		otelgin.Middleware(tracing.ServiceName, otelgin.WithFilter(tracedPath)),
 		middleware.GinLogger(),
 		middleware.Recovery,
 		middleware.InitContext(),

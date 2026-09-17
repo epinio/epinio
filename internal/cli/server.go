@@ -25,6 +25,7 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/server"
+	"github.com/epinio/epinio/internal/tracing"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
 
@@ -109,6 +110,18 @@ func init() {
 	err = viper.BindEnv("kube-api-burst", "KUBE_API_BURST")
 	checkErr(err)
 
+	flags.String("otel-exporter-otlp-endpoint", "", "(OTEL_EXPORTER_OTLP_ENDPOINT) OTLP collector endpoint to export traces to, including scheme (e.g. http://collector:4317 for grpc, http://collector:4318 for http/protobuf). Leave empty to disable tracing.")
+	err = viper.BindPFlag("otel-exporter-otlp-endpoint", flags.Lookup("otel-exporter-otlp-endpoint"))
+	checkErr(err)
+	err = viper.BindEnv("otel-exporter-otlp-endpoint", "OTEL_EXPORTER_OTLP_ENDPOINT")
+	checkErr(err)
+
+	flags.String("otel-exporter-otlp-protocol", "grpc", "(OTEL_EXPORTER_OTLP_PROTOCOL) OTLP export protocol: grpc or http/protobuf. Defaults to grpc.")
+	err = viper.BindPFlag("otel-exporter-otlp-protocol", flags.Lookup("otel-exporter-otlp-protocol"))
+	checkErr(err)
+	err = viper.BindEnv("otel-exporter-otlp-protocol", "OTEL_EXPORTER_OTLP_PROTOCOL")
+	checkErr(err)
+
 	version.ChartVersion = os.Getenv("CHART_VERSION")
 	if !strings.HasPrefix(version.ChartVersion, "v") {
 		version.ChartVersion = "v" + version.ChartVersion
@@ -128,6 +141,21 @@ var CmdServer = &cobra.Command{
 				return errors.Wrap(err, "initializing logger")
 			}
 		}
+
+		// tracing.Init must run before server.NewHandler(), because the
+		// otelgin middleware captures the global TracerProvider at
+		// registration time.
+		shutdownTracing, err := tracing.Init(cmd.Context())
+		if err != nil {
+			return errors.Wrap(err, "initializing tracing")
+		}
+		defer func() {
+			tracingCtx, tracingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer tracingCancel()
+			if err := shutdownTracing(tracingCtx); err != nil {
+				helpers.Logger.Errorw("tracer shutdown error", "error", err)
+			}
+		}()
 
 		handler, err := server.NewHandler()
 		if err != nil {
