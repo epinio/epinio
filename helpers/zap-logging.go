@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/fatih/color"
@@ -13,6 +14,11 @@ import (
 )
 
 var Logger *zap.SugaredLogger
+
+// consoleCore is the stdout/stderr zap core built by InitLogger. Kept so
+// TeeCore can combine it with an extra core (e.g. otelzap) without losing
+// the original console encoding settings.
+var consoleCore zapcore.Core
 
 // LoggerToLogr converts the centralized Zap logger to a logr.Logger interface.
 // This allows code that uses logr.Logger to use the centralized Zap logger.
@@ -97,8 +103,95 @@ func InitLogger(logLevel string) error {
 		return err
 	}
 
+	consoleCore = z.Core()
 	Logger = z.Sugar()
 	return nil
+}
+
+// TeeCore replaces the global Logger with a tee of the original console
+// core and the provided extra core. Used to attach the otelzap bridge so
+// logs are both printed and exported via OpenTelemetry. Context fields
+// (used by otelzap for correlation) are stripped from the console path so
+// they do not clutter standard log output.
+//
+// zapcore.Core only carries the encoder/sink/level-enabler; the Development
+// and AddStacktrace(WarnLevel) behavior that InitLogger's
+// zap.NewDevelopmentConfig().Build() applies lives on the *zap.Logger
+// wrapper instead, so it must be re-added here to match InitLogger exactly
+// (otherwise it silently disappears the moment tracing/log export is
+// enabled).
+func TeeCore(extra zapcore.Core) {
+	if consoleCore == nil || extra == nil {
+		return
+	}
+	extra = levelFilteredCore{
+		Core:         extra,
+		LevelEnabler: consoleCore,
+	}
+	Logger = zap.New(
+		zapcore.NewTee(stripContextCore{Core: consoleCore}, extra),
+		zap.AddCaller(),
+		zap.Development(),
+		zap.AddStacktrace(zap.WarnLevel),
+	).Sugar()
+}
+
+// levelFilteredCore prevents an extra logging destination from receiving
+// entries that the configured console log level rejects.
+type levelFilteredCore struct {
+	zapcore.Core
+	zapcore.LevelEnabler
+}
+
+func (c levelFilteredCore) Enabled(level zapcore.Level) bool {
+	return c.LevelEnabler.Enabled(level) && c.Core.Enabled(level)
+}
+
+func (c levelFilteredCore) With(fields []zapcore.Field) zapcore.Core {
+	return levelFilteredCore{
+		Core:         c.Core.With(fields),
+		LevelEnabler: c.LevelEnabler,
+	}
+}
+
+func (c levelFilteredCore) Check(entry zapcore.Entry, checkedEntry *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+	if c.Enabled(entry.Level) {
+		return checkedEntry.AddCore(entry, c)
+	}
+	return checkedEntry
+}
+
+// stripContextCore drops fields whose value is a context.Context before
+// delegating to the wrapped core. otelzap uses those fields for emit
+// correlation and does not want them printed on stdout.
+type stripContextCore struct {
+	zapcore.Core
+}
+
+func (s stripContextCore) With(fields []zapcore.Field) zapcore.Core {
+	return stripContextCore{Core: s.Core.With(filterContextFields(fields))}
+}
+
+func (s stripContextCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+	if s.Enabled(ent.Level) {
+		return ce.AddCore(ent, s)
+	}
+	return ce
+}
+
+func (s stripContextCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
+	return s.Core.Write(ent, filterContextFields(fields))
+}
+
+func filterContextFields(fields []zapcore.Field) []zapcore.Field {
+	out := make([]zapcore.Field, 0, len(fields))
+	for _, f := range fields {
+		if _, ok := f.Interface.(context.Context); ok {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
 }
 
 func init() {
