@@ -16,6 +16,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/version"
@@ -127,5 +128,49 @@ func newTracerProvider(exporter sdktrace.SpanExporter, res *resource.Resource) *
 func WrapHTTPRoundTripper(rt http.RoundTripper) http.RoundTripper {
 	return otelhttp.NewTransport(rt,
 		otelhttp.WithPropagators(propagation.TraceContext{}),
+		otelhttp.WithSpanNameFormatter(k8sSpanName),
 	)
+}
+
+// k8sSpanName derives a span name from a Kubernetes API request path, e.g.
+// "GET namespaces/default/pods" or "GET nodes/my-node", instead of
+// otelhttp's default of "HTTP GET" for every outbound call regardless of
+// target. This makes the different Kubernetes API calls a single request
+// makes distinguishable as children in a trace. Falls back to "HTTP
+// {method}" for anything that doesn't look like a Kubernetes API path
+// (/api/... or /apis/.../...).
+func k8sSpanName(_ string, r *http.Request) string {
+	fallback := "HTTP " + r.Method
+	segments := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+
+	var i int
+	switch {
+	case len(segments) >= 2 && segments[0] == "api":
+		i = 2 // /api/{version}/...
+	case len(segments) >= 3 && segments[0] == "apis":
+		i = 3 // /apis/{group}/{version}/...
+	default:
+		return fallback
+	}
+
+	var resource strings.Builder
+	for i < len(segments) {
+		if resource.Len() > 0 {
+			resource.WriteByte('/')
+		}
+		resource.WriteString(segments[i])
+		if segments[i] == "namespaces" && i+1 < len(segments) {
+			resource.WriteByte('/')
+			resource.WriteString(segments[i+1])
+			i += 2
+			continue
+		}
+		i++
+	}
+
+	if resource.Len() == 0 {
+		return fallback
+	}
+
+	return r.Method + " " + resource.String()
 }

@@ -190,5 +190,30 @@ var _ = Describe("WrapHTTPRoundTripper", func() {
 		}
 		Expect(found).To(BeTrue(), "expected a client span from otelhttp")
 		Expect(clientSpan.Parent.SpanID()).To(Equal(parent.SpanContext().SpanID()))
+		Expect(clientSpan.Name).To(Equal("GET namespaces"))
 	})
+})
+
+var _ = Describe("k8sSpanName", func() {
+	newRequest := func(method, path string) *http.Request {
+		req, err := http.NewRequest(method, "https://kube-apiserver"+path, nil)
+		Expect(err).ToNot(HaveOccurred())
+		return req
+	}
+
+	DescribeTable("derives a span name from the request path",
+		func(method, path, expected string) {
+			Expect(k8sSpanName("", newRequest(method, path))).To(Equal(expected))
+		},
+		Entry("core v1 list, cluster-scoped", http.MethodGet, "/api/v1/nodes", "GET nodes"),
+		Entry("core v1 get, cluster-scoped", http.MethodGet, "/api/v1/nodes/my-node", "GET nodes/my-node"),
+		Entry("core v1 list namespaces themselves", http.MethodGet, "/api/v1/namespaces", "GET namespaces"),
+		Entry("core v1 list, namespaced", http.MethodGet, "/api/v1/namespaces/default/pods", "GET namespaces/default/pods"),
+		Entry("core v1 get, namespaced", http.MethodGet, "/api/v1/namespaces/default/pods/my-pod", "GET namespaces/default/pods/my-pod"),
+		Entry("core v1 subresource", http.MethodGet, "/api/v1/namespaces/default/pods/my-pod/log", "GET namespaces/default/pods/my-pod/log"),
+		Entry("grouped API, namespaced", http.MethodPost, "/apis/apps/v1/namespaces/default/deployments", "POST namespaces/default/deployments"),
+		Entry("grouped API, get with name", http.MethodDelete, "/apis/apps/v1/namespaces/default/deployments/my-app", "DELETE namespaces/default/deployments/my-app"),
+		Entry("non-kubernetes path falls back", http.MethodGet, "/healthz", "HTTP GET"),
+		Entry("bare group discovery falls back", http.MethodGet, "/apis/apps/v1", "HTTP GET"),
+	)
 })
