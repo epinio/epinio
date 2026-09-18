@@ -13,6 +13,9 @@ package tracing
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -21,10 +24,12 @@ import (
 	"github.com/spf13/viper"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
@@ -129,4 +134,86 @@ var _ = Describe("newTracerProvider", func() {
 
 		Expect(tp.Shutdown(context.Background())).To(Succeed())
 	})
+})
+
+var _ = Describe("WrapHTTPRoundTripper", func() {
+	It("records a client span and injects trace context without forwarding baggage", func() {
+		exporter := tracetest.NewInMemoryExporter()
+		tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+		prev := otel.GetTracerProvider()
+		otel.SetTracerProvider(tp)
+		DeferCleanup(func() {
+			otel.SetTracerProvider(prev)
+			_ = tp.Shutdown(context.Background())
+		})
+
+		var gotTraceparent string
+		var gotBaggage string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotTraceparent = r.Header.Get("traceparent")
+			gotBaggage = r.Header.Get("baggage")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		}))
+		DeferCleanup(server.Close)
+
+		client := &http.Client{Transport: WrapHTTPRoundTripper(http.DefaultTransport)}
+		ctx, parent := tp.Tracer("test").Start(context.Background(), "parent")
+		member, err := baggage.NewMember("untrusted", "caller-controlled")
+		Expect(err).ToNot(HaveOccurred())
+		bag, err := baggage.New(member)
+		Expect(err).ToNot(HaveOccurred())
+		ctx = baggage.ContextWithBaggage(ctx, bag)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/api/v1/namespaces", nil)
+		Expect(err).ToNot(HaveOccurred())
+
+		resp, err := client.Do(req)
+		Expect(err).ToNot(HaveOccurred())
+		DeferCleanup(func() { _ = resp.Body.Close() })
+		_, _ = io.Copy(io.Discard, resp.Body)
+		parent.End()
+
+		Expect(gotTraceparent).ToNot(BeEmpty())
+		Expect(gotBaggage).To(BeEmpty())
+
+		spans := exporter.GetSpans()
+		Expect(len(spans)).To(BeNumerically(">=", 1))
+
+		var clientSpan tracetest.SpanStub
+		found := false
+		for _, s := range spans {
+			if s.SpanKind == trace.SpanKindClient {
+				clientSpan = s
+				found = true
+				break
+			}
+		}
+		Expect(found).To(BeTrue(), "expected a client span from otelhttp")
+		Expect(clientSpan.Parent.SpanID()).To(Equal(parent.SpanContext().SpanID()))
+		Expect(clientSpan.Name).To(Equal("GET namespaces"))
+	})
+})
+
+var _ = Describe("k8sSpanName", func() {
+	newRequest := func(method, path string) *http.Request {
+		req, err := http.NewRequest(method, "https://kube-apiserver"+path, nil)
+		Expect(err).ToNot(HaveOccurred())
+		return req
+	}
+
+	DescribeTable("derives a span name from the request path",
+		func(method, path, expected string) {
+			Expect(k8sSpanName("", newRequest(method, path))).To(Equal(expected))
+		},
+		Entry("core v1 list, cluster-scoped", http.MethodGet, "/api/v1/nodes", "GET nodes"),
+		Entry("core v1 get, cluster-scoped", http.MethodGet, "/api/v1/nodes/my-node", "GET nodes/my-node"),
+		Entry("core v1 list namespaces themselves", http.MethodGet, "/api/v1/namespaces", "GET namespaces"),
+		Entry("core v1 list, namespaced", http.MethodGet, "/api/v1/namespaces/default/pods", "GET namespaces/default/pods"),
+		Entry("core v1 get, namespaced", http.MethodGet, "/api/v1/namespaces/default/pods/my-pod", "GET namespaces/default/pods/my-pod"),
+		Entry("core v1 subresource", http.MethodGet, "/api/v1/namespaces/default/pods/my-pod/log", "GET namespaces/default/pods/my-pod/log"),
+		Entry("grouped API, namespaced", http.MethodPost, "/apis/apps/v1/namespaces/default/deployments", "POST namespaces/default/deployments"),
+		Entry("grouped API, get with name", http.MethodDelete, "/apis/apps/v1/namespaces/default/deployments/my-app", "DELETE namespaces/default/deployments/my-app"),
+		Entry("non-kubernetes path falls back", http.MethodGet, "/healthz", "HTTP GET"),
+		Entry("bare group discovery falls back", http.MethodGet, "/apis/apps/v1", "HTTP GET"),
+	)
 })
