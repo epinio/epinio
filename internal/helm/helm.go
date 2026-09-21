@@ -29,7 +29,9 @@ import (
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
+	epinioregistry "github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/routes"
 	"github.com/epinio/epinio/internal/urlcache"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -381,7 +383,7 @@ func Deploy(parameters ChartParameters) error {
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	helmChart, helmVersion, err := getChartReference(parameters.Context, client, appChart)
+	helmChart, helmVersion, err := getChartReference(parameters.Context, parameters.Cluster, client, appChart)
 	if err != nil {
 		return errors.Wrap(err, "retrieving chart reference")
 	}
@@ -765,7 +767,7 @@ func installOrUpgradeChartWithRetry(ctx context.Context, client hc.Client,
 	})
 }
 
-func getChartReference(ctx context.Context, client hc.Client, appChart *models.AppChartFull) (string, string, error) {
+func getChartReference(ctx context.Context, cluster *kubernetes.Cluster, client *SynchronizedClient, appChart *models.AppChartFull) (string, string, error) {
 	logger := helpers.Logger.With("component", "helm-chart-ref")
 	// chart, version, error
 	// See also part.go, fetchAppChart
@@ -788,15 +790,6 @@ func getChartReference(ctx context.Context, client hc.Client, appChart *models.A
 
 	// The helm chart ref is a name in a repository.
 	// This name may have a version appended to it, separated from the actual chart by `:`.
-	// Ensure that the repository is locally known.
-
-	repositoryName := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(appChart.HelmRepo)))
-	if err := client.AddOrUpdateChartRepo(repo.Entry{
-		Name: repositoryName,
-		URL:  appChart.HelmRepo,
-	}); err != nil {
-		return "", "", errors.Wrap(err, "creating the chart repository")
-	}
 
 	// Decode the chart ref. IOW extract the possible version tag.
 
@@ -808,6 +801,31 @@ func getChartReference(ctx context.Context, client hc.Client, appChart *models.A
 		helmChart = pieces[0]
 	}
 
+	if registry.IsOCI(appChart.HelmRepo) {
+		// OCI registries are referenced directly by URL; they don't go through Helm's
+		// repo.yaml mechanism used below for classic (index.yaml) repositories.
+
+		if err := loginToOCIRegistryIfInternal(ctx, cluster, client, appChart.HelmRepo); err != nil {
+			return "", "", errors.Wrap(err, "logging into the OCI chart registry")
+		}
+
+		helmChart = fmt.Sprintf("%s/%s", strings.TrimSuffix(appChart.HelmRepo, "/"), helmChart)
+
+		logger.Infow("deploy app", "appchart", helmChart, "version", helmVersion)
+
+		return helmChart, helmVersion, nil
+	}
+
+	// Classic (index.yaml) repository. Ensure that the repository is locally known.
+
+	repositoryName := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(appChart.HelmRepo)))
+	if err := client.AddOrUpdateChartRepo(repo.Entry{
+		Name: repositoryName,
+		URL:  appChart.HelmRepo,
+	}); err != nil {
+		return "", "", errors.Wrap(err, "creating the chart repository")
+	}
+
 	// Combine chart and repository to a proper in-repo reference.
 
 	helmChart = fmt.Sprintf("%s/%s", repositoryName, helmChart)
@@ -815,6 +833,44 @@ func getChartReference(ctx context.Context, client hc.Client, appChart *models.A
 	logger.Infow("deploy app", "appchart", helmChart, "version", helmVersion)
 
 	return helmChart, helmVersion, nil
+}
+
+// loginToOCIRegistryIfInternal logs the helm client into the given OCI registry host when, and
+// only when, it matches Epinio's own internal container registry. Custom AppCharts pointing at
+// Epinio's registry are pushed there by the server, never with user-supplied credentials, so
+// the same registry-creds secret already used for application images is reused here. An OCI
+// registry that isn't Epinio's own (e.g. a public registry hosting the default charts) is left
+// for anonymous pull, the same way initHelmOCIRegistryOrRepository handles it for CatalogServices.
+func loginToOCIRegistryIfInternal(ctx context.Context, cluster *kubernetes.Cluster, client *SynchronizedClient, ociRepoURL string) error {
+	hostname := ociHostname(ociRepoURL)
+
+	connectionDetails, err := epinioregistry.GetConnectionDetails(
+		ctx, cluster, helmchart.Namespace(), epinioregistry.CredentialsSecretName)
+	if err != nil {
+		// No internal registry secret available (e.g. an external-only setup) - nothing
+		// to log into, fall through to an anonymous pull attempt.
+		return nil // nolint:nilerr
+	}
+
+	for _, creds := range connectionDetails.RegistryCredentials {
+		if ociHostname(creds.URL) == hostname {
+			// Epinio's own registry runs with a self-signed certificate; skip
+			// verification the same way internal/application/application.go
+			// does elsewhere for it (isInternalRegistry -> InsecureSkipVerify).
+			return client.RegistryLogin(hostname, creds.Username, creds.Password, action.WithInsecure(true))
+		}
+	}
+
+	return nil
+}
+
+// ociHostname strips the "oci://" scheme, any other URL scheme, and path/trailing slash from a
+// registry reference, leaving just the "host:port" part for comparison.
+func ociHostname(url string) string {
+	hostname := strings.TrimPrefix(url, "oci://")
+	hostname = strings.TrimPrefix(hostname, "https://")
+	hostname = strings.TrimPrefix(hostname, "http://")
+	return strings.SplitN(hostname, "/", 2)[0]
 }
 
 func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (string, error) {
