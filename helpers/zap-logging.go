@@ -15,9 +15,9 @@ import (
 
 var Logger *zap.SugaredLogger
 
-// consoleCore is the stdout/stderr zap core built by InitLogger. Kept so
-// TeeCore can combine it with an extra core (e.g. otelzap) without losing
-// the original console encoding settings.
+// consoleCore is the stdout/stderr zap core built by InitLogger, already
+// wrapped to strip context fields. Kept so TeeCore can combine it with an
+// extra core (e.g. otelzap) without losing the original encoding settings.
 var consoleCore zapcore.Core
 
 // LoggerToLogr converts the centralized Zap logger to a logr.Logger interface.
@@ -103,6 +103,12 @@ func InitLogger(logLevel string) error {
 		return err
 	}
 
+	// otelzap uses a context.Context field for emit correlation; strip it on
+	// the console path so it is not printed when log export is off.
+	z = z.WithOptions(zap.WrapCore(func(c zapcore.Core) zapcore.Core {
+		return stripContextCore{Core: c}
+	}))
+
 	consoleCore = z.Core()
 	Logger = z.Sugar()
 	return nil
@@ -110,9 +116,8 @@ func InitLogger(logLevel string) error {
 
 // TeeCore replaces the global Logger with a tee of the original console
 // core and the provided extra core. Used to attach the otelzap bridge so
-// logs are both printed and exported via OpenTelemetry. Context fields
-// (used by otelzap for correlation) are stripped from the console path so
-// they do not clutter standard log output.
+// logs are both printed and exported via OpenTelemetry. The extra core
+// receives context fields; consoleCore already strips them.
 //
 // zapcore.Core only carries the encoder/sink/level-enabler; the Development
 // and AddStacktrace(WarnLevel) behavior that InitLogger's
@@ -129,7 +134,7 @@ func TeeCore(extra zapcore.Core) {
 		LevelEnabler: consoleCore,
 	}
 	Logger = zap.New(
-		zapcore.NewTee(stripContextCore{Core: consoleCore}, extra),
+		zapcore.NewTee(consoleCore, extra),
 		zap.AddCaller(),
 		zap.Development(),
 		zap.AddStacktrace(zap.WarnLevel),
