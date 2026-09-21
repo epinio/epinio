@@ -258,6 +258,9 @@ func UpdateImageURL(ctx context.Context, cluster *kubernetes.Cluster, app *unstr
 		if err := unstructured.SetNestedField(current.Object, imageURL, "spec", "imageurl"); err != nil {
 			return err
 		}
+		if err := unstructured.SetNestedField(current.Object, models.AppBuildStatusDeployed, "spec", "buildstatus"); err != nil {
+			return err
+		}
 
 		_, err = client.Namespace(namespace).Update(ctx, current, metav1.UpdateOptions{})
 		if err == nil {

@@ -35,6 +35,15 @@ const (
 	ApplicationStagingActive = "active"
 	ApplicationStagingDone   = "done"
 	ApplicationStagingFailed = "failed"
+
+	// AppBuildStatusBuild marks that the latest completed action on the
+	// application was a build: an image was staged, but it is not (yet,
+	// or not currently) running as a deployed workload.
+	AppBuildStatusBuild = "build"
+	// AppBuildStatusDeployed marks that the latest completed action on
+	// the application was a deploy: the staged image was deployed as a
+	// running workload.
+	AppBuildStatusDeployed = "deployed"
 )
 
 type GitProvider string
@@ -110,7 +119,11 @@ type App struct {
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
 	BlobUID       string                   `json:"blobuid,omitempty"`  // last staged source blob in S3/seaweedfs
 	ImageURL      string                   `json:"image_url"`
-	FailureReason string                   `json:"failure_reason,omitempty"`
+	// BuildStatus is "build" or "deployed", reflecting whether the last
+	// completed action was a build (stage) or a deploy. See
+	// AppBuildStatusBuild / AppBuildStatusDeployed.
+	BuildStatus   string `json:"buildstatus,omitempty"`
+	FailureReason string `json:"failure_reason,omitempty"`
 }
 
 type PodInfo struct {
