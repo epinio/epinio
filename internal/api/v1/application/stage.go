@@ -225,13 +225,24 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
-	// quickly reject conflict with (still) active staging
+	// Quickly reject conflict with (still) active staging
 	staging, err := application.IsCurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 	if staging {
 		return apierror.NewBadRequestError("staging job for image ID still running")
+	}
+
+	// Persist origin early when the client supplies one (build-only CLI path),
+	// so a later deploy-only step still knows where the sources came from.
+	if req.Origin.Kind != models.OriginNone {
+		if apierr := authorizeOrigin(ctx, cluster, req.Origin); apierr != nil {
+			return apierr
+		}
+		if err := application.SetOrigin(ctx, cluster, req.App, req.Origin); err != nil {
+			return apierror.InternalError(err, "saving the app origin")
+		}
 	}
 
 	buildMode, dockerfilePath, builderImage, config, setupErr := resolveStagingImagesAndScripts(ctx, cluster, req, app)
@@ -1287,12 +1298,16 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 		return err
 	}
 
+	// Persist the image reference the staging job will produce so that
+	// build-only flows (and later `epinio app deploy`) can find it without
+	// going through Deploy. buildstatus stays "build" until Deploy runs.
 	specPatch := map[string]any{
 		"stageid":        params.Stage.ID,
 		"blobuid":        params.BlobUID,
 		"buildmode":      params.BuildMode,
 		"dockerfilepath": params.DockerfilePath,
 		"buildstatus":    models.AppBuildStatusBuild,
+		"imageurl":       params.ImageURL(params.RegistryURL),
 	}
 	if models.NormalizeBuildMode(params.BuildMode) == models.BuildModeBuildpack {
 		specPatch["builderimage"] = params.BuilderImage

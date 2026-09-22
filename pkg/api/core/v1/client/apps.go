@@ -213,6 +213,15 @@ func (c *Client) AppDelete(namespace string, names []string, deleteImage, delete
 	return Delete(c, endpoint, request, response)
 }
 
+// AppBuildDelete clears the app's current build (staged image, blob, and
+// staging leftovers) without deleting the application itself.
+func (c *Client) AppBuildDelete(namespace string, name string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("AppBuildDelete", namespace, name)
+
+	return Delete(c, endpoint, nil, response)
+}
+
 // AppUpload uploads a tarball for the named app, which is later used in staging
 func (c *Client) AppUpload(namespace string, name string, file FormFile) (models.UploadResponse, error) {
 	response := models.UploadResponse{}

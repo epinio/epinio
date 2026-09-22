@@ -334,11 +334,14 @@ type UploadResponse struct {
 
 // StageRequest represents and contains the data needed to stage an application
 type StageRequest struct {
-	App            AppRef `json:"app,omitempty"`
-	BlobUID        string `json:"blobuid,omitempty"`
-	BuilderImage   string `json:"builderimage,omitempty"`
-	BuildMode      string `json:"buildmode,omitempty"`
-	DockerfilePath string `json:"dockerfilepath,omitempty"`
+	App            AppRef             `json:"app,omitempty"`
+	BlobUID        string             `json:"blobuid,omitempty"`
+	BuilderImage   string             `json:"builderimage,omitempty"`
+	BuildMode      string             `json:"buildmode,omitempty"`
+	DockerfilePath string             `json:"dockerfilepath,omitempty"`
+	// Origin is optional. When set (e.g. by `epinio app build`), the server
+	// persists it so a later deploy-only step still knows where the sources came from.
+	Origin ApplicationOrigin `json:"origin,omitempty"`
 }
 
 // StageResponse represents the server's response to a successful app staging

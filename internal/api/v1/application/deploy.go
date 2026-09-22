@@ -53,6 +53,9 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 	if namespace != req.App.Namespace {
 		return apierror.NewBadRequestError("namespace parameter from URL does not match namespace param in body")
 	}
+	if req.ImageURL == "" {
+		return apierror.NewBadRequestError("deploy requires an imageURL")
+	}
 
 	// validate provider reference, if actually present (git origin, and specified)
 	if req.Origin.Git != nil && req.Origin.Git.Provider != "" {

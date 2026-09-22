@@ -114,6 +114,7 @@
   routes:
     - AppDelete
     - AppBatchDelete
+    - AppBuildDelete
 
 # App Update
 - id: app_update

@@ -61,6 +61,20 @@ type FakeAPIClient struct {
 		result1 models.ServiceList
 		result2 error
 	}
+	AppBuildDeleteStub        func(string, string) (models.Response, error)
+	appBuildDeleteMutex       sync.RWMutex
+	appBuildDeleteArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	appBuildDeleteReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	appBuildDeleteReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
 	AppCreateStub        func(models.ApplicationCreateRequest, string) (models.Response, error)
 	appCreateMutex       sync.RWMutex
 	appCreateArgsForCall []struct {
@@ -1389,6 +1403,71 @@ func (fake *FakeAPIClient) AllServicesReturnsOnCall(i int, result1 models.Servic
 	}
 	fake.allServicesReturnsOnCall[i] = struct {
 		result1 models.ServiceList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppBuildDelete(arg1 string, arg2 string) (models.Response, error) {
+	fake.appBuildDeleteMutex.Lock()
+	ret, specificReturn := fake.appBuildDeleteReturnsOnCall[len(fake.appBuildDeleteArgsForCall)]
+	fake.appBuildDeleteArgsForCall = append(fake.appBuildDeleteArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.AppBuildDeleteStub
+	fakeReturns := fake.appBuildDeleteReturns
+	fake.recordInvocation("AppBuildDelete", []interface{}{arg1, arg2})
+	fake.appBuildDeleteMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) AppBuildDeleteCallCount() int {
+	fake.appBuildDeleteMutex.RLock()
+	defer fake.appBuildDeleteMutex.RUnlock()
+	return len(fake.appBuildDeleteArgsForCall)
+}
+
+func (fake *FakeAPIClient) AppBuildDeleteCalls(stub func(string, string) (models.Response, error)) {
+	fake.appBuildDeleteMutex.Lock()
+	defer fake.appBuildDeleteMutex.Unlock()
+	fake.AppBuildDeleteStub = stub
+}
+
+func (fake *FakeAPIClient) AppBuildDeleteArgsForCall(i int) (string, string) {
+	fake.appBuildDeleteMutex.RLock()
+	defer fake.appBuildDeleteMutex.RUnlock()
+	argsForCall := fake.appBuildDeleteArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeAPIClient) AppBuildDeleteReturns(result1 models.Response, result2 error) {
+	fake.appBuildDeleteMutex.Lock()
+	defer fake.appBuildDeleteMutex.Unlock()
+	fake.AppBuildDeleteStub = nil
+	fake.appBuildDeleteReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppBuildDeleteReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.appBuildDeleteMutex.Lock()
+	defer fake.appBuildDeleteMutex.Unlock()
+	fake.AppBuildDeleteStub = nil
+	if fake.appBuildDeleteReturnsOnCall == nil {
+		fake.appBuildDeleteReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.appBuildDeleteReturnsOnCall[i] = struct {
+		result1 models.Response
 		result2 error
 	}{result1, result2}
 }
