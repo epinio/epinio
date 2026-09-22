@@ -622,7 +622,6 @@ var _ = Describe("Apps", LApplication, func() {
 				Expect(blobUID).ToNot(BeEmpty())
 
 				By("deleting the S3 blob to simulate storage loss")
-				createS3HelperPod()
 				deleteS3Blob(blobUID)
 			})
 
