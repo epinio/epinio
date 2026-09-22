@@ -18,6 +18,23 @@ func (s *ServiceClient) UpdateCatalogService(
 	name string,
 	req models.CatalogServiceUpdateRequest,
 ) error {
+
+	if req.HelmRepo != nil && req.HelmRepo.Secret != "" {
+		_, secretError := s.kubeClient.GetSecret(
+			ctx,
+			helmchart.Namespace(),
+			req.HelmRepo.Secret,
+		)
+
+		if secretError != nil {
+			return errors.Wrapf(
+				secretError,
+				"Something went wrong getting helm repo secret %s.",
+				req.HelmRepo.Secret,
+			)
+		}
+	}
+
 	existing, getError := s.serviceKubeClient.
 		Namespace(helmchart.Namespace()).
 		Get(ctx, name, metav1.GetOptions{})
