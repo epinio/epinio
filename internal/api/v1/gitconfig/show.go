@@ -14,6 +14,7 @@ package gitconfig
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -53,6 +54,16 @@ func Show(c *gin.Context) apierror.APIErrors {
 			continue
 		}
 
+		appClient, appClientError := cluster.ClientApp()
+		if appClientError != nil {
+			return apierror.InternalError(appClientError)
+		}
+
+		inUse, inUseError := application.GitconfigsInUse(ctx, appClient)
+		if inUseError != nil {
+			return apierror.InternalError(inUseError)
+		}
+
 		response.OKReturn(c, models.Gitconfig{
 			Global: gitconfig.Global,
 			Meta: models.MetaLite{
@@ -65,6 +76,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 			UserOrg:    gitconfig.UserOrg,
 			Repository: gitconfig.Repository,
 			SkipSSL:    gitconfig.SkipSSL,
+			BoundApps:  inUse[gitconfig.ID],
 			// Password    string - Private, excluded
 			// Certificate []byte - Private, excluded
 		})

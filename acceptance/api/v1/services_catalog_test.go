@@ -83,4 +83,62 @@ var _ = Describe("ServiceCatalog Endpoint", LService, func() {
 		}
 		Expect(serviceNames).ToNot(ContainElement(catalogService.Meta.Name))
 	})
+
+	It("returns a paginated response when page params are provided", func() {
+		catalog.CreateCatalogService(catalogService)
+		defer catalog.DeleteCatalogService(catalogService.Meta.Name)
+
+		response, err := env.Curl("GET", fmt.Sprintf("%s%s/catalogservices?page=1&pageSize=1",
+			serverURL, v1.Root), strings.NewReader(""))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+		defer response.Body.Close()
+		bodyBytes, err := io.ReadAll(response.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+		var paged struct {
+			Items      models.CatalogServices `json:"items"`
+			Page       int                    `json:"page"`
+			PageSize   int                    `json:"pageSize"`
+			TotalItems int                    `json:"totalItems"`
+			TotalPages int                    `json:"totalPages"`
+		}
+		err = json.Unmarshal(bodyBytes, &paged)
+		Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+		Expect(paged.Page).To(Equal(1))
+		Expect(paged.PageSize).To(Equal(1))
+		Expect(paged.TotalItems).To(BeNumerically(">=", 1))
+		Expect(paged.TotalPages).To(BeNumerically(">=", 1))
+		Expect(paged.Items).To(HaveLen(1))
+	})
+
+	It("filters catalog services by search term", func() {
+		catalog.CreateCatalogService(catalogService)
+		defer catalog.DeleteCatalogService(catalogService.Meta.Name)
+
+		response, err := env.Curl("GET", fmt.Sprintf("%s%s/catalogservices?search=%s",
+			serverURL, v1.Root, catalogService.Meta.Name), strings.NewReader(""))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+		defer response.Body.Close()
+		bodyBytes, err := io.ReadAll(response.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+		var catalogList models.CatalogServices
+		err = json.Unmarshal(bodyBytes, &catalogList)
+		Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+
+		Expect(catalogList).ToNot(BeEmpty())
+		found := false
+		for _, svc := range catalogList {
+			Expect(svc.Meta.Name).To(ContainSubstring(catalogService.Meta.Name))
+			if svc.Meta.Name == catalogService.Meta.Name {
+				found = true
+			}
+		}
+		Expect(found).To(BeTrue(), "expected search results to contain %q", catalogService.Meta.Name)
+	})
 })

@@ -126,3 +126,69 @@ var _ = Describe("ApplicationOrigin String()", func() {
 		})
 	})
 })
+
+var _ = Describe("ValidateBuildMode", func() {
+	It("defaults empty to buildpack", func() {
+		mode, err := models.ValidateBuildMode("")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mode).To(Equal(models.BuildModeBuildpack))
+	})
+
+	It("accepts buildpack and dockerfile case-insensitively", func() {
+		mode, err := models.ValidateBuildMode("BuildPack")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mode).To(Equal(models.BuildModeBuildpack))
+
+		mode, err = models.ValidateBuildMode("DockerFile")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(mode).To(Equal(models.BuildModeDockerfile))
+	})
+
+	It("rejects typos instead of mapping them to buildpack", func() {
+		mode, err := models.ValidateBuildMode("dockerfle")
+		Expect(err).To(HaveOccurred())
+		Expect(mode).To(Equal(""))
+		Expect(err.Error()).To(ContainSubstring("invalid build mode"))
+		Expect(models.NormalizeBuildMode("dockerfle")).ToNot(Equal(models.BuildModeBuildpack))
+	})
+})
+
+var _ = Describe("ValidateDockerfilePath", func() {
+	It("defaults empty to Dockerfile", func() {
+		path, err := models.ValidateDockerfilePath("")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(path).To(Equal("Dockerfile"))
+	})
+
+	It("accepts relative paths within app sources", func() {
+		path, err := models.ValidateDockerfilePath("Dockerfile")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(path).To(Equal("Dockerfile"))
+
+		path, err = models.ValidateDockerfilePath("docker/Dockerfile")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(path).To(Equal("docker/Dockerfile"))
+	})
+
+	It("rejects absolute paths and parent directory traversal", func() {
+		_, err := models.ValidateDockerfilePath("/etc/passwd")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("absolute"))
+
+		_, err = models.ValidateDockerfilePath("../Dockerfile")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(".."))
+
+		_, err = models.ValidateDockerfilePath("foo/../../bar")
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("rejects unexpected characters", func() {
+		_, err := models.ValidateDockerfilePath("my Dockerfile")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("only letters"))
+
+		_, err = models.ValidateDockerfilePath("foo*.Dockerfile")
+		Expect(err).To(HaveOccurred())
+	})
+})

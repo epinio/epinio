@@ -27,7 +27,7 @@ import (
 //counterfeiter:generate -header ../../../LICENSE_HEADER . ApplicationsService
 type ApplicationsService interface {
 	AppCreate(name string, updateRequest models.ApplicationUpdateRequest) error
-	AppDelete(ctx context.Context, appNames []string, all, deleteImage bool) error
+	AppDelete(ctx context.Context, appNames []string, all, deleteImage, deletePVC bool) error
 	AppExec(ctx context.Context, name, instance string) error
 	AppExport(name string, toRegistry bool, exportRequest models.AppExportRequest) error
 	AppLogs(name, stageID string, follow bool, options *client.LogOptions) error
@@ -140,6 +140,7 @@ func NewAppCreateCmd(client ApplicationsService) *cobra.Command {
 type AppDeleteConfig struct {
 	all         bool
 	deleteImage bool
+	deletePVC   bool
 }
 
 // NewAppDeleteCmd returns a new `epinio apps delete` command
@@ -159,7 +160,7 @@ func NewAppDeleteCmd(client ApplicationsService) *cobra.Command {
 				return errors.New("No applications specified for deletion")
 			}
 
-			err := client.AppDelete(cmd.Context(), args, cfg.all, cfg.deleteImage)
+			err := client.AppDelete(cmd.Context(), args, cfg.all, cfg.deleteImage, cfg.deletePVC)
 			if err != nil {
 				return errors.Wrap(err, "error deleting app")
 			}
@@ -170,6 +171,7 @@ func NewAppDeleteCmd(client ApplicationsService) *cobra.Command {
 
 	cmd.Flags().BoolVar(&cfg.all, "all", false, "Delete all applications")
 	cmd.Flags().BoolVar(&cfg.deleteImage, "delete-image", false, "Delete the application's container image from the registry")
+	cmd.Flags().BoolVar(&cfg.deletePVC, "delete-pvc", false, "Delete the application's data PersistentVolumeClaims (e.g. StatefulSet volumes)")
 
 	return cmd
 }
@@ -473,6 +475,8 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().StringP("name", "n", "", "Application name. (mandatory if no manifest is provided)")
 	cmd.Flags().StringP("path", "p", "", "Path to application sources.")
 	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
+	cmd.Flags().String("build-mode", "", "Staging build mode: buildpack (default) or dockerfile")
+	cmd.Flags().String("dockerfile-path", "", "Path to Dockerfile within the application sources (default: Dockerfile)")
 
 	gitConfigOption(cmd, client)
 	routeOption(cmd)

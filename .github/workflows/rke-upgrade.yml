@@ -43,14 +43,14 @@ jobs:
           submodules: recursive
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -83,7 +83,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -100,7 +100,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
 
       - name: Cache Tools
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools

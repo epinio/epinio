@@ -35,13 +35,14 @@ type FakeApplicationsService struct {
 	appCreateReturnsOnCall map[int]struct {
 		result1 error
 	}
-	AppDeleteStub        func(context.Context, []string, bool, bool) error
+	AppDeleteStub        func(context.Context, []string, bool, bool, bool) error
 	appDeleteMutex       sync.RWMutex
 	appDeleteArgsForCall []struct {
 		arg1 context.Context
 		arg2 []string
 		arg3 bool
 		arg4 bool
+		arg5 bool
 	}
 	appDeleteReturns struct {
 		result1 error
@@ -491,7 +492,7 @@ func (fake *FakeApplicationsService) AppCreateReturnsOnCall(i int, result1 error
 	}{result1}
 }
 
-func (fake *FakeApplicationsService) AppDelete(arg1 context.Context, arg2 []string, arg3 bool, arg4 bool) error {
+func (fake *FakeApplicationsService) AppDelete(arg1 context.Context, arg2 []string, arg3 bool, arg4 bool, arg5 bool) error {
 	var arg2Copy []string
 	if arg2 != nil {
 		arg2Copy = make([]string, len(arg2))
@@ -504,13 +505,14 @@ func (fake *FakeApplicationsService) AppDelete(arg1 context.Context, arg2 []stri
 		arg2 []string
 		arg3 bool
 		arg4 bool
-	}{arg1, arg2Copy, arg3, arg4})
+		arg5 bool
+	}{arg1, arg2Copy, arg3, arg4, arg5})
 	stub := fake.AppDeleteStub
 	fakeReturns := fake.appDeleteReturns
-	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy, arg3, arg4})
+	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy, arg3, arg4, arg5})
 	fake.appDeleteMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4)
+		return stub(arg1, arg2, arg3, arg4, arg5)
 	}
 	if specificReturn {
 		return ret.result1
@@ -524,17 +526,17 @@ func (fake *FakeApplicationsService) AppDeleteCallCount() int {
 	return len(fake.appDeleteArgsForCall)
 }
 
-func (fake *FakeApplicationsService) AppDeleteCalls(stub func(context.Context, []string, bool, bool) error) {
+func (fake *FakeApplicationsService) AppDeleteCalls(stub func(context.Context, []string, bool, bool, bool) error) {
 	fake.appDeleteMutex.Lock()
 	defer fake.appDeleteMutex.Unlock()
 	fake.AppDeleteStub = stub
 }
 
-func (fake *FakeApplicationsService) AppDeleteArgsForCall(i int) (context.Context, []string, bool, bool) {
+func (fake *FakeApplicationsService) AppDeleteArgsForCall(i int) (context.Context, []string, bool, bool, bool) {
 	fake.appDeleteMutex.RLock()
 	defer fake.appDeleteMutex.RUnlock()
 	argsForCall := fake.appDeleteArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
 func (fake *FakeApplicationsService) AppDeleteReturns(result1 error) {

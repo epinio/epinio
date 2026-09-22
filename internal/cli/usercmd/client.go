@@ -53,7 +53,7 @@ type APIClient interface {
 	AllApps() (models.AppList, error)
 	AppShow(namespace string, appName string) (models.App, error)
 	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)
-	AppDelete(namespace string, names []string, deleteImage bool) (models.ApplicationDeleteResponse, error)
+	AppDelete(namespace string, names []string, deleteImage, deletePVC bool) (models.ApplicationDeleteResponse, error)
 	AppUpload(namespace string, name string, file client.FormFile) (models.UploadResponse, error)
 	AppSourcePatch(namespace, name string, file client.FormFile, processCmd string) (*models.StageResponse, error)
 	AppSync(namespace, name string, file client.FormFile, mode, dest, binaryName string) (models.Response, error)

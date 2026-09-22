@@ -21,7 +21,21 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 //   200: AppsResponse
 
 // swagger:parameters AllApps
-type AllAppsParam struct{}
+type AllAppsParam struct {
+	// Comma-separated namespaces to filter by, e.g. "ns1,ns2". Names the user
+	// cannot see, or that do not exist, are ignored.
+	// in: query
+	Namespaces string `json:"namespaces"`
+	// Case-insensitive substring match on the application name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based. Pagination is off unless page or pageSize is set.
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 25)
+	// in: query
+	PageSize string `json:"pageSize"`
+}
 
 // response: See Apps.
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -46,6 +47,16 @@ func Index(c *gin.Context) apierror.APIErrors {
 	// Scope list based on user or if admin, return all
 	gitconfigList := auth.FilterGitconfigResources(user, manager.Configurations)
 
+	appClient, appClientError := cluster.ClientApp()
+	if appClientError != nil {
+		return apierror.InternalError(appClientError)
+	}
+
+	inUse, inUseError := application.GitconfigsInUse(ctx, appClient)
+	if inUseError != nil {
+		return apierror.InternalError(inUseError)
+	}
+
 	gitconfigs := make(models.GitconfigList, 0, len(gitconfigList))
 	for _, gitconfig := range gitconfigList {
 		gitconfigs = append(gitconfigs, models.Gitconfig{
@@ -60,6 +71,7 @@ func Index(c *gin.Context) apierror.APIErrors {
 			UserOrg:    gitconfig.UserOrg,
 			Repository: gitconfig.Repository,
 			SkipSSL:    gitconfig.SkipSSL,
+			BoundApps:  inUse[gitconfig.ID],
 		})
 	}
 

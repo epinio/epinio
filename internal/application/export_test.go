@@ -9,19 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package helmchart
+package application
 
-import "github.com/spf13/viper"
-
-const (
-	S3ConnectionDetailsSecretName = "epinio-s3-connection-details" // nolint:gosec // Not credentials
-	EpinioCertificateName         = "epinio"
-	EpinioStageDownload           = "download"
-	EpinioStageUnpack             = "unpack"
-	EpinioStageBuild              = "build"
-	EpinioStageDockerfileBuild    = "dockerfile-build"
-)
-
-func Namespace() string {
-	return viper.GetString("namespace")
-}
+// ListAppDataPVCNames exports listAppDataPVCNames for white-box tests.
+var ListAppDataPVCNames = listAppDataPVCNames
