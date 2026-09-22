@@ -118,6 +118,7 @@ var Routes = routes.NamedRoutes{
 	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Staged)), // See stage.go
 	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Delete)),
 	"AppBatchDelete":  delete("/namespaces/:namespace/applications", errorHandler(application.Delete)),
+	"AppBuildDelete":  delete("/namespaces/:namespace/applications/:app/build", errorHandler(application.DeleteBuild)), // See builddelete.go
 	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Deploy)),
 	"AppDeployments":  post("/namespaces/:namespace/applications/:app/deployments", errorHandler(application.DeploymentsStart)),
 	"AppDeployment":   get("/namespaces/:namespace/applications/:app/deployments/:deployment_id", errorHandler(application.DeploymentsStatus)),

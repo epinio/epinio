@@ -47,6 +47,31 @@ var _ = Describe("assignApplicationStatus", func() {
 		Expect(app.StatusMessage).To(Equal("deploying"))
 	})
 
+	It("keeps created when staging done for an intentional build-only", func() {
+		app := &models.App{
+			StagingStatus: models.ApplicationStagingDone,
+			BuildStatus:   models.AppBuildStatusBuild,
+			ImageURL:      "registry.example/apps/ns-app:deadbeef",
+			StageID:       "deadbeef",
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationCreated)))
+		Expect(app.StatusMessage).To(Equal("built"))
+	})
+
+	It("keeps created when build-only stage id remains after staging job is gone", func() {
+		app := &models.App{
+			StageID:       "abc123",
+			ImageURL:      "registry.example/apps/ns-app:abc123",
+			BuildStatus:   models.AppBuildStatusBuild,
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationCreated)))
+		Expect(app.StatusMessage).To(Equal("built"))
+	})
+
 	It("marks staging done without workload as deploying when instances nil", func() {
 		app := &models.App{
 			StagingStatus: models.ApplicationStagingDone,

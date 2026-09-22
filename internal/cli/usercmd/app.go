@@ -471,6 +471,49 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 	return app.StageID, nil
 }
 
+// AppDeploy deploys the app's current build (its last staged image) without
+// building anything new. It fails with a friendly error if the app has never
+// been built.
+func (c *EpinioClient) AppDeploy(appName string) error {
+	log := c.Log.WithName("AppDeploy").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	app, err := c.API.AppShow(c.Settings.Namespace, appName)
+	if err != nil {
+		return err
+	}
+	if app.ImageURL == "" {
+		return errors.New("application has not been built yet - run `epinio app build` first")
+	}
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		WithStringValue("Application", appName).
+		WithStringValue("Image", app.ImageURL).
+		WithStringValue("Stage ID", app.StageID).
+		WithStringValue("Build Status", app.BuildStatus).
+		Msg("Deploying application")
+
+	deployResponse, err := c.API.AppDeploy(models.DeployRequest{
+		App:      app.Meta,
+		Stage:    models.NewStage(app.StageID),
+		ImageURL: app.ImageURL,
+		Origin:   app.Origin,
+	})
+	if err != nil {
+		return err
+	}
+
+	c.reportOK(app.Meta, app.Staging.Builder, deployResponse.Routes)
+
+	return nil
+}
+
 // AppUpdate updates the specified running application's attributes (e.g. instances)
 func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpdateRequest) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)

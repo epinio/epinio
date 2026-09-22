@@ -28,6 +28,7 @@ import (
 type ApplicationsService interface {
 	AppCreate(name string, updateRequest models.ApplicationUpdateRequest) error
 	AppDelete(ctx context.Context, appNames []string, all, deleteImage, deletePVC bool) error
+	AppDeploy(name string) error
 	AppExec(ctx context.Context, name, instance string) error
 	AppExport(name string, toRegistry bool, exportRequest models.AppExportRequest) error
 	AppLogs(name, stageID string, follow bool, options *client.LogOptions) error
@@ -48,9 +49,10 @@ type ApplicationsService interface {
 	GitconfigMatcher                                  // --git-config
 	ConfigurationMatching(toComplete string) []string // --bind
 
-	// interfaces for the env and chart sub-ensembles
+	// interfaces for the env, chart, and build sub-ensembles
 	AppenvService
 	AppchartsService
+	AppBuildService
 }
 
 // NewApplicationsCmd returns a new 'epinio app' command
@@ -71,9 +73,11 @@ func NewApplicationsCmd(client ApplicationsService, rootCfg *RootConfig) *cobra.
 	}
 
 	appsCmd.AddCommand(
+		NewAppBuildCmd(client), // See appbuild.go for implementation
 		NewAppChartCmd(client), // See appchart.go for implementation
 		NewAppCreateCmd(client),
 		NewAppDeleteCmd(client),
+		NewAppDeployCmd(client),
 		NewAppEnvCmd(client), // See appenv.go for implementation
 		NewAppExecCmd(client),
 		NewAppExportCmd(client),
@@ -172,6 +176,25 @@ func NewAppDeleteCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().BoolVar(&cfg.all, "all", false, "Delete all applications")
 	cmd.Flags().BoolVar(&cfg.deleteImage, "delete-image", false, "Delete the application's container image from the registry")
 	cmd.Flags().BoolVar(&cfg.deletePVC, "delete-pvc", false, "Delete the application's data PersistentVolumeClaims (e.g. StatefulSet volumes)")
+
+	return cmd
+}
+
+// NewAppDeployCmd returns a new `epinio app deploy` command
+func NewAppDeployCmd(client ApplicationsService) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "deploy NAME",
+		Short:             "Deploy the application's current build, without building anything new",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: NewAppMatcherFirstFunc(client),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			err := client.AppDeploy(args[0])
+			// Note: errors.Wrap (nil, "...") == nil
+			return errors.Wrap(err, "error deploying app")
+		},
+	}
 
 	return cmd
 }

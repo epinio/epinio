@@ -23,6 +23,18 @@ import (
 )
 
 type FakeApplicationsService struct {
+	AppBuildStub        func(context.Context, models.ApplicationManifest) error
+	appBuildMutex       sync.RWMutex
+	appBuildArgsForCall []struct {
+		arg1 context.Context
+		arg2 models.ApplicationManifest
+	}
+	appBuildReturns struct {
+		result1 error
+	}
+	appBuildReturnsOnCall map[int]struct {
+		result1 error
+	}
 	AppCreateStub        func(string, models.ApplicationUpdateRequest) error
 	appCreateMutex       sync.RWMutex
 	appCreateArgsForCall []struct {
@@ -48,6 +60,17 @@ type FakeApplicationsService struct {
 		result1 error
 	}
 	appDeleteReturnsOnCall map[int]struct {
+		result1 error
+	}
+	AppDeployStub        func(string) error
+	appDeployMutex       sync.RWMutex
+	appDeployArgsForCall []struct {
+		arg1 string
+	}
+	appDeployReturns struct {
+		result1 error
+	}
+	appDeployReturnsOnCall map[int]struct {
 		result1 error
 	}
 	AppExecStub        func(context.Context, string, string) error
@@ -223,6 +246,41 @@ type FakeApplicationsService struct {
 	}
 	appsMatchingReturnsOnCall map[int]struct {
 		result1 []string
+	}
+	BuildDeleteStub        func(context.Context, string) error
+	buildDeleteMutex       sync.RWMutex
+	buildDeleteArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+	}
+	buildDeleteReturns struct {
+		result1 error
+	}
+	buildDeleteReturnsOnCall map[int]struct {
+		result1 error
+	}
+	BuildListStub        func(context.Context) error
+	buildListMutex       sync.RWMutex
+	buildListArgsForCall []struct {
+		arg1 context.Context
+	}
+	buildListReturns struct {
+		result1 error
+	}
+	buildListReturnsOnCall map[int]struct {
+		result1 error
+	}
+	BuildShowStub        func(context.Context, string) error
+	buildShowMutex       sync.RWMutex
+	buildShowArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+	}
+	buildShowReturns struct {
+		result1 error
+	}
+	buildShowReturnsOnCall map[int]struct {
+		result1 error
 	}
 	ChartCreateStub        func(context.Context, models.AppChartCreateRequest) error
 	chartCreateMutex       sync.RWMutex
@@ -430,6 +488,68 @@ type FakeApplicationsService struct {
 	invocationsMutex sync.RWMutex
 }
 
+func (fake *FakeApplicationsService) AppBuild(arg1 context.Context, arg2 models.ApplicationManifest) error {
+	fake.appBuildMutex.Lock()
+	ret, specificReturn := fake.appBuildReturnsOnCall[len(fake.appBuildArgsForCall)]
+	fake.appBuildArgsForCall = append(fake.appBuildArgsForCall, struct {
+		arg1 context.Context
+		arg2 models.ApplicationManifest
+	}{arg1, arg2})
+	stub := fake.AppBuildStub
+	fakeReturns := fake.appBuildReturns
+	fake.recordInvocation("AppBuild", []interface{}{arg1, arg2})
+	fake.appBuildMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) AppBuildCallCount() int {
+	fake.appBuildMutex.RLock()
+	defer fake.appBuildMutex.RUnlock()
+	return len(fake.appBuildArgsForCall)
+}
+
+func (fake *FakeApplicationsService) AppBuildCalls(stub func(context.Context, models.ApplicationManifest) error) {
+	fake.appBuildMutex.Lock()
+	defer fake.appBuildMutex.Unlock()
+	fake.AppBuildStub = stub
+}
+
+func (fake *FakeApplicationsService) AppBuildArgsForCall(i int) (context.Context, models.ApplicationManifest) {
+	fake.appBuildMutex.RLock()
+	defer fake.appBuildMutex.RUnlock()
+	argsForCall := fake.appBuildArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeApplicationsService) AppBuildReturns(result1 error) {
+	fake.appBuildMutex.Lock()
+	defer fake.appBuildMutex.Unlock()
+	fake.AppBuildStub = nil
+	fake.appBuildReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) AppBuildReturnsOnCall(i int, result1 error) {
+	fake.appBuildMutex.Lock()
+	defer fake.appBuildMutex.Unlock()
+	fake.AppBuildStub = nil
+	if fake.appBuildReturnsOnCall == nil {
+		fake.appBuildReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.appBuildReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeApplicationsService) AppCreate(arg1 string, arg2 models.ApplicationUpdateRequest) error {
 	fake.appCreateMutex.Lock()
 	ret, specificReturn := fake.appCreateReturnsOnCall[len(fake.appCreateArgsForCall)]
@@ -558,6 +678,67 @@ func (fake *FakeApplicationsService) AppDeleteReturnsOnCall(i int, result1 error
 		})
 	}
 	fake.appDeleteReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) AppDeploy(arg1 string) error {
+	fake.appDeployMutex.Lock()
+	ret, specificReturn := fake.appDeployReturnsOnCall[len(fake.appDeployArgsForCall)]
+	fake.appDeployArgsForCall = append(fake.appDeployArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.AppDeployStub
+	fakeReturns := fake.appDeployReturns
+	fake.recordInvocation("AppDeploy", []interface{}{arg1})
+	fake.appDeployMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) AppDeployCallCount() int {
+	fake.appDeployMutex.RLock()
+	defer fake.appDeployMutex.RUnlock()
+	return len(fake.appDeployArgsForCall)
+}
+
+func (fake *FakeApplicationsService) AppDeployCalls(stub func(string) error) {
+	fake.appDeployMutex.Lock()
+	defer fake.appDeployMutex.Unlock()
+	fake.AppDeployStub = stub
+}
+
+func (fake *FakeApplicationsService) AppDeployArgsForCall(i int) string {
+	fake.appDeployMutex.RLock()
+	defer fake.appDeployMutex.RUnlock()
+	argsForCall := fake.appDeployArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeApplicationsService) AppDeployReturns(result1 error) {
+	fake.appDeployMutex.Lock()
+	defer fake.appDeployMutex.Unlock()
+	fake.AppDeployStub = nil
+	fake.appDeployReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) AppDeployReturnsOnCall(i int, result1 error) {
+	fake.appDeployMutex.Lock()
+	defer fake.appDeployMutex.Unlock()
+	fake.AppDeployStub = nil
+	if fake.appDeployReturnsOnCall == nil {
+		fake.appDeployReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.appDeployReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -1444,6 +1625,191 @@ func (fake *FakeApplicationsService) AppsMatchingReturnsOnCall(i int, result1 []
 	}
 	fake.appsMatchingReturnsOnCall[i] = struct {
 		result1 []string
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) BuildDelete(arg1 context.Context, arg2 string) error {
+	fake.buildDeleteMutex.Lock()
+	ret, specificReturn := fake.buildDeleteReturnsOnCall[len(fake.buildDeleteArgsForCall)]
+	fake.buildDeleteArgsForCall = append(fake.buildDeleteArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.BuildDeleteStub
+	fakeReturns := fake.buildDeleteReturns
+	fake.recordInvocation("BuildDelete", []interface{}{arg1, arg2})
+	fake.buildDeleteMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) BuildDeleteCallCount() int {
+	fake.buildDeleteMutex.RLock()
+	defer fake.buildDeleteMutex.RUnlock()
+	return len(fake.buildDeleteArgsForCall)
+}
+
+func (fake *FakeApplicationsService) BuildDeleteCalls(stub func(context.Context, string) error) {
+	fake.buildDeleteMutex.Lock()
+	defer fake.buildDeleteMutex.Unlock()
+	fake.BuildDeleteStub = stub
+}
+
+func (fake *FakeApplicationsService) BuildDeleteArgsForCall(i int) (context.Context, string) {
+	fake.buildDeleteMutex.RLock()
+	defer fake.buildDeleteMutex.RUnlock()
+	argsForCall := fake.buildDeleteArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeApplicationsService) BuildDeleteReturns(result1 error) {
+	fake.buildDeleteMutex.Lock()
+	defer fake.buildDeleteMutex.Unlock()
+	fake.BuildDeleteStub = nil
+	fake.buildDeleteReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) BuildDeleteReturnsOnCall(i int, result1 error) {
+	fake.buildDeleteMutex.Lock()
+	defer fake.buildDeleteMutex.Unlock()
+	fake.BuildDeleteStub = nil
+	if fake.buildDeleteReturnsOnCall == nil {
+		fake.buildDeleteReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.buildDeleteReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) BuildList(arg1 context.Context) error {
+	fake.buildListMutex.Lock()
+	ret, specificReturn := fake.buildListReturnsOnCall[len(fake.buildListArgsForCall)]
+	fake.buildListArgsForCall = append(fake.buildListArgsForCall, struct {
+		arg1 context.Context
+	}{arg1})
+	stub := fake.BuildListStub
+	fakeReturns := fake.buildListReturns
+	fake.recordInvocation("BuildList", []interface{}{arg1})
+	fake.buildListMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) BuildListCallCount() int {
+	fake.buildListMutex.RLock()
+	defer fake.buildListMutex.RUnlock()
+	return len(fake.buildListArgsForCall)
+}
+
+func (fake *FakeApplicationsService) BuildListCalls(stub func(context.Context) error) {
+	fake.buildListMutex.Lock()
+	defer fake.buildListMutex.Unlock()
+	fake.BuildListStub = stub
+}
+
+func (fake *FakeApplicationsService) BuildListArgsForCall(i int) context.Context {
+	fake.buildListMutex.RLock()
+	defer fake.buildListMutex.RUnlock()
+	argsForCall := fake.buildListArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeApplicationsService) BuildListReturns(result1 error) {
+	fake.buildListMutex.Lock()
+	defer fake.buildListMutex.Unlock()
+	fake.BuildListStub = nil
+	fake.buildListReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) BuildListReturnsOnCall(i int, result1 error) {
+	fake.buildListMutex.Lock()
+	defer fake.buildListMutex.Unlock()
+	fake.BuildListStub = nil
+	if fake.buildListReturnsOnCall == nil {
+		fake.buildListReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.buildListReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) BuildShow(arg1 context.Context, arg2 string) error {
+	fake.buildShowMutex.Lock()
+	ret, specificReturn := fake.buildShowReturnsOnCall[len(fake.buildShowArgsForCall)]
+	fake.buildShowArgsForCall = append(fake.buildShowArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.BuildShowStub
+	fakeReturns := fake.buildShowReturns
+	fake.recordInvocation("BuildShow", []interface{}{arg1, arg2})
+	fake.buildShowMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeApplicationsService) BuildShowCallCount() int {
+	fake.buildShowMutex.RLock()
+	defer fake.buildShowMutex.RUnlock()
+	return len(fake.buildShowArgsForCall)
+}
+
+func (fake *FakeApplicationsService) BuildShowCalls(stub func(context.Context, string) error) {
+	fake.buildShowMutex.Lock()
+	defer fake.buildShowMutex.Unlock()
+	fake.BuildShowStub = stub
+}
+
+func (fake *FakeApplicationsService) BuildShowArgsForCall(i int) (context.Context, string) {
+	fake.buildShowMutex.RLock()
+	defer fake.buildShowMutex.RUnlock()
+	argsForCall := fake.buildShowArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeApplicationsService) BuildShowReturns(result1 error) {
+	fake.buildShowMutex.Lock()
+	defer fake.buildShowMutex.Unlock()
+	fake.BuildShowStub = nil
+	fake.buildShowReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeApplicationsService) BuildShowReturnsOnCall(i int, result1 error) {
+	fake.buildShowMutex.Lock()
+	defer fake.buildShowMutex.Unlock()
+	fake.BuildShowStub = nil
+	if fake.buildShowReturnsOnCall == nil {
+		fake.buildShowReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.buildShowReturnsOnCall[i] = struct {
+		result1 error
 	}{result1}
 }
 

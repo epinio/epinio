@@ -803,7 +803,7 @@ func Delete(
 
 	// Delete container image from registry if requested
 	if deleteImage && imageURL != "" {
-		err = deleteContainerImage(ctx, cluster, imageURL)
+		err = DeleteContainerImage(ctx, cluster, imageURL)
 		if err != nil {
 			// Log the error but don't fail the deletion - the app is already deleted
 			log.Errorw("Failed to delete container image from registry", "error", err, "image", imageURL)
@@ -851,8 +851,8 @@ func Delete(
 	return result, nil
 }
 
-// deleteContainerImage deletes the container image from the registry
-func deleteContainerImage(
+// DeleteContainerImage deletes the container image from the registry
+func DeleteContainerImage(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	imageURL string,
@@ -1156,6 +1156,10 @@ func BlobUID(app *unstructured.Unstructured) (string, error) {
 // StagingDone with no workload is transitional (Helm/pods still spinning up),
 // not a failure — report deploying until a workload appears. Once the staging
 // Job is gone, use StageID and ImageURL to distinguish staging vs deploy failure.
+//
+// Exception: BuildStatus == "build" means the last completed action was an
+// intentional build-only (no deploy). That must stay "created"/built, not
+// "deploying" or "deployment failed".
 func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 	if app.StagingStatus == models.ApplicationStagingActive {
 		app.Status = models.ApplicationStaging
@@ -1171,6 +1175,14 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 			}
 			return
 		case models.ApplicationStagingDone:
+			// Build-only: staged image stored, deploy not requested.
+			if app.BuildStatus == models.AppBuildStatusBuild {
+				app.Status = models.ApplicationCreated
+				if app.StatusMessage == "" {
+					app.StatusMessage = "built"
+				}
+				return
+			}
 			// Staging succeeded; workload not visible yet while instances are
 			// desired (deploy in progress / waiting on k8s). Keep a non-error
 			// transitional status so the UI does not flash "deployment failed".
@@ -1189,8 +1201,16 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 				return
 			}
 		default:
-			// Job gone (TTL/cleanup) but a stage was recorded → keep Error, not Created.
+			// Job gone (TTL/cleanup) but a stage was recorded → keep Error, not Created,
+			// unless this was an intentional build-only that never asked to deploy.
 			if app.StageID != "" && wantsInstances(app) {
+				if app.BuildStatus == models.AppBuildStatusBuild {
+					app.Status = models.ApplicationCreated
+					if app.StatusMessage == "" {
+						app.StatusMessage = "built"
+					}
+					return
+				}
 				app.Status = models.ApplicationError
 				if app.StatusMessage == "" {
 					if app.ImageURL != "" {
