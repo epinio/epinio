@@ -13,7 +13,6 @@ package acceptance_test
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/url"
@@ -170,55 +169,22 @@ func waitForServerReady(serverURL string) {
 	}, "2m", "3s").Should(BeTrue(), "API never became ready at %s", readyURL)
 }
 
-const s3HelperPod = "s3cli"
+const (
+	// The filer is addressed by workload so the test does not depend on the
+	// generated pod name. Both values follow from the chart's
+	// `seaweedfs.fullnameOverride`.
+	s3FilerPod       = "statefulset/seaweedfs-filer"
+	s3FilerBucketURL = "http://localhost:8888/buckets/epinio/"
+)
 
-// createS3HelperPod starts a long-lived minio/mc pod used to manipulate S3
-// blobs in acceptance tests. Safe to call multiple times — exits early if the
-// pod already exists and is ready.
-func createS3HelperPod() {
-	out, err := proc.Kubectl("get", "pod", "-o", "name", s3HelperPod)
-	if err != nil {
-		Expect(out).To(MatchRegexp("not found"))
-	}
-	if strings.TrimSpace(out) == "pod/"+s3HelperPod {
-		return
-	}
-
-	out, err = proc.Kubectl("get", "secret",
-		"-n", "epinio",
-		"seaweedfs-creds", "-o", "jsonpath={.data.accesskey}")
-	Expect(err).ToNot(HaveOccurred(), out)
-	accessKey, err := base64.StdEncoding.DecodeString(out)
-	Expect(err).ToNot(HaveOccurred(), out)
-
-	out, err = proc.Kubectl("get", "secret",
-		"-n", "epinio",
-		"seaweedfs-creds", "-o", "jsonpath={.data.secretkey}")
-	Expect(err).ToNot(HaveOccurred(), out)
-	secretKey, err := base64.StdEncoding.DecodeString(out)
-	Expect(err).ToNot(HaveOccurred(), out)
-
-	out, err = proc.Kubectl("run", s3HelperPod,
-		"--image=minio/mc:RELEASE.2022-03-13T22-34-00Z",
-		"--command", "--", "/bin/bash", "-c",
-		"trap : TERM INT; sleep infinity & wait")
-	Expect(err).ToNot(HaveOccurred(), out)
-
-	out, err = proc.Kubectl("wait", "--for=condition=ready", "pod", s3HelperPod)
-	Expect(err).ToNot(HaveOccurred(), out)
-
-	out, err = proc.Kubectl("exec", s3HelperPod, "--",
-		"mc", "--insecure", "alias", "set", "s3",
-		"http://seaweedfs-s3.epinio.svc.cluster.local:8333",
-		string(accessKey), string(secretKey))
-	Expect(err).ToNot(HaveOccurred(), out)
-}
-
-// deleteS3Blob removes a single blob from the epinio S3 bucket. Requires
-// createS3HelperPod to have been called first.
+// deleteS3Blob removes a single blob from the epinio S3 bucket.
+//
+// SeaweedFS' filer serves the bucket over plain HTTP inside the cluster, so
+// the delete goes straight to it: no S3 client, no credentials, and no helper
+// pod to pull and wait for.
 func deleteS3Blob(blobUID string) {
-	out, err := proc.Kubectl("exec", s3HelperPod, "--",
-		"mc", "--insecure", "rm", "s3/epinio/"+blobUID)
+	out, err := proc.Kubectl("exec", "-n", "epinio", s3FilerPod, "--",
+		"curl", "-s", "--fail", "-X", "DELETE", s3FilerBucketURL+blobUID)
 	Expect(err).ToNot(HaveOccurred(), out)
 }
 
