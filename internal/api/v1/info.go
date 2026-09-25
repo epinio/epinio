@@ -17,6 +17,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/builderimage"
+	"github.com/epinio/epinio/internal/instance"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/spf13/viper"
@@ -65,12 +66,19 @@ func Info(c *gin.Context) APIErrors {
 
 	_, dexError := os.Stat(DexPEMPath)
 
+	instanceInfo, err := instance.GetCachedOrCreate(ctx, cluster)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	response.OKReturn(c, models.InfoResponse{
 		Version:             version.Version,
 		Platform:            platform.String(),
 		KubeVersion:         kubeVersion,
 		DefaultBuilderImage: defaultBuilderImage,
 		OIDCEnabled:         dexError == nil,
+		InstanceID:          instanceInfo.ID,
+		InstallMethod:       instanceInfo.InstallMethod,
 	})
 	return nil
 }

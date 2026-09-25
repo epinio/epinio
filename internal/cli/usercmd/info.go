@@ -36,6 +36,8 @@ func (c *EpinioClient) Info() error {
 		WithStringValue("Epinio Server Version", info.Version).
 		WithStringValue("Epinio Client Version", version.Version).
 		WithBoolValue("OIDC enabled", info.OIDCEnabled).
+		WithStringValue("Instance ID", info.InstanceID).
+		WithStringValue("Install Method", info.InstallMethod).
 		Msg("Epinio Environment")
 
 	return nil
