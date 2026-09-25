@@ -2926,6 +2926,14 @@
           "type": "string",
           "x-go-name": "AppChart"
         },
+        "bound_configurations": {
+          "description": "BoundConfigurations is read-only. It mirrors Configurations, adding the type\nof each. Not part of the manifest.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BoundConfiguration"
+          },
+          "x-go-name": "BoundConfigurations"
+        },
         "configurations": {
           "type": "array",
           "items": {
@@ -3132,6 +3140,21 @@
             "type": "string"
           },
           "x-go-name": "WasBound"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "BoundConfiguration": {
+      "description": "BoundConfiguration names a configuration bound to an application, together with\nits type (\"custom\" or \"service\"), so clients can tell configurations a user made\nfrom ones a service created.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "type": {
+          "type": "string",
+          "x-go-name": "Type"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"

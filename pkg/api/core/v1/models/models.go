@@ -228,6 +228,17 @@ type ApplicationConfiguration struct {
 	AppChart           string                      `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings           ChartValueSettings          `json:"settings,omitempty" yaml:"settings,omitempty"`
 	Ignore             []string                    `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
+	// BoundConfigurations is read-only. It mirrors Configurations, adding the type
+	// of each. Not part of the manifest.
+	BoundConfigurations []BoundConfiguration `json:"bound_configurations,omitempty" yaml:"-"`
+}
+
+// BoundConfiguration names a configuration bound to an application, together with
+// its type ("custom" or "service"), so clients can tell configurations a user made
+// from ones a service created.
+type BoundConfiguration struct {
+	Name string `json:"name"`
+	Type string `json:"type,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
