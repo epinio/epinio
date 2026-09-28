@@ -1112,6 +1112,34 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/{App}/build": {
+      "delete": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Delete the current build of the named `App` in the `Namespace` without deleting the app.",
+        "operationId": "AppBuildDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppBuildDeleteResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/applications/{App}/configurationbindings": {
       "post": {
         "tags": [
@@ -2555,6 +2583,11 @@
           "description": "BuildStatus is \"build\" or \"deployed\", reflecting whether the last\ncompleted action was a build (stage) or a deploy. See\nAppBuildStatusBuild / AppBuildStatusDeployed.",
           "type": "string",
           "x-go-name": "BuildStatus"
+        },
+        "built_image_url": {
+          "description": "BuiltImageURL is the image produced by the last build (stage). It is\nkept apart from ImageURL, which is the image currently deployed.",
+          "type": "string",
+          "x-go-name": "BuiltImageURL"
         },
         "configuration": {
           "$ref": "#/definitions/ApplicationConfiguration"
@@ -4525,6 +4558,9 @@
         "dockerfilepath": {
           "type": "string",
           "x-go-name": "DockerfilePath"
+        },
+        "origin": {
+          "$ref": "#/definitions/ApplicationOrigin"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4584,6 +4620,12 @@
     }
   },
   "responses": {
+    "AppBuildDeleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
     "AppChartsResponse": {
       "description": "",
       "schema": {

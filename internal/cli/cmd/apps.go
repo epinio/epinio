@@ -28,6 +28,7 @@ import (
 type ApplicationsService interface {
 	AppCreate(name string, updateRequest models.ApplicationUpdateRequest) error
 	AppDelete(ctx context.Context, appNames []string, all, deleteImage, deletePVC bool) error
+	AppDeploy(name string) error
 	AppExec(ctx context.Context, name, instance string) error
 	AppExport(name string, toRegistry bool, exportRequest models.AppExportRequest) error
 	AppLogs(name, stageID string, follow bool, options *client.LogOptions) error
@@ -48,9 +49,10 @@ type ApplicationsService interface {
 	GitconfigMatcher                                  // --git-config
 	ConfigurationMatching(toComplete string) []string // --bind
 
-	// interfaces for the env and chart sub-ensembles
+	// interfaces for the env, chart, and build sub-ensembles
 	AppenvService
 	AppchartsService
+	AppBuildService
 }
 
 // NewApplicationsCmd returns a new 'epinio app' command
@@ -71,9 +73,11 @@ func NewApplicationsCmd(client ApplicationsService, rootCfg *RootConfig) *cobra.
 	}
 
 	appsCmd.AddCommand(
+		NewAppBuildCmd(client), // See appbuild.go for implementation
 		NewAppChartCmd(client), // See appchart.go for implementation
 		NewAppCreateCmd(client),
 		NewAppDeleteCmd(client),
+		NewAppDeployCmd(client),
 		NewAppEnvCmd(client), // See appenv.go for implementation
 		NewAppExecCmd(client),
 		NewAppExportCmd(client),
@@ -172,6 +176,25 @@ func NewAppDeleteCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().BoolVar(&cfg.all, "all", false, "Delete all applications")
 	cmd.Flags().BoolVar(&cfg.deleteImage, "delete-image", false, "Delete the application's container image from the registry")
 	cmd.Flags().BoolVar(&cfg.deletePVC, "delete-pvc", false, "Delete the application's data PersistentVolumeClaims (e.g. StatefulSet volumes)")
+
+	return cmd
+}
+
+// NewAppDeployCmd returns a new `epinio app deploy` command
+func NewAppDeployCmd(client ApplicationsService) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "deploy NAME",
+		Short:             "Deploy the application's current build, without building anything new",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: NewAppMatcherFirstFunc(client),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			err := client.AppDeploy(args[0])
+			// Note: errors.Wrap (nil, "...") == nil
+			return errors.Wrap(err, "error deploying app")
+		},
+	}
 
 	return cmd
 }
@@ -384,6 +407,66 @@ func NewAppPortForwardCmd(client ApplicationsService) *cobra.Command {
 	return cmd
 }
 
+// loadAppManifestFromCLI loads the application manifest from args/flags shared by
+// `epinio app push` and `epinio app build`.
+func loadAppManifestFromCLI(cmd *cobra.Command, args []string, envReplace *bool) (models.ApplicationManifest, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return models.ApplicationManifest{}, errors.Wrap(err, "working directory not accessible")
+	}
+
+	var manifestPath string
+	if len(args) == 1 {
+		manifestPath = args[0]
+	} else {
+		manifestPath = filepath.Join(wd, "epinio.yml")
+	}
+
+	m, err := manifest.Get(manifestPath)
+	if err != nil {
+		cmd.SilenceUsage = false
+		return models.ApplicationManifest{}, errors.Wrap(err, "Manifest error")
+	}
+
+	m, err = manifest.UpdateICE(m, cmd)
+	if err != nil {
+		return models.ApplicationManifest{}, err
+	}
+
+	m, err = manifest.UpdateBASN(m, cmd)
+	if err != nil {
+		return models.ApplicationManifest{}, err
+	}
+
+	m, err = manifest.UpdateRoutes(m, cmd)
+	if err != nil {
+		return models.ApplicationManifest{}, err
+	}
+
+	if m.Name == "" {
+		cmd.SilenceUsage = false
+		return models.ApplicationManifest{}, errors.New("Name required, not found in manifest nor options")
+	}
+
+	if m.Origin.Kind == models.OriginNone {
+		m.Origin.Kind = models.OriginPath
+		m.Origin.Path = wd
+	}
+
+	if m.Origin.Kind == models.OriginPath {
+		if _, err := os.Stat(m.Origin.Path); err != nil {
+			cmd.SilenceUsage = false
+			return models.ApplicationManifest{}, errors.Wrap(err, "path not accessible")
+		}
+	}
+
+	if envReplace != nil && cmd.Flags().Changed("env-replace") {
+		m.Configuration.ReplaceEnv = envReplace
+	}
+
+	return m, nil
+}
+
 // NewAppPushCmd returns a new `epinio apps push` command
 func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	var envReplace bool
@@ -395,67 +478,9 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			// Syntax:
-			//   - push [flags] [PATH-TO-MANIFEST-FILE]
-
-			wd, err := os.Getwd()
-			if err != nil {
-				return errors.Wrap(err, "working directory not accessible")
-			}
-
-			var manifestPath string
-
-			if len(args) == 1 {
-				manifestPath = args[0]
-			} else {
-				manifestPath = filepath.Join(wd, "epinio.yml")
-			}
-
-			m, err := manifest.Get(manifestPath)
-			if err != nil {
-				cmd.SilenceUsage = false
-				return errors.Wrap(err, "Manifest error")
-			}
-
-			m, err = manifest.UpdateICE(m, cmd)
+			m, err := loadAppManifestFromCLI(cmd, args, &envReplace)
 			if err != nil {
 				return err
-			}
-
-			m, err = manifest.UpdateBASN(m, cmd)
-			if err != nil {
-				return err
-			}
-
-			m, err = manifest.UpdateRoutes(m, cmd)
-			if err != nil {
-				return err
-			}
-
-			// Final manifest verify: Name is specified
-
-			if m.Name == "" {
-				cmd.SilenceUsage = false
-				return errors.New("Name required, not found in manifest nor options")
-			}
-
-			// Final completion: Without origin fall back to working directory
-
-			if m.Origin.Kind == models.OriginNone {
-				m.Origin.Kind = models.OriginPath
-				m.Origin.Path = wd
-			}
-
-			if m.Origin.Kind == models.OriginPath {
-				if _, err := os.Stat(m.Origin.Path); err != nil {
-					// Path issue is user error. Show usage
-					cmd.SilenceUsage = false
-					return errors.Wrap(err, "path not accessible")
-				}
-			}
-
-			if cmd.Flags().Changed("env-replace") {
-				m.Configuration.ReplaceEnv = &envReplace
 			}
 
 			err = client.AppPush(cmd.Context(), m)
