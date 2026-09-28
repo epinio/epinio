@@ -1965,23 +1965,33 @@ func loadEnvironmentData(
 	return environment, groupedEnv, nil
 }
 
-func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, error) {
+func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, string, string, error) {
 	builderURL, err := BuilderURL(applicationCR)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "finding the builder url")
+		return "", "", "", "", "", errors.Wrap(err, "finding the builder url")
 	}
 
 	buildMode, err := BuildMode(applicationCR)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "finding the build mode")
+		return "", "", "", "", "", errors.Wrap(err, "finding the build mode")
 	}
 
 	dockerfilePath, err := DockerfilePath(applicationCR)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "finding the dockerfile path")
+		return "", "", "", "", "", errors.Wrap(err, "finding the dockerfile path")
 	}
 
-	return builderURL, buildMode, dockerfilePath, nil
+	buildStatus, err := BuildStatus(applicationCR)
+	if err != nil {
+		return "", "", "", "", "", errors.Wrap(err, "finding the build status")
+	}
+
+	imageURL, err := ImageURL(applicationCR)
+	if err != nil {
+		return "", "", "", "", "", errors.Wrap(err, "finding the image url")
+	}
+
+	return builderURL, buildMode, dockerfilePath, buildStatus, imageURL, nil
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
@@ -2077,23 +2087,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	imageURL, err := ImageURL(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding the image url")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	buildStatus, err := BuildStatus(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding the build status")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	builderURL, buildMode, dockerfilePath, err := loadStagingFields(applicationCR)
+	builderURL, buildMode, dockerfilePath, buildStatus, imageURL, err := loadStagingFields(applicationCR)
 	if err != nil {
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
