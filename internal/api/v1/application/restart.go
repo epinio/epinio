@@ -50,7 +50,8 @@ func Restart(c *gin.Context) apierror.APIErrors {
 		return apierror.NewAPIError("No restart possible for an application with no instances", http.StatusBadRequest)
 	}
 
-	if !strings.Contains(app.ImageURL, app.StageID) {
+	restaged := !strings.Contains(app.ImageURL, app.StageID)
+	if restaged {
 		// The stage id should be contained in the image url (as image tag).  As it is not
 		// found we conclude that the app was restaged, and restart now has to bring this
 		// version up.
@@ -78,6 +79,13 @@ func Restart(c *gin.Context) apierror.APIErrors {
 	_, apierr := deploy.DeployAppWithRestart(ctx, cluster, app.Meta, username, "")
 	if apierr != nil {
 		return apierr
+	}
+
+	if restaged {
+		err = application.SetBuildStatus(ctx, cluster, app.Meta, models.AppBuildStatusDeployed)
+		if err != nil {
+			return apierror.InternalError(err, "saving the app build status")
+		}
 	}
 
 	response.OK(c)
