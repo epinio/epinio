@@ -13,10 +13,7 @@ package cmd
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 
-	"github.com/epinio/epinio/internal/manifest"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -52,58 +49,9 @@ Subcommands manage existing builds:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			wd, err := os.Getwd()
-			if err != nil {
-				return errors.Wrap(err, "working directory not accessible")
-			}
-
-			var manifestPath string
-			if len(args) == 1 {
-				manifestPath = args[0]
-			} else {
-				manifestPath = filepath.Join(wd, "epinio.yml")
-			}
-
-			m, err := manifest.Get(manifestPath)
-			if err != nil {
-				cmd.SilenceUsage = false
-				return errors.Wrap(err, "Manifest error")
-			}
-
-			m, err = manifest.UpdateICE(m, cmd)
+			m, err := loadAppManifestFromCLI(cmd, args, &envReplace)
 			if err != nil {
 				return err
-			}
-
-			m, err = manifest.UpdateBASN(m, cmd)
-			if err != nil {
-				return err
-			}
-
-			m, err = manifest.UpdateRoutes(m, cmd)
-			if err != nil {
-				return err
-			}
-
-			if m.Name == "" {
-				cmd.SilenceUsage = false
-				return errors.New("Name required, not found in manifest nor options")
-			}
-
-			if m.Origin.Kind == models.OriginNone {
-				m.Origin.Kind = models.OriginPath
-				m.Origin.Path = wd
-			}
-
-			if m.Origin.Kind == models.OriginPath {
-				if _, err := os.Stat(m.Origin.Path); err != nil {
-					cmd.SilenceUsage = false
-					return errors.Wrap(err, "path not accessible")
-				}
-			}
-
-			if cmd.Flags().Changed("env-replace") {
-				m.Configuration.ReplaceEnv = &envReplace
 			}
 
 			err = client.AppBuild(cmd.Context(), m)

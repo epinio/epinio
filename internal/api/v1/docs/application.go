@@ -293,6 +293,25 @@ type AppDeleteParam struct {
 	App string
 }
 
+// swagger:route DELETE /namespaces/{Namespace}/applications/{App}/build application AppBuildDelete
+// Delete the current build of the named `App` in the `Namespace` without deleting the app.
+// responses:
+//   200: AppBuildDeleteResponse
+
+// swagger:parameters AppBuildDelete
+type AppBuildDeleteParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:response AppBuildDeleteResponse
+type AppBuildDeleteResponse struct {
+	// in: body
+	Body models.Response
+}
+
 // swagger:parameters AppBatchDelete
 type AppBatchDeleteParam struct {
 	// in: path
