@@ -1292,6 +1292,7 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 		"blobuid":        params.BlobUID,
 		"buildmode":      params.BuildMode,
 		"dockerfilepath": params.DockerfilePath,
+		"buildstatus":    models.AppBuildStatusBuild,
 	}
 	if models.NormalizeBuildMode(params.BuildMode) == models.BuildModeBuildpack {
 		specPatch["builderimage"] = params.BuilderImage

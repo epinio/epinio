@@ -109,6 +109,11 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 		return apierr
 	}
 
+	err = application.SetBuildStatus(ctx, cluster, req.App, models.AppBuildStatusDeployed)
+	if err != nil {
+		return apierror.InternalError(err, "saving the app build status")
+	}
+
 	err = application.SetOrigin(ctx, cluster, req.App, req.Origin)
 	if err != nil {
 		return apierror.InternalError(err, "saving the app origin")

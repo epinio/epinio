@@ -184,6 +184,30 @@ func SetOrigin(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	return err
 }
 
+// SetBuildStatus stores the given build status ("build"/"deployed") in the
+// referenced application resource.
+func SetBuildStatus(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, status string) error {
+	client, err := cluster.ClientApp()
+	if err != nil {
+		return err
+	}
+
+	patch, err := json.Marshal(map[string]any{
+		"spec": map[string]any{"buildstatus": status},
+	})
+	if err != nil {
+		return errors.Wrap(err, "error building body patch")
+	}
+
+	_, err = client.Namespace(app.Namespace).Patch(ctx,
+		app.Name,
+		types.MergePatchType,
+		patch,
+		metav1.PatchOptions{})
+
+	return err
+}
+
 func buildBodyPatch(origin models.ApplicationOrigin) ([]byte, error) {
 	operations := []PatchOperation{{
 		Op:    "replace",
