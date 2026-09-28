@@ -1301,13 +1301,15 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 	// Persist the image reference the staging job will produce so that
 	// build-only flows (and later `epinio app deploy`) can find it without
 	// going through Deploy. buildstatus stays "build" until Deploy runs.
+	// It goes into builtimageurl, not imageurl: imageurl is the deployed
+	// image and is read by every redeploy (env, scale, bind, restart).
 	specPatch := map[string]any{
 		"stageid":        params.Stage.ID,
 		"blobuid":        params.BlobUID,
 		"buildmode":      params.BuildMode,
 		"dockerfilepath": params.DockerfilePath,
 		"buildstatus":    models.AppBuildStatusBuild,
-		"imageurl":       params.ImageURL(params.RegistryURL),
+		"builtimageurl":  params.ImageURL(params.RegistryURL),
 	}
 	if models.NormalizeBuildMode(params.BuildMode) == models.BuildModeBuildpack {
 		specPatch["builderimage"] = params.BuilderImage

@@ -224,7 +224,7 @@ func (c *EpinioClient) BuildList(ctx context.Context) error {
 
 	msg := c.ui.Success().WithTable("Name", "Build Status", "Image")
 	for _, app := range apps {
-		msg = msg.WithTableRow(app.Meta.Name, app.BuildStatus, app.ImageURL)
+		msg = msg.WithTableRow(app.Meta.Name, app.BuildStatus, app.BuiltImageURL)
 	}
 	msg.Msg("Ok")
 
@@ -250,7 +250,7 @@ func (c *EpinioClient) BuildShow(ctx context.Context, appName string) error {
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", app.Meta.Name).
 		WithTableRow("Build Status", app.BuildStatus).
-		WithTableRow("Image", app.ImageURL).
+		WithTableRow("Image", app.BuiltImageURL).
 		WithTableRow("Stage ID", app.StageID).
 		WithTableRow("Blob UID", app.BlobUID).
 		WithTableRow("Builder Image", app.Staging.Builder).

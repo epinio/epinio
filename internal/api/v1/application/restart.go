@@ -50,7 +50,10 @@ func Restart(c *gin.Context) apierror.APIErrors {
 		return apierror.NewAPIError("No restart possible for an application with no instances", http.StatusBadRequest)
 	}
 
-	restaged := !strings.Contains(app.ImageURL, app.StageID)
+	// A pending build (buildstatus "build") is either a build-only or a failed
+	// stage. It must go live only through an explicit deploy, so a restart keeps
+	// the currently deployed image.
+	restaged := app.BuildStatus != models.AppBuildStatusBuild && !strings.Contains(app.ImageURL, app.StageID)
 	if restaged {
 		// The stage id should be contained in the image url (as image tag).  As it is not
 		// found we conclude that the app was restaged, and restart now has to bring this

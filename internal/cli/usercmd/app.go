@@ -483,7 +483,7 @@ func (c *EpinioClient) AppDeploy(appName string) error {
 	if err != nil {
 		return err
 	}
-	if app.ImageURL == "" {
+	if app.BuiltImageURL == "" {
 		return errors.New("application has not been built yet - run `epinio app build` first")
 	}
 
@@ -494,7 +494,7 @@ func (c *EpinioClient) AppDeploy(appName string) error {
 	c.ui.Note().
 		WithStringValue("Namespace", c.Settings.Namespace).
 		WithStringValue("Application", appName).
-		WithStringValue("Image", app.ImageURL).
+		WithStringValue("Image", app.BuiltImageURL).
 		WithStringValue("Stage ID", app.StageID).
 		WithStringValue("Build Status", app.BuildStatus).
 		Msg("Deploying application")
@@ -502,7 +502,7 @@ func (c *EpinioClient) AppDeploy(appName string) error {
 	deployResponse, err := c.API.AppDeploy(models.DeployRequest{
 		App:      app.Meta,
 		Stage:    models.NewStage(app.StageID),
-		ImageURL: app.ImageURL,
+		ImageURL: app.BuiltImageURL,
 		Origin:   app.Origin,
 	})
 	if err != nil {

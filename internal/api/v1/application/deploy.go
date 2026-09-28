@@ -82,6 +82,23 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
+	// Deploying a stage whose build is still running or has failed would
+	// point the app at an image that does not exist in the registry.
+	if req.Stage.ID != "" {
+		app, err := application.Lookup(ctx, cluster, namespace, name)
+		if err != nil {
+			return apierror.InternalError(err, "failed to look up the application")
+		}
+		if app != nil {
+			switch app.StagingStatus {
+			case models.ApplicationStagingActive:
+				return apierror.NewBadRequestError("cannot deploy while the build is still in progress")
+			case models.ApplicationStagingFailed:
+				return apierror.NewBadRequestError("cannot deploy a failed build; rebuild the application first")
+			}
+		}
+	}
+
 	err = deploy.UpdateImageURL(ctx, cluster, applicationCR, req.ImageURL)
 	if err != nil {
 		return apierror.InternalError(err, "failed to set application's image url")

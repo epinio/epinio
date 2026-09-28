@@ -1305,6 +1305,21 @@ func ImageURL(app *unstructured.Unstructured) (string, error) {
 	return imageURL, nil
 }
 
+// BuiltImageURL returns the image produced by the last build (stage) of the
+// app, which may differ from the currently deployed ImageURL.
+func BuiltImageURL(app *unstructured.Unstructured) (string, error) {
+	imageURL, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"builtimageurl",
+	)
+	if err != nil {
+		return "", errors.New("builtimageurl should be string")
+	}
+
+	return imageURL, nil
+}
+
 /*
 BuilderURL returns the builder url of the currently running build, if one
 exists. It returns an empty string otherwise. The information is pulled out
@@ -1888,6 +1903,11 @@ func aggregate(ctx context.Context,
 		return nil, errors.Wrap(err, "finding the image url")
 	}
 
+	builtImageURL, err := BuiltImageURL(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the built image url")
+	}
+
 	builderURL, err := BuilderURL(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding the builder url")
@@ -1936,6 +1956,7 @@ func aggregate(ctx context.Context,
 	app.StageID = stageID
 	app.BlobUID = blobUID
 	app.ImageURL = imageURL
+	app.BuiltImageURL = builtImageURL
 	app.BuildStatus = buildStatus
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
@@ -1985,33 +2006,38 @@ func loadEnvironmentData(
 	return environment, groupedEnv, nil
 }
 
-func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, string, string, error) {
+func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, string, string, string, error) {
 	builderURL, err := BuilderURL(applicationCR)
 	if err != nil {
-		return "", "", "", "", "", errors.Wrap(err, "finding the builder url")
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the builder url")
 	}
 
 	buildMode, err := BuildMode(applicationCR)
 	if err != nil {
-		return "", "", "", "", "", errors.Wrap(err, "finding the build mode")
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the build mode")
 	}
 
 	dockerfilePath, err := DockerfilePath(applicationCR)
 	if err != nil {
-		return "", "", "", "", "", errors.Wrap(err, "finding the dockerfile path")
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the dockerfile path")
 	}
 
 	buildStatus, err := BuildStatus(applicationCR)
 	if err != nil {
-		return "", "", "", "", "", errors.Wrap(err, "finding the build status")
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the build status")
 	}
 
 	imageURL, err := ImageURL(applicationCR)
 	if err != nil {
-		return "", "", "", "", "", errors.Wrap(err, "finding the image url")
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the image url")
 	}
 
-	return builderURL, buildMode, dockerfilePath, buildStatus, imageURL, nil
+	builtImageURL, err := BuiltImageURL(applicationCR)
+	if err != nil {
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the built image url")
+	}
+
+	return builderURL, buildMode, dockerfilePath, buildStatus, imageURL, builtImageURL, nil
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
@@ -2107,7 +2133,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	builderURL, buildMode, dockerfilePath, buildStatus, imageURL, err := loadStagingFields(applicationCR)
+	builderURL, buildMode, dockerfilePath, buildStatus, imageURL, builtImageURL, err := loadStagingFields(applicationCR)
 	if err != nil {
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
@@ -2136,6 +2162,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.StageID = stageID
 	app.BlobUID = blobUID
 	app.ImageURL = imageURL
+	app.BuiltImageURL = builtImageURL
 	app.BuildStatus = buildStatus
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode

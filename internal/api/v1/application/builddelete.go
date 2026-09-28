@@ -51,9 +51,9 @@ func DeleteBuild(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown("cannot delete build, application resource is missing")
 	}
 
-	// Refuse while a workload is up: after a rebuild buildstatus flips to
-	// "build" even though the previous image is still running, and clearing
-	// CR imageurl / deleting the staged image would break that workload.
+	// Refuse while a workload is up, to keep build delete away from anything
+	// that is running. Only the built* fields are cleared below; imageurl
+	// (the deployed image) is left untouched.
 	if app.Workload != nil {
 		return apierror.NewBadRequestError(
 			"cannot delete build while the application has a running workload; scale to zero or delete the app first",
@@ -64,8 +64,17 @@ func DeleteBuild(c *gin.Context) apierror.APIErrors {
 			"app is currently deployed; redeploy a different build or delete the app instead",
 		)
 	}
-	if app.ImageURL == "" && app.StageID == "" {
+	if app.BuiltImageURL == "" && app.StageID == "" {
 		return apierror.NewBadRequestError("app has no build to delete")
+	}
+
+	// Unstage below would delete the running staging job and its blob.
+	staging, err := application.IsCurrentlyStaging(ctx, cluster, namespace, name)
+	if err != nil {
+		return apierror.InternalError(err, "failed to check the staging status")
+	}
+	if staging {
+		return apierror.NewBadRequestError("cannot delete build while staging is in progress")
 	}
 
 	appRef := app.Meta
@@ -74,11 +83,11 @@ func DeleteBuild(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to clean up staging leftovers")
 	}
 
-	if app.ImageURL != "" {
-		if err := application.DeleteContainerImage(ctx, cluster, app.ImageURL); err != nil {
+	if app.BuiltImageURL != "" {
+		if err := application.DeleteContainerImage(ctx, cluster, app.BuiltImageURL); err != nil {
 			// Best-effort, matching the full app-delete behavior: log and
 			// continue clearing the CR fields rather than failing outright.
-			log.Errorw("failed to delete container image from registry", "error", err, "image", app.ImageURL)
+			log.Errorw("failed to delete container image from registry", "error", err, "image", app.BuiltImageURL)
 		}
 	}
 
@@ -104,7 +113,7 @@ func clearBuildFields(ctx context.Context, cluster *kubernetes.Cluster, appRef m
 	specPatch := map[string]any{
 		"stageid":        "",
 		"blobuid":        "",
-		"imageurl":       "",
+		"builtimageurl":  "",
 		"buildstatus":    nil,
 		"buildmode":      "",
 		"dockerfilepath": "",
