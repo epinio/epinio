@@ -13,7 +13,11 @@ package docs
 
 //go:generate swagger generate spec
 
-import "github.com/epinio/epinio/pkg/api/core/v1/models"
+import (
+	"io"
+
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+)
 
 // swagger:route GET /appcharts appcharts AllCharts
 // Return list of app charts.
@@ -87,6 +91,37 @@ type ChartCreateParam struct {
 
 // swagger:response ChartCreateResponse
 type ChartCreateResponse struct{}
+
+// swagger:route POST /appcharts/push appcharts ChartPush
+// Upload a helm chart archive. It is pushed to Epinio's registry, and a new appchart
+// referencing it is created.
+// consumes:
+//   - multipart/form-data
+// responses:
+//   200: ChartPushResponse
+
+// swagger:parameters ChartPush
+type ChartPushParam struct {
+	// The chart archive (.tgz)
+	// in: formData
+	// swagger:file
+	File io.ReadCloser `json:"file"`
+	// Name of the appchart to create
+	// in: formData
+	Name string `json:"name"`
+	// Long description of the appchart
+	// in: formData
+	Description string `json:"description"`
+	// Short description of the appchart
+	// in: formData
+	ShortDescription string `json:"short_description"`
+}
+
+// swagger:response ChartPushResponse
+type ChartPushResponse struct {
+	// in: body
+	Body models.AppChartPushResponse
+}
 
 // swagger:route PATCH /appcharts/{Chart} appcharts ChartUpdate
 // Update fields on the named `Chart`.

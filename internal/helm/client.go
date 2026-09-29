@@ -3,6 +3,7 @@ package helm
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	hc "github.com/mittwald/go-helm-client"
@@ -156,6 +157,35 @@ func (c *SynchronizedClient) RegistryLogin(hostname, username, password string, 
 
 	registryLoginAction := action.NewRegistryLogin(concreteHelmClient.ActionConfig)
 	return registryLoginAction.Run(nil, hostname, username, password, opts...)
+}
+
+// Pull implements the 'helm pull' command. It downloads the chart with the given reference
+// (and version, if not empty) into destDir, and returns the path of the saved chart archive.
+// OCI references (oci://...) are supported, using the registry logins of this client.
+func (c *SynchronizedClient) Pull(chartRef, version, destDir string) (string, error) {
+	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
+	if !ok {
+		return "", fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
+	}
+
+	pull := action.NewPullWithOpts(action.WithConfig(concreteHelmClient.ActionConfig))
+	pull.Settings = concreteHelmClient.Settings
+	pull.DestDir = destDir
+	pull.Version = version
+
+	if _, err := pull.Run(chartRef); err != nil {
+		return "", err
+	}
+
+	archives, err := filepath.Glob(filepath.Join(destDir, "*.tgz"))
+	if err != nil {
+		return "", err
+	}
+	if len(archives) != 1 {
+		return "", fmt.Errorf("expected exactly one chart archive for %s in %s, found %d", chartRef, destDir, len(archives))
+	}
+
+	return archives[0], nil
 }
 
 func (c *SynchronizedClient) Push(chartref, remote string, opts ...action.PushOpt) (string, error) {
