@@ -76,7 +76,7 @@ jobs:
           else
             LATEST_TAG=${{ github.ref_name }}
           fi
-          
+
           echo event_name: ${{ github.event_name }}
           echo ref_name: ${{ github.ref_name }}
           echo LATEST_TAG: $LATEST_TAG
@@ -92,14 +92,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
-      
-      # Goreleaser will cleanup the draft, so we need to populate it again
-      - name: Run Releaser Drafter
-        uses: release-drafter/release-drafter@v7
-        with:
-          config-name: release-drafter.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify signatures on the generated docker images and manifests
         id: verify_signatures
@@ -108,7 +100,7 @@ jobs:
             --certificate-identity-regexp "https://github.com/epinio/epinio" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             ghcr.io/epinio/epinio-server:${{ steps.get_latest_tag.outputs.LATEST_TAG }}
-          
+
           cosign verify \
             --certificate-identity-regexp "https://github.com/epinio/epinio" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
