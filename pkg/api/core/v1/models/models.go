@@ -229,16 +229,17 @@ type ApplicationConfiguration struct {
 	Settings           ChartValueSettings          `json:"settings,omitempty" yaml:"settings,omitempty"`
 	Ignore             []string                    `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
 	// BoundConfigurations is read-only. It mirrors Configurations, adding the type
-	// of each. Not part of the manifest.
-	BoundConfigurations []BoundConfiguration `json:"bound_configurations,omitempty" yaml:"-"`
+	// of each. It is exported into the manifest for information only: `epinio push`
+	// binds from Configurations, and editing this list in a manifest has no effect.
+	BoundConfigurations []BoundConfiguration `json:"bound_configurations,omitempty" yaml:"bound_configurations,omitempty"`
 }
 
 // BoundConfiguration names a configuration bound to an application, together with
 // its type ("custom" or "service"), so clients can tell configurations a user made
 // from ones a service created.
 type BoundConfiguration struct {
-	Name string `json:"name"`
-	Type string `json:"type,omitempty"`
+	Name string `json:"name"           yaml:"name"`
+	Type string `json:"type,omitempty" yaml:"type,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
