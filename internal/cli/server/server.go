@@ -26,6 +26,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/instance"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
 
@@ -167,6 +168,18 @@ func NewHandler() (*gin.Engine, error) {
 		return nil, errors.Wrap(err, "initializing authentication")
 	}
 	rolesInitialized = true
+
+	// Ensure a persistent instance id exists (covers upgrades from older charts).
+	if info, err := instance.GetOrCreate(context.Background(), cluster); err != nil {
+		if helpers.Logger != nil {
+			helpers.Logger.Errorw("ensuring epinio instance id", "error", err)
+		}
+	} else if helpers.Logger != nil {
+		helpers.Logger.Infow("epinio instance",
+			"id", info.ID,
+			"install_method", info.InstallMethod,
+		)
+	}
 
 	// print all registered routes at debug level
 	if helpers.Logger != nil {
