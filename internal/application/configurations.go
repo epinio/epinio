@@ -18,7 +18,9 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -225,6 +227,74 @@ func BoundConfigurationNamesFromSecret(configSecret *v1.Secret) []string {
 
 	// Normalize to lexicographic order.
 	sort.Strings(result)
+
+	return result
+}
+
+// ConfigurationTypes returns the type ("custom" or "service") of every
+// configuration in the namespace, keyed by configuration name and namespace.
+// An empty namespace collects the configurations of all namespaces.
+func ConfigurationTypes(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+) (map[ConfigurationKey]string, error) {
+	configurationList, err := configurations.List(ctx, cluster, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	result := map[ConfigurationKey]string{}
+	for _, configuration := range configurationList {
+		key := EncodeConfigurationKey(configuration.Name, configuration.Namespace())
+		result[key] = configuration.Type
+	}
+
+	return result, nil
+}
+
+// BoundConfigurationsFor returns the names of the configurations bound to the
+// application, and the same set paired with the type of each.
+func BoundConfigurationsFor(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+) ([]string, []models.BoundConfiguration, error) {
+	names, err := BoundConfigurationNames(ctx, cluster, appRef)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "finding configurations")
+	}
+
+	configurationTypes, err := ConfigurationTypes(ctx, cluster, appRef.Namespace)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "finding configuration types")
+	}
+
+	bound := BoundConfigurationsWithType(
+		names,
+		appRef.Namespace,
+		configurationTypes,
+	)
+
+	return names, bound, nil
+}
+
+// BoundConfigurationsWithType pairs the bound configuration names with their types.
+// A name missing from the type map keeps an empty type instead of being dropped:
+// the binding is real even when the configuration itself has gone missing.
+func BoundConfigurationsWithType(
+	names []string,
+	namespace string,
+	configurationTypes map[ConfigurationKey]string,
+) []models.BoundConfiguration {
+	result := make([]models.BoundConfiguration, 0, len(names))
+
+	for _, name := range names {
+		result = append(result, models.BoundConfiguration{
+			Name: name,
+			Type: configurationTypes[EncodeConfigurationKey(name, namespace)],
+		})
+	}
 
 	return result
 }
