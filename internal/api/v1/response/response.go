@@ -17,6 +17,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
@@ -70,6 +71,23 @@ func OKReturn(c *gin.Context, response interface{}) {
 // GetSearchParam returns the optional "search" query parameter for name filtering.
 func GetSearchParam(c *gin.Context) string {
 	return c.Query("search")
+}
+
+// GetNamespacesParam returns the optional "namespaces" query parameter, a
+// comma-separated list of names ("?namespaces=a,b"). Nil when absent or empty.
+func GetNamespacesParam(c *gin.Context) []string {
+	var namespaces []string
+
+	for _, name := range strings.Split(c.Query("namespaces"), ",") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+
+		namespaces = append(namespaces, name)
+	}
+
+	return namespaces
 }
 
 // PaginatedResponse represents a generic paginated response payload.

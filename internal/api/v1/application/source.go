@@ -53,7 +53,7 @@ func GetSource(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
-	blobUID, lookupErr := findPreviousBlobUID(appCR)
+	blobUID, lookupErr := application.BlobUID(appCR)
 	if lookupErr != nil {
 		return apierror.InternalError(lookupErr, "looking up the blob UID")
 	}

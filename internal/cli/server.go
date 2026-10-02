@@ -25,7 +25,6 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/server"
-	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
 
@@ -98,16 +97,10 @@ func init() {
 	err = viper.BindEnv("default-builder-image", "DEFAULT_BUILDER_IMAGE")
 	checkErr(err)
 
-	flags.Bool("disable-tracking", false, "(DISABLE_TRACKING) Disable tracking of the running Epinio and Kubernetes versions")
-	err = viper.BindPFlag("disable-tracking", flags.Lookup("disable-tracking"))
+	flags.String("install-method", "helm", "(INSTALL_METHOD) How this Epinio instance was installed (helm|cli). Used when creating a missing instance id. Defaults to helm; CLI/installer wrappers should set INSTALL_METHOD=cli.")
+	err = viper.BindPFlag("install-method", flags.Lookup("install-method"))
 	checkErr(err)
-	err = viper.BindEnv("disable-tracking", "DISABLE_TRACKING")
-	checkErr(err)
-
-	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Disable tracking of the running Epinio and Kubernetes versions")
-	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
-	checkErr(err)
-	err = viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS")
+	err = viper.BindEnv("install-method", "INSTALL_METHOD")
 	checkErr(err)
 
 	flags.String("install-method", "helm", "(INSTALL_METHOD) How this Epinio instance was installed (helm|cli). Used when creating a missing instance id. Defaults to helm; CLI/installer wrappers should set INSTALL_METHOD=cli.")
@@ -162,31 +155,6 @@ var CmdServer = &cobra.Command{
 		helpers.Logger.Infow("Epinio version", "version", version.Version)
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 		helpers.Logger.Infow("listening on localhost", "port", listeningPort)
-
-		trackingDisabled := viper.GetBool("disable-tracking")
-		upgradeResponderAddress := viper.GetString("upgrade-responder-address")
-		helpers.Logger.Infow("checking upgrade-responder",
-			"tracking_disabled", trackingDisabled,
-			"upgrade_responder_address", upgradeResponderAddress,
-		)
-
-		if !trackingDisabled {
-			// Convert zap logger to logr.Logger for upgraderesponder (compatibility bridge)
-			logrLogger := helpers.LoggerToLogr().WithName("UpgradeResponder")
-			checker, err := upgraderesponder.NewChecker(
-				context.Background(),
-				logrLogger,
-				upgradeResponderAddress,
-			)
-
-			if err != nil {
-				helpers.Logger.Errorw("error creating listener", "error", err)
-				return err
-			}
-
-			checker.Start()
-			defer checker.Stop()
-		}
 
 		return startServerGracefully(listener, handler)
 	},

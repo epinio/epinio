@@ -75,12 +75,13 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
-	AppDeleteStub        func(string, []string, bool) (models.ApplicationDeleteResponse, error)
+	AppDeleteStub        func(string, []string, bool, bool) (models.ApplicationDeleteResponse, error)
 	appDeleteMutex       sync.RWMutex
 	appDeleteArgsForCall []struct {
 		arg1 string
 		arg2 []string
 		arg3 bool
+		arg4 bool
 	}
 	appDeleteReturns struct {
 		result1 models.ApplicationDeleteResponse
@@ -1457,7 +1458,7 @@ func (fake *FakeAPIClient) AppCreateReturnsOnCall(i int, result1 models.Response
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string, arg3 bool) (models.ApplicationDeleteResponse, error) {
+func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string, arg3 bool, arg4 bool) (models.ApplicationDeleteResponse, error) {
 	var arg2Copy []string
 	if arg2 != nil {
 		arg2Copy = make([]string, len(arg2))
@@ -1469,13 +1470,14 @@ func (fake *FakeAPIClient) AppDelete(arg1 string, arg2 []string, arg3 bool) (mod
 		arg1 string
 		arg2 []string
 		arg3 bool
-	}{arg1, arg2Copy, arg3})
+		arg4 bool
+	}{arg1, arg2Copy, arg3, arg4})
 	stub := fake.AppDeleteStub
 	fakeReturns := fake.appDeleteReturns
-	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy, arg3})
+	fake.recordInvocation("AppDelete", []interface{}{arg1, arg2Copy, arg3, arg4})
 	fake.appDeleteMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -1489,17 +1491,17 @@ func (fake *FakeAPIClient) AppDeleteCallCount() int {
 	return len(fake.appDeleteArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppDeleteCalls(stub func(string, []string, bool) (models.ApplicationDeleteResponse, error)) {
+func (fake *FakeAPIClient) AppDeleteCalls(stub func(string, []string, bool, bool) (models.ApplicationDeleteResponse, error)) {
 	fake.appDeleteMutex.Lock()
 	defer fake.appDeleteMutex.Unlock()
 	fake.AppDeleteStub = stub
 }
 
-func (fake *FakeAPIClient) AppDeleteArgsForCall(i int) (string, []string, bool) {
+func (fake *FakeAPIClient) AppDeleteArgsForCall(i int) (string, []string, bool, bool) {
 	fake.appDeleteMutex.RLock()
 	defer fake.appDeleteMutex.RUnlock()
 	argsForCall := fake.appDeleteArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeAPIClient) AppDeleteReturns(result1 models.ApplicationDeleteResponse, result2 error) {

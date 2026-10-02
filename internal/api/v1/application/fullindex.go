@@ -41,7 +41,10 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	namespaces := response.GetNamespacesParam(c)
+
 	filteredApps := auth.FilterResources(user, allApps)
+	filteredApps = auth.FilterByNamespaces(filteredApps, namespaces)
 
 	if search := response.GetSearchParam(c); search != "" {
 		lower := strings.ToLower(search)

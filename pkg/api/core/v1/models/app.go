@@ -26,10 +26,11 @@ const (
 
 	EpinioCreatedByAnnotation = "epinio.io/created-by"
 
-	ApplicationCreated = "created"
-	ApplicationStaging = "staging"
-	ApplicationRunning = "running"
-	ApplicationError   = "error"
+	ApplicationCreated   = "created"
+	ApplicationStaging   = "staging"
+	ApplicationDeploying = "deploying"
+	ApplicationRunning   = "running"
+	ApplicationError     = "error"
 
 	ApplicationStagingActive = "active"
 	ApplicationStagingDone   = "done"
@@ -107,7 +108,9 @@ type App struct {
 	Status        ApplicationStatus        `json:"status"`
 	StatusMessage string                   `json:"statusmessage"`
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
+	BlobUID       string                   `json:"blobuid,omitempty"`  // last staged source blob in S3/seaweedfs
 	ImageURL      string                   `json:"image_url"`
+	FailureReason string                   `json:"failure_reason,omitempty"`
 }
 
 type PodInfo struct {
@@ -118,6 +121,10 @@ type PodInfo struct {
 	CreatedAt   string `json:"createdAt,omitempty"`
 	Restarts    int32  `json:"restarts"`
 	Ready       bool   `json:"ready"`
+	// FailureReason is non-empty when the pod will not become ready without
+	// intervention: an image pull failure, a container config error, a crash
+	// loop, or never having been scheduled.
+	FailureReason string `json:"failure_reason,omitempty"`
 }
 
 // AppDeployment contains all the information specific to an active

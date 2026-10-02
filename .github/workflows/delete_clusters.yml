@@ -54,7 +54,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         timeout-minutes: 5
         with:
           cache: false
@@ -63,7 +63,7 @@ jobs:
       # The system domain is managed by route53, login to delete
       # DNS records and for the EKS deletion case
       - name: Configure AWS credentials for Route53
-        uses: aws-actions/configure-aws-credentials@v6.2.0
+        uses: aws-actions/configure-aws-credentials@v6.2.3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

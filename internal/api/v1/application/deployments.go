@@ -48,6 +48,56 @@ func asyncDeployJobID() (string, error) {
 	return randstr.Hex16()
 }
 
+// requireResolvableSource rejects an async deploy naming no source when the app
+// carries neither a stored blob nor a git origin to re-clone from. It only
+// checks that a source can be named, so the caller gets a fast 400 instead of a
+// 200 and a failing background job; staging still validates what it resolves.
+func requireResolvableSource(
+	ctx context.Context,
+	appRef models.AppRef,
+) apierror.APIErrors {
+	cluster, clusterErr := kubernetes.GetCluster(ctx)
+	if clusterErr != nil {
+		return apierror.InternalError(
+			clusterErr, "failed to get access to a kube client",
+		)
+	}
+
+	app, getErr := application.Get(ctx, cluster, appRef)
+	if getErr != nil {
+		if apierrors.IsNotFound(getErr) {
+			return apierror.AppIsNotKnown(
+				"cannot deploy app, application resource is missing",
+			)
+		}
+
+		return apierror.InternalError(
+			getErr, "failed to get the application resource",
+		)
+	}
+
+	blobUID, blobErr := application.BlobUID(app)
+	if blobErr != nil {
+		return apierror.InternalError(
+			blobErr, "looking up the previous blob UID",
+		)
+	}
+
+	if blobUID != "" {
+		return nil
+	}
+
+	origin, originErr := application.Origin(app)
+	if originErr == nil && origin.Git != nil {
+		return nil
+	}
+
+	return apierror.NewBadRequestError(
+		"application has no usable source: no blobuid was provided, " +
+			"no stored blob is available, and it has no git origin to re-clone",
+	)
+}
+
 // DeploymentsStart handles POST /namespaces/:namespace/applications/:app/deployments
 //
 // It starts a background flow that stages/builds (when BlobUID is provided) and deploys the application,
@@ -68,14 +118,21 @@ func DeploymentsStart(c *gin.Context) apierror.APIErrors {
 	if namespace != req.App.Namespace {
 		return apierror.NewBadRequestError("namespace parameter from URL does not match namespace param in body")
 	}
+	// ImageURL and/or BlobUID may both be empty: retry of a failed build resolves
+	// the stored blobuid (or git origin) during async staging. Reject up front
+	// only when the app has no source to resolve at all.
 	if req.ImageURL == "" && req.BlobUID == "" {
-		return apierror.NewBadRequestError("async deploy requires either `image` or `blobuid`")
+		if sourceErr := requireResolvableSource(ctx, req.App); sourceErr != nil {
+			return sourceErr
+		}
 	}
+
 	if req.BuildMode != "" {
 		if _, err := models.ValidateBuildMode(req.BuildMode); err != nil {
 			return apierror.NewBadRequestError(err.Error())
 		}
 	}
+
 	if req.DockerfilePath != "" {
 		if _, err := models.ValidateDockerfilePath(req.DockerfilePath); err != nil {
 			return apierror.NewBadRequestError(err.Error())
@@ -178,8 +235,9 @@ func runAsyncDeployment(ctx context.Context, deploymentID string, req models.Asy
 	var stageID string
 	var imageURL string
 
-	// Stage/build when we have a blob uid. Otherwise deploy the provided image.
-	if req.BlobUID != "" {
+	// Stage/build when a blob uid is provided, or when no image is provided (retry
+	// path: resolve stored blobuid / git origin). Otherwise deploy the provided image.
+	if req.BlobUID != "" || req.ImageURL == "" {
 		update(func(s *models.AsyncDeployStatus) { s.Status = "staging" })
 
 		stageResp, apiErr := stageForAsyncDeploy(ctx, cluster, req.App, req.BlobUID, req.BuilderImage, req.BuildMode, req.DockerfilePath, username)
@@ -275,7 +333,7 @@ func stageForAsyncDeploy(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
-	blobUID string,
+	requestedBlobUID string,
 	builderImage string,
 	buildMode string,
 	dockerfilePath string,
@@ -303,7 +361,7 @@ func stageForAsyncDeploy(
 
 	stageReq := models.StageRequest{
 		App:            appRef,
-		BlobUID:        blobUID,
+		BlobUID:        requestedBlobUID,
 		BuilderImage:   builderImage,
 		BuildMode:      buildMode,
 		DockerfilePath: dockerfilePath,
@@ -322,9 +380,12 @@ func stageForAsyncDeploy(
 		return nil, apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	// Validate incoming blob id before attempting to stage (reuse existing helper)
-	if apiErr := validateBlob(ctx, blobUID, appRef, s3ConnectionDetails); apiErr != nil {
-		return nil, apiErr
+	// Resolve blob: explicit request → stored CR blob (validated) → git re-clone.
+	resolvedBlobUID, blobErr := resolveBlobUID(
+		ctx, cluster, s3ConnectionDetails, stageReq, app, username,
+	)
+	if blobErr != nil {
+		return nil, blobErr
 	}
 
 	uid, err := randstr.Hex16()
@@ -382,7 +443,7 @@ func stageForAsyncDeploy(
 		DockerBuildImage:    config.DockerfileBuildImage,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
-		BlobUID:             blobUID,
+		BlobUID:             resolvedBlobUID,
 		Environment:         environment.List(),
 		Owner:               owner,
 		RegistryURL:         registryPublicURL,

@@ -387,6 +387,8 @@ type DeployResponse struct {
 //
 // For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
 // `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
+// Both may be omitted to retry a failed build: staging then resolves the stored blobuid from the app CR,
+// or re-clones from git origin when the blob is missing.
 type AsyncDeployRequest struct {
 	App            AppRef            `json:"app,omitempty"`
 	BlobUID        string            `json:"blobuid,omitempty"`
@@ -414,6 +416,11 @@ type AsyncDeployStatus struct {
 // ApplicationDeleteRequest represents and contains the data needed to delete an application
 type ApplicationDeleteRequest struct {
 	DeleteImage bool `json:"deleteImage"`
+	// DeletePVC when true also removes application data PVCs (e.g. from
+	// StatefulSet volumeClaimTemplates). Defaults to false so application data
+	// is preserved unless explicitly requested. Staging PVCs (build cache and
+	// source blobs) are always removed and are not governed by this flag.
+	DeletePVC bool `json:"deletePVC"`
 }
 
 // ApplicationDeleteResponse represents the server's response to a successful app deletion

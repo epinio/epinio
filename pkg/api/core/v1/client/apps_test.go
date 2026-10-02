@@ -87,7 +87,7 @@ func DescribeAppsErrors() {
 				return epinioClient.AppUpdate(models.ApplicationUpdateRequest{}, "namespace", "appname")
 			}),
 			Entry("app delete", func() (any, error) {
-				return epinioClient.AppDelete("namespace", []string{"appname"}, false)
+				return epinioClient.AppDelete("namespace", []string{"appname"}, false, false)
 			}),
 			Entry("app upload", func() (any, error) {
 				return epinioClient.AppUpload("namespace", "appname", nil)

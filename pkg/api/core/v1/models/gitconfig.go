@@ -42,6 +42,9 @@ type Gitconfig struct {
 	UserOrg    string      `json:"userorg,omitempty"`
 	Repository string      `json:"repository,omitempty"`
 	SkipSSL    bool        `json:"skipssl,omitempty"`
+	// BoundApps reports whether at least one application currently references
+	// this git configuration. Read-only, computed from live app resources.
+	BoundApps bool `json:"bound_apps,omitempty"`
 	// Password    string - Private, excluded
 	// Certificate []byte - Private, excluded
 }

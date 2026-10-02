@@ -112,6 +112,23 @@ type CatalogMatchResponse struct {
 // responses:
 //   200: ServiceListResponse
 
+// swagger:parameters AllServices
+type AllServicesParam struct {
+	// Comma-separated namespaces to filter by, e.g. "ns1,ns2". Names the user
+	// cannot see, or that do not exist, are ignored.
+	// in: query
+	Namespaces string `json:"namespaces"`
+	// Case-insensitive substring match on the service name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based. Pagination is off unless page or pageSize is set.
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 25)
+	// in: query
+	PageSize string `json:"pageSize"`
+}
+
 // swagger:route POST /namespaces/{Namespace}/services service ServiceCreate
 // Create a named service of an Epinio catalog service in the `Namespace`.
 // responses:

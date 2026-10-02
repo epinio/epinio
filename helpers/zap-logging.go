@@ -17,7 +17,7 @@ var Logger *zap.SugaredLogger
 // LoggerToLogr converts the centralized Zap logger to a logr.Logger interface.
 // This allows code that uses logr.Logger to use the centralized Zap logger.
 // This is a compatibility bridge for interoperability with libraries and Kubernetes
-// ecosystem code that use the logr.Logger interface (e.g., upgraderesponder, tailer).
+// ecosystem code that use the logr.Logger interface (e.g., tailer).
 func LoggerToLogr() logr.Logger {
 	if Logger == nil {
 		// Return a no-op logger if Logger hasn't been initialized yet

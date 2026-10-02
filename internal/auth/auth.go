@@ -337,6 +337,33 @@ func FilterResources[T NamespacedResource](user User, resources []T) []T {
 	return filteredResources
 }
 
+// FilterByNamespaces narrows resources to the named namespaces; an empty list
+// is a pass-through. It narrows an authorized set, it does not authorize.
+func FilterByNamespaces[T NamespacedResource](
+	resources []T,
+	namespaces []string,
+) []T {
+	if len(namespaces) == 0 {
+		return resources
+	}
+
+	namespacesMap := make(map[string]struct{}, len(namespaces))
+	for _, ns := range namespaces {
+		namespacesMap[ns] = struct{}{}
+	}
+
+	filteredResources := []T{}
+	for _, resource := range resources {
+		_, requested := namespacesMap[resource.Namespace()]
+
+		if requested {
+			filteredResources = append(filteredResources, resource)
+		}
+	}
+
+	return filteredResources
+}
+
 type GitconfigResource interface {
 	Gitconfig() string
 	IsGlobal() bool
