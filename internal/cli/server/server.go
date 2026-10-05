@@ -26,6 +26,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/instance"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
 
@@ -168,6 +169,18 @@ func NewHandler() (*gin.Engine, error) {
 	}
 	rolesInitialized = true
 
+	// Ensure a persistent instance id exists (covers upgrades from older charts).
+	if info, err := ensureInstanceInfo(context.Background(), cluster); err != nil {
+		if helpers.Logger != nil {
+			helpers.Logger.Errorw("ensuring epinio instance id", "error", err)
+		}
+	} else if helpers.Logger != nil {
+		helpers.Logger.Infow("epinio instance",
+			"id", info.ID,
+			"install_method", info.InstallMethod,
+		)
+	}
+
 	// print all registered routes at debug level
 	if helpers.Logger != nil {
 		for _, h := range router.Routes() {
@@ -203,4 +216,21 @@ func swaggerHandler(c *gin.Context) {
 	swaggerMap["host"] = "epinio." + mainDomain
 
 	c.JSON(http.StatusOK, swaggerMap)
+}
+
+// ensureInstanceInfo returns the persistent instance identity, creating the
+// ConfigMap when it is missing and backfilling it when fields are empty.
+func ensureInstanceInfo(ctx context.Context, cluster *kubernetes.Cluster) (instance.Info, error) {
+	info, err := instance.Get(ctx, cluster)
+	if errors.Is(err, instance.ErrNotFound) {
+		// Create returns the existing identity if another replica won the race.
+		info, err = instance.Create(ctx, cluster)
+	}
+	if err != nil {
+		return instance.Info{}, err
+	}
+	if !info.Complete() {
+		return instance.Backfill(ctx, cluster)
+	}
+	return info, nil
 }
