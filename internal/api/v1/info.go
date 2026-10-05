@@ -66,9 +66,13 @@ func Info(c *gin.Context) APIErrors {
 
 	_, dexError := os.Stat(DexPEMPath)
 
-	instanceInfo, err := instance.GetCachedOrCreate(ctx, cluster)
-	if err != nil {
-		return InternalError(err)
+	// The identity is ensured at server startup; here we only read it.
+	instanceInfo, ok := instance.GetCached()
+	if !ok {
+		instanceInfo, err = instance.Get(ctx, cluster)
+		if err != nil {
+			return InternalError(err)
+		}
 	}
 
 	response.OKReturn(c, models.InfoResponse{

@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-var _ = Describe("GetOrCreate", func() {
+var _ = Describe("instance identity", func() {
 	const ns = "epinio-test"
 
 	var (
@@ -52,8 +52,18 @@ var _ = Describe("GetOrCreate", func() {
 		viper.Set("install-method", "")
 	})
 
-	It("creates a ConfigMap when missing", func() {
-		info, err := instance.GetOrCreate(ctx, cluster)
+	It("Get reports ErrNotFound when the ConfigMap is missing and does not create it", func() {
+		_, err := instance.Get(ctx, cluster)
+		Expect(err).To(MatchError(instance.ErrNotFound))
+
+		_, err = cluster.Kubectl.CoreV1().ConfigMaps(ns).Get(ctx, helmchart.EpinioInstanceConfigMapName, metav1.GetOptions{})
+		Expect(err).To(HaveOccurred())
+		_, ok := instance.GetCached()
+		Expect(ok).To(BeFalse())
+	})
+
+	It("Create makes a ConfigMap with a new identity", func() {
+		info, err := instance.Create(ctx, cluster)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(info.ID).ToNot(BeEmpty())
 		Expect(info.InstallMethod).To(Equal(instance.InstallMethodHelm))
@@ -67,7 +77,16 @@ var _ = Describe("GetOrCreate", func() {
 		Expect(cm.Labels["epinio.io/instance-metadata"]).To(Equal("true"))
 	})
 
-	It("reuses an existing id and never replaces it", func() {
+	It("Create returns the existing identity when the ConfigMap already exists", func() {
+		first, err := instance.Create(ctx, cluster)
+		Expect(err).ToNot(HaveOccurred())
+
+		second, err := instance.Create(ctx, cluster)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(second).To(Equal(first))
+	})
+
+	It("Get reads an existing identity and never replaces it", func() {
 		_, err := cluster.Kubectl.CoreV1().ConfigMaps(ns).Create(ctx, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      helmchart.EpinioInstanceConfigMapName,
@@ -80,17 +99,35 @@ var _ = Describe("GetOrCreate", func() {
 		}, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		info, err := instance.GetOrCreate(ctx, cluster)
+		info, err := instance.Get(ctx, cluster)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(info.ID).To(Equal("fixed-id-1111"))
 		Expect(info.InstallMethod).To(Equal("cli"))
+		Expect(info.Complete()).To(BeTrue())
 
-		again, err := instance.GetOrCreate(ctx, cluster)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(again.ID).To(Equal("fixed-id-1111"))
+		cached, ok := instance.GetCached()
+		Expect(ok).To(BeTrue())
+		Expect(cached).To(Equal(info))
 	})
 
-	It("backfills a missing id without changing installMethod", func() {
+	It("Get returns an incomplete identity without caching it", func() {
+		_, err := cluster.Kubectl.CoreV1().ConfigMaps(ns).Create(ctx, &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      helmchart.EpinioInstanceConfigMapName,
+				Namespace: ns,
+			},
+			Data: map[string]string{"installMethod": "cli"},
+		}, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		info, err := instance.Get(ctx, cluster)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(info.Complete()).To(BeFalse())
+		_, ok := instance.GetCached()
+		Expect(ok).To(BeFalse())
+	})
+
+	It("Backfill adds a missing id without changing installMethod", func() {
 		_, err := cluster.Kubectl.CoreV1().ConfigMaps(ns).Create(ctx, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      helmchart.EpinioInstanceConfigMapName,
@@ -102,13 +139,13 @@ var _ = Describe("GetOrCreate", func() {
 		}, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		info, err := instance.GetOrCreate(ctx, cluster)
+		info, err := instance.Backfill(ctx, cluster)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(info.ID).ToNot(BeEmpty())
 		Expect(info.InstallMethod).To(Equal("cli"))
 	})
 
-	It("backfills a missing installMethod from env/flag", func() {
+	It("Backfill adds a missing installMethod from env/flag", func() {
 		viper.Set("install-method", "cli")
 		_, err := cluster.Kubectl.CoreV1().ConfigMaps(ns).Create(ctx, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -121,22 +158,9 @@ var _ = Describe("GetOrCreate", func() {
 		}, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		info, err := instance.GetOrCreate(ctx, cluster)
+		info, err := instance.Backfill(ctx, cluster)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(info.ID).To(Equal("already-there"))
 		Expect(info.InstallMethod).To(Equal("cli"))
-	})
-
-	It("serves subsequent reads from cache without requiring another create", func() {
-		first, err := instance.GetCachedOrCreate(ctx, cluster)
-		Expect(err).ToNot(HaveOccurred())
-
-		cached, ok := instance.GetCached()
-		Expect(ok).To(BeTrue())
-		Expect(cached.ID).To(Equal(first.ID))
-
-		second, err := instance.GetCachedOrCreate(ctx, cluster)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(second).To(Equal(first))
 	})
 })

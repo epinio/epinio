@@ -170,7 +170,7 @@ func NewHandler() (*gin.Engine, error) {
 	rolesInitialized = true
 
 	// Ensure a persistent instance id exists (covers upgrades from older charts).
-	if info, err := instance.GetOrCreate(context.Background(), cluster); err != nil {
+	if info, err := ensureInstanceInfo(context.Background(), cluster); err != nil {
 		if helpers.Logger != nil {
 			helpers.Logger.Errorw("ensuring epinio instance id", "error", err)
 		}
@@ -216,4 +216,21 @@ func swaggerHandler(c *gin.Context) {
 	swaggerMap["host"] = "epinio." + mainDomain
 
 	c.JSON(http.StatusOK, swaggerMap)
+}
+
+// ensureInstanceInfo returns the persistent instance identity, creating the
+// ConfigMap when it is missing and backfilling it when fields are empty.
+func ensureInstanceInfo(ctx context.Context, cluster *kubernetes.Cluster) (instance.Info, error) {
+	info, err := instance.Get(ctx, cluster)
+	if errors.Is(err, instance.ErrNotFound) {
+		// Create returns the existing identity if another replica won the race.
+		info, err = instance.Create(ctx, cluster)
+	}
+	if err != nil {
+		return instance.Info{}, err
+	}
+	if !info.Complete() {
+		return instance.Backfill(ctx, cluster)
+	}
+	return info, nil
 }

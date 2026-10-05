@@ -43,7 +43,15 @@ type Info struct {
 	InstallMethod string
 }
 
-// cached holds the instance identity after a successful GetOrCreate.
+// ErrNotFound is returned by Get when the instance ConfigMap does not exist.
+var ErrNotFound = errors.New("epinio-instance ConfigMap not found")
+
+// Complete reports whether all identity fields are set.
+func (i Info) Complete() bool {
+	return i.ID != "" && i.InstallMethod != ""
+}
+
+// cached holds the instance identity once it is known to be complete.
 // /info is unauthenticated and can be high-traffic; avoid a live API call per request.
 var cached atomic.Pointer[Info]
 
@@ -55,41 +63,33 @@ func GetCached() (Info, bool) {
 	return Info{}, false
 }
 
-// GetCachedOrCreate returns the cached identity, loading/creating it once when needed.
-func GetCachedOrCreate(ctx context.Context, cluster *kubernetes.Cluster) (Info, error) {
-	if info, ok := GetCached(); ok {
-		return info, nil
-	}
-	return GetOrCreate(ctx, cluster)
-}
-
-// GetOrCreate returns the persistent instance identity, creating the
-// ConfigMap when missing (upgrade path from older installs) or when the
-// stored id is empty. An existing id is never replaced.
-func GetOrCreate(ctx context.Context, cluster *kubernetes.Cluster) (Info, error) {
-	namespace := helmchart.Namespace()
-	cm, err := cluster.GetConfigMap(ctx, namespace, helmchart.EpinioInstanceConfigMapName)
+// Get reads the persistent instance identity without modifying the cluster.
+// It returns ErrNotFound when the ConfigMap is missing. The returned Info may
+// be incomplete (see Info.Complete); only a complete identity is cached.
+func Get(ctx context.Context, cluster *kubernetes.Cluster) (Info, error) {
+	cm, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), helmchart.EpinioInstanceConfigMapName)
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return Info{}, errors.Wrap(err, "getting epinio-instance ConfigMap")
+		if apierrors.IsNotFound(err) {
+			return Info{}, ErrNotFound
 		}
-		info, createErr := create(ctx, cluster, namespace)
-		if createErr == nil {
-			storeCache(info)
-		}
-		return info, createErr
+		return Info{}, errors.Wrap(err, "getting epinio-instance ConfigMap")
 	}
 
 	info := fromConfigMap(cm)
-	if info.ID != "" && info.InstallMethod != "" {
+	if info.Complete() {
 		storeCache(info)
-		return info, nil
 	}
+	return info, nil
+}
 
-	// Backfill missing fields. Retry on conflict in case another replica
-	// updates the ConfigMap at the same time (one-time upgrade path).
+// Backfill fills in missing fields of an existing ConfigMap (upgrade path from
+// older installs). Existing values are never replaced. Retries on conflict in
+// case another replica updates the ConfigMap at the same time.
+func Backfill(ctx context.Context, cluster *kubernetes.Cluster) (Info, error) {
+	namespace := helmchart.Namespace()
+
 	var result Info
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		current, getErr := cluster.GetConfigMap(ctx, namespace, helmchart.EpinioInstanceConfigMapName)
 		if getErr != nil {
 			return getErr
@@ -122,7 +122,10 @@ func GetOrCreate(ctx context.Context, cluster *kubernetes.Cluster) (Info, error)
 	return result, nil
 }
 
-func create(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (Info, error) {
+// Create creates the instance ConfigMap with a new identity. If another
+// replica created it first, the existing identity is returned instead.
+func Create(ctx context.Context, cluster *kubernetes.Cluster) (Info, error) {
+	namespace := helmchart.Namespace()
 	info := Info{
 		ID:            uuid.NewString(),
 		InstallMethod: defaultInstallMethod(),
@@ -155,10 +158,15 @@ func create(ctx context.Context, cluster *kubernetes.Cluster, namespace string) 
 			if getErr != nil {
 				return Info{}, errors.Wrap(getErr, "re-reading epinio-instance ConfigMap after create race")
 			}
-			return fromConfigMap(existing), nil
+			info = fromConfigMap(existing)
+			if info.Complete() {
+				storeCache(info)
+			}
+			return info, nil
 		}
 		return Info{}, errors.Wrap(err, "creating epinio-instance ConfigMap")
 	}
+	storeCache(info)
 	return info, nil
 }
 
