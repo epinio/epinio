@@ -231,6 +231,20 @@ func BoundConfigurationNamesFromSecret(configSecret *v1.Secret) []string {
 	return result
 }
 
+// BoundConfigurationNamesIfAny is the read-only counterpart of
+// BoundConfigurationNames. It never creates the binding secret, so GET handlers
+// can resolve an application's configurations without writing to the cluster.
+// An application whose binding secret does not exist yet simply has no bound
+// configurations.
+func BoundConfigurationNamesIfAny(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
+	configSecret, err := configLoadIfAny(ctx, cluster, appRef)
+	if err != nil {
+		return nil, err
+	}
+
+	return BoundConfigurationNamesFromSecret(configSecret), nil
+}
+
 // ConfigurationTypes returns the type ("custom" or "service") of every
 // configuration in the namespace, keyed by configuration name and namespace.
 // An empty namespace collects the configurations of all namespaces.
@@ -355,4 +369,11 @@ func configUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 func configLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
 	secretName := appRef.MakeConfigurationSecretName()
 	return loadOrCreateSecret(ctx, cluster, appRef, secretName, "configuration")
+}
+
+// configLoadIfAny returns the kube secret storing the referenced application's bound
+// configurations' names, without creating it when it is missing.
+func configLoadIfAny(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
+	secretName := appRef.MakeConfigurationSecretName()
+	return loadSecret(ctx, cluster, appRef, secretName, "configuration")
 }

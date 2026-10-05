@@ -48,7 +48,25 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	responseData, err := makeResponse(ctx, appsOf, namespaceConfigurations)
+	scopedConfigurations, apiErr := scopeToApp(
+		ctx,
+		cluster,
+		namespace,
+		c.Query("app"),
+		namespaceConfigurations,
+	)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	// The full namespace list stays the sibling source, so that a service's other
+	// configurations remain visible even when the app scope hides them.
+	responseData, err := makeResponseFrom(
+		ctx,
+		appsOf,
+		namespaceConfigurations,
+		scopedConfigurations,
+	)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -73,6 +91,54 @@ func Index(c *gin.Context) apierror.APIErrors {
 	// Backwards-compatible: return full list when no page params are set.
 	response.OKReturn(c, responseData)
 	return nil
+}
+
+// scopeToApp narrows the configuration list to the configurations bound to the
+// named application. An empty application name is the unscoped case and returns
+// the list unchanged. The narrowing happens here, before makeResponseFrom, so the
+// per-configuration Details() lookups are paid only for the bound configurations.
+//
+// An unknown application is a 404 and not an empty list: a typo in the parameter
+// must not read as "this application has no configurations".
+func scopeToApp(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace, appName string,
+	configs configurations.ConfigurationList,
+) (configurations.ConfigurationList, apierror.APIErrors) {
+	if appName == "" {
+		return configs, nil
+	}
+
+	appRef := models.NewAppRef(appName, namespace)
+
+	exists, err := application.Exists(ctx, cluster, appRef)
+	if err != nil {
+		return nil, apierror.InternalError(err)
+	}
+	if !exists {
+		return nil, apierror.AppIsNotKnown(appName)
+	}
+
+	boundNames, err := application.BoundConfigurationNamesIfAny(ctx, cluster, appRef)
+	if err != nil {
+		return nil, apierror.InternalError(err)
+	}
+
+	bound := map[string]struct{}{}
+	for _, name := range boundNames {
+		bound[name] = struct{}{}
+	}
+
+	// Never nil: a zero-match scope has to marshal to [] and not null.
+	scoped := configurations.ConfigurationList{}
+	for _, configuration := range configs {
+		if _, ok := bound[configuration.Name]; ok {
+			scoped = append(scoped, configuration)
+		}
+	}
+
+	return scoped, nil
 }
 
 func makeResponse(

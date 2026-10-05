@@ -37,6 +37,24 @@ func loadOrCreateSecret(ctx context.Context, cluster *kubernetes.Cluster, appRef
 	return secret, nil
 }
 
+// loadSecret locates and returns the kube secret storing the referenced
+// application's resource. Unlike loadOrCreateSecret it never writes: a missing
+// secret reads as an empty one. Read-only callers (GET handlers) must use this,
+// so that reading an application's bindings does not create cluster state as a
+// side effect.
+func loadSecret(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, secretName, areaLabel string) (*v1.Secret, error) {
+	secret, err := cluster.GetSecret(ctx, appRef.Namespace, secretName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			empty := makeSecret(appRef, areaLabel)
+			empty.Name = secretName
+			return &empty, nil
+		}
+		return nil, errors.Wrapf(err, "error getting secret %s", secretName)
+	}
+	return secret, nil
+}
+
 // createSecret will create the secret in the cluster
 func createSecret(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, secretName, areaLabel string) (*v1.Secret, error) {
 	app, err := Get(ctx, cluster, appRef)
