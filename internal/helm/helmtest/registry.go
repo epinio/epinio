@@ -10,6 +10,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -270,4 +272,54 @@ func (r *Registry) serveManifest(w http.ResponseWriter, req *http.Request, repos
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "UNSUPPORTED")
 	}
+}
+
+// IsolateHelmConfig points helm at a fresh, empty config directory, and returns a function
+// restoring the previous environment. Call it before the first helm client is created, as the
+// clients are cached.
+//
+// It keeps tests from reading and writing the registry logins of the user running them. Setting
+// only HELM_REGISTRY_CONFIG is not enough. The client used by `helm push` does not honor it, it
+// reads the credentials from the default location below the config home. A login made through
+// one client is then invisible to the push through the other.
+func IsolateHelmConfig() (func(), error) {
+	dir, err := os.MkdirTemp("", "epinio-helm-config-")
+	if err != nil {
+		return nil, err
+	}
+
+	vars := map[string]string{
+		"HELM_CONFIG_HOME":     filepath.Join(dir, "config"),
+		"HELM_CACHE_HOME":      filepath.Join(dir, "cache"),
+		"HELM_DATA_HOME":       filepath.Join(dir, "data"),
+		"HELM_REGISTRY_CONFIG": filepath.Join(dir, "config", "registry", "config.json"),
+	}
+
+	type previous struct {
+		value string
+		set   bool
+	}
+	old := map[string]previous{}
+
+	restore := func() {
+		for name, p := range old {
+			if p.set {
+				_ = os.Setenv(name, p.value)
+			} else {
+				_ = os.Unsetenv(name)
+			}
+		}
+		_ = os.RemoveAll(dir)
+	}
+
+	for name, value := range vars {
+		v, set := os.LookupEnv(name)
+		old[name] = previous{v, set}
+		if err := os.Setenv(name, value); err != nil {
+			restore()
+			return nil, err
+		}
+	}
+
+	return restore, nil
 }

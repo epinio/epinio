@@ -24,23 +24,11 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// Helm stores the registry logins it makes in a file. Keep the specs from touching the file of the
-// user running them. It has to be set before the first helm client is created, as the clients are
-// cached.
+// Keep the specs from reading and writing the registry logins of the user running them.
 var _ = BeforeSuite(func() {
-	dir, err := os.MkdirTemp("", "epinio-helm-registry-config-")
+	restore, err := helmtest.IsolateHelmConfig()
 	Expect(err).ToNot(HaveOccurred())
-	DeferCleanup(func() { _ = os.RemoveAll(dir) })
-
-	old, had := os.LookupEnv("HELM_REGISTRY_CONFIG")
-	Expect(os.Setenv("HELM_REGISTRY_CONFIG", filepath.Join(dir, "config.json"))).To(Succeed())
-	DeferCleanup(func() {
-		if had {
-			_ = os.Setenv("HELM_REGISTRY_CONFIG", old)
-		} else {
-			_ = os.Unsetenv("HELM_REGISTRY_CONFIG")
-		}
-	})
+	DeferCleanup(restore)
 })
 
 var _ = Describe("Charts in a registry", func() {
