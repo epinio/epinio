@@ -111,7 +111,8 @@ func DoWithHandlers[T any](
 		return response, errors.New("missing response handler")
 	}
 
-	if c.Settings.Location == "" {
+	// Settings come from a file (Location) or, without one, from the environment (API).
+	if c.Settings.Location == "" && c.Settings.API == "" {
 		return response, errors.New("Client settings not found. Please ensure that the cluster is running, Epinio is installed, and the client is logged in.")
 	}
 	if c.Settings.API == "" {
@@ -487,9 +488,13 @@ func (c *Client) handleAuthorization(request *http.Request) error {
 				c.Settings.Token.Expiry = newToken.Expiry
 				c.Settings.Token.TokenType = newToken.TokenType
 
-				err := c.Settings.Save()
-				if err != nil {
-					return errors.Wrap(err, "failed saving refreshed token")
+				// Settings which did not come from a file have nothing to write back to,
+				// and the filesystem may be read-only.
+				if c.Settings.Location != "" {
+					err := c.Settings.Save()
+					if err != nil {
+						return errors.Wrap(err, "failed saving refreshed token")
+					}
 				}
 			}
 		}

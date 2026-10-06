@@ -36,6 +36,13 @@ var (
 	defaultSettingsFilePath = "epinio/settings.yaml"
 )
 
+const (
+	envPassword       = "EPINIO_PASSWORD"
+	envPasswordB64    = "EPINIO_PASSWORD_B64"
+	envPasswordLegacy = "EPINIO_PASS"
+	envAPIToken       = "EPINIO_API_TOKEN"
+)
+
 // Settings represents a epinio settings
 type Settings struct {
 	Namespace string       `mapstructure:"namespace"` // Currently targeted namespace
@@ -95,6 +102,11 @@ func LoadFrom(file string) (*Settings, error) {
 	v.SetDefault("wss", "")
 	v.SetDefault("certs", "")
 	v.SetDefault("colors", true)
+
+	// The token is a nested struct, so AutomaticEnv cannot resolve it. Bind it explicitly.
+	if err := v.BindEnv("token.accesstoken", envAPIToken); err != nil {
+		return nil, errors.Wrap(err, "failed to bind the API token")
+	}
 
 	settingsExists, err := fileExists(file)
 	if err != nil {
@@ -162,16 +174,53 @@ func LoadFrom(file string) (*Settings, error) {
 		color.NoColor = true
 	}
 
-	// Decode base64 password
-	decodedPassword, err := base64.StdEncoding.DecodeString(cfg.Password)
-	if err != nil {
+	if err := cfg.resolvePassword(); err != nil {
 		return cfg, err
 	}
-	cfg.Password = string(decodedPassword)
 
 	cfg.log = log
 	log.Info("Loaded", "value", cfg.String())
 	return cfg, nil
+}
+
+// resolvePassword sets the final plaintext password. The dedicated environment variables are
+// read here, after the unmarshal, so they stay out of viper's automatic binding and cannot
+// interfere with the `pass` key of the settings file.
+//
+// EPINIO_PASSWORD is plaintext, EPINIO_PASSWORD_B64 is base64 encoded. The legacy EPINIO_PASS
+// is the viper binding of the `pass` key, and thus base64 encoded as well. It stays as an
+// undocumented alias of EPINIO_PASSWORD_B64.
+func (c *Settings) resolvePassword() error {
+	plain := os.Getenv(envPassword)
+	encoded := os.Getenv(envPasswordB64)
+
+	if legacy := os.Getenv(envPasswordLegacy); encoded == "" && legacy != "" {
+		fmt.Fprintf(os.Stderr, "Warning: %s is deprecated, use %s (base64) or %s (plaintext)\n",
+			envPasswordLegacy, envPasswordB64, envPassword)
+		encoded = legacy
+	}
+
+	if plain != "" && encoded != "" {
+		return fmt.Errorf("%s and %s are both set, use only one", envPassword, envPasswordB64)
+	}
+
+	if plain != "" {
+		c.Password = plain
+		return nil
+	}
+
+	if encoded == "" {
+		// Neither variable is set, the password comes from the settings file.
+		encoded = c.Password
+	}
+
+	decodedPassword, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return err
+	}
+	c.Password = string(decodedPassword)
+
+	return nil
 }
 
 // String generates a string representation of the settings (for debugging)
