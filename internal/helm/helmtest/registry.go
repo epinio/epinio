@@ -4,8 +4,9 @@ package helmtest
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
+	"encoding/json"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -118,10 +119,18 @@ func digestOf(data []byte) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
+// writeJSON writes the value as the JSON body of the response. The failure to do so is only
+// reported, as a test has nothing better to do about it.
+func writeJSON(w http.ResponseWriter, value any) {
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		log.Printf("helmtest registry: writing response: %v", err)
+	}
+}
+
 func writeError(w http.ResponseWriter, status int, code string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	fmt.Fprintf(w, `{"errors":[{"code":%q,"message":%q}]}`, code, code)
+	writeJSON(w, map[string]any{"errors": []map[string]string{{"code": code, "message": code}}})
 }
 
 func (r *Registry) serve(w http.ResponseWriter, req *http.Request) {
@@ -161,14 +170,7 @@ func (r *Registry) serve(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"name":%q,"tags":[`, m[1])
-		for i, tag := range tags {
-			if i > 0 {
-				fmt.Fprint(w, ",")
-			}
-			fmt.Fprintf(w, "%q", tag)
-		}
-		fmt.Fprint(w, "]}")
+		writeJSON(w, map[string]any{"name": m[1], "tags": tags})
 		return
 	}
 
