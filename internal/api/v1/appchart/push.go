@@ -1,6 +1,7 @@
 package appchart
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"os"
@@ -101,14 +102,31 @@ func Push(c *gin.Context) apierror.APIErrors {
 		return apierror.AppChartAlreadyKnown(name)
 	}
 
-	log.Infow("push chart", "chart", chart.Metadata.Name, "version", chart.Metadata.Version)
-
-	repository, err := helm.PushChartToEpinioRegistry(ctx, cluster, archive.Name())
+	registry, err := helm.OpenChartRegistry(ctx, cluster, name)
 	if err != nil {
-		return apierror.InternalError(errors.Wrap(err, "pushing the chart to the registry"))
+		return apierror.InternalError(errors.Wrap(err, "opening the chart registry"))
 	}
 
+	// Refuse a chart version which is already stored. Replacing it would change the chart
+	// behind deployed applications.
+
+	log.Infow("check chart", "chart", chart.Metadata.Name, "version", chart.Metadata.Version)
+	stored, err := registry.HasChart(chart.Metadata.Name, chart.Metadata.Version)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if stored {
+		return apierror.NewConflictError("chart", chart.Metadata.Name+":"+chart.Metadata.Version).
+			WithDetails("the version is already stored for application chart " + name +
+				", bump the version of the chart")
+	}
+
+	// Create the application chart before the push. This reserves the name, and nothing is left
+	// behind in the registry should the creation fail. A failed push removes the application
+	// chart again.
+
 	helmChart := chart.Metadata.Name + ":" + chart.Metadata.Version
+	repository := registry.Repository()
 
 	log.Infow("create appchart resource", "name", name, "helmChart", helmChart, "helmRepo", repository)
 	_, err = appchart.Create(ctx, client, models.AppChartCreateRequest{
@@ -120,6 +138,17 @@ func Push(c *gin.Context) apierror.APIErrors {
 	})
 	if err != nil {
 		return apierror.InternalError(err)
+	}
+
+	log.Infow("push chart", "chart", chart.Metadata.Name, "version", chart.Metadata.Version)
+	err = registry.Push(archive.Name())
+	if err != nil {
+		// The request context may be the reason for the failure, use one which is not canceled.
+		cleanupErr := appchart.Delete(context.WithoutCancel(ctx), client, name)
+		if cleanupErr != nil {
+			log.Errorw("removing appchart after failed push", "name", name, "error", cleanupErr)
+		}
+		return apierror.InternalError(errors.Wrap(err, "pushing the chart to the registry"))
 	}
 
 	log.Infow("appchart created", "name", name)

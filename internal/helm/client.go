@@ -2,8 +2,10 @@ package helm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	hc "github.com/mittwald/go-helm-client"
@@ -13,6 +15,7 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
+	"oras.land/oras-go/v2/errdef"
 )
 
 var _ hc.Client = (*SynchronizedClient)(nil)
@@ -186,6 +189,30 @@ func (c *SynchronizedClient) Pull(chartRef, version, destDir string) (string, er
 	}
 
 	return archives[0], nil
+}
+
+// OCIChartExists tells whether the chart with the given OCI reference (oci://host/path/chart) and
+// version is already present in its registry. It uses the registry logins of this client.
+func (c *SynchronizedClient) OCIChartExists(chartRef, version string) (bool, error) {
+	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
+	if !ok {
+		return false, fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
+	}
+
+	// helm pushes a chart under a tag derived from its version, with `+` replaced by `_`,
+	// as registry tags cannot contain `+`.
+	tag := strings.ReplaceAll(version, "+", "_")
+	ref := strings.TrimPrefix(chartRef, "oci://") + ":" + tag
+
+	_, err := concreteHelmClient.ActionConfig.RegistryClient.Resolve(ref)
+	if errors.Is(err, errdef.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (c *SynchronizedClient) Push(chartref, remote string, opts ...action.PushOpt) (string, error) {

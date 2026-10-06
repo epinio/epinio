@@ -4,25 +4,51 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/appchart"
+	"github.com/epinio/epinio/internal/helm/helmtest"
+	"github.com/epinio/epinio/internal/registry"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 )
+
+// Helm stores the registry logins it makes in a file. Keep the specs from touching the file of the
+// user running them. It has to be set before the first helm client is created, as they are cached.
+var _ = BeforeSuite(func() {
+	dir, err := os.MkdirTemp("", "epinio-appchart-registry-config-")
+	Expect(err).ToNot(HaveOccurred())
+	DeferCleanup(func() { _ = os.RemoveAll(dir) })
+
+	old, had := os.LookupEnv("HELM_REGISTRY_CONFIG")
+	Expect(os.Setenv("HELM_REGISTRY_CONFIG", filepath.Join(dir, "config.json"))).To(Succeed())
+	DeferCleanup(func() {
+		if had {
+			_ = os.Setenv("HELM_REGISTRY_CONFIG", old)
+		} else {
+			_ = os.Unsetenv("HELM_REGISTRY_CONFIG")
+		}
+	})
+})
 
 var _ = Describe("Push AppChart API", func() {
 	var (
@@ -156,6 +182,132 @@ var _ = Describe("Push AppChart API", func() {
 			err := push(saveChart(""), map[string]string{"name": "mychart"})
 			Expect(err).ToNot(BeNil())
 			Expect(err.FirstStatus()).To(Equal(http.StatusConflict))
+		})
+	})
+	Describe("with a chart registry", func() {
+		const epinioNamespace = "epinio"
+
+		var (
+			reg *helmtest.Registry
+
+			apiMu    sync.Mutex
+			apiCalls []string // `<method> <path>`
+			created  []string // bodies of the created application charts
+		)
+
+		// calls returns the recorded requests for application charts, other than the existence check.
+		calls := func() []string {
+			apiMu.Lock()
+			defer apiMu.Unlock()
+
+			result := []string{}
+			for _, call := range apiCalls {
+				if !strings.HasPrefix(call, "GET ") {
+					result = append(result, call)
+				}
+			}
+			return result
+		}
+
+		BeforeEach(func() {
+			apiCalls, created = nil, nil
+
+			oldNamespace := viper.GetString("namespace")
+			viper.Set("namespace", epinioNamespace)
+			DeferCleanup(func() { viper.Set("namespace", oldNamespace) })
+
+			reg = helmtest.NewRegistry("admin", "changeme")
+			DeferCleanup(reg.Close)
+
+			// Fake kubernetes API server. No application chart exists. Creation and deletion
+			// are recorded.
+			apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				apiMu.Lock()
+				defer apiMu.Unlock()
+
+				apiCalls = append(apiCalls, r.Method+" "+r.URL.Path)
+				w.Header().Set("Content-Type", "application/json")
+
+				switch r.Method {
+				case http.MethodPost:
+					body, _ := io.ReadAll(r.Body)
+					created = append(created, string(body))
+					w.WriteHeader(http.StatusCreated)
+					_, _ = w.Write(body)
+				case http.MethodDelete:
+					fmt.Fprint(w, `{"kind":"Status","apiVersion":"v1","status":"Success"}`)
+				default:
+					w.WriteHeader(http.StatusNotFound)
+					fmt.Fprint(w, `{"kind":"Status","apiVersion":"v1","status":"Failure",`+
+						`"reason":"NotFound","code":404}`)
+				}
+			}))
+			DeferCleanup(apiServer.Close)
+
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: registry.CredentialsSecretName, Namespace: epinioNamespace},
+				Data: map[string][]byte{".dockerconfigjson": []byte(
+					`{"auths":{"` + reg.Host() + `":{"username":"admin","password":"changeme"}}}`)},
+				Type: corev1.SecretTypeDockerConfigJson,
+			}
+
+			kubernetes.SetClusterMemo(&kubernetes.Cluster{
+				Kubectl:    fake.NewSimpleClientset(secret),
+				RestConfig: &rest.Config{Host: apiServer.URL},
+			})
+			DeferCleanup(func() { kubernetes.SetClusterMemo(nil) })
+		})
+
+		It("pushes the chart to a repository of its own, and creates the application chart for it", func() {
+			err := push(saveChart(""), map[string]string{"name": "myapp"})
+			Expect(err).To(BeNil())
+			Expect(recorder.Code).To(Equal(http.StatusOK))
+
+			Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeTrue())
+
+			Expect(created).To(HaveLen(1))
+			Expect(created[0]).To(ContainSubstring(`"helmChart":"mychart:0.1.0"`))
+			Expect(created[0]).To(ContainSubstring(`"helmRepo":"oci://` + reg.Host() + `/epinio-charts/myapp"`))
+			Expect(calls()).To(HaveLen(1))
+		})
+
+		It("refuses a chart version which is already stored, and creates nothing", func() {
+			Expect(push(saveChart(""), map[string]string{"name": "myapp"})).To(BeNil())
+			Expect(created).To(HaveLen(1))
+
+			// The fake cluster does not keep the application chart. The registry is what
+			// rejects the second push, for the same chart name and version.
+			recorder = httptest.NewRecorder()
+			err := push(saveChart(""), map[string]string{"name": "myapp"})
+			Expect(err).ToNot(BeNil())
+			Expect(err.FirstStatus()).To(Equal(http.StatusConflict))
+			Expect(err.Errors()[0].Details).To(ContainSubstring("bump the version"))
+
+			Expect(created).To(HaveLen(1))
+			Expect(calls()).To(HaveLen(1))
+		})
+
+		It("removes the application chart again when the push fails", func() {
+			reg.FailPushes(true)
+
+			err := push(saveChart(""), map[string]string{"name": "myapp"})
+			Expect(err).ToNot(BeNil())
+			Expect(err.FirstStatus()).To(Equal(http.StatusInternalServerError))
+
+			Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeFalse())
+			Expect(calls()).To(HaveLen(2))
+			Expect(calls()[0]).To(HavePrefix("POST "))
+			Expect(calls()[1]).To(HavePrefix("DELETE "))
+			Expect(calls()[1]).To(HaveSuffix("/appcharts/myapp"))
+		})
+
+		It("creates nothing when the registry cannot be used", func() {
+			reg.SetPassword("something-else")
+
+			err := push(saveChart(""), map[string]string{"name": "myapp"})
+			Expect(err).ToNot(BeNil())
+			Expect(err.FirstStatus()).To(Equal(http.StatusInternalServerError))
+			Expect(calls()).To(BeEmpty())
 		})
 	})
 })

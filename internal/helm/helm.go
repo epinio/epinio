@@ -17,6 +17,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -399,7 +400,8 @@ func Deploy(parameters ChartParameters) error {
 
 	// When the helm chart package or AppChart Spec.Values change, do not reuse values
 	// from the previous release. Old chart-specific values can break the upgrade.
-	reuseValues := shouldReuseHelmValues(client, releaseName, appChart, helmChart, helmVersion)
+	reuseValues := shouldReuseHelmValues(
+		parameters.Context, parameters.Cluster, client, releaseName, appChart, helmChart, helmVersion)
 
 	chartSpec := hc.ChartSpec{
 		ReleaseName: releaseName,
@@ -425,7 +427,9 @@ func Deploy(parameters ChartParameters) error {
 // chartRef/chartVersion come from getChartReference for the next AppChart so identity is
 // taken from loaded chart metadata (exact name + version), never from URL substrings.
 func shouldReuseHelmValues(
-	client hc.Client,
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	client *SynchronizedClient,
 	releaseName string,
 	appChart *models.AppChartFull,
 	chartRef string,
@@ -446,7 +450,7 @@ func shouldReuseHelmValues(
 		return false
 	}
 
-	nextName, nextVersion, err := loadChartIdentity(client, appChart, chartRef, chartVersion)
+	nextName, nextVersion, err := loadChartIdentity(ctx, cluster, client, appChart, chartRef, chartVersion)
 	if err != nil || nextName == "" || nextVersion == "" {
 		logger.Infow("unable to resolve next chart identity, disabling ReuseValues",
 			"release", releaseName, "error", err, "chartRef", chartRef, "chartVersion", chartVersion)
@@ -473,7 +477,9 @@ func shouldReuseHelmValues(
 // loadChartIdentity resolves the Helm chart name and version for the next AppChart from
 // the already-resolved chart reference (local path for URL charts, repo ref otherwise).
 func loadChartIdentity(
-	client hc.Client,
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	client *SynchronizedClient,
 	appChart *models.AppChartFull,
 	chartRef string,
 	chartVersion string,
@@ -491,22 +497,12 @@ func loadChartIdentity(
 
 	if registry.IsOCI(appChart.HelmRepo) {
 		// GetChart cannot resolve OCI references, it lacks the registry client. Pull the
-		// chart through our own client, which also holds the registry login done for it.
-		synchronizedClient, ok := client.(*SynchronizedClient)
-		if !ok {
-			return "", "", fmt.Errorf("cannot pull OCI chart %s with a %T", chartRef, client)
-		}
-
-		dir, err := os.MkdirTemp("", "epinio-oci-chart-")
+		// chart instead.
+		archive, cleanup, err := pullOCIChart(ctx, cluster, client, appChart.HelmRepo, chartRef, chartVersion)
 		if err != nil {
 			return "", "", err
 		}
-		defer func() { _ = os.RemoveAll(dir) }()
-
-		archive, err := synchronizedClient.Pull(chartRef, chartVersion, dir)
-		if err != nil {
-			return "", "", err
-		}
+		defer cleanup()
 
 		ch, err := loader.Load(archive)
 		if err != nil {
@@ -883,14 +879,32 @@ func ociChartRef(repoURL, chartName string) string {
 // This is the OCI counterpart of the url based fetch used for the other kinds of AppCharts.
 // It is used where the chart archive itself is needed, instead of just deploying it.
 func FetchOCIChartArchive(ctx context.Context, cluster *kubernetes.Cluster, appChart *models.AppChartFull) (string, func(), error) {
-	noCleanup := func() {}
-
 	client, err := GetHelmClient(cluster.RestConfig, "")
 	if err != nil {
-		return "", noCleanup, errors.Wrap(err, "create a helm client")
+		return "", func() {}, errors.Wrap(err, "create a helm client")
 	}
 
-	if err := loginToOCIRegistryIfInternal(ctx, cluster, client, appChart.HelmRepo); err != nil {
+	chartName, chartVersion := splitChartVersion(appChart.HelmChart)
+
+	return pullOCIChart(ctx, cluster, client, appChart.HelmRepo, ociChartRef(appChart.HelmRepo, chartName), chartVersion)
+}
+
+// pullOCIChart logs into the registry of the OCI repository, if that is Epinio's own, and pulls
+// the chart with the given reference and version into a fresh temporary directory. It returns the
+// path of the chart archive there, and a function removing the directory again. The function is
+// safe to call, and a no-op, when an error is returned.
+//
+// The login is done here, and not left to the caller, so that the pull does not depend on a login
+// made earlier on the same shared client.
+func pullOCIChart(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	client *SynchronizedClient,
+	repoURL, chartRef, version string,
+) (string, func(), error) {
+	noCleanup := func() {}
+
+	if err := loginToOCIRegistryIfInternal(ctx, cluster, client, repoURL); err != nil {
 		return "", noCleanup, errors.Wrap(err, "logging into the OCI chart registry")
 	}
 
@@ -900,9 +914,7 @@ func FetchOCIChartArchive(ctx context.Context, cluster *kubernetes.Cluster, appC
 	}
 	cleanup := func() { _ = os.RemoveAll(dir) }
 
-	chartName, chartVersion := splitChartVersion(appChart.HelmChart)
-
-	archive, err := client.Pull(ociChartRef(appChart.HelmRepo, chartName), chartVersion, dir)
+	archive, err := client.Pull(chartRef, version, dir)
 	if err != nil {
 		cleanup()
 		return "", noCleanup, errors.Wrap(err, "pulling the OCI chart")
@@ -945,10 +957,21 @@ type registryLogin struct {
 }
 
 // isInClusterRegistry returns true if the registry host is one of the in-cluster registry of Epinio.
+//
+// The host, without port, has to be exactly localhost or a loopback address, or to end in the
+// cluster domain. A substring match is not enough. It would also accept hosts like
+// `registry.svc.cluster.local.example.com`, and disable certificate verification for them.
 func isInClusterRegistry(hostname string) bool {
-	return strings.Contains(hostname, ".svc.cluster.local") ||
-		strings.Contains(hostname, "127.0.0.1") ||
-		strings.Contains(hostname, "localhost")
+	host := hostname
+	if h, _, err := net.SplitHostPort(hostname); err == nil {
+		host = h
+	}
+	host = strings.ToLower(strings.TrimSuffix(strings.Trim(host, "[]"), "."))
+
+	return host == "localhost" ||
+		host == "127.0.0.1" ||
+		host == "::1" ||
+		strings.HasSuffix(host, ".svc.cluster.local")
 }
 
 // registryLoginFor returns what is needed to log into the registry with the given host, from the

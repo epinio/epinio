@@ -46,6 +46,16 @@ var _ = Describe("OCI helpers", func() {
 			Entry("localhost", "localhost:5000", true),
 			Entry("external registry", "registry.example.com", false),
 			Entry("public registry", "ghcr.io", false),
+			Entry("loopback ipv6", "[::1]:5000", true),
+			Entry("loopback without port", "127.0.0.1", true),
+			Entry("upper case service address", "Registry.Epinio.SVC.Cluster.Local:5000", true),
+			Entry("service address as fqdn", "registry.epinio.svc.cluster.local.:5000", true),
+			Entry("cluster domain only as prefix", "registry.svc.cluster.local.example.com", false),
+			Entry("cluster domain in the middle, with port", "registry.svc.cluster.local.example.com:5000", false),
+			Entry("localhost only as prefix", "localhost.example.com:5000", false),
+			Entry("localhost only as suffix", "evil-localhost:5000", false),
+			Entry("loopback address only as prefix", "127.0.0.1.example.com", false),
+			Entry("loopback address only as suffix", "example.127.0.0.1", false),
 		)
 	})
 
