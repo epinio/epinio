@@ -140,7 +140,7 @@ type ChartUpdateParam struct {
 type ChartUpdateResponse struct{}
 
 // swagger:route DELETE /appcharts/{Chart} appcharts ChartDelete
-// Delete the named `Chart`.
+// Delete the named `Chart`. A chart pushed to Epinio's registry is removed from it as well.
 // responses:
 //   200: ChartDeleteResponse
 

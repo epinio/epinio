@@ -947,6 +947,7 @@ func loginToOCIRegistryIfInternal(ctx context.Context, cluster *kubernetes.Clust
 
 // registryLogin holds what is needed to log into a registry.
 type registryLogin struct {
+	URL      string // As recorded in the registry credentials, possibly with scheme
 	Hostname string
 	Username string
 	Password string // nolint:gosec // intentional auth field for registry
@@ -980,6 +981,7 @@ func registryLoginFor(details *epinioregistry.ConnectionDetails, hostname string
 	for _, creds := range details.RegistryCredentials {
 		if ociHostname(creds.URL) == hostname {
 			return &registryLogin{
+				URL:      creds.URL,
 				Hostname: hostname,
 				Username: creds.Username,
 				Password: creds.Password,

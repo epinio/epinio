@@ -191,6 +191,12 @@ func (c *SynchronizedClient) Pull(chartRef, version, destDir string) (string, er
 	return archives[0], nil
 }
 
+// ociTag returns the registry tag helm pushes a chart of the given version under. It is the
+// version, with `+` replaced by `_`, as registry tags cannot contain `+`.
+func ociTag(version string) string {
+	return strings.ReplaceAll(version, "+", "_")
+}
+
 // OCIChartExists tells whether the chart with the given OCI reference (oci://host/path/chart) and
 // version is already present in its registry. It uses the registry logins of this client.
 func (c *SynchronizedClient) OCIChartExists(chartRef, version string) (bool, error) {
@@ -199,10 +205,7 @@ func (c *SynchronizedClient) OCIChartExists(chartRef, version string) (bool, err
 		return false, fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
 	}
 
-	// helm pushes a chart under a tag derived from its version, with `+` replaced by `_`,
-	// as registry tags cannot contain `+`.
-	tag := strings.ReplaceAll(version, "+", "_")
-	ref := strings.TrimPrefix(chartRef, "oci://") + ":" + tag
+	ref := strings.TrimPrefix(chartRef, "oci://") + ":" + ociTag(version)
 
 	_, err := concreteHelmClient.ActionConfig.RegistryClient.Resolve(ref)
 	if errors.Is(err, errdef.ErrNotFound) {

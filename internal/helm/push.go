@@ -2,26 +2,23 @@ package helm
 
 import (
 	"context"
+	"crypto/tls"
+	"strings"
 
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/action"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/helmchart"
 	epinioregistry "github.com/epinio/epinio/internal/registry"
 )
 
-// ChartRepositoryPath is the path, below the host of Epinio's registry, under which the charts of
-// custom AppCharts are stored. Each AppChart gets a repository of its own below it, named after
-// the AppChart, see ChartRegistry.
-const ChartRepositoryPath = "epinio-charts"
-
-// ChartRegistry is Epinio's own registry, as target for the push of the chart of one AppChart.
+// ChartRegistry is Epinio's own registry, as store for the chart of one AppChart. It implements
+// appchart.ChartStore.
 //
-// The chart goes into a repository of its own, `<registry>/epinio-charts/<appchart name>`. Charts
-// of different AppCharts can therefore not overwrite each other. Together with HasChart, which
-// allows to refuse a chart version which is already stored, this keeps the chart behind an
-// AppChart from changing while applications are deployed with it.
+// The chart goes into a repository of its own, `<registry>/epinio-charts/<appchart name>`, see
+// appchart.ChartRepositoryPath.
 type ChartRegistry struct {
 	client     *SynchronizedClient
 	creds      *registryLogin
@@ -69,7 +66,7 @@ func OpenChartRegistry(ctx context.Context, cluster *kubernetes.Cluster, appChar
 	return &ChartRegistry{
 		client:     client,
 		creds:      creds,
-		repository: "oci://" + hostname + "/" + ChartRepositoryPath + "/" + appChartName,
+		repository: "oci://" + hostname + "/" + appchart.ChartRepositoryPath + "/" + appChartName,
 	}, nil
 }
 
@@ -92,4 +89,28 @@ func (r *ChartRegistry) HasChart(chartName, chartVersion string) (bool, error) {
 func (r *ChartRegistry) Push(archivePath string) error {
 	_, err := r.client.Push(archivePath, r.repository, action.WithInsecureSkipTLSVerify(r.creds.Insecure))
 	return errors.Wrap(err, "pushing the chart")
+}
+
+// Delete removes the chart with the given name and version from the repository of the AppChart,
+// together with all other tags of the repository. A chart which is not in the registry is not an
+// error.
+func (r *ChartRegistry) Delete(ctx context.Context, chartName, chartVersion string) error {
+	imageURL := strings.TrimPrefix(ociChartRef(r.repository, chartName), "oci://") + ":" + ociTag(chartVersion)
+
+	// Like for the push, the certificate of a registry inside the cluster is not verified.
+	var tlsConfig *tls.Config
+	if r.creds.Insecure {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true, // nolint:gosec // registry in the cluster, with a self-signed certificate
+			MinVersion:         tls.VersionTLS12,
+		}
+	}
+
+	err := epinioregistry.DeleteImage(ctx, imageURL, epinioregistry.RegistryCredentials{
+		URL:      r.creds.URL,
+		Username: r.creds.Username,
+		Password: r.creds.Password,
+	}, tlsConfig)
+
+	return errors.Wrap(err, "deleting the chart")
 }

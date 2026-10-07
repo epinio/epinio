@@ -118,7 +118,7 @@
         "tags": [
           "appcharts"
         ],
-        "summary": "Delete the named `Chart`.",
+        "summary": "Delete the named `Chart`. A chart pushed to Epinio's registry is removed from it as well.",
         "operationId": "ChartDelete",
         "parameters": [
           {

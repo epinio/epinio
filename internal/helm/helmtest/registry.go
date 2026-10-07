@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -87,6 +88,12 @@ func (r *Registry) Host() string {
 		panic(err)
 	}
 	return "localhost:" + port
+}
+
+// URL returns the address of the registry with scheme, as it appears in registry credentials. The
+// scheme is what makes code deleting images use https, instead of assuming http for localhost.
+func (r *Registry) URL() string {
+	return "https://" + r.Host()
 }
 
 // HasChart reports whether a manifest is stored for the tag of the repository.
@@ -254,9 +261,22 @@ func (r *Registry) serveManifest(w http.ResponseWriter, req *http.Request, repos
 		w.Header().Set("Docker-Content-Digest", manifest.digest)
 		w.WriteHeader(http.StatusCreated)
 
+	case http.MethodDelete:
+		// Manifests are deleted by digest. The tags pointing to it go with it.
+		if _, found := r.manifests[repository+"@"+reference]; !found {
+			writeError(w, http.StatusNotFound, "MANIFEST_UNKNOWN")
+			return
+		}
+		for key, m := range r.manifests {
+			if (m.digest == reference && strings.HasPrefix(key, repository+":")) || key == repository+"@"+reference {
+				delete(r.manifests, key)
+			}
+		}
+		w.WriteHeader(http.StatusAccepted)
+
 	case http.MethodGet, http.MethodHead:
 		key := repository + ":" + reference
-		if len(reference) > 7 && reference[:7] == "sha256:" {
+		if strings.HasPrefix(reference, "sha256:") {
 			key = repository + "@" + reference
 		}
 		manifest, found := r.manifests[key]

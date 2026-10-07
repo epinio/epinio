@@ -7,6 +7,7 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/helm/helmtest"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -91,7 +92,7 @@ var _ = Describe("Charts in a registry", func() {
 
 	appChartFor := func(appChartName, chartRef string) *models.AppChartFull {
 		return &models.AppChartFull{AppChart: models.AppChart{
-			HelmRepo:  "oci://" + reg.Host() + "/" + ChartRepositoryPath + "/" + appChartName,
+			HelmRepo:  "oci://" + reg.Host() + "/" + appchart.ChartRepositoryPath + "/" + appChartName,
 			HelmChart: chartRef,
 		}}
 	}
@@ -201,7 +202,7 @@ var _ = Describe("Charts in a registry", func() {
 
 	Describe("ChartRegistry", func() {
 		BeforeEach(func() {
-			setRegistrySecret(reg.Host())
+			setRegistrySecret(reg.URL())
 		})
 
 		It("keeps the chart of each application chart in a repository of its own", func() {
@@ -263,6 +264,64 @@ var _ = Describe("Charts in a registry", func() {
 			Expect(stored).To(BeTrue())
 		})
 
+		Describe("Delete", func() {
+			var r *ChartRegistry
+
+			BeforeEach(func() {
+				var err error
+				r, err = OpenChartRegistry(ctx, cluster, "myapp")
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("removes the chart, and all other versions in the repository of the application chart", func() {
+				Expect(r.Push(saveChart("mychart", "0.1.0"))).To(Succeed())
+				Expect(r.Push(saveChart("mychart", "0.2.0"))).To(Succeed())
+				Expect(reg.Tags("epinio-charts/myapp/mychart")).To(Equal([]string{"0.1.0", "0.2.0"}))
+
+				Expect(r.Delete(ctx, "mychart", "0.1.0")).To(Succeed())
+
+				Expect(reg.Tags("epinio-charts/myapp/mychart")).To(BeEmpty())
+				for _, version := range []string{"0.1.0", "0.2.0"} {
+					stored, err := r.HasChart("mychart", version)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(stored).To(BeFalse())
+				}
+			})
+
+			It("removes a version with build metadata", func() {
+				Expect(r.Push(saveChart("mychart", "1.0.0+build.1"))).To(Succeed())
+
+				Expect(r.Delete(ctx, "mychart", "1.0.0+build.1")).To(Succeed())
+				Expect(reg.Tags("epinio-charts/myapp/mychart")).To(BeEmpty())
+			})
+
+			It("leaves the charts of other application charts alone", func() {
+				other, err := OpenChartRegistry(ctx, cluster, "other")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(other.Push(saveChart("mychart", "0.1.0"))).To(Succeed())
+				Expect(r.Push(saveChart("mychart", "0.1.0"))).To(Succeed())
+
+				Expect(r.Delete(ctx, "mychart", "0.1.0")).To(Succeed())
+
+				Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeFalse())
+				Expect(reg.HasChart("epinio-charts/other/mychart", "0.1.0")).To(BeTrue())
+			})
+
+			It("accepts a chart which is not in the registry", func() {
+				Expect(r.Delete(ctx, "nothere", "0.1.0")).To(Succeed())
+			})
+
+			It("fails when the registry rejects the credentials", func() {
+				Expect(r.Push(saveChart("mychart", "0.1.0"))).To(Succeed())
+				reg.SetPassword("something-else")
+
+				err := r.Delete(ctx, "mychart", "0.1.0")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("deleting the chart"))
+				Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeTrue())
+			})
+		})
+
 		It("fails when the chart cannot be pushed", func() {
 			r, err := OpenChartRegistry(ctx, cluster, "myapp")
 			Expect(err).ToNot(HaveOccurred())
@@ -302,7 +361,7 @@ var _ = Describe("Charts in a registry", func() {
 
 	Describe("FetchOCIChartArchive", func() {
 		BeforeEach(func() {
-			setRegistrySecret(reg.Host())
+			setRegistrySecret(reg.URL())
 			seed("myapp", "mychart", "0.1.0")
 		})
 
@@ -366,7 +425,7 @@ var _ = Describe("Charts in a registry", func() {
 		var client *SynchronizedClient
 
 		BeforeEach(func() {
-			setRegistrySecret(reg.Host())
+			setRegistrySecret(reg.URL())
 			seed("myapp", "mychart", "0.1.0")
 			seed("myapp", "mychart", "0.2.0")
 
