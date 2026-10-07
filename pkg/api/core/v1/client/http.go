@@ -488,9 +488,9 @@ func (c *Client) handleAuthorization(request *http.Request) error {
 				c.Settings.Token.Expiry = newToken.Expiry
 				c.Settings.Token.TokenType = newToken.TokenType
 
-				// Settings which did not come from a file have nothing to write back to,
-				// and the filesystem may be read-only.
-				if c.Settings.Location != "" {
+				// Settings which come from the environment alone have no file to write back
+				// to, and the filesystem may be read-only.
+				if !c.Settings.EnvOnly() {
 					err := c.Settings.Save()
 					if err != nil {
 						return errors.Wrap(err, "failed saving refreshed token")

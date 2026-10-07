@@ -163,3 +163,97 @@ var _ = Describe("Settings API token", func() {
 		})
 	})
 })
+
+var _ = Describe("Settings without a file", func() {
+	var (
+		missingFile  string
+		settingsFile string
+	)
+
+	BeforeEach(func() {
+		dir := GinkgoT().TempDir()
+		missingFile = filepath.Join(dir, "missing.yaml")
+		settingsFile = filepath.Join(dir, "settings.yaml")
+
+		GinkgoT().Setenv("EPINIO_API", "")
+	})
+
+	Describe("EnvOnly", func() {
+		It("is true without a file, when the API comes from the environment", func() {
+			GinkgoT().Setenv("EPINIO_API", "https://epinio.example.com")
+
+			cfg, err := settings.LoadFrom(missingFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(cfg.EnvOnly()).To(BeTrue())
+		})
+
+		It("is false without a file and without an API", func() {
+			cfg, err := settings.LoadFrom(missingFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(cfg.EnvOnly()).To(BeFalse())
+		})
+
+		It("is false with a file, even when the API is overridden by the environment", func() {
+			Expect(os.WriteFile(settingsFile, []byte("user: admin\n"), 0600)).To(Succeed())
+			GinkgoT().Setenv("EPINIO_API", "https://epinio.example.com")
+
+			cfg, err := settings.LoadFrom(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(cfg.EnvOnly()).To(BeFalse())
+		})
+	})
+
+	Describe("Origin", func() {
+		It("names the environment", func() {
+			GinkgoT().Setenv("EPINIO_API", "https://epinio.example.com")
+
+			cfg, err := settings.LoadFrom(missingFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(cfg.Origin()).To(Equal("<environment>"))
+		})
+
+		It("is the absolute path of the settings file", func() {
+			Expect(os.WriteFile(settingsFile, []byte("user: admin\n"), 0600)).To(Succeed())
+
+			cfg, err := settings.LoadFrom(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(cfg.Origin()).To(Equal(settingsFile))
+		})
+	})
+
+	Describe("SaveUnlessEnvOnly", func() {
+		It("refuses to write a file for settings from the environment", func() {
+			GinkgoT().Setenv("EPINIO_API", "https://epinio.example.com")
+			GinkgoT().Setenv("EPINIO_PASSWORD", "secret")
+
+			cfg, err := settings.LoadFrom(missingFile)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(cfg.SaveUnlessEnvOnly()).To(MatchError(settings.ErrEnvOnly))
+			Expect(missingFile).ToNot(BeAnExistingFile())
+		})
+
+		It("saves settings which came from a file", func() {
+			Expect(os.WriteFile(settingsFile, []byte("user: admin\n"), 0600)).To(Succeed())
+
+			cfg, err := settings.LoadFrom(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			cfg.Namespace = "targeted"
+
+			Expect(cfg.SaveUnlessEnvOnly()).To(Succeed())
+
+			content, err := os.ReadFile(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(content)).To(ContainSubstring("namespace: targeted"))
+		})
+
+		It("still creates the file when nothing comes from the environment", func() {
+			cfg, err := settings.LoadFrom(missingFile)
+			Expect(err).ToNot(HaveOccurred())
+			cfg.Colors = false
+
+			Expect(cfg.SaveUnlessEnvOnly()).To(Succeed())
+			Expect(missingFile).To(BeAnExistingFile())
+		})
+	})
+})

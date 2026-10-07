@@ -134,7 +134,7 @@ func (c *EpinioClient) Target(namespace string) error {
 
 	details.Info("set settings")
 	c.Settings.Namespace = namespace
-	err = c.Settings.Save()
+	err = c.Settings.SaveUnlessEnvOnly()
 	if err != nil {
 		return errors.Wrap(err, "failed to save settings")
 	}

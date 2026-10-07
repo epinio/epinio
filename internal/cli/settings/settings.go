@@ -223,6 +223,33 @@ func (c *Settings) resolvePassword() error {
 	return nil
 }
 
+// ErrEnvOnly is returned when settings which come from the environment alone are to be saved.
+var ErrEnvOnly = errors.New("settings come from the environment only, there is no settings file to save to; set the matching EPINIO_ variable instead")
+
+// EnvOnly reports whether the settings come from the environment alone: there is no settings
+// file, but an API server is configured.
+func (c *Settings) EnvOnly() bool {
+	return c.Location == "" && c.API != ""
+}
+
+// Origin describes where the settings come from, for display.
+func (c *Settings) Origin() string {
+	if c.EnvOnly() {
+		return "<environment>"
+	}
+	return helpers.AbsPath(c.Location)
+}
+
+// SaveUnlessEnvOnly is Save for commands which only adjust a setting, like the current
+// namespace. Writing a file for settings which come from the environment alone would persist
+// the environment's credentials to disk.
+func (c *Settings) SaveUnlessEnvOnly() error {
+	if c.EnvOnly() {
+		return ErrEnvOnly
+	}
+	return c.Save()
+}
+
 // String generates a string representation of the settings (for debugging)
 func (c *Settings) String() string {
 	return fmt.Sprintf(

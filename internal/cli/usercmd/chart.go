@@ -36,7 +36,7 @@ func (c *EpinioClient) ChartDefaultSet(ctx context.Context, chartName string) er
 
 	// Save to settings
 	c.Settings.AppChart = chartName
-	err := c.Settings.Save()
+	err := c.Settings.SaveUnlessEnvOnly()
 	if err != nil {
 		return errors.Wrap(err, "failed to save settings")
 	}
