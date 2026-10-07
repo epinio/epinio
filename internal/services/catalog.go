@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	apiv1 "github.com/epinio/application/api/v1"
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
@@ -119,21 +120,41 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(
 
 	// if a secret was specified try to load the credentials from it
 	var repoUsername, repoPassword string
-	if catalogService.Spec.HelmRepo.Secret != "" {
-		authSecret, err := s.kubeClient.GetSecret(
+	secretName := catalogService.Spec.HelmRepo.Secret
+
+	if secretName != "" {
+		authSecret, secretError := s.kubeClient.GetSecret(
 			context.Background(),
 			helmchart.Namespace(),
-			catalogService.Spec.HelmRepo.Secret,
+			secretName,
 		)
-		if err != nil {
+
+		switch {
+		case secretError == nil:
+			repoUsername = string(authSecret.Data["username"])
+			repoPassword = string(authSecret.Data["password"])
+
+		case k8sapierrors.IsNotFound(secretError):
+			// The referenced secret is gone, or was never created. Reading
+			// the catalog must not fail for that: a single broken entry
+			// would otherwise take the whole listing down with it. Report
+			// the entry without credentials instead. Deploying from the
+			// repository then fails on its own, with an auth error naming
+			// the actual problem.
+			logger := helpers.Logger.With("component", "catalog-service")
+			logger.Warnw(
+				"helm repo auth secret not found, "+
+					"continuing without credentials",
+				"catalogService", unstructured.GetName(),
+				"secret", secretName,
+			)
+
+		default:
 			return nil, errors.Wrap(
-				err,
-				"finding helm repo auth secret: "+catalogService.Spec.HelmRepo.Secret,
+				secretError,
+				"finding helm repo auth secret: "+secretName,
 			)
 		}
-
-		repoUsername = string(authSecret.Data["username"])
-		repoPassword = string(authSecret.Data["password"])
 	}
 
 	secretTypes := []string{}
