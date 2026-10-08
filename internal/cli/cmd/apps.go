@@ -477,6 +477,7 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
 	cmd.Flags().String("build-mode", "", "Staging build mode: buildpack (default) or dockerfile")
 	cmd.Flags().String("dockerfile-path", "", "Path to Dockerfile within the application sources (default: Dockerfile)")
+	cmd.Flags().String("source-path", "", "Subdirectory within application sources used as the buildpack app root (monorepos)")
 
 	gitConfigOption(cmd, client)
 	routeOption(cmd)

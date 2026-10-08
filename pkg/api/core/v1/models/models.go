@@ -208,12 +208,76 @@ func ValidateDockerfilePath(dockerfilePath string) (string, error) {
 	return cleaned, nil
 }
 
+// SourcePathRoot is the sentinel value meaning "use the sources archive/repo
+// root" for buildpack staging. It is kept distinct from "" so clients can
+// explicitly clear a previously stored subdirectory (empty in a request means
+// "leave the stored value unchanged").
+const SourcePathRoot = "."
+
+// ValidateSourcePath returns a safe application source root relative to the
+// uploaded/cloned sources (for buildpack staging). Absolute paths, ".."
+// segments, and unexpected characters are rejected so the value cannot escape
+// /workspace/source/app.
+//
+// Empty input stays empty (caller did not provide a path). "." / "./" normalize
+// to SourcePathRoot so an explicit reset to the sources root can be sent.
+func ValidateSourcePath(sourcePath string) (string, error) {
+	trimmed := strings.TrimSpace(sourcePath)
+	if trimmed == "" {
+		return "", nil
+	}
+
+	if path.IsAbs(trimmed) || filepath.IsAbs(trimmed) ||
+		(len(trimmed) >= 2 && trimmed[1] == ':') ||
+		strings.HasPrefix(trimmed, `\\`) {
+		return "", fmt.Errorf("invalid source path %q: absolute paths are not allowed", sourcePath)
+	}
+
+	normalized := filepath.ToSlash(trimmed)
+	for _, part := range strings.Split(normalized, "/") {
+		if part == ".." {
+			return "", fmt.Errorf("invalid source path %q: paths must not contain '..'", sourcePath)
+		}
+	}
+
+	cleaned := path.Clean(normalized)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || path.IsAbs(cleaned) {
+		return "", fmt.Errorf("invalid source path %q: path must stay within application sources", sourcePath)
+	}
+
+	for _, r := range cleaned {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '.' || r == '_' || r == '-' || r == '/' {
+			continue
+		}
+		return "", fmt.Errorf("invalid source path %q: only letters, digits, '.', '_', '-', and '/' are allowed", sourcePath)
+	}
+
+	if cleaned == "." {
+		return SourcePathRoot, nil
+	}
+	return cleaned, nil
+}
+
+// NormalizeSourcePathForStaging maps a validated source path to the value
+// stored on the app CR and used as SOURCE_PATH. SourcePathRoot becomes "".
+func NormalizeSourcePathForStaging(sourcePath string) string {
+	if sourcePath == "" || sourcePath == SourcePathRoot {
+		return ""
+	}
+	return sourcePath
+}
+
 // ApplicationStage is the part of the manifest holding information
 // relevant to staging the application's sources.
 type ApplicationStage struct {
 	Builder        string `yaml:"builder,omitempty" json:"builder,omitempty"`
 	BuildMode      string `yaml:"buildMode,omitempty" json:"buildMode,omitempty"`
 	DockerfilePath string `yaml:"dockerfilePath,omitempty" json:"dockerfilePath,omitempty"`
+	// SourcePath is the subdirectory within application sources used as the
+	// buildpack app root (monorepo support). Empty means unset in a request
+	// (keep stored value). Use "." (SourcePathRoot) to reset to the sources root.
+	SourcePath string `yaml:"sourcePath,omitempty" json:"sourcePath,omitempty"`
 }
 
 // ApplicationConfiguration is the part of the manifest describing the configuration of the application
@@ -339,6 +403,7 @@ type StageRequest struct {
 	BuilderImage   string `json:"builderimage,omitempty"`
 	BuildMode      string `json:"buildmode,omitempty"`
 	DockerfilePath string `json:"dockerfilepath,omitempty"`
+	SourcePath     string `json:"sourcepath,omitempty"`
 }
 
 // StageResponse represents the server's response to a successful app staging
@@ -395,6 +460,7 @@ type AsyncDeployRequest struct {
 	BuilderImage   string            `json:"builderimage,omitempty"`
 	BuildMode      string            `json:"buildmode,omitempty"`
 	DockerfilePath string            `json:"dockerfilepath,omitempty"`
+	SourcePath     string            `json:"sourcepath,omitempty"`
 	ImageURL       string            `json:"image,omitempty"`
 	Origin         ApplicationOrigin `json:"origin,omitempty"`
 }

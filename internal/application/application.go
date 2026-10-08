@@ -1331,6 +1331,20 @@ func DockerfilePath(app *unstructured.Unstructured) (string, error) {
 	return path, nil
 }
 
+// SourcePath returns the buildpack source root path stored on the app resource.
+func SourcePath(app *unstructured.Unstructured) (string, error) {
+	path, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"sourcepath",
+	)
+	if err != nil {
+		return "", errors.New("sourcepath should be string")
+	}
+
+	return path, nil
+}
+
 // ErrBlobCleanupIncomplete is returned when blob cleanup could not complete
 // due to storage quota issues. The unstaging operation succeeded for jobs and
 // secrets, but some blobs remain in S3 storage. This is a non-fatal warning
@@ -1867,6 +1881,11 @@ func aggregate(ctx context.Context,
 		return nil, errors.Wrap(err, "finding the dockerfile path")
 	}
 
+	sourcePath, err := SourcePath(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the source path")
+	}
+
 	settings, err := Settings(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding settings")
@@ -1898,6 +1917,7 @@ func aggregate(ctx context.Context,
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath
+	app.Staging.SourcePath = sourcePath
 
 	// IV. Assemble the deployment structure for active applications.
 
@@ -2070,6 +2090,14 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	sourcePath, err := SourcePath(applicationCR)
+	if err != nil {
+		err = errors.Wrap(err, "finding the source path")
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+		return err
+	}
+
 	settings, err := Settings(applicationCR)
 	if err != nil {
 		err = errors.Wrap(err, "finding settings")
@@ -2095,6 +2123,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath
+	app.Staging.SourcePath = sourcePath
 
 	// Check if app is active, and if yes, fill the associated parts.  May have to
 	// straighten the workload structure a bit further.
