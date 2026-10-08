@@ -94,7 +94,7 @@ type ChartCreateResponse struct{}
 
 // swagger:route POST /appcharts/push appcharts ChartPush
 // Upload a helm chart archive. It is pushed to Epinio's registry, and a new appchart
-// referencing it is created.
+// referencing it is created. For the name of an appchart pushed before, which no application uses, its chart is replaced.
 // consumes:
 //   - multipart/form-data
 // responses:
@@ -124,7 +124,7 @@ type ChartPushResponse struct {
 }
 
 // swagger:route PATCH /appcharts/{Chart} appcharts ChartUpdate
-// Update fields on the named `Chart`.
+// Update fields on the named `Chart`. The chart and repository cannot be changed while applications use the `Chart`, nor for a chart pushed to Epinio's registry.
 // responses:
 //   200: ChartUpdateResponse
 

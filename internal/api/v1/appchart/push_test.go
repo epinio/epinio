@@ -236,7 +236,7 @@ var _ = Describe("Push AppChart API", func() {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{Name: registry.CredentialsSecretName, Namespace: epinioNamespace},
 				Data: map[string][]byte{".dockerconfigjson": []byte(
-					`{"auths":{"` + reg.Host() + `":{"username":"admin","password":"changeme"}}}`)},
+					`{"auths":{"` + reg.URL() + `":{"username":"admin","password":"changeme"}}}`)},
 				Type: corev1.SecretTypeDockerConfigJson,
 			}
 
@@ -260,20 +260,20 @@ var _ = Describe("Push AppChart API", func() {
 			Expect(calls()).To(HaveLen(1))
 		})
 
-		It("refuses a chart version which is already stored, and creates nothing", func() {
+		It("replaces a chart left behind in the registry by a deleted application chart", func() {
 			Expect(push(saveChart(""), map[string]string{"name": "myapp"})).To(BeNil())
 			Expect(created).To(HaveLen(1))
 
-			// The fake cluster does not keep the application chart. The registry is what
-			// rejects the second push, for the same chart name and version.
+			// The fake cluster does not keep the application chart, the name is free again. What
+			// stays is its chart in the registry, which must not block the name.
 			recorder = httptest.NewRecorder()
 			err := push(saveChart(""), map[string]string{"name": "myapp"})
-			Expect(err).ToNot(BeNil())
-			Expect(err.FirstStatus()).To(Equal(http.StatusConflict))
-			Expect(err.Errors()[0].Details).To(ContainSubstring("bump the version"))
+			Expect(err).To(BeNil())
+			Expect(recorder.Code).To(Equal(http.StatusOK))
 
-			Expect(created).To(HaveLen(1))
-			Expect(calls()).To(HaveLen(1))
+			Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeTrue())
+			Expect(created).To(HaveLen(2))
+			Expect(calls()).To(HaveLen(2))
 		})
 
 		It("removes the application chart again when the push fails", func() {

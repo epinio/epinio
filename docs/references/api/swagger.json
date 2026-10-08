@@ -48,7 +48,7 @@
     },
     "/appcharts/push": {
       "post": {
-        "description": "Upload a helm chart archive. It is pushed to Epinio's registry, and a new appchart\nreferencing it is created.",
+        "description": "Upload a helm chart archive. It is pushed to Epinio's registry, and a new appchart\nreferencing it is created. For the name of an appchart pushed before, which no application uses, its chart is replaced.",
         "consumes": [
           "multipart/form-data"
         ],
@@ -138,7 +138,7 @@
         "tags": [
           "appcharts"
         ],
-        "summary": "Update fields on the named `Chart`.",
+        "summary": "Update fields on the named `Chart`. The chart and repository cannot be changed while applications use the `Chart`, nor for a chart pushed to Epinio's registry.",
         "operationId": "ChartUpdate",
         "parameters": [
           {

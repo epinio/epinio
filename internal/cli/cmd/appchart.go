@@ -144,6 +144,9 @@ func NewAppChartPushCmd(client AppchartsService) *cobra.Command {
 		Long: `Push a helm chart archive (a .tgz, as created by 'helm package') to Epinio's own
 registry, and create the application chart NAME referencing it.
 
+When NAME is an application chart which was pushed before, its chart is replaced. This is
+refused while applications use the application chart.
+
 The registry credentials are held by the Epinio server. They are neither needed nor exposed.`,
 		Example: "epinio app chart push mychart ./mychart-0.1.0.tgz --short-description 'My chart'",
 		Args:    cobra.ExactArgs(2),

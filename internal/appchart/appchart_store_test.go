@@ -66,6 +66,11 @@ var _ = Describe("AppChart store", func() {
 		openErr  error
 		open     appchart.OpenChartStore
 		notFound error
+
+		inUse     bool
+		inUseErr  error
+		asked     []string // names the bound applications were asked for
+		boundApps appchart.BoundApps
 	)
 
 	BeforeEach(func() {
@@ -73,6 +78,12 @@ var _ = Describe("AppChart store", func() {
 		calls = nil
 		opened = nil
 		openErr = nil
+
+		inUse, inUseErr, asked = false, nil, nil
+		boundApps = func(_ context.Context, name string) (bool, error) {
+			asked = append(asked, name)
+			return inUse, inUseErr
+		}
 
 		oldLogger := helpers.Logger
 		helpers.Logger = zap.NewNop().Sugar()
@@ -204,7 +215,7 @@ var _ = Describe("AppChart store", func() {
 		})
 
 		It("creates the application chart before it stores the chart", func() {
-			result, err := appchart.Push(ctx, fakeNS, open, request)
+			result, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(result).To(Equal(&models.AppChartPushResponse{
@@ -213,11 +224,11 @@ var _ = Describe("AppChart store", func() {
 				HelmRepo:  "oci://registry.example.com/epinio-charts/myapp",
 			}))
 			Expect(opened).To(Equal([]string{"myapp"}))
-			Expect(calls).To(Equal([]string{"has mychart:0.1.0", "create", "push"}))
+			Expect(calls).To(Equal([]string{"create", "has mychart:0.1.0", "push"}))
 		})
 
 		It("creates the application chart for the stored chart", func() {
-			_, err := appchart.Push(ctx, fakeNS, open, request)
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, created, _, _ := fakeRI.CreateArgsForCall(0)
@@ -234,7 +245,7 @@ var _ = Describe("AppChart store", func() {
 		It("refuses a name which is taken, without touching the store", func() {
 			existing("https://example.com/chart.tgz", "")
 
-			_, err := appchart.Push(ctx, fakeNS, open, request)
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 
 			var exists *appchart.AlreadyExistsError
 			Expect(errors.As(err, &exists)).To(BeTrue())
@@ -246,7 +257,7 @@ var _ = Describe("AppChart store", func() {
 		It("reports a failure to look for the application chart", func() {
 			fakeRI.GetReturns(nil, errors.New("api server unavailable"))
 
-			_, err := appchart.Push(ctx, fakeNS, open, request)
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 			Expect(err).To(MatchError(ContainSubstring("api server unavailable")))
 			Expect(opened).To(BeEmpty())
 		})
@@ -254,28 +265,50 @@ var _ = Describe("AppChart store", func() {
 		It("creates nothing when the store cannot be opened", func() {
 			openErr = errors.New("no registry")
 
-			_, err := appchart.Push(ctx, fakeNS, open, request)
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 			Expect(err).To(MatchError(ContainSubstring("no registry")))
 			Expect(calls).To(BeEmpty())
 		})
 
-		It("refuses a chart version which is already stored, and creates nothing", func() {
-			store.stored = true
+		It("reports a name taken by a concurrent push as taken", func() {
+			fakeRI.CreateCalls(func(context.Context, *unstructured.Unstructured, metav1.CreateOptions, ...string) (*unstructured.Unstructured, error) {
+				calls = append(calls, "create")
+				return nil, k8sapierrors.NewAlreadyExists(schema.GroupResource{Resource: "appcharts"}, "myapp")
+			})
 
-			_, err := appchart.Push(ctx, fakeNS, open, request)
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 
-			var stored *appchart.ChartVersionStoredError
-			Expect(errors.As(err, &stored)).To(BeTrue())
-			Expect(stored).To(Equal(&appchart.ChartVersionStoredError{AppChart: "myapp", Chart: "mychart", Version: "0.1.0"}))
-			Expect(calls).To(Equal([]string{"has mychart:0.1.0"}))
+			var exists *appchart.AlreadyExistsError
+			Expect(errors.As(err, &exists)).To(BeTrue())
+			Expect(exists.Name).To(Equal("myapp"))
+			Expect(calls).To(Equal([]string{"create"}))
 		})
 
-		It("creates nothing when it cannot tell whether the chart is stored", func() {
+		It("replaces a chart left behind in the registry, once the name is reserved", func() {
+			store.stored = true
+
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(calls).To(Equal([]string{"create", "has mychart:0.1.0", "delete-chart mychart:0.1.0", "push"}))
+		})
+
+		It("removes the application chart again when the chart left behind cannot be removed", func() {
+			store.stored = true
+			store.deleteErr = errors.New("registry down")
+
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
+			Expect(err).To(MatchError(ContainSubstring("registry down")))
+			Expect(calls).To(Equal([]string{
+				"create", "has mychart:0.1.0", "delete-chart mychart:0.1.0", "delete-appchart myapp",
+			}))
+		})
+
+		It("removes the application chart again when it cannot tell whether the chart is stored", func() {
 			store.hasErr = errors.New("registry down")
 
-			_, err := appchart.Push(ctx, fakeNS, open, request)
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 			Expect(err).To(MatchError(ContainSubstring("registry down")))
-			Expect(calls).To(Equal([]string{"has mychart:0.1.0"}))
+			Expect(calls).To(Equal([]string{"create", "has mychart:0.1.0", "delete-appchart myapp"}))
 		})
 
 		It("does not store the chart when the application chart cannot be created", func() {
@@ -284,19 +317,19 @@ var _ = Describe("AppChart store", func() {
 				return nil, errors.New("create denied")
 			})
 
-			_, err := appchart.Push(ctx, fakeNS, open, request)
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 			Expect(err).To(MatchError(ContainSubstring("create denied")))
-			Expect(calls).To(Equal([]string{"has mychart:0.1.0", "create"}))
+			Expect(calls).To(Equal([]string{"create"}))
 		})
 
 		It("removes the application chart again when the push fails", func() {
 			store.pushErr = errors.New("registry rejected the chart")
 
-			result, err := appchart.Push(ctx, fakeNS, open, request)
+			result, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 			Expect(result).To(BeNil())
 			Expect(err).To(MatchError(ContainSubstring("registry rejected the chart")))
 			Expect(err).To(MatchError(ContainSubstring("pushing the chart to the registry")))
-			Expect(calls).To(Equal([]string{"has mychart:0.1.0", "create", "push", "delete-appchart myapp"}))
+			Expect(calls).To(Equal([]string{"create", "has mychart:0.1.0", "push", "delete-appchart myapp"}))
 		})
 
 		It("still reports the failed push when the application chart cannot be removed", func() {
@@ -304,7 +337,7 @@ var _ = Describe("AppChart store", func() {
 			fakeRI.DeleteReturns(errors.New("delete denied"))
 			fakeRI.DeleteCalls(nil)
 
-			_, err := appchart.Push(ctx, fakeNS, open, request)
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
 			Expect(err).To(MatchError(ContainSubstring("registry rejected the chart")))
 			Expect(fakeRI.DeleteCallCount()).To(Equal(1))
 		})
@@ -315,11 +348,234 @@ var _ = Describe("AppChart store", func() {
 			cancel()
 
 			// The existence check, and the creation, do not look at the context here.
-			_, err := appchart.Push(canceled, fakeNS, open, request)
+			_, err := appchart.Push(canceled, fakeNS, open, boundApps, request)
 			Expect(err).To(HaveOccurred())
 
 			deleteCtx, _, _, _ := fakeRI.DeleteArgsForCall(0)
 			Expect(deleteCtx.Err()).ToNot(HaveOccurred())
+		})
+	})
+
+	Describe("Push, to the name of an existing application chart", func() {
+		const storedRepo = "oci://registry.example.com/epinio-charts/myapp"
+
+		var (
+			request appchart.PushRequest
+			patched map[string]interface{} // spec the application chart was updated to
+		)
+
+		BeforeEach(func() {
+			patched = nil
+			fakeRI.UpdateCalls(func(_ context.Context, obj *unstructured.Unstructured, _ metav1.UpdateOptions, _ ...string) (*unstructured.Unstructured, error) {
+				calls = append(calls, "update")
+				patched, _, _ = unstructured.NestedMap(obj.Object, "spec")
+				return obj, nil
+			})
+
+			path := saveChart("mychart", "0.2.0", "")
+			ch, err := appchart.LoadChartArchive(path)
+			Expect(err).ToNot(HaveOccurred())
+
+			request = appchart.PushRequest{Name: "myapp", Description: "long", ArchivePath: path, Chart: ch}
+		})
+
+		It("replaces the chart of a pushed application chart, storing it before the change", func() {
+			existing("mychart:0.1.0", storedRepo)
+
+			result, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(result).To(Equal(&models.AppChartPushResponse{
+				Name: "myapp", HelmChart: "mychart:0.2.0", HelmRepo: storedRepo,
+			}))
+			Expect(asked).To(Equal([]string{"myapp"}))
+			Expect(calls).To(Equal([]string{"push", "update"}))
+			Expect(patched).To(HaveKeyWithValue("helmChart", "mychart:0.2.0"))
+			Expect(patched).To(HaveKeyWithValue("helmRepo", storedRepo))
+			Expect(patched).To(HaveKeyWithValue("description", "long"))
+		})
+
+		It("removes the replaced chart last, when the new chart has another name", func() {
+			existing("oldchart:0.1.0", storedRepo)
+
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(calls).To(Equal([]string{"push", "update", "delete-chart oldchart:0.1.0"}))
+		})
+
+		It("succeeds when the replaced chart cannot be removed", func() {
+			existing("oldchart:0.1.0", storedRepo)
+			store.deleteErr = errors.New("registry down")
+
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("refuses while applications use the application chart, and stores nothing", func() {
+			existing("mychart:0.1.0", storedRepo)
+			inUse = true
+
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
+
+			var inUseError *appchart.InUseError
+			Expect(errors.As(err, &inUseError)).To(BeTrue())
+			Expect(calls).To(BeEmpty())
+		})
+
+		It("stores nothing when it cannot tell whether applications use the application chart", func() {
+			existing("mychart:0.1.0", storedRepo)
+			inUseErr = errors.New("api server unavailable")
+
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
+			Expect(err).To(MatchError(ContainSubstring("api server unavailable")))
+			Expect(calls).To(BeEmpty())
+		})
+
+		It("reports the name of a chart in another registry, with the same path, as taken", func() {
+			existing("mychart:0.1.0", "oci://elsewhere.example.com/epinio-charts/myapp")
+
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
+
+			var exists *appchart.AlreadyExistsError
+			Expect(errors.As(err, &exists)).To(BeTrue())
+			Expect(asked).To(BeEmpty())
+			Expect(calls).To(BeEmpty())
+		})
+
+		It("leaves the application chart alone when the chart cannot be stored", func() {
+			existing("mychart:0.1.0", storedRepo)
+			store.pushErr = errors.New("registry rejected the chart")
+
+			_, err := appchart.Push(ctx, fakeNS, open, boundApps, request)
+			Expect(err).To(MatchError(ContainSubstring("registry rejected the chart")))
+			Expect(calls).To(Equal([]string{"push"}))
+		})
+	})
+
+	Describe("UpdateWithChart", func() {
+		const storedRepo = "oci://registry.example.com/epinio-charts/myapp"
+
+		var updated bool
+
+		BeforeEach(func() {
+			updated = false
+			fakeRI.UpdateCalls(func(_ context.Context, obj *unstructured.Unstructured, _ metav1.UpdateOptions, _ ...string) (*unstructured.Unstructured, error) {
+				updated = true
+				return obj, nil
+			})
+		})
+
+		locked := func(err error) bool {
+			var lockedErr *appchart.LocationLockedError
+			return errors.As(err, &lockedErr)
+		}
+
+		It("refuses to change the location of a chart which applications use", func() {
+			existing("https://example.com/chart-1.tgz", "")
+			inUse = true
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{HelmChart: "https://example.com/chart-2.tgz"})
+
+			var inUseError *appchart.InUseError
+			Expect(errors.As(err, &inUseError)).To(BeTrue())
+			Expect(asked).To(Equal([]string{"myapp"}))
+			Expect(updated).To(BeFalse())
+		})
+
+		It("reports a stored chart which applications use as in use, without opening the store", func() {
+			existing("mychart:0.1.0", storedRepo)
+			inUse = true
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{HelmChart: "other:1.0.0"})
+
+			var inUseError *appchart.InUseError
+			Expect(errors.As(err, &inUseError)).To(BeTrue())
+			Expect(opened).To(BeEmpty())
+			Expect(updated).To(BeFalse())
+		})
+
+		It("updates the other fields of a chart which applications use, without looking for them", func() {
+			existing("https://example.com/chart-1.tgz", "")
+			inUse = true
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{
+				Description: "new", HelmChart: "https://example.com/chart-1.tgz",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(asked).To(BeEmpty())
+			Expect(updated).To(BeTrue())
+		})
+
+		It("changes nothing when it cannot tell whether applications use the chart", func() {
+			existing("https://example.com/chart-1.tgz", "")
+			inUseErr = errors.New("api server unavailable")
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{HelmChart: "https://example.com/chart-2.tgz"})
+			Expect(err).To(MatchError(ContainSubstring("api server unavailable")))
+			Expect(updated).To(BeFalse())
+		})
+
+		It("refuses to change the chart of a stored chart", func() {
+			existing("mychart:0.1.0", storedRepo)
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{HelmChart: "other:1.0.0"})
+			Expect(locked(err)).To(BeTrue())
+			Expect(updated).To(BeFalse())
+		})
+
+		It("refuses to change the repository of a stored chart", func() {
+			existing("mychart:0.1.0", storedRepo)
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{HelmRepo: "https://example.com/charts"})
+			Expect(locked(err)).To(BeTrue())
+			Expect(updated).To(BeFalse())
+		})
+
+		It("accepts the unchanged location of a stored chart", func() {
+			existing("mychart:0.1.0", storedRepo)
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{
+				Description: "new", HelmChart: "mychart:0.1.0", HelmRepo: storedRepo,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opened).To(BeEmpty())
+			Expect(updated).To(BeTrue())
+		})
+
+		It("updates the other fields of a stored chart without opening the store", func() {
+			existing("mychart:0.1.0", storedRepo)
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{Description: "new"})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opened).To(BeEmpty())
+			Expect(updated).To(BeTrue())
+		})
+
+		It("changes the location of a chart given by url, without opening the store", func() {
+			existing("https://example.com/chart-1.tgz", "")
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{HelmChart: "https://example.com/chart-2.tgz"})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opened).To(BeEmpty())
+			Expect(updated).To(BeTrue())
+		})
+
+		It("changes the location of a chart in another registry, with the same path", func() {
+			existing("mychart:0.1.0", "oci://elsewhere.example.com/epinio-charts/myapp")
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{HelmChart: "mychart:0.2.0"})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opened).To(Equal([]string{"myapp"}))
+			Expect(updated).To(BeTrue())
+		})
+
+		It("changes nothing when the store cannot be opened", func() {
+			existing("mychart:0.1.0", storedRepo)
+			openErr = errors.New("no registry")
+
+			err := appchart.UpdateWithChart(ctx, fakeNS, open, boundApps, "myapp", models.AppChartUpdateRequest{HelmChart: "other:1.0.0"})
+			Expect(err).To(MatchError(ContainSubstring("no registry")))
+			Expect(updated).To(BeFalse())
 		})
 	})
 
