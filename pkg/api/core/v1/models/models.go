@@ -531,6 +531,14 @@ type AppChartCreateRequest struct {
 	Values           map[string]string       `json:"values,omitempty"`
 }
 
+// AppChartPushResponse is the server's response to a successful push of a chart archive. It
+// names the application chart created for the pushed chart, and where the chart was stored.
+type AppChartPushResponse struct {
+	Name      string `json:"name,omitempty"`
+	HelmChart string `json:"helm_chart,omitempty"`
+	HelmRepo  string `json:"helm_repo,omitempty"`
+}
+
 type AppChartUpdateRequest struct {
 	Description      string                  `json:"description,omitempty"`
 	ShortDescription string                  `json:"short_description,omitempty"`

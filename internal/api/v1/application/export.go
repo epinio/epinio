@@ -29,7 +29,6 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/registry"
-	"github.com/epinio/epinio/internal/urlcache"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -465,17 +464,11 @@ func fetchAppChartFile(
 		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
 	}
 
-	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig)
+	chartArchive, cleanup, err := chartArchiveFile(ctx, cluster, appChart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-
-	log.Infow("input", "chart-url", chartArchive)
-
-	chartArchive, err = urlcache.Get(ctx, chartArchive)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
+	defer cleanup()
 
 	log.Infow("input", "chart-file", chartArchive)
 

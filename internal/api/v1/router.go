@@ -223,6 +223,7 @@ var Routes = routes.NamedRoutes{
 
 	// App charts
 	"ChartCreate": post("/appcharts", errorHandler(appchart.Create)),
+	"ChartPush":   post("/appcharts/push", errorHandler(appchart.Push)),
 	"ChartList":   get("/appcharts", errorHandler(appchart.Index)),
 	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Match)),
 	"ChartMatch0": get("/appchartsmatch", errorHandler(appchart.Match)),

@@ -27,6 +27,7 @@ type AppchartsService interface {
 	ChartList(ctx context.Context) error
 	ChartShow(ctx context.Context, name string) error
 	ChartCreate(ctx context.Context, request models.AppChartCreateRequest) error
+	ChartPush(ctx context.Context, name, archivePath, description, shortDescription string) error
 	ChartUpdate(ctx context.Context, name string, request models.AppChartUpdateRequest) error
 	ChartDelete(ctx context.Context, name string) error
 
@@ -46,6 +47,7 @@ func NewAppChartCmd(client AppchartsService) *cobra.Command {
 		NewAppChartListCmd(client),
 		NewAppChartShowCmd(client),
 		NewAppChartCreateCmd(client),
+		NewAppChartPushCmd(client),
 		NewAppChartUpdateCmd(client),
 		NewAppChartDeleteCmd(client),
 	)
@@ -128,6 +130,38 @@ func NewAppChartCreateCmd(client AppchartsService) *cobra.Command {
 
 	cmd.Flags().StringVar(&cfg.name, "name", "", "application chart name (required)")
 	appChartWriteFlags(cmd, &cfg)
+
+	return cmd
+}
+
+// NewAppChartPushCmd returns a new `epinio app chart push` command
+func NewAppChartPushCmd(client AppchartsService) *cobra.Command {
+	var description, shortDescription string
+
+	cmd := &cobra.Command{
+		Use:   "push NAME CHART-ARCHIVE [flags]",
+		Short: "Push a helm chart archive to Epinio's registry as application chart",
+		Long: `Push a helm chart archive (a .tgz, as created by 'helm package') to Epinio's own
+registry, and create the application chart NAME referencing it.
+
+When NAME is an application chart which was pushed before, its chart is replaced. This is
+refused while applications use the application chart.
+
+The registry credentials are held by the Epinio server. They are neither needed nor exposed.`,
+		Example: "epinio app chart push mychart ./mychart-0.1.0.tgz --short-description 'My chart'",
+		Args:    cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			return errors.Wrap(
+				client.ChartPush(cmd.Context(), args[0], args[1], description, shortDescription),
+				"error pushing app chart",
+			)
+		},
+	}
+
+	cmd.Flags().StringVar(&description, "description", "", "long description")
+	cmd.Flags().StringVar(&shortDescription, "short-description", "", "short description")
 
 	return cmd
 }

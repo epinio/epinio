@@ -37,8 +37,9 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.AppChartIsNotKnown(chartName)
 	}
 
+	// This also removes the chart from Epinio's registry, if the application chart was pushed.
 	log.Infow("delete appchart resource", "name", chartName)
-	deleteError := appchart.Delete(ctx, client, chartName)
+	deleteError := appchart.DeleteWithChart(ctx, client, chartStoreOpener(cluster), chartName)
 
 	if deleteError != nil {
 		return apierror.InternalError(deleteError)
