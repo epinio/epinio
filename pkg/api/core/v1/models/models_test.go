@@ -16,6 +16,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v2"
 )
 
 var _ = Describe("ApplicationOrigin String()", func() {
@@ -124,6 +125,69 @@ var _ = Describe("ApplicationOrigin String()", func() {
 			update := models.NewApplicationUpdateRequest(m)
 			Expect(update.ReplaceEnv).To(BeNil())
 		})
+	})
+})
+
+var _ = Describe("ApplicationManifest YAML", func() {
+	It("exports bound configurations with their types", func() {
+		m := models.ApplicationManifest{
+			Name: "myapp",
+			Configuration: models.ApplicationConfiguration{
+				Configurations: []string{"mycfg", "mysvc-cfg"},
+				BoundConfigurations: []models.BoundConfiguration{
+					{Name: "mycfg", Type: "custom"},
+					{Name: "mysvc-cfg", Type: "service"},
+				},
+			},
+		}
+
+		out, err := yaml.Marshal(m)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(out)).To(Equal(`name: myapp
+configuration:
+  configurations:
+  - mycfg
+  - mysvc-cfg
+  bound_configurations:
+  - name: mycfg
+    type: custom
+  - name: mysvc-cfg
+    type: service
+`))
+	})
+
+	It("omits bound configurations when there are none", func() {
+		m := models.ApplicationManifest{
+			Name: "myapp",
+			Configuration: models.ApplicationConfiguration{
+				BoundConfigurations: []models.BoundConfiguration{},
+			},
+		}
+
+		out, err := yaml.Marshal(m)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(out)).ToNot(ContainSubstring("bound_configurations"))
+	})
+
+	It("reads bound configurations back without feeding them to push", func() {
+		// The field round-trips so a re-read manifest is not lossy, but push binds
+		// from `configurations` only -- see NewApplicationUpdateRequest.
+		var m models.ApplicationManifest
+		err := yaml.Unmarshal([]byte(`name: myapp
+configuration:
+  configurations:
+  - mycfg
+  bound_configurations:
+  - name: mycfg
+    type: custom
+`), &m)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(m.Configuration.BoundConfigurations).To(HaveLen(1))
+		Expect(m.Configuration.BoundConfigurations[0].Name).To(Equal("mycfg"))
+		Expect(m.Configuration.BoundConfigurations[0].Type).To(Equal("custom"))
+
+		update := models.NewApplicationUpdateRequest(m)
+		Expect(update.Configurations).To(Equal([]string{"mycfg"}))
 	})
 })
 

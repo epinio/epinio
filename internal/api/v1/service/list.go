@@ -12,11 +12,14 @@
 package service
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,12 +38,14 @@ func List(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	serviceList, err := kubeServiceClient.ListInNamespace(ctx, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
+	serviceList, apiErr := listServices(ctx, cluster, kubeServiceClient, namespace, getAppParam(c))
+	if apiErr != nil {
+		return apiErr
 	}
 
-	appsOf, err := application.ServicesBoundAppsNames(ctx, cluster, "")
+	// The namespace scopes the binding lookup: a binding secret in another
+	// namespace can never key a service listed here.
+	appsOf, err := application.ServicesBoundAppsNames(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -62,4 +67,49 @@ func List(c *gin.Context) apierror.APIErrors {
 	// Backwards-compatible: return full list when no page params are set.
 	response.OKReturn(c, servicesWithApps)
 	return nil
+}
+
+// listServices returns the service instances to report for the namespace. With no
+// `app` parameter that is every instance in the namespace. With one it is only the
+// instances bound to that application, resolved from the application's binding
+// secret and narrowed before the instance details are fetched.
+//
+// An unknown application is a 404 and not an empty list: a typo in the parameter
+// must not read as "this application has no services".
+func listServices(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	kubeServiceClient *services.ServiceClient,
+	namespace, appName string,
+) (models.ServiceList, apierror.APIErrors) {
+	if appName == "" {
+		serviceList, err := kubeServiceClient.ListInNamespace(ctx, namespace)
+		if err != nil {
+			return nil, apierror.InternalError(err)
+		}
+
+		return serviceList, nil
+	}
+
+	appRef := models.NewAppRef(appName, namespace)
+
+	exists, err := application.Exists(ctx, cluster, appRef)
+	if err != nil {
+		return nil, apierror.InternalError(err)
+	}
+	if !exists {
+		return nil, apierror.AppIsNotKnown(appName)
+	}
+
+	boundNames, err := application.BoundServiceNamesIfAny(ctx, cluster, appRef)
+	if err != nil {
+		return nil, apierror.InternalError(err)
+	}
+
+	serviceList, err := kubeServiceClient.ListInNamespaceByNames(ctx, namespace, boundNames)
+	if err != nil {
+		return nil, apierror.InternalError(err)
+	}
+
+	return serviceList, nil
 }
