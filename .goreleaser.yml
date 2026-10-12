@@ -300,12 +300,6 @@ brews:
       assert_match "no configuration has been provided", output
 
 release:
-  # Do not auto-publish the release
-  draft: true
-  # Replace the existing draft
-  replace_existing_draft: true
-  # Keep the release notes
-  mode: keep-existing
   # Detect release candidates, mark as pre-release (and hopefully not as `latest`).
   prerelease: auto
 
@@ -320,7 +314,7 @@ release:
 # Two different sbom configurations need two different IDs
 
 sboms:
-  - id: archive 
+  - id: archive
     artifacts: archive
   - id: source
     artifacts: source
