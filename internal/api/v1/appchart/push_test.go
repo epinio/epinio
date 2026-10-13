@@ -234,7 +234,13 @@ var _ = Describe("Push AppChart API", func() {
 			DeferCleanup(apiServer.Close)
 
 			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: registry.CredentialsSecretName, Namespace: epinioNamespace},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      registry.CredentialsSecretName,
+					Namespace: epinioNamespace,
+					Annotations: map[string]string{
+						registry.RegistrySecretNamespaceAnnotationKey: "apps",
+					},
+				},
 				Data: map[string][]byte{".dockerconfigjson": []byte(
 					`{"auths":{"` + reg.URL() + `":{"username":"admin","password":"changeme"}}}`)},
 				Type: corev1.SecretTypeDockerConfigJson,
@@ -247,16 +253,22 @@ var _ = Describe("Push AppChart API", func() {
 			DeferCleanup(func() { kubernetes.SetClusterMemo(nil) })
 		})
 
-		It("pushes the chart to a repository of its own, and creates the application chart for it", func() {
+		It("pushes the chart to a repository of its own, next to the images, "+
+			"and creates the application chart for it", func() {
 			err := push(saveChart(""), map[string]string{"name": "myapp"})
 			Expect(err).To(BeNil())
 			Expect(recorder.Code).To(Equal(http.StatusOK))
 
-			Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeTrue())
+			Expect(reg.HasChart("apps/epinio_appchart_myapp", "0.1.0")).
+				To(BeTrue())
 
 			Expect(created).To(HaveLen(1))
-			Expect(created[0]).To(ContainSubstring(`"helmChart":"mychart:0.1.0"`))
-			Expect(created[0]).To(ContainSubstring(`"helmRepo":"oci://` + reg.Host() + `/epinio-charts/myapp"`))
+			Expect(created[0]).
+				To(ContainSubstring(
+					`"helmChart":"epinio_appchart_myapp:0.1.0"`))
+			Expect(created[0]).
+				To(ContainSubstring(
+					`"helmRepo":"oci://` + reg.Host() + `/apps"`))
 			Expect(calls()).To(HaveLen(1))
 		})
 
@@ -271,9 +283,26 @@ var _ = Describe("Push AppChart API", func() {
 			Expect(err).To(BeNil())
 			Expect(recorder.Code).To(Equal(http.StatusOK))
 
-			Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeTrue())
+			Expect(reg.HasChart("apps/epinio_appchart_myapp", "0.1.0")).
+				To(BeTrue())
 			Expect(created).To(HaveLen(2))
 			Expect(calls()).To(HaveLen(2))
+		})
+
+		It("pushes over a chart left behind "+
+			"in a registry refusing deletes", func() {
+			Expect(push(saveChart(""), map[string]string{"name": "myapp"})).
+				To(BeNil())
+			reg.RefuseDeletes(true)
+
+			recorder = httptest.NewRecorder()
+			err := push(saveChart(""), map[string]string{"name": "myapp"})
+			Expect(err).To(BeNil())
+			Expect(recorder.Code).To(Equal(http.StatusOK))
+
+			Expect(reg.HasChart("apps/epinio_appchart_myapp", "0.1.0")).
+				To(BeTrue())
+			Expect(created).To(HaveLen(2))
 		})
 
 		It("removes the application chart again when the push fails", func() {
@@ -283,7 +312,8 @@ var _ = Describe("Push AppChart API", func() {
 			Expect(err).ToNot(BeNil())
 			Expect(err.FirstStatus()).To(Equal(http.StatusInternalServerError))
 
-			Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeFalse())
+			Expect(reg.HasChart("apps/epinio_appchart_myapp", "0.1.0")).
+				To(BeFalse())
 			Expect(calls()).To(HaveLen(2))
 			Expect(calls()[0]).To(HavePrefix("POST "))
 			Expect(calls()[1]).To(HavePrefix("DELETE "))

@@ -11,6 +11,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/appchart"
+	chartstore "github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helm/helmtest"
 	"github.com/epinio/epinio/internal/registry"
@@ -64,12 +65,25 @@ var _ = Describe("Delete AppChart API", func() {
 			Metadata: &chart.Metadata{APIVersion: "v2", Name: "mychart", Version: "0.1.0"},
 		}, GinkgoT().TempDir())
 		Expect(err).ToNot(HaveOccurred())
-		Expect(r.Push(path)).To(Succeed())
+		Expect(r.Push(path, "0.1.0")).To(Succeed())
 	}
 
-	// pushedRepo is where a chart for the application chart is stored by Epinio.
-	pushedRepo := func(appChartName string) string {
-		return "oci://" + reg.Host() + "/epinio-charts/" + appChartName
+	// pushedRepo is the repository Epinio references for a pushed chart: the
+	// one of the application images, shared by all pushed charts.
+	pushedRepo := func() string {
+		return "oci://" + reg.Host() + "/apps"
+	}
+
+	// pushedSpec is the chart and repository of a pushed application chart, as
+	// stored by the fake API server.
+	pushedSpec := func(appChartName string) string {
+		return chartstore.ChartNameFor(appChartName) + ":0.1.0|" + pushedRepo()
+	}
+
+	// pushedPath is where the chart of the application chart is in the
+	// registry.
+	pushedPath := func(appChartName string) string {
+		return "apps/" + chartstore.ChartNameFor(appChartName)
 	}
 
 	deleteAppChart := func(name string) (int, string) {
@@ -130,7 +144,13 @@ var _ = Describe("Delete AppChart API", func() {
 		DeferCleanup(apiServer.Close)
 
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: registry.CredentialsSecretName, Namespace: epinioNamespace},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      registry.CredentialsSecretName,
+				Namespace: epinioNamespace,
+				Annotations: map[string]string{
+					registry.RegistrySecretNamespaceAnnotationKey: "apps",
+				},
+			},
 			Data: map[string][]byte{".dockerconfigjson": []byte(
 				`{"auths":{"` + reg.URL() + `":{"username":"admin","password":"changeme"}}}`)},
 			Type: corev1.SecretTypeDockerConfigJson,
@@ -145,13 +165,13 @@ var _ = Describe("Delete AppChart API", func() {
 
 	It("removes the pushed chart from the registry, and deletes the application chart", func() {
 		seedChart("myapp")
-		stored["myapp"] = "mychart:0.1.0|" + pushedRepo("myapp")
-		Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeTrue())
+		stored["myapp"] = pushedSpec("myapp")
+		Expect(reg.HasChart(pushedPath("myapp"), "0.1.0")).To(BeTrue())
 
 		status, _ := deleteAppChart("myapp")
 
 		Expect(status).To(Equal(http.StatusOK))
-		Expect(reg.Tags("epinio-charts/myapp/mychart")).To(BeEmpty())
+		Expect(reg.Tags(pushedPath("myapp"))).To(BeEmpty())
 		Expect(deletes()).To(HaveLen(1))
 		Expect(deletes()[0]).To(HaveSuffix("/appcharts/myapp"))
 	})
@@ -159,25 +179,63 @@ var _ = Describe("Delete AppChart API", func() {
 	It("leaves the charts of other application charts in the registry", func() {
 		seedChart("myapp")
 		seedChart("other")
-		stored["myapp"] = "mychart:0.1.0|" + pushedRepo("myapp")
+		stored["myapp"] = pushedSpec("myapp")
 
 		status, _ := deleteAppChart("myapp")
 
 		Expect(status).To(Equal(http.StatusOK))
-		Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeFalse())
-		Expect(reg.HasChart("epinio-charts/other/mychart", "0.1.0")).To(BeTrue())
+		Expect(reg.HasChart(pushedPath("myapp"), "0.1.0")).To(BeFalse())
+		Expect(reg.HasChart(pushedPath("other"), "0.1.0")).To(BeTrue())
 	})
 
 	It("keeps the application chart when the chart cannot be removed from the registry", func() {
 		seedChart("myapp")
-		stored["myapp"] = "mychart:0.1.0|" + pushedRepo("myapp")
+		stored["myapp"] = pushedSpec("myapp")
 		reg.SetPassword("something-else")
 
 		status, _ := deleteAppChart("myapp")
 
 		Expect(status).To(Equal(http.StatusInternalServerError))
 		Expect(deletes()).To(BeEmpty())
-		Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeTrue())
+		Expect(reg.HasChart(pushedPath("myapp"), "0.1.0")).To(BeTrue())
+	})
+
+	It("deletes the application chart, and leaves its chart, "+
+		"when the registry refuses deletes", func() {
+		seedChart("myapp")
+		stored["myapp"] = pushedSpec("myapp")
+		reg.RefuseDeletes(true)
+
+		status, _ := deleteAppChart("myapp")
+
+		Expect(status).To(Equal(http.StatusOK))
+		Expect(deletes()).To(HaveLen(1))
+		Expect(reg.HasChart(pushedPath("myapp"), "0.1.0")).To(BeTrue())
+	})
+
+	It("removes the pushed chart from a registry with token auth", func() {
+		seedChart("myapp")
+		stored["myapp"] = pushedSpec("myapp")
+		reg.UseTokens(true)
+
+		status, _ := deleteAppChart("myapp")
+
+		Expect(status).To(Equal(http.StatusOK))
+		Expect(reg.Tags(pushedPath("myapp"))).To(BeEmpty())
+		Expect(deletes()).To(HaveLen(1))
+	})
+
+	It("deletes the application chart, and leaves its chart, "+
+		"when the token grants no deletes, like on Docker Hub", func() {
+		seedChart("myapp")
+		stored["myapp"] = pushedSpec("myapp")
+		reg.UseTokens(false)
+
+		status, _ := deleteAppChart("myapp")
+
+		Expect(status).To(Equal(http.StatusOK))
+		Expect(deletes()).To(HaveLen(1))
+		Expect(reg.HasChart(pushedPath("myapp"), "0.1.0")).To(BeTrue())
 	})
 
 	It("does not touch the registry for a chart which was not pushed", func() {
@@ -189,7 +247,7 @@ var _ = Describe("Delete AppChart API", func() {
 
 		Expect(status).To(Equal(http.StatusOK))
 		Expect(deletes()).To(HaveLen(1))
-		Expect(reg.HasChart("epinio-charts/myapp/mychart", "0.1.0")).To(BeTrue())
+		Expect(reg.HasChart(pushedPath("myapp"), "0.1.0")).To(BeTrue())
 	})
 
 	It("does not touch the registry for a chart given by url", func() {

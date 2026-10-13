@@ -27,7 +27,13 @@ type Registry struct {
 	username string
 	password string
 
-	failPushes bool
+	failPushes    bool
+	refuseDeletes bool
+
+	// With tokens, the registry demands bearer tokens, like Docker Hub. They
+	// are handed out for the basic auth credentials by the token endpoint.
+	tokens       bool
+	grantDeletes bool
 
 	mu        sync.Mutex
 	blobs     map[string][]byte
@@ -72,6 +78,24 @@ func (r *Registry) FailPushes(fail bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.failPushes = fail
+}
+
+// RefuseDeletes makes the registry answer any delete with a 405, like a
+// registry with deletes disabled, or accept them again.
+func (r *Registry) RefuseDeletes(refuse bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.refuseDeletes = refuse
+}
+
+// UseTokens makes the registry demand bearer tokens instead of basic auth,
+// like Docker Hub. A token carries the right to delete only when grantDeletes
+// is set and delete was asked for. Docker Hub does not grant it.
+func (r *Registry) UseTokens(grantDeletes bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.tokens = true
+	r.grantDeletes = grantDeletes
 }
 
 // Close shuts the registry down.
@@ -146,14 +170,29 @@ func (r *Registry) serve(w http.ResponseWriter, req *http.Request) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	user, pass, ok := req.BasicAuth()
-	if !ok || user != r.username || pass != r.password {
-		w.Header().Set("WWW-Authenticate", `Basic realm="fake registry"`)
-		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED")
-		return
-	}
-
 	path := req.URL.Path
+
+	if r.tokens {
+		if path == "/token" {
+			r.serveToken(w, req)
+			return
+		}
+		if !r.authorized(req) {
+			w.Header().Set(
+				"WWW-Authenticate",
+				`Bearer realm="https://`+r.Host()+`/token",service="fake"`,
+			)
+			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED")
+			return
+		}
+	} else {
+		user, pass, ok := req.BasicAuth()
+		if !ok || user != r.username || pass != r.password {
+			w.Header().Set("WWW-Authenticate", `Basic realm="fake registry"`)
+			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED")
+			return
+		}
+	}
 
 	if path == "/v2/" || path == "/v2" {
 		w.WriteHeader(http.StatusOK)
@@ -184,6 +223,42 @@ func (r *Registry) serve(w http.ResponseWriter, req *http.Request) {
 	}
 
 	writeError(w, http.StatusNotFound, "UNSUPPORTED")
+}
+
+// Tokens of the fake registry. They are not scoped to a repository.
+const (
+	tokenAll      = "token-pull-push-delete"
+	tokenNoDelete = "token-pull-push"
+)
+
+// serveToken hands out a token for the basic auth credentials, with delete
+// rights only when asked for and granted.
+func (r *Registry) serveToken(w http.ResponseWriter, req *http.Request) {
+	user, pass, ok := req.BasicAuth()
+	if !ok || user != r.username || pass != r.password {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED")
+		return
+	}
+
+	token := tokenNoDelete
+	for _, scope := range req.URL.Query()["scope"] {
+		if r.grantDeletes && strings.Contains(scope, "delete") {
+			token = tokenAll
+		}
+	}
+	writeJSON(w, map[string]string{"token": token})
+}
+
+// authorized is true for a request with a token allowing what it does.
+func (r *Registry) authorized(req *http.Request) bool {
+	token, ok := strings.CutPrefix(req.Header.Get("Authorization"), "Bearer ")
+	if !ok {
+		return false
+	}
+	if req.Method == http.MethodDelete {
+		return token == tokenAll
+	}
+	return token == tokenAll || token == tokenNoDelete
 }
 
 func (r *Registry) serveUpload(w http.ResponseWriter, req *http.Request, repository, session string) {
@@ -262,6 +337,10 @@ func (r *Registry) serveManifest(w http.ResponseWriter, req *http.Request, repos
 		w.WriteHeader(http.StatusCreated)
 
 	case http.MethodDelete:
+		if r.refuseDeletes {
+			writeError(w, http.StatusMethodNotAllowed, "UNSUPPORTED")
+			return
+		}
 		// Manifests are deleted by digest. The tags pointing to it go with it.
 		if _, found := r.manifests[repository+"@"+reference]; !found {
 			writeError(w, http.StatusNotFound, "MANIFEST_UNKNOWN")

@@ -13,6 +13,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
+	"helm.sh/helm/v3/pkg/registry"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	"oras.land/oras-go/v2/errdef"
@@ -218,10 +219,42 @@ func (c *SynchronizedClient) OCIChartExists(chartRef, version string) (bool, err
 	return true, nil
 }
 
-func (c *SynchronizedClient) Push(chartref, remote string, opts ...action.PushOpt) (string, error) {
+// PushAt pushes the chart archive in data to the given OCI reference
+// (host/path/name:tag), using the registry logins of this client.
+//
+// Unlike Push, the reference is not derived from the chart. Its name and tag
+// may differ from the name and version of the chart. helm resolves such a
+// reference all the same when pulling it.
+func (c *SynchronizedClient) PushAt(data []byte, ref string) error {
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
-		return "", fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
+		return fmt.Errorf(
+			"helm client is not of the right type. "+
+				"Expected *hc.HelmClient but got %T",
+			c.helmClient,
+		)
+	}
+
+	_, err := concreteHelmClient.ActionConfig.RegistryClient.Push(
+		data,
+		ref,
+		registry.PushOptStrictMode(false),
+	)
+	return err
+}
+
+func (c *SynchronizedClient) Push(
+	chartref,
+	remote string,
+	opts ...action.PushOpt,
+) (string, error) {
+	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
+	if !ok {
+		return "", fmt.Errorf(
+			"helm client is not of the right type. "+
+				"Expected *hc.HelmClient but got %T",
+			c.helmClient,
+		)
 	}
 
 	ac := *concreteHelmClient.ActionConfig
