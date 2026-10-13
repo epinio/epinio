@@ -1983,6 +1983,8 @@ func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
+//
+//nolint:funlen // already at the statement limit; it only loads fields one by one
 func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
 	// Consider delayed loading, i.e. on first access, or for transfer (API response).
 	// Consider objects for the information which hide the defered loading.  These
