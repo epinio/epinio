@@ -813,7 +813,8 @@ func Delete(
 	// Delete container image from registry if requested
 	if deleteImage && imageURL != "" {
 		err = deleteContainerImage(ctx, cluster, imageURL)
-		if err != nil {
+		// A registry with deletes disabled keeps the image, as before.
+		if err != nil && !errors.Is(err, registry.ErrDeletionDisabled) {
 			// Log the error but don't fail the deletion - the app is already deleted
 			log.Errorw("Failed to delete container image from registry", "error", err, "image", imageURL)
 		}
@@ -966,10 +967,9 @@ func deleteContainerImage(
 
 	// Build TLS config based on what we have
 	if tlsConfig == nil {
-		// Check if this is an internal registry (cluster.local domain)
-		isInternalRegistry := strings.Contains(imageRegistryURL, ".svc.cluster.local") ||
-			strings.Contains(imageRegistryURL, "127.0.0.1") ||
-			strings.Contains(imageRegistryURL, "localhost")
+		// Check if this is an internal registry. The host has to match
+		// exactly, a substring would let `localhost.example.com` in.
+		isInternalRegistry := registry.IsInClusterHost(imageRegistryURL)
 
 		if certsAdded {
 			// We have certificates in the pool, use them

@@ -23,7 +23,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
@@ -929,10 +928,10 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					InitContainers:     initContainers,
 					Containers:         []corev1.Container{buildContainer},
 					RestartPolicy:      corev1.RestartPolicyNever,
-					Volumes:       volumes,
-					Tolerations:   app.HelmValues.Tolerations,
-					NodeSelector:  app.HelmValues.NodeSelector,
-					Affinity:      &app.HelmValues.Affinity,
+					Volumes:            volumes,
+					Tolerations:        app.HelmValues.Tolerations,
+					NodeSelector:       app.HelmValues.NodeSelector,
+					Affinity:           &app.HelmValues.Affinity,
 				},
 			},
 		},
@@ -1001,19 +1000,23 @@ func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
 }
 
 func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, error) {
-	cd, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
+	cd, err := registry.GetConnectionDetails(
+		ctx,
+		cluster,
+		helmchart.Namespace(),
+		registry.CredentialsSecretName,
+	)
 	if err != nil {
 		return "", err
-	}
-	registryPublicURL, err := cd.PublicRegistryURL()
-	if err != nil {
-		return "", err
-	}
-	if registryPublicURL == "" {
-		return "", errors.New("no public registry URL found")
 	}
 
-	return fmt.Sprintf("%s/%s", registryPublicURL, cd.Namespace), nil
+	//Use universal registry URL for staging.
+	registryPublicURL, err := cd.RepositoryBase()
+	if err != nil {
+		return "", err
+	}
+
+	return registryPublicURL, nil
 }
 
 // The equivalent of:
@@ -1670,4 +1673,3 @@ func loadDockerfileStagingConfig(ctx context.Context,
 
 	return config, nil
 }
-

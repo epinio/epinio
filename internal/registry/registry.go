@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	orasauth "oras.land/oras-go/v2/registry/remote/auth"
 )
 
 const (
@@ -228,6 +230,28 @@ func GetRegistryCredentialsFromSecret(secret v1.Secret) (RegistryCredentials, er
 	return empty, errors.New("registry.go / getRegistryUrlFromSecret - cannot happen")
 }
 
+// RepositoryBase returns the location below which Epinio stores what it pushes
+// into the registry: application images and pushed application charts. It is
+// the public registry URL, followed by the registry namespace, if any.
+func (d *ConnectionDetails) RepositoryBase() (string, error) {
+	registryPublicURL, err := d.PublicRegistryURL()
+	if err != nil {
+		return "", err
+	}
+
+	if registryPublicURL == "" {
+		return "", errors.New("no public registry URL found")
+	}
+
+	base := strings.TrimSuffix(registryPublicURL, "/")
+	namespace := strings.Trim(d.Namespace, "/")
+	if namespace == "" {
+		return base, nil
+	}
+
+	return base + "/" + namespace, nil
+}
+
 // PublicRegistryURL returns the public registry URL from the connection details
 // object. Assumes to have only one non-local registry in the config. If there are more,
 // it will just return the first one found (no guaranteed order since there should only be
@@ -369,6 +393,64 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 	return &details, nil
 }
 
+// IsInClusterHost returns true if the registry host is one of the in-cluster
+// registry of Epinio.
+//
+// The host, without port, has to be exactly localhost or a loopback address, or
+// to end in the cluster domain. A substring match is not enough. It would also
+// accept hosts like `registry.svc.cluster.local.example.com`, and disable
+// certificate verification for them.
+func IsInClusterHost(hostname string) bool {
+	host := hostname
+	if h, _, err := net.SplitHostPort(hostname); err == nil {
+		host = h
+	}
+	host = strings.ToLower(strings.TrimSuffix(strings.Trim(host, "[]"), "."))
+
+	return host == "localhost" ||
+		host == "127.0.0.1" ||
+		host == "::1" ||
+		strings.HasSuffix(host, ".svc.cluster.local")
+}
+
+// ErrDeletionDisabled is returned by DeleteImage when the registry refuses to
+// delete manifests: deletes disabled (405), or not granted to the credentials
+// (401, 403), like on Docker Hub. What was to be deleted is still in the
+// registry.
+var ErrDeletionDisabled = errors.New("deletion is disabled on the registry")
+
+// newAuthClient returns a client for the registry at host, logging in with
+// the credentials. Basic auth is sent up front, as Epinio's own registry
+// expects. A bearer challenge, like the one of Docker Hub, is answered with a
+// token fetched with the same credentials.
+func newAuthClient(
+	ctx context.Context,
+	host string,
+	credentials RegistryCredentials,
+	transport http.RoundTripper,
+) *orasauth.Client {
+	basic := base64.StdEncoding.EncodeToString(
+		[]byte(credentials.Username + ":" + credentials.Password),
+	)
+	cache := orasauth.NewCache()
+	_, _ = cache.Set(
+		ctx,
+		host,
+		orasauth.SchemeBasic,
+		"",
+		func(context.Context) (string, error) { return basic, nil },
+	)
+
+	return &orasauth.Client{
+		Client: &http.Client{Transport: transport},
+		Cache:  cache,
+		Credential: orasauth.StaticCredential(host, orasauth.Credential{
+			Username: credentials.Username,
+			Password: credentials.Password,
+		}),
+	}
+}
+
 // DeleteImage deletes a container image from the registry using the Docker Registry HTTP API v2.
 // It deletes all tags/manifests for the repository to ensure complete removal.
 // It requires the image URL, registry credentials, and optionally a TLS config for self-signed certificates.
@@ -428,6 +510,21 @@ func DeleteImage(
 		// InsecureSkipVerify enabled.
 	}
 
+	// Create HTTP client with TLS config if provided
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if tlsConfig != nil {
+		transport.TLSClientConfig = tlsConfig
+	}
+	client := newAuthClient(ctx, registryURL, credentials, transport)
+
+	// A registry with token auth, like Docker Hub, scopes its token to what is
+	// asked for. Without delete in it, every delete is refused.
+	ctx = orasauth.WithScopes(ctx, orasauth.ScopeRepository(
+		repository,
+		orasauth.ActionPull,
+		orasauth.ActionDelete,
+	))
+
 	// Get the manifest digest first
 	manifestURL := fmt.Sprintf("%s://%s/v2/%s/manifests/%s", scheme, registryURL, repository, tag)
 
@@ -436,19 +533,8 @@ func DeleteImage(
 		return errors.Wrap(err, "creating manifest request")
 	}
 
-	// Set authentication
-	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", credentials.Username, credentials.Password)))
-	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json")
 
-	// Create HTTP client with TLS config if provided
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	if tlsConfig != nil {
-		transport.TLSClientConfig = tlsConfig
-	}
-	client := &http.Client{
-		Transport: transport,
-	}
 	resp, err := client.Do(req) // nolint:gosec // registry URL from cluster config, not user input
 	if err != nil {
 		return errors.Wrap(err, "fetching manifest")
@@ -487,7 +573,13 @@ func DeleteImage(
 
 	// First, list all tags for this repository so we can delete them all
 	// This ensures complete removal of the repository from the catalog
-	allTags, err := listRepositoryTags(ctx, scheme, registryURL, repository, auth, client)
+	allTags, err := listRepositoryTags(
+		ctx,
+		scheme,
+		registryURL,
+		repository,
+		client,
+	)
 	if err != nil {
 		helpers.Logger.Infow("Could not list tags for repository, will delete only the specified tag",
 			"repository", repository,
@@ -506,7 +598,15 @@ func DeleteImage(
 	// Delete all tags for this repository
 	var lastErr error
 	for _, tagToDelete := range allTags {
-		if err := deleteTagByTag(ctx, scheme, registryURL, repository, tagToDelete, auth, client); err != nil {
+		err := deleteTagByTag(
+			ctx,
+			scheme,
+			registryURL,
+			repository,
+			tagToDelete,
+			client,
+		)
+		if err != nil {
 			// Log error but continue with other tags
 			helpers.Logger.Errorw("Failed to delete tag", "repository", repository, "tag", tagToDelete, "error", err)
 			lastErr = err
@@ -524,15 +624,19 @@ func DeleteImage(
 }
 
 // listRepositoryTags lists all tags for a repository
-func listRepositoryTags(ctx context.Context, scheme, registryURL, repository, auth string, client *http.Client) ([]string, error) {
+func listRepositoryTags(
+	ctx context.Context,
+	scheme,
+	registryURL,
+	repository string,
+	client *orasauth.Client,
+) ([]string, error) {
 	tagsListURL := fmt.Sprintf("%s://%s/v2/%s/tags/list", scheme, registryURL, repository)
 
 	listReq, err := http.NewRequestWithContext(ctx, http.MethodGet, tagsListURL, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating tags list request")
 	}
-
-	listReq.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 
 	listResp, err := client.Do(listReq) // nolint:gosec // registry URL from cluster config, not user input
 	if err != nil {
@@ -571,9 +675,8 @@ func deleteTagByTag(
 	scheme,
 	registryURL,
 	repository,
-	tag,
-	auth string,
-	client *http.Client,
+	tag string,
+	client *orasauth.Client,
 ) error {
 	// Get the manifest for this tag to get its digest
 	manifestURL := fmt.Sprintf("%s://%s/v2/%s/manifests/%s", scheme, registryURL, repository, tag)
@@ -583,7 +686,6 @@ func deleteTagByTag(
 		return errors.Wrap(err, "creating manifest request")
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json")
 
 	resp, err := client.Do(req) // nolint:gosec // registry URL from cluster config, not user input
@@ -625,7 +727,6 @@ func deleteTagByTag(
 		return errors.Wrap(err, "creating delete request")
 	}
 
-	deleteReq.Header.Set("Authorization", fmt.Sprintf("Basic %s", auth))
 	acceptHeader := resp.Header.Get("Content-Type")
 	if acceptHeader == "" {
 		acceptHeader = "application/vnd.docker.distribution.manifest.v2+json"
@@ -647,10 +748,20 @@ func deleteTagByTag(
 		return nil
 	}
 
-	// Check if deletion is disabled
-	if deleteResp.StatusCode == http.StatusMethodNotAllowed {
-		helpers.Logger.Infow("Image deletion is disabled on this registry for this tag", "repository", repository, "tag", tag)
-		return nil // Don't fail - registry doesn't support deletion
+	// Check if deletion is disabled. The caller decides whether that matters.
+	// The credentials just read the manifest, so a denied delete is a registry
+	// not granting deletes, like Docker Hub, and not bad credentials.
+	if deleteResp.StatusCode == http.StatusMethodNotAllowed ||
+		deleteResp.StatusCode == http.StatusUnauthorized ||
+		deleteResp.StatusCode == http.StatusForbidden {
+		helpers.Logger.Infow(
+			"Image deletion is disabled on this registry for this tag",
+			"repository",
+			repository,
+			"tag",
+			tag,
+		)
+		return ErrDeletionDisabled
 	}
 
 	body, _ := io.ReadAll(deleteResp.Body)

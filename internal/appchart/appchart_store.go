@@ -13,35 +13,52 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/epinio/epinio/helpers"
+	epinioregistry "github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// ChartRepositoryPath is the path, below the host of Epinio's registry, under
-// which the charts of custom AppCharts are stored. Each AppChart gets a
-// repository of its own below it, named after the AppChart.
-const ChartRepositoryPath = "epinio-charts"
+// ChartNamePrefix starts the name of the repository holding the chart of a
+// pushed AppChart. The repository sits next to the application images, below
+// the registry namespace, and is named after the AppChart, see ChartNameFor.
+//
+// The `_` keeps the name apart from the image repositories, which are named
+// `<namespace>-<app>` from two DNS labels, and so never contain a `_`. The
+// name has a single path segment, as registries like Docker Hub support no
+// deeper nesting below the namespace.
+const ChartNamePrefix = "epinio_appchart_"
+
+// ChartNameFor returns the name of the repository holding the chart of the
+// named AppChart. It is also the chart name the AppChart references, whatever
+// the name of the chart itself.
+func ChartNameFor(appChartName string) string {
+	return ChartNamePrefix + appChartName
+}
 
 // ChartStore is the registry holding the chart of one AppChart, i.e. Epinio's
 // own registry.
 //
-// The chart is kept in a repository of its own. Charts of different AppCharts
-// can therefore not overwrite each other. As the name of an AppChart is taken
-// for as long as it exists, and its location cannot be changed
-// (see UpdateWithChart), this keeps the chart behind an AppChart from changing
-// while applications are deployed with it.
+// The chart is kept in a repository of its own, named after the AppChart, see
+// ChartNameFor. Charts of different AppCharts can therefore not overwrite each
+// other. As the name of an AppChart is taken for as long as it exists, and its
+// location cannot be changed (see UpdateWithChart), this keeps the chart behind
+// an AppChart from changing while applications are deployed with it.
 type ChartStore interface {
-	// Repository returns the OCI repository URL the chart of the AppChart is i
-	// stored in. It is what the AppChart references as its helm repository.
+	// Repository returns the OCI URL below which the chart of the AppChart is
+	// stored. It is what the AppChart references as its helm repository.
 	Repository() string
-	// HasChart returns true if the chart with the given name and version is
-	// stored.
-	HasChart(chartName, chartVersion string) (bool, error)
-	// Push stores the chart archive at the given local path.
-	Push(archivePath string) error
-	// Delete removes the chart with the given name and version, and anything
-	// else stored in the repository of the AppChart. Removing what is not there
-	// is not an error.
-	Delete(ctx context.Context, chartName, chartVersion string) error
+	// ChartName returns the name the chart is stored under, below Repository.
+	// It is what the AppChart references as its chart.
+	ChartName() string
+	// HasChart returns true if the chart with the given version is stored.
+	HasChart(chartVersion string) (bool, error)
+	// Push stores the chart archive at the given local path, as the given
+	// version.
+	Push(archivePath, chartVersion string) error
+	// Delete removes the chart with the given version, and anything else
+	// stored in the repository of the AppChart. Removing what is not there is
+	// not an error. A registry refusing deletes returns an error matching
+	// epinioregistry.ErrDeletionDisabled.
+	Delete(ctx context.Context, chartVersion string) error
 }
 
 // OpenChartStore returns the store for the chart of the named AppChart.
@@ -176,7 +193,7 @@ func Push(
 		return replaceChart(ctx, client, store, boundApps, appChart, req)
 	}
 
-	helmChart := req.Chart.Metadata.Name + ":" + req.Chart.Metadata.Version
+	helmChart := store.ChartName() + ":" + req.Chart.Metadata.Version
 	helmRepo := store.Repository()
 
 	_, err = Create(ctx, client, models.AppChartCreateRequest{
@@ -223,9 +240,10 @@ func Push(
 // no application uses it. Replacing it would change what the applications are
 // deployed from with their next deployment, without them having asked for it.
 //
-// The new chart is stored before the AppChart is changed, and the previous
-// chart is removed last. The AppChart references a chart which is in the
-// registry at all times.
+// The new chart is stored before the AppChart is changed, so the AppChart
+// references a chart which is in the registry at all times. The new chart goes
+// into the repository of the AppChart, next to the previous versions, which
+// are removed with the AppChart.
 func replaceChart(
 	ctx context.Context,
 	client dynamic.NamespaceableResourceInterface,
@@ -236,7 +254,7 @@ func replaceChart(
 ) (*models.AppChartPushResponse, error) {
 	// The same path in some other registry is not a chart of ours, the name is
 	// simply taken.
-	if store.Repository() != appChart.HelmRepo {
+	if !storedBy(store, appChart) {
 		return nil, &AlreadyExistsError{Name: req.Name}
 	}
 
@@ -248,10 +266,10 @@ func replaceChart(
 		return nil, &InUseError{Name: req.Name}
 	}
 
-	chartName := req.Chart.Metadata.Name
-	helmChart := chartName + ":" + req.Chart.Metadata.Version
+	chartVersion := req.Chart.Metadata.Version
+	helmChart := store.ChartName() + ":" + chartVersion
 
-	if err := store.Push(req.ArchivePath); err != nil {
+	if err := store.Push(req.ArchivePath, chartVersion); err != nil {
 		return nil, errors.Wrap(err, "pushing the chart to the registry")
 	}
 
@@ -262,24 +280,6 @@ func replaceChart(
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "updating the appchart")
-	}
-
-	// A chart of another name sits in a repository of its own, which the
-	// deletion of the AppChart does not find anymore. Other versions of the same
-	// chart go with the AppChart.
-	oldName, oldVersion, _ := strings.Cut(appChart.HelmChart, ":")
-	if oldName != chartName {
-		if err := store.Delete(context.WithoutCancel(ctx), oldName, oldVersion); err != nil {
-			helpers.Logger.Errorw(
-				"removing the replaced chart from the registry",
-				"appchart",
-				req.Name,
-				"chart",
-				appChart.HelmChart,
-				"error",
-				err,
-			)
-		}
 	}
 
 	return &models.AppChartPushResponse{
@@ -293,7 +293,6 @@ func replaceChart(
 // request has to exist already. It is what keeps other requests out of the
 // repository of the AppChart.
 func storeChart(ctx context.Context, store ChartStore, req PushRequest) error {
-	chartName := req.Chart.Metadata.Name
 	chartVersion := req.Chart.Metadata.Version
 
 	// The AppChart was just created, so a chart found in its repository belongs
@@ -302,21 +301,32 @@ func storeChart(ctx context.Context, store ChartStore, req PushRequest) error {
 	// Refusing the push would block the name for good, the chart is cleared out
 	// instead. A registry not able to remove it has it replaced by the push.
 
-	stored, err := store.HasChart(chartName, chartVersion)
+	stored, err := store.HasChart(chartVersion)
 	if err != nil {
 		return err
 	}
 	if stored {
-		helpers.Logger.Infow("replacing chart left behind in the registry",
-			"appchart", req.Name, "chart", chartName, "version", chartVersion)
+		helpers.Logger.Infow(
+			"replacing chart left behind in the registry",
+			"appchart",
+			req.Name,
+			"chart",
+			store.ChartName(),
+			"version",
+			chartVersion,
+		)
 
-		if err := store.Delete(ctx, chartName, chartVersion); err != nil {
-			return errors.Wrap(err, "removing the chart left behind in the registry")
+		err := store.Delete(ctx, chartVersion)
+		if err != nil && !errors.Is(err, epinioregistry.ErrDeletionDisabled) {
+			return errors.Wrap(
+				err,
+				"removing the chart left behind in the registry",
+			)
 		}
 	}
 
 	return errors.Wrap(
-		store.Push(req.ArchivePath),
+		store.Push(req.ArchivePath, chartVersion),
 		"pushing the chart to the registry",
 	)
 }
@@ -366,7 +376,7 @@ func UpdateWithChart(
 			if err != nil {
 				return errors.Wrap(err, "opening the chart store")
 			}
-			if store.Repository() == appChart.HelmRepo {
+			if storedBy(store, appChart) {
 				return &LocationLockedError{Name: name}
 			}
 		}
@@ -401,10 +411,24 @@ func DeleteWithChart(
 
 		// Only the repository of Epinio's own store is touched. The same path in
 		// some other registry is not ours.
-		if store.Repository() == appChart.HelmRepo {
-			chartName, chartVersion, _ := strings.Cut(appChart.HelmChart, ":")
+		if storedBy(store, appChart) {
+			_, chartVersion, _ := strings.Cut(appChart.HelmChart, ":")
 
-			if err := store.Delete(ctx, chartName, chartVersion); err != nil {
+			// A registry refusing deletes would keep the AppChart forever. It
+			// goes, its chart stays, and a later push of the name replaces it.
+			err := store.Delete(ctx, chartVersion)
+			switch {
+			case errors.Is(err, epinioregistry.ErrDeletionDisabled):
+				helpers.Logger.Warnw(
+					"registry refuses deletes, the chart stays in it",
+					"appchart",
+					name,
+					"chart",
+					appChart.HelmChart,
+					"repository",
+					appChart.HelmRepo,
+				)
+			case err != nil:
 				return errors.Wrap(err, "removing the chart from the registry")
 			}
 		}
@@ -417,6 +441,15 @@ func DeleteWithChart(
 // like the ones of Epinio's store. It is cheap, and avoids opening the store
 // for all the other AppCharts.
 func mayBeStored(name string, appChart *models.AppChartFull) bool {
-	return registry.IsOCI(appChart.HelmRepo) &&
-		strings.HasSuffix(appChart.HelmRepo, "/"+ChartRepositoryPath+"/"+name)
+	chartName, _, _ := strings.Cut(appChart.HelmChart, ":")
+	return registry.IsOCI(appChart.HelmRepo) && chartName == ChartNameFor(name)
+}
+
+// storedBy is true when the chart of the AppChart is the one held by the
+// store. The repository alone does not tell. It is shared by the charts of
+// all pushed AppCharts, and the application images.
+func storedBy(store ChartStore, appChart *models.AppChartFull) bool {
+	chartName, _, _ := strings.Cut(appChart.HelmChart, ":")
+	return appChart.HelmRepo == store.Repository() &&
+		chartName == store.ChartName()
 }

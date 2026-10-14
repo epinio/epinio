@@ -36,10 +36,10 @@ var _ = Describe("OCI helpers", func() {
 		)
 	})
 
-	Describe("isInClusterRegistry", func() {
+	Describe("registry.IsInClusterHost", func() {
 		DescribeTable("recognizes registries running in the cluster",
 			func(hostname string, expected bool) {
-				Expect(isInClusterRegistry(hostname)).To(Equal(expected))
+				Expect(registry.IsInClusterHost(hostname)).To(Equal(expected))
 			},
 			Entry("service address", "registry.epinio.svc.cluster.local:5000", true),
 			Entry("node port", "127.0.0.1:30500", true),

@@ -15,9 +15,9 @@ package helm
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -646,6 +646,9 @@ func GetHelmClient(
 	if err != nil {
 		return nil, err
 	}
+	if concrete, ok := helmClient.(*hc.HelmClient); ok {
+		trustRegistryCAs(context.Background(), restConfig, concrete)
+	}
 
 	return GetNamespaceSynchronizedHelmClient(namespace, helmClient)
 }
@@ -942,7 +945,12 @@ func loginToOCIRegistryIfInternal(ctx context.Context, cluster *kubernetes.Clust
 	// effect for all later registry operations on this (per namespace, shared) client. That is
 	// acceptable as the client is only used for Epinio's own charts and registry. Keep it so, do
 	// not route unrelated registries through the same client.
-	return client.RegistryLogin(creds.Hostname, creds.Username, creds.Password, action.WithInsecure(creds.Insecure))
+	return client.RegistryLogin(
+		creds.Hostname,
+		creds.Username,
+		creds.Password,
+		action.WithInsecure(creds.Insecure),
+	)
 }
 
 // registryLogin holds what is needed to log into a registry.
@@ -955,24 +963,9 @@ type registryLogin struct {
 	// Their certificate is not verified, like it is not for application images, see
 	// internal/application/application.go.
 	Insecure bool
-}
-
-// isInClusterRegistry returns true if the registry host is one of the in-cluster registry of Epinio.
-//
-// The host, without port, has to be exactly localhost or a loopback address, or to end in the
-// cluster domain. A substring match is not enough. It would also accept hosts like
-// `registry.svc.cluster.local.example.com`, and disable certificate verification for them.
-func isInClusterRegistry(hostname string) bool {
-	host := hostname
-	if h, _, err := net.SplitHostPort(hostname); err == nil {
-		host = h
-	}
-	host = strings.ToLower(strings.TrimSuffix(strings.Trim(host, "[]"), "."))
-
-	return host == "localhost" ||
-		host == "127.0.0.1" ||
-		host == "::1" ||
-		strings.HasSuffix(host, ".svc.cluster.local")
+	// RootCAs verify an external registry with a private CA, see
+	// registryRootCAs. nil for the system CAs.
+	RootCAs *x509.CertPool
 }
 
 // registryLoginFor returns what is needed to log into the registry with the given host, from the
@@ -985,7 +978,7 @@ func registryLoginFor(details *epinioregistry.ConnectionDetails, hostname string
 				Hostname: hostname,
 				Username: creds.Username,
 				Password: creds.Password,
-				Insecure: isInClusterRegistry(hostname),
+				Insecure: epinioregistry.IsInClusterHost(hostname),
 			}
 		}
 	}
@@ -1011,6 +1004,16 @@ func internalRegistryCredentials(ctx context.Context, cluster *kubernetes.Cluste
 	}
 
 	return registryLoginFor(connectionDetails, hostname), nil
+}
+
+// ociLocation strips the "oci://" scheme, any other URL scheme, and a trailing
+// slash from a registry reference, keeping host and path. The registry
+// credentials may hold their URLs with a scheme.
+func ociLocation(url string) string {
+	location := strings.TrimPrefix(url, "oci://")
+	location = strings.TrimPrefix(location, "https://")
+	location = strings.TrimPrefix(location, "http://")
+	return strings.TrimSuffix(location, "/")
 }
 
 // ociHostname strips the "oci://" scheme, any other URL scheme, and path/trailing slash from a
