@@ -40,7 +40,7 @@ const (
 	envPassword       = "EPINIO_PASSWORD"
 	envPasswordB64    = "EPINIO_PASSWORD_B64"
 	envPasswordLegacy = "EPINIO_PASS"
-	envAPIToken       = "EPINIO_API_TOKEN"
+	envAPIToken       = "EPINIO_API_TOKEN" //nolint:gosec // G101: env var name, not a credential
 )
 
 // Settings represents a epinio settings
