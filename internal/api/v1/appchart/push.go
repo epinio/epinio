@@ -26,8 +26,8 @@ const maxChartArchiveSize = 32 << 20 // 32 MiB
 //
 // It receives a helm chart archive (multipart field `file`) and the name for
 // the new application chart (field `name`, optional fields `description` and
-// `short_description`). The chart is pushed to Epinio's own OCI registry, and
-// an application chart referencing it is created.
+// `short_description`). The chart is pushed to Epinio's registry, the one of
+// the application images, and an application chart referencing it is created.
 //
 // For the name of an application chart which was pushed before, and which no
 // application uses, the chart of that application chart is replaced.

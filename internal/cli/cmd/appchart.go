@@ -141,8 +141,9 @@ func NewAppChartPushCmd(client AppchartsService) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push NAME CHART-ARCHIVE [flags]",
 		Short: "Push a helm chart archive to Epinio's registry as application chart",
-		Long: `Push a helm chart archive (a .tgz, as created by 'helm package') to Epinio's own
-registry, and create the application chart NAME referencing it.
+		Long: `Push a helm chart archive (a .tgz, as created by 'helm package')
+to the registry Epinio stores application images in, bundled or external,
+and create the application chart NAME referencing it.
 
 When NAME is an application chart which was pushed before, its chart is replaced. This is
 refused while applications use the application chart.
