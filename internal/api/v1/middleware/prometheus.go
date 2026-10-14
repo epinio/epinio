@@ -18,6 +18,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// unmatchedRouteLabel is used when the request did not match a registered route.
+// Using the raw URL path would create unbounded Prometheus series (scanners, bots).
+const unmatchedRouteLabel = "unmatched"
+
 // Prometheus records request metrics for the Epinio API server.
 func Prometheus() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -25,7 +29,7 @@ func Prometheus() gin.HandlerFunc {
 
 		route := c.FullPath()
 		if route == "" {
-			route = c.Request.URL.Path
+			route = unmatchedRouteLabel
 		}
 
 		metrics.HTTPRequestsTotal.WithLabelValues(

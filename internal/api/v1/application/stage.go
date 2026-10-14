@@ -424,7 +424,9 @@ func stageJobs(ctx context.Context, cluster *kubernetes.Cluster, namespace, stag
 
 // waitForStagingCompletion waits until all provided jobs finish and reports success or failure.
 // It returns (true, nil) on success, (false, nil) on job failure, or (false, err) on unexpected errors.
-func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, jobs []batchv1.Job) (bool, error) {
+// Staging metrics are recorded here (once per stage ID) for real job outcomes only;
+// watch/context errors are not build outcomes and are not counted.
+func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, stageID string, jobs []batchv1.Job) (bool, error) {
 	for _, job := range jobs {
 		if err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.Name, duration.ToAppBuilt()); err != nil {
 			return false, err
@@ -435,10 +437,12 @@ func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, 
 			return false, err
 		}
 		if failed {
+			metrics.RecordStagingOnce(stageID, metrics.StatusFailure)
 			return false, nil
 		}
 	}
 
+	metrics.RecordStagingOnce(stageID, metrics.StatusSuccess)
 	return true, nil
 }
 
@@ -501,17 +505,15 @@ func Staged(c *gin.Context) apierror.APIErrors {
 		return apiErr
 	}
 
-	success, err := waitForStagingCompletion(ctx, cluster, jobs)
+	success, err := waitForStagingCompletion(ctx, cluster, id, jobs)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 	if !success {
-		metrics.RecordStaging("failure")
 		return apierror.NewInternalError("Failed to stage",
 			fmt.Sprintf("stage-id = %s", id))
 	}
 
-	metrics.RecordStaging("success")
 	response.OK(c)
 	return nil
 }
@@ -576,10 +578,10 @@ func StagedWebsocket(c *gin.Context) {
 	// If the job already completed before the websocket upgrade, send the final state immediately.
 	if done, success := jobDoneState(jobs); done {
 		if success {
-			metrics.RecordStaging("success")
+			metrics.RecordStagingOnce(stageID, metrics.StatusSuccess)
 			_ = sendUpdate(models.StageStatusSucceeded, "", true)
 		} else {
-			metrics.RecordStaging("failure")
+			metrics.RecordStagingOnce(stageID, metrics.StatusFailure)
 			_ = sendUpdate(models.StageStatusFailed, fmt.Sprintf("stage-id = %s failed to complete", stageID), true)
 		}
 		return
@@ -600,7 +602,7 @@ func StagedWebsocket(c *gin.Context) {
 	resultCh := make(chan result, 1)
 
 	go func() {
-		success, waitErr := waitForStagingCompletion(waitCtx, cluster, jobs)
+		success, waitErr := waitForStagingCompletion(waitCtx, cluster, stageID, jobs)
 		resultCh <- result{success: success, err: waitErr}
 	}()
 
@@ -610,21 +612,20 @@ func StagedWebsocket(c *gin.Context) {
 	for {
 		select {
 		case <-waitCtx.Done():
+			// Client disconnect is not a build outcome — do not record a staging metric.
 			_ = sendUpdate(models.StageStatusError, "staging wait cancelled", true)
 			return
 		case res := <-resultCh:
 			if res.err != nil {
+				// Watch/context errors are not build outcomes.
 				log.Errorw("staging completion watcher failed", "error", res.err)
-				metrics.RecordStaging("error")
 				_ = sendUpdate(models.StageStatusError, res.err.Error(), true)
 				return
 			}
 			if res.success {
-				metrics.RecordStaging("success")
 				_ = sendUpdate(models.StageStatusSucceeded, "", true)
 				return
 			}
-			metrics.RecordStaging("failure")
 			_ = sendUpdate(
 				models.StageStatusFailed,
 				fmt.Sprintf("stage-id = %s failed to complete", stageID),

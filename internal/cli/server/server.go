@@ -29,7 +29,6 @@ import (
 	"github.com/epinio/epinio/internal/tracing"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -102,8 +101,6 @@ func NewHandler() (*gin.Engine, error) {
 	})
 	// And the API self-description
 	router.GET("/api/swagger.json", swaggerHandler)
-	// Prometheus metrics (no authentication — scrape from in-cluster Alloy/Prometheus)
-	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Add common middlewares to all the routes declared after
 	router.Use(

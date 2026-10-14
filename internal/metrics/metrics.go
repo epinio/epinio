@@ -13,8 +13,15 @@
 package metrics
 
 import (
+	"sync"
+
 	"github.com/epinio/epinio/internal/version"
 	"github.com/prometheus/client_golang/prometheus"
+)
+
+const (
+	StatusSuccess = "success"
+	StatusFailure = "failure"
 )
 
 var (
@@ -49,6 +56,12 @@ var (
 		},
 		[]string{"version"},
 	)
+
+	// recordedStages ensures each stage ID is counted once, even if multiple
+	// observers (HTTP + websocket, async deploy, etc.) wait on the same build.
+	// Entries are retained for the process lifetime so late observers cannot
+	// double-count; memory is one small key per completed stage ID.
+	recordedStages sync.Map
 )
 
 func init() {
@@ -59,12 +72,31 @@ func init() {
 		BuildInfo,
 	)
 	BuildInfo.WithLabelValues(version.Version).Set(1)
+
+	// Pre-create labeled series so scrapes report 0 before the first event.
+	for _, s := range []string{StatusSuccess, StatusFailure} {
+		StagingCompletedTotal.WithLabelValues(s)
+		DeploymentsTotal.WithLabelValues(s)
+	}
 }
 
-func RecordStaging(status string) {
+// RecordStagingOnce records a staging outcome once per stage ID.
+// Watch/context errors are not build outcomes and must not call this.
+func RecordStagingOnce(stageID, status string) {
+	if status != StatusSuccess && status != StatusFailure {
+		return
+	}
+	if stageID != "" {
+		if _, already := recordedStages.LoadOrStore(stageID, struct{}{}); already {
+			return
+		}
+	}
 	StagingCompletedTotal.WithLabelValues(status).Inc()
 }
 
 func RecordDeployment(status string) {
+	if status != StatusSuccess && status != StatusFailure {
+		return
+	}
 	DeploymentsTotal.WithLabelValues(status).Inc()
 }

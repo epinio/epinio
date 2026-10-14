@@ -258,7 +258,7 @@ func runAsyncDeployment(ctx context.Context, deploymentID string, req models.Asy
 			failAPI(apiErr)
 			return
 		}
-		success, waitErr := waitForStagingCompletion(ctx, cluster, jobs)
+		success, waitErr := waitForStagingCompletion(ctx, cluster, stageID, jobs)
 		if waitErr != nil {
 			log.Errorw("staging completion wait failed", "error", waitErr)
 			failErr(waitErr)

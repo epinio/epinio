@@ -28,6 +28,7 @@ import (
 	"github.com/epinio/epinio/internal/tracing"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -48,6 +49,12 @@ func init() {
 	err = viper.BindPFlag("port", flags.Lookup("port"))
 	checkErr(err)
 	err = viper.BindEnv("port", "PORT")
+	checkErr(err)
+
+	flags.Int("metrics-port", 0, "(METRICS_PORT) Port for the Prometheus /metrics endpoint. 0 disables it (off by default)")
+	err = viper.BindPFlag("metrics-port", flags.Lookup("metrics-port"))
+	checkErr(err)
+	err = viper.BindEnv("metrics-port", "METRICS_PORT")
 	checkErr(err)
 
 	flags.String("tls-issuer", "", "(TLS_ISSUER) The cluster issuer to use for workload certificates")
@@ -172,8 +179,34 @@ var CmdServer = &cobra.Command{
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 		helpers.Logger.Infow("listening on localhost", "port", listeningPort)
 
+		if metricsPort := viper.GetInt("metrics-port"); metricsPort > 0 {
+			metricsListener, err := net.Listen("tcp", fmt.Sprintf(":%d", metricsPort))
+			if err != nil {
+				_ = listener.Close()
+				return errors.Wrap(err, "error creating metrics listener")
+			}
+			go serveMetrics(metricsListener)
+		}
+
 		return startServerGracefully(listener, handler)
 	},
+}
+
+// serveMetrics serves Prometheus metrics on a separate listener so the endpoint
+// is not exposed via the public API Ingress. Disabled when metrics-port is 0.
+func serveMetrics(listener net.Listener) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	srv := &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	helpers.Logger.Infow("metrics listening", "port", listener.Addr().(*net.TCPAddr).Port)
+	if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		helpers.Logger.Errorw("metrics server error", "error", err)
+	}
 }
 
 // startServerGracefully will start the server and will wait for a graceful shutdown
