@@ -13,6 +13,7 @@ package services_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -20,11 +21,18 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/internal/services/servicesfakes"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
@@ -166,6 +174,232 @@ var _ = Describe("Service Instances", func() {
 					LabelSelector: "app.kubernetes.io/instance=" + names.ServiceReleaseName(name),
 				}))
 			})
+		})
+	})
+
+	Describe("UpdateSettings", func() {
+		const namespace = "workspace"
+		const secretName = "s-myservice"
+
+		var client *k8sfake.Clientset
+
+		// settings `Get` reported, used for 1.9.0 services only
+		var current models.ChartValueSettings
+
+		BeforeEach(func() {
+			current = nil
+		})
+
+		newSecret := func(settings models.ChartValueSettings) *corev1.Secret {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: namespace,
+				},
+			}
+			if settings != nil {
+				data, err := yaml.Marshal(settings)
+				Expect(err).ToNot(HaveOccurred())
+				secret.Data = map[string][]byte{"settings": data}
+			}
+			return secret
+		}
+
+		storedSettings := func() models.ChartValueSettings {
+			secret, err := client.CoreV1().Secrets(namespace).
+				Get(ctx, secretName, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			settings := models.ChartValueSettings{}
+			err = yaml.Unmarshal(secret.Data["settings"], &settings)
+			Expect(err).ToNot(HaveOccurred())
+			return settings
+		}
+
+		seed := func(settings models.ChartValueSettings) {
+			client = k8sfake.NewSimpleClientset(newSecret(settings))
+		}
+
+		update := func(
+			changes models.ServiceUpdateRequest,
+		) (models.ChartValueSettings, error) {
+			return services.UpdateSettings(
+				ctx,
+				client.CoreV1().Secrets(namespace),
+				secretName,
+				current,
+				changes,
+			)
+		}
+
+		// EPINIO-814: the returned settings feed the helm redeploy. They were
+		// nil on success, so the release lost every setting.
+		It("returns the untouched settings along with the changed one", func() {
+			seed(models.ChartValueSettings{
+				"s3.replicas":   "2",
+				"s3.enableAuth": "true",
+			})
+
+			settings, err := update(models.ServiceUpdateRequest{
+				Set: models.ChartValueSettings{"s3.replicas": "3"},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			expected := models.ChartValueSettings{
+				"s3.replicas":   "3",
+				"s3.enableAuth": "true",
+			}
+			Expect(settings).To(Equal(expected))
+			Expect(storedSettings()).To(Equal(expected))
+		})
+
+		It("applies removals before additions", func() {
+			seed(models.ChartValueSettings{
+				"ingress.enabled":    "true",
+				"ingress.hostname":   "example.com",
+				"nesting.here.hello": "world",
+			})
+
+			settings, err := update(models.ServiceUpdateRequest{
+				Remove: []string{"ingress.enabled", "nesting.here.hello"},
+				Set:    models.ChartValueSettings{"nesting.here.hello": "user"},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			expected := models.ChartValueSettings{
+				"ingress.hostname":   "example.com",
+				"nesting.here.hello": "user",
+			}
+			Expect(settings).To(Equal(expected))
+			Expect(storedSettings()).To(Equal(expected))
+		})
+
+		It("starts from the release settings when the secret has none", func() {
+			seed(nil)
+			// as `Get` reports them: JSON-encoded
+			current = models.ChartValueSettings{
+				"sequence": `"one"`,
+				"replicas": "2",
+			}
+
+			settings, err := update(models.ServiceUpdateRequest{
+				Set: models.ChartValueSettings{"replicas": "3"},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			expected := models.ChartValueSettings{
+				"sequence": "one",
+				"replicas": "3",
+			}
+			Expect(settings).To(Equal(expected))
+			Expect(storedSettings()).To(Equal(expected))
+		})
+
+		It("ignores the release settings when the secret has some", func() {
+			seed(models.ChartValueSettings{"a": "1"})
+			current = models.ChartValueSettings{"stale": "x"}
+
+			settings, err := update(models.ServiceUpdateRequest{
+				Set: models.ChartValueSettings{"b": "2"},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(settings).To(
+				Equal(models.ChartValueSettings{"a": "1", "b": "2"}))
+		})
+
+		It("starts from empty settings when nothing is known", func() {
+			seed(nil)
+
+			settings, err := update(models.ServiceUpdateRequest{
+				Set: models.ChartValueSettings{"a": "1"},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(settings).To(Equal(models.ChartValueSettings{"a": "1"}))
+			Expect(storedSettings()).To(
+				Equal(models.ChartValueSettings{"a": "1"}))
+		})
+
+		It("retries on conflict and returns the final settings", func() {
+			seed(models.ChartValueSettings{
+				"a": "1",
+			})
+
+			conflicts := 1
+			client.PrependReactor("update", "secrets",
+				func(k8stesting.Action) (bool, runtime.Object, error) {
+					if conflicts == 0 {
+						return false, nil, nil
+					}
+					conflicts--
+					return true, nil, apierrors.NewConflict(
+						schema.GroupResource{Resource: "secrets"},
+						secretName,
+						errors.New("stale"),
+					)
+				})
+
+			settings, err := update(models.ServiceUpdateRequest{
+				Set: models.ChartValueSettings{"b": "2"},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			expected := models.ChartValueSettings{"a": "1", "b": "2"}
+			Expect(settings).To(Equal(expected))
+			Expect(storedSettings()).To(Equal(expected))
+		})
+
+		It("returns the error and no settings when the write fails", func() {
+			seed(models.ChartValueSettings{
+				"a": "1",
+			})
+			client.PrependReactor("update", "secrets",
+				func(k8stesting.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("boom")
+				})
+
+			settings, err := update(models.ServiceUpdateRequest{
+				Set: models.ChartValueSettings{"b": "2"},
+			})
+			Expect(err).To(MatchError("boom"))
+			Expect(settings).To(BeNil())
+			Expect(storedSettings()).To(
+				Equal(models.ChartValueSettings{"a": "1"}))
+		})
+
+		It("returns the error when the secret does not exist", func() {
+			client = k8sfake.NewSimpleClientset()
+
+			settings, err := update(models.ServiceUpdateRequest{
+				Set: models.ChartValueSettings{"a": "1"},
+			})
+			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "got %v", err)
+			Expect(settings).To(BeNil())
+		})
+	})
+
+	Describe("SettingsFromRelease", func() {
+		It("decodes the JSON-encoded values of the release", func() {
+			settings := services.SettingsFromRelease(
+				models.ChartValueSettings{
+					"sequence": `"one"`,
+					"replicas": "2",
+					"auth":     "true",
+					"nesting":  `{"here":{"hello":"world","n":1}}`,
+					"list":     `["a","b"]`,
+					"broken":   `{not json`,
+				})
+
+			Expect(settings).To(Equal(models.ChartValueSettings{
+				"sequence":           "one",
+				"replicas":           "2",
+				"auth":               "true",
+				"nesting.here.hello": "world",
+				"nesting.here.n":     "1",
+				"list":               `["a","b"]`,
+				"broken":             `{not json`,
+			}))
 		})
 	})
 })
