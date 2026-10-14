@@ -183,13 +183,6 @@ var _ = Describe("Service Instances", func() {
 
 		var client *k8sfake.Clientset
 
-		// settings `Get` reported, used for 1.9.0 services only
-		var current models.ChartValueSettings
-
-		BeforeEach(func() {
-			current = nil
-		})
-
 		newSecret := func(settings models.ChartValueSettings) *corev1.Secret {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -227,7 +220,6 @@ var _ = Describe("Service Instances", func() {
 				ctx,
 				client.CoreV1().Secrets(namespace),
 				secretName,
-				current,
 				changes,
 			)
 		}
@@ -274,41 +266,7 @@ var _ = Describe("Service Instances", func() {
 			Expect(storedSettings()).To(Equal(expected))
 		})
 
-		It("starts from the release settings when the secret has none", func() {
-			seed(nil)
-			// as `Get` reports them: JSON-encoded
-			current = models.ChartValueSettings{
-				"sequence": `"one"`,
-				"replicas": "2",
-			}
-
-			settings, err := update(models.ServiceUpdateRequest{
-				Set: models.ChartValueSettings{"replicas": "3"},
-			})
-			Expect(err).ToNot(HaveOccurred())
-
-			expected := models.ChartValueSettings{
-				"sequence": "one",
-				"replicas": "3",
-			}
-			Expect(settings).To(Equal(expected))
-			Expect(storedSettings()).To(Equal(expected))
-		})
-
-		It("ignores the release settings when the secret has some", func() {
-			seed(models.ChartValueSettings{"a": "1"})
-			current = models.ChartValueSettings{"stale": "x"}
-
-			settings, err := update(models.ServiceUpdateRequest{
-				Set: models.ChartValueSettings{"b": "2"},
-			})
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(settings).To(
-				Equal(models.ChartValueSettings{"a": "1", "b": "2"}))
-		})
-
-		It("starts from empty settings when nothing is known", func() {
+		It("starts from empty settings when the secret has none", func() {
 			seed(nil)
 
 			settings, err := update(models.ServiceUpdateRequest{
@@ -376,30 +334,6 @@ var _ = Describe("Service Instances", func() {
 			})
 			Expect(apierrors.IsNotFound(err)).To(BeTrue(), "got %v", err)
 			Expect(settings).To(BeNil())
-		})
-	})
-
-	Describe("SettingsFromRelease", func() {
-		It("decodes the JSON-encoded values of the release", func() {
-			settings := services.SettingsFromRelease(
-				models.ChartValueSettings{
-					"sequence": `"one"`,
-					"replicas": "2",
-					"auth":     "true",
-					"nesting":  `{"here":{"hello":"world","n":1}}`,
-					"list":     `["a","b"]`,
-					"broken":   `{not json`,
-				})
-
-			Expect(settings).To(Equal(models.ChartValueSettings{
-				"sequence":           "one",
-				"replicas":           "2",
-				"auth":               "true",
-				"nesting.here.hello": "world",
-				"nesting.here.n":     "1",
-				"list":               `["a","b"]`,
-				"broken":             `{not json`,
-			}))
 		})
 	})
 })

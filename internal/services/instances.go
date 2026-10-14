@@ -458,7 +458,6 @@ func (s *ServiceClient) UpdateService(
 		ctx,
 		cluster.Kubectl.CoreV1().Secrets(service.Meta.Namespace),
 		serviceResourceName(service.Meta.Name),
-		service.Settings,
 		changes,
 	)
 	if err != nil {
@@ -488,14 +487,10 @@ func (s *ServiceClient) UpdateService(
 // secret, writes them back, and returns the full set of settings after the
 // change. The helm release is redeployed from these, so they must include the
 // settings the change did not touch.
-//
-// A service created by 1.9.0 has no settings in its secret. For those, the
-// current settings are the ones `Get` extracted from the helm release.
 func updateSettings(
 	ctx context.Context,
 	secrets v1.SecretInterface,
 	secretName string,
-	current models.ChartValueSettings,
 	changes models.ServiceUpdateRequest,
 ) (models.ChartValueSettings, error) {
 	var newSettings models.ChartValueSettings
@@ -516,9 +511,6 @@ func updateSettings(
 			if err != nil {
 				return errors.Wrap(err, "failed to unmarshall the settings")
 			}
-		} else {
-			// 1.9.0 service, start from the settings found in the release
-			settings = settingsFromRelease(current)
 		}
 
 		// Modify the settings as per the instructions.
@@ -795,52 +787,6 @@ func setServiceStatusAndCustomValues(service *models.Service,
 		}
 	}
 	return nil
-}
-
-// settingsFromRelease turns the settings `Get` extracted from the helm release
-// of a 1.9.0 service back into the form of `--chart-value` settings. `getValue`
-// JSON-encodes them, which suits display, but deployed as-is a string would
-// keep its quotes and a map would not parse.
-func settingsFromRelease(
-	current models.ChartValueSettings,
-) models.ChartValueSettings {
-	settings := models.ChartValueSettings{}
-
-	for key, value := range current {
-		var decoded interface{}
-
-		err := json.Unmarshal([]byte(value), &decoded)
-		if err != nil {
-			settings[key] = value
-			continue
-		}
-
-		flattenSetting(settings, key, decoded)
-	}
-
-	return settings
-}
-
-// flattenSetting adds the decoded value under the key, and a map as one
-// setting per leaf. Arrays stay JSON, as `getValue` produced them.
-func flattenSetting(
-	settings models.ChartValueSettings,
-	key string,
-	value interface{},
-) {
-	switch v := value.(type) {
-	case string:
-		settings[key] = v
-	case map[string]interface{}:
-		for subkey, subvalue := range v {
-			flattenSetting(settings, key+"."+subkey, subvalue)
-		}
-	default:
-		// numbers, booleans, null and arrays. Marshalling a value that
-		// came out of json.Unmarshal cannot fail.
-		data, _ := json.Marshal(v)
-		settings[key] = string(data)
-	}
 }
 
 func getValue(values chartutil.Values, key string, maybetable bool) (string, error) {
