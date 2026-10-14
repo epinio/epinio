@@ -117,6 +117,27 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			Expect(string(b)).To(Equal(`{"foo":"bar"}`))
 		})
 
+		It("does not relay the upstream CORS headers", func() {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("X-Upstream", "kept")
+				w.WriteHeader(200)
+			}))
+			defer srv.Close()
+
+			// what the server's CORS middleware sets before the handler runs
+			c.Header("Access-Control-Allow-Origin", "https://rancher.example.com")
+
+			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio"}`, srv.URL))
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).ToNot(HaveOccurred())
+			Expect(w.Header().Values("Access-Control-Allow-Origin")).To(Equal([]string{"https://rancher.example.com"}))
+			Expect(w.Header().Get("X-Upstream")).To(Equal("kept"))
+		})
+
 		It("fails for unkwnown URLs", func() {
 			setupAndRun := func(path string) {
 				GinkgoHelper()
