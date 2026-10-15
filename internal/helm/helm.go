@@ -163,6 +163,9 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		return errors.Wrap(err, "initializing Helm repository or OCI registry")
 	}
 
+	// No ReuseValues: the values passed in are the complete set, built from
+	// the catalog values and the settings stored in the service secret.
+	// Reusing the old release's values would bring back removed settings.
 	chartSpec := hc.ChartSpec{
 		ReleaseName: releaseName,
 		ChartName:   helmChart,
@@ -171,7 +174,6 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 		Wait:        parameters.Wait,
 		ValuesYaml:  string(parameters.Values),
 		Timeout:     duration.ToDeployment(),
-		ReuseValues: true,
 	}
 
 	if !parameters.Wait {
