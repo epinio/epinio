@@ -428,7 +428,7 @@ func asyncDeploy(
 	bgLog.Infow("step:stageJobs", "ms", time.Since(t).Milliseconds())
 
 	t = time.Now()
-	success, waitStagingError := waitForStagingCompletion(bgCtx, cluster, jobs)
+	success, waitStagingError := waitForStagingCompletion(bgCtx, cluster, params.Stage.ID, jobs)
 	if waitStagingError != nil {
 		bgLog.Errorw(
 			"error waiting for staging completion",
