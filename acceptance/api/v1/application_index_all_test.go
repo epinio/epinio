@@ -128,7 +128,9 @@ var _ = Describe("AllApps Endpoints", LApplication, func() {
 	It("filters applications to a single namespace", func() {
 		apps := listApps("namespaces=" + namespace1)
 
-		Expect(appRefsOf(apps)).To(ConsistOf([]string{app1, namespace1}))
+		Expect(appRefsOf(apps)).To(ConsistOf([][]string{
+			{app1, namespace1},
+		}))
 	})
 
 	It("filters applications to several namespaces", func() {
@@ -136,9 +138,10 @@ var _ = Describe("AllApps Endpoints", LApplication, func() {
 
 		apps := listApps(query)
 
-		Expect(appRefsOf(apps)).To(ConsistOf(
-			[]string{app1, namespace1},
-			[]string{app2, namespace2}))
+		Expect(appRefsOf(apps)).To(ConsistOf([][]string{
+			{app1, namespace1},
+			{app2, namespace2},
+		}))
 	})
 
 	It("ignores a requested namespace that does not exist", func() {
@@ -146,7 +149,9 @@ var _ = Describe("AllApps Endpoints", LApplication, func() {
 
 		apps := listApps(query)
 
-		Expect(appRefsOf(apps)).To(ConsistOf([]string{app1, namespace1}))
+		Expect(appRefsOf(apps)).To(ConsistOf([][]string{
+			{app1, namespace1},
+		}))
 	})
 
 	It("combines the namespace filter with the search term", func() {
@@ -155,7 +160,9 @@ var _ = Describe("AllApps Endpoints", LApplication, func() {
 
 		apps := listApps(query)
 
-		Expect(appRefsOf(apps)).To(ConsistOf([]string{app1, namespace1}))
+		Expect(appRefsOf(apps)).To(ConsistOf([][]string{
+			{app1, namespace1},
+		}))
 	})
 
 	It("paginates within the filtered namespaces", func() {

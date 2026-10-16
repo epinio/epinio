@@ -131,6 +131,7 @@ type APIClient interface {
 	ChartShow(name string) (models.AppChart, error)
 	ChartMatch(prefix string) (models.ChartMatchResponse, error)
 	ChartCreate(request models.AppChartCreateRequest) (models.Response, error)
+	ChartPush(name string, file client.FormFile, description, shortDescription string) (models.AppChartPushResponse, error)
 	ChartUpdate(name string, request models.AppChartUpdateRequest) (models.Response, error)
 	ChartDelete(name string) (models.Response, error)
 

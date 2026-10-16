@@ -247,6 +247,7 @@
     - chart_read
   routes:
     - ChartCreate
+    - ChartPush
     - ChartUpdate
     - ChartDelete
 

@@ -450,14 +450,34 @@ var _ = Describe("Apps", LApplication, func() {
 					env.DeleteAppchart(tempFile)
 				})
 
+				// `helm status` strips chart metadata from its output, so the
+				// chart package has to be read with `helm get metadata`.
+				type releaseMetadata struct {
+					Chart   string `json:"chart"`
+					Version string `json:"version"`
+					Status  string `json:"status"`
+				}
+
+				releaseMetadataOf := func(release string) releaseMetadata {
+					out, err := proc.RunW("helm", "get", "metadata", release,
+						"--namespace", namespace, "-o", "json")
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+					var metadata releaseMetadata
+
+					err = json.Unmarshal([]byte(out), &metadata)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+					return metadata
+				}
+
 				It("changes the app chart of the running app and keeps the workload healthy", func() {
 					releaseName := names.ReleaseName(appName)
 
 					By("recording the helm chart package before the switch")
-					beforeStatus, err := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
-					Expect(err).ToNot(HaveOccurred(), beforeStatus)
-					Expect(beforeStatus).To(ContainSubstring(`"name":"epinio-application"`))
-					Expect(beforeStatus).ToNot(ContainSubstring(`"version":"0.1.21"`))
+					before := releaseMetadataOf(releaseName)
+					Expect(before.Chart).To(Equal("epinio-application"))
+					Expect(before.Version).ToNot(Equal("0.1.21"))
 
 					By("switching the running app onto a different helm chart package")
 					out, err := env.Epinio("", "app", "update", appName,
@@ -490,23 +510,21 @@ var _ = Describe("Apps", LApplication, func() {
 					)
 
 					By("verifying helm upgraded onto the alternate chart package")
-					Eventually(func() string {
-						status, statusErr := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
-						ExpectWithOffset(1, statusErr).ToNot(HaveOccurred(), status)
-						return status
-					}, "2m").Should(And(
-						ContainSubstring(`"version":"0.1.21"`),
-						ContainSubstring(`"status":"deployed"`),
-					))
+					Eventually(func() releaseMetadata {
+						return releaseMetadataOf(releaseName)
+					}, "2m").Should(Equal(releaseMetadata{
+						Chart:   "epinio-application",
+						Version: "0.1.21",
+						Status:  "deployed",
+					}))
 				})
 
 				It("updates the app chart without redeploying when --no-restart is set", func() {
 					releaseName := names.ReleaseName(appName)
 
 					By("recording the helm chart package before the switch")
-					beforeStatus, err := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
-					Expect(err).ToNot(HaveOccurred(), beforeStatus)
-					Expect(beforeStatus).ToNot(ContainSubstring(`"version":"0.1.21"`))
+					Expect(releaseMetadataOf(releaseName).Version).
+						ToNot(Equal("0.1.21"))
 
 					By("patching the app chart with --no-restart")
 					out, err := env.Epinio("", "app", "update", appName,
@@ -527,10 +545,8 @@ var _ = Describe("Apps", LApplication, func() {
 
 					By("keeping the existing helm release on the previous chart package")
 					Consistently(func() string {
-						status, statusErr := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
-						ExpectWithOffset(1, statusErr).ToNot(HaveOccurred(), status)
-						return status
-					}, "20s", "5s").ShouldNot(ContainSubstring(`"version":"0.1.21"`))
+						return releaseMetadataOf(releaseName).Version
+					}, "20s", "5s").ShouldNot(Equal("0.1.21"))
 				})
 
 				It("drops the previous chart's values when switching between AppCharts sharing a helm package", func() {
@@ -609,14 +625,13 @@ var _ = Describe("Apps", LApplication, func() {
 					))
 
 					By("verifying helm stayed on the same package version")
-					Eventually(func() string {
-						status, statusErr := proc.RunW("helm", "status", releaseName, "--namespace", namespace, "-o", "json")
-						ExpectWithOffset(1, statusErr).ToNot(HaveOccurred(), status)
-						return status
-					}, "2m").Should(And(
-						ContainSubstring(`"version":"0.1.26"`),
-						ContainSubstring(`"status":"deployed"`),
-					))
+					Eventually(func() releaseMetadata {
+						return releaseMetadataOf(releaseName)
+					}, "2m").Should(Equal(releaseMetadata{
+						Chart:   "epinio-application",
+						Version: "0.1.26",
+						Status:  "deployed",
+					}))
 				})
 
 				It("rejects a chart switch when existing settings are incompatible", func() {

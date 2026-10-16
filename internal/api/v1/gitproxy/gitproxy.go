@@ -362,6 +362,12 @@ func doRequest(client *http.Client, req *http.Request, writer http.ResponseWrite
 	writer.WriteHeader(resp.StatusCode)
 
 	for k, values := range resp.Header {
+		// Need to set Epinios CORS headers, but not the ones from the
+		// proxied response
+		if strings.HasPrefix(k, "Access-Control-") {
+			continue
+		}
+
 		for _, v := range values {
 			writer.Header().Add(k, v)
 		}
