@@ -139,6 +139,12 @@ func DeploymentsStart(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
+	if req.SourcePath != "" {
+		if _, err := models.ValidateSourcePath(req.SourcePath); err != nil {
+			return apierror.NewBadRequestError(err.Error())
+		}
+	}
+
 	id, err := asyncDeployJobID()
 	if err != nil {
 		return apierror.InternalError(err, "failed to generate async deploy id")
@@ -240,7 +246,7 @@ func runAsyncDeployment(ctx context.Context, deploymentID string, req models.Asy
 	if req.BlobUID != "" || req.ImageURL == "" {
 		update(func(s *models.AsyncDeployStatus) { s.Status = "staging" })
 
-		stageResp, apiErr := stageForAsyncDeploy(ctx, cluster, req.App, req.BlobUID, req.BuilderImage, req.BuildMode, req.DockerfilePath, username)
+		stageResp, apiErr := stageForAsyncDeploy(ctx, cluster, req.App, req.BlobUID, req.BuilderImage, req.BuildMode, req.DockerfilePath, req.SourcePath, username)
 		if apiErr != nil {
 			failAPI(apiErr)
 			return
@@ -337,6 +343,7 @@ func stageForAsyncDeploy(
 	builderImage string,
 	buildMode string,
 	dockerfilePath string,
+	sourcePath string,
 	username string,
 ) (*models.StageResponse, apierror.APIErrors) {
 	log := requestctx.Logger(ctx).With("component", "async-stage")
@@ -365,14 +372,19 @@ func stageForAsyncDeploy(
 		BuilderImage:   builderImage,
 		BuildMode:      buildMode,
 		DockerfilePath: dockerfilePath,
+		SourcePath:     sourcePath,
 	}
 
 	resolvedBuildMode, resolvedDockerfilePath, builder, config, setupErr := resolveStagingImagesAndScripts(ctx, cluster, stageReq, app)
 	if setupErr != nil {
 		return nil, setupErr
 	}
+	resolvedSourcePath, sourceErr := resolveSourcePath(stageReq, app)
+	if sourceErr != nil {
+		return nil, sourceErr
+	}
 
-	log.Infow("staging app", "scripts", config.Name, "builder", builder, "build mode", resolvedBuildMode)
+	log.Infow("staging app", "scripts", config.Name, "builder", builder, "build mode", resolvedBuildMode, "source path", resolvedSourcePath)
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
@@ -440,6 +452,7 @@ func stageForAsyncDeploy(
 		BuilderImage:        builder,
 		BuildMode:           resolvedBuildMode,
 		DockerfilePath:      resolvedDockerfilePath,
+		SourcePath:          resolvedSourcePath,
 		DockerBuildImage:    config.DockerfileBuildImage,
 		DownloadImage:       config.DownloadImage,
 		UnpackImage:         config.UnpackImage,
