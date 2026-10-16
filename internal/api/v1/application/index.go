@@ -20,8 +20,20 @@ import (
 )
 
 // Index handles the API endpoint GET /namespaces/:namespace/applications
-// It lists all the known applications in the specified namespace, with and without workload.
+// It lists applications in the namespace that are not build-only (undeployed).
+// Build-only apps are returned by UndeployedIndex instead.
 func Index(c *gin.Context) apierror.APIErrors {
+	return indexWithFilter(c, application.ListFilterDeployed)
+}
+
+// UndeployedIndex handles GET /namespaces/:namespace/applications/undeployed
+// It lists build-only apps (buildstatus == "build") with optional pagination
+// and search, for the UI Builds / undeployed-apps view.
+func UndeployedIndex(c *gin.Context) apierror.APIErrors {
+	return indexWithFilter(c, application.ListFilterUndeployed)
+}
+
+func indexWithFilter(c *gin.Context, filter application.ListFilter) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 
@@ -34,7 +46,7 @@ func Index(c *gin.Context) apierror.APIErrors {
 	page, pageSize, paginated := response.GetPaginationParams(c, 1, 25)
 	if paginated || search != "" {
 		apps, total, err := application.ListPaginated(
-			ctx, cluster, namespace, page, pageSize, search,
+			ctx, cluster, namespace, page, pageSize, search, filter,
 		)
 		if err != nil {
 			return apierror.InternalError(err)
@@ -48,6 +60,6 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, apps)
+	response.OKReturn(c, application.FilterApps(apps, filter))
 	return nil
 }

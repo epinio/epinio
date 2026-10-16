@@ -110,9 +110,12 @@ var Routes = routes.NamedRoutes{
 
 	// app controller files see application/*.go
 
-	"AllApps":         get("/applications", errorHandler(application.FullIndex)),
-	"AllAppsGrouped":  get("/applications/grouped", errorHandler(application.GroupedIndex)),
-	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Index)),
+	"AllApps":           get("/applications", errorHandler(application.FullIndex)),
+	"AllAppsGrouped":    get("/applications/grouped", errorHandler(application.GroupedIndex)),
+	"AllAppsUndeployed": get("/applications/undeployed", errorHandler(application.UndeployedFullIndex)),
+	"Apps":              get("/namespaces/:namespace/applications", errorHandler(application.Index)),
+	// Undeployed must be registered before AppShow so "undeployed" is not captured as :app.
+	"AppsUndeployed":  get("/namespaces/:namespace/applications/undeployed", errorHandler(application.UndeployedIndex)),
 	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Create)),
 	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),
 	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Staged)), // See stage.go

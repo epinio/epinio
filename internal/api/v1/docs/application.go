@@ -17,6 +17,7 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // swagger:route GET /applications application AllApps
 // Return list of applications in all namespaces.
+// Build-only (undeployed) apps are omitted; use AllAppsUndeployed for those.
 // responses:
 //   200: AppsResponse
 
@@ -39,8 +40,31 @@ type AllAppsParam struct {
 
 // response: See Apps.
 
+// swagger:route GET /applications/undeployed application AllAppsUndeployed
+// Return list of build-only (undeployed) applications in all namespaces.
+// responses:
+//   200: AppsResponse
+
+// swagger:parameters AllAppsUndeployed
+type AllAppsUndeployedParam struct {
+	// Comma-separated namespaces to filter by, e.g. "ns1,ns2". Names the user
+	// cannot see, or that do not exist, are ignored.
+	// in: query
+	Namespaces string `json:"namespaces"`
+	// Case-insensitive substring match on the application name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based. Pagination is off unless page or pageSize is set.
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 25)
+	// in: query
+	PageSize string `json:"pageSize"`
+}
+
 // swagger:route GET /namespaces/{Namespace}/applications application Apps
 // Return list of applications in the `Namespace`.
+// Build-only (undeployed) apps are omitted; use AppsUndeployed for those.
 // responses:
 //   200: AppsResponse
 
@@ -48,6 +72,36 @@ type AllAppsParam struct {
 type AppsParam struct {
 	// in: path
 	Namespace string
+	// Case-insensitive substring match on the application name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based. Pagination is off unless page or pageSize is set.
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 25)
+	// in: query
+	PageSize string `json:"pageSize"`
+}
+
+// swagger:route GET /namespaces/{Namespace}/applications/undeployed application AppsUndeployed
+// Return list of build-only (undeployed) applications in the `Namespace`.
+// Supports the same search and pagination query parameters as Apps.
+// responses:
+//   200: AppsResponse
+
+// swagger:parameters AppsUndeployed
+type AppsUndeployedParam struct {
+	// in: path
+	Namespace string
+	// Case-insensitive substring match on the application name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based. Pagination is off unless page or pageSize is set.
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 25)
+	// in: query
+	PageSize string `json:"pageSize"`
 }
 
 // swagger:response AppsResponse
@@ -77,6 +131,7 @@ type AppCreateResponse struct {
 
 // swagger:route GET /namespaces/{Namespace}/applications/{App} application AppShow
 // Return details of the named `App` in the `Namespace`.
+// Works for both deployed and build-only (undeployed) apps.
 // The response includes `configuration.environment` (user-set variables only) and
 // `configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).
 // responses:

@@ -38,7 +38,10 @@ func GroupedIndex(c *gin.Context) apierror.APIErrors {
 	page, pageSize, _ := response.GetPaginationParams(c, 1, 10)
 	search := response.GetSearchParam(c)
 
-	grouped, err := application.ListPaginatedByNamespace(ctx, cluster, page, pageSize, search)
+	// Exclude build-only (undeployed) apps; those are listed via the undeployed endpoints.
+	grouped, err := application.ListPaginatedByNamespace(
+		ctx, cluster, page, pageSize, search, application.ListFilterDeployed,
+	)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

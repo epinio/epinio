@@ -195,7 +195,9 @@ var _ = Describe("assignApplicationStatus", func() {
 	})
 
 	It("marks deployment failed when staging done long ago without workload", func() {
-		completedAt := time.Now().Add(-3 * time.Minute)
+		// Must be strictly greater than deployGracePeriod (180s); exactly 3m
+		// can still be "deploying" because stagingDeployTimedOut uses > not >=.
+		completedAt := time.Now().Add(-4 * time.Minute)
 		app := &models.App{
 			StagingStatus: models.ApplicationStagingDone,
 			ImageURL:      "registry.example/apps/ns-app:deadbeef",

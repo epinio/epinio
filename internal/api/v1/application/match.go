@@ -19,6 +19,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -26,6 +27,7 @@ import (
 
 // Match handles the API endpoint /namespace/:namespace/appsmatches/:pattern (GET)
 // It returns a list of all Epinio-controlled applications matching the prefix pattern.
+// Build-only (undeployed) apps are omitted so matches align with the Apps list.
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
@@ -42,7 +44,12 @@ func Match(c *gin.Context) apierror.APIErrors {
 
 	log.Infow("list applications")
 
-	apps, err := application.ListAppRefs(ctx, cluster, namespace)
+	appClient, err := cluster.ClientApp()
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	list, err := appClient.Namespace(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -52,9 +59,13 @@ func Match(c *gin.Context) apierror.APIErrors {
 
 	log.Infow("match prefix", "pattern", prefix)
 	matches := []string{}
-	for _, app := range apps {
-		if strings.HasPrefix(app.Name, prefix) {
-			matches = append(matches, app.Name)
+	for i := range list.Items {
+		cr := &list.Items[i]
+		if application.IsUndeployedCR(cr) {
+			continue
+		}
+		if strings.HasPrefix(cr.GetName(), prefix) {
+			matches = append(matches, cr.GetName())
 		}
 	}
 

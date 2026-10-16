@@ -26,8 +26,20 @@ import (
 )
 
 // FullIndex handles the API endpoint GET /applications
-// It lists all the known applications in all namespaces, with and without workload.
+// It lists applications in all namespaces that are not build-only (undeployed).
+// Build-only apps are returned by UndeployedFullIndex instead.
 func FullIndex(c *gin.Context) apierror.APIErrors {
+	return fullIndexWithFilter(c, application.ListFilterDeployed)
+}
+
+// UndeployedFullIndex handles GET /applications/undeployed
+// It lists build-only apps across namespaces the user can see, with optional
+// pagination and search.
+func UndeployedFullIndex(c *gin.Context) apierror.APIErrors {
+	return fullIndexWithFilter(c, application.ListFilterUndeployed)
+}
+
+func fullIndexWithFilter(c *gin.Context, filter application.ListFilter) apierror.APIErrors {
 	ctx := c.Request.Context()
 	user := requestctx.User(ctx)
 
@@ -43,7 +55,8 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 
 	namespaces := response.GetNamespacesParam(c)
 
-	filteredApps := auth.FilterResources(user, allApps)
+	filteredApps := application.FilterApps(allApps, filter)
+	filteredApps = auth.FilterResources(user, filteredApps)
 	filteredApps = auth.FilterByNamespaces(filteredApps, namespaces)
 
 	if search := response.GetSearchParam(c); search != "" {

@@ -156,8 +156,52 @@
         "tags": [
           "application"
         ],
-        "summary": "Return list of applications in all namespaces.",
+        "summary": "Return list of applications in all namespaces.\nBuild-only (undeployed) apps are omitted; use AllAppsUndeployed for those.",
         "operationId": "AllApps",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Namespaces",
+            "description": "Comma-separated namespaces to filter by, e.g. \"ns1,ns2\". Names the user\ncannot see, or that do not exist, are ignored.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the application name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppsResponse"
+          }
+        }
+      }
+    },
+    "/applications/undeployed": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return list of build-only (undeployed) applications in all namespaces.",
+        "operationId": "AllAppsUndeployed",
         "parameters": [
           {
             "type": "string",
@@ -954,7 +998,7 @@
         "tags": [
           "application"
         ],
-        "summary": "Return list of applications in the `Namespace`.",
+        "summary": "Return list of applications in the `Namespace`.\nBuild-only (undeployed) apps are omitted; use AppsUndeployed for those.",
         "operationId": "Apps",
         "parameters": [
           {
@@ -962,6 +1006,27 @@
             "name": "Namespace",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the application name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1024,13 +1089,56 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/undeployed": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return list of build-only (undeployed) applications in the `Namespace`.\nSupports the same search and pagination query parameters as Apps.",
+        "operationId": "AppsUndeployed",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the application name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppsResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/applications/{App}": {
       "get": {
         "description": "The response includes `configuration.environment` (user-set variables only) and\n`configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).",
         "tags": [
           "application"
         ],
-        "summary": "Return details of the named `App` in the `Namespace`.",
+        "summary": "Return details of the named `App` in the `Namespace`.\nWorks for both deployed and build-only (undeployed) apps.",
         "operationId": "AppShow",
         "parameters": [
           {

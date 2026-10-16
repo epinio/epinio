@@ -31,6 +31,14 @@ var _ = Describe("Auth actions", func() {
 			_, err := auth.InitActions()
 			Expect(err).ToNot(HaveOccurred())
 
+			appRead, found := auth.ActionsMap["app_read"]
+			Expect(found).To(BeTrue())
+			Expect(appRead.Routes).To(ContainElement("Apps"))
+			Expect(appRead.Routes).To(ContainElement("AppsUndeployed"))
+			Expect(appRead.Routes).To(ContainElement("AllApps"))
+			Expect(appRead.Routes).To(ContainElement("AllAppsUndeployed"))
+			Expect(appRead.Routes).To(ContainElement("AppShow"))
+
 			appCreate, found := auth.ActionsMap["app_create"]
 			Expect(found).To(BeTrue())
 			Expect(appCreate.Routes).To(ContainElement("AppCreate"))
