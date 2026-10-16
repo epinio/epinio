@@ -522,6 +522,22 @@ type FakeAPIClient struct {
 		result1 models.ChartMatchResponse
 		result2 error
 	}
+	ChartPushStub        func(string, client.FormFile, string, string) (models.AppChartPushResponse, error)
+	chartPushMutex       sync.RWMutex
+	chartPushArgsForCall []struct {
+		arg1 string
+		arg2 client.FormFile
+		arg3 string
+		arg4 string
+	}
+	chartPushReturns struct {
+		result1 models.AppChartPushResponse
+		result2 error
+	}
+	chartPushReturnsOnCall map[int]struct {
+		result1 models.AppChartPushResponse
+		result2 error
+	}
 	ChartShowStub        func(string) (models.AppChart, error)
 	chartShowMutex       sync.RWMutex
 	chartShowArgsForCall []struct {
@@ -3514,6 +3530,73 @@ func (fake *FakeAPIClient) ChartMatchReturnsOnCall(i int, result1 models.ChartMa
 	}
 	fake.chartMatchReturnsOnCall[i] = struct {
 		result1 models.ChartMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ChartPush(arg1 string, arg2 client.FormFile, arg3 string, arg4 string) (models.AppChartPushResponse, error) {
+	fake.chartPushMutex.Lock()
+	ret, specificReturn := fake.chartPushReturnsOnCall[len(fake.chartPushArgsForCall)]
+	fake.chartPushArgsForCall = append(fake.chartPushArgsForCall, struct {
+		arg1 string
+		arg2 client.FormFile
+		arg3 string
+		arg4 string
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.ChartPushStub
+	fakeReturns := fake.chartPushReturns
+	fake.recordInvocation("ChartPush", []interface{}{arg1, arg2, arg3, arg4})
+	fake.chartPushMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ChartPushCallCount() int {
+	fake.chartPushMutex.RLock()
+	defer fake.chartPushMutex.RUnlock()
+	return len(fake.chartPushArgsForCall)
+}
+
+func (fake *FakeAPIClient) ChartPushCalls(stub func(string, client.FormFile, string, string) (models.AppChartPushResponse, error)) {
+	fake.chartPushMutex.Lock()
+	defer fake.chartPushMutex.Unlock()
+	fake.ChartPushStub = stub
+}
+
+func (fake *FakeAPIClient) ChartPushArgsForCall(i int) (string, client.FormFile, string, string) {
+	fake.chartPushMutex.RLock()
+	defer fake.chartPushMutex.RUnlock()
+	argsForCall := fake.chartPushArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeAPIClient) ChartPushReturns(result1 models.AppChartPushResponse, result2 error) {
+	fake.chartPushMutex.Lock()
+	defer fake.chartPushMutex.Unlock()
+	fake.ChartPushStub = nil
+	fake.chartPushReturns = struct {
+		result1 models.AppChartPushResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ChartPushReturnsOnCall(i int, result1 models.AppChartPushResponse, result2 error) {
+	fake.chartPushMutex.Lock()
+	defer fake.chartPushMutex.Unlock()
+	fake.ChartPushStub = nil
+	if fake.chartPushReturnsOnCall == nil {
+		fake.chartPushReturnsOnCall = make(map[int]struct {
+			result1 models.AppChartPushResponse
+			result2 error
+		})
+	}
+	fake.chartPushReturnsOnCall[i] = struct {
+		result1 models.AppChartPushResponse
 		result2 error
 	}{result1, result2}
 }

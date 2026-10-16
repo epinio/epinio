@@ -41,6 +41,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
+	helmregistry "helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/repo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -135,19 +136,13 @@ func fetchAppChart(
 		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
 	}
 
-	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	log.Infow("input", "chart archive", chartArchive)
-
 	// Ensure presence of the chart archive as a local file.
 
-	chartArchive, err = urlcache.Get(ctx, chartArchive)
+	chartArchive, cleanup, err := chartArchiveFile(ctx, cluster, appChart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
+	defer cleanup()
 
 	log.Infow("input", "local chart archive", chartArchive)
 
@@ -258,14 +253,11 @@ func fetchAppArchive(
 	if appChart == nil {
 		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
 	}
-	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig)
+	chartArchive, cleanup, err := chartArchiveFile(ctx, cluster, appChart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-	chartArchive, err = urlcache.Get(ctx, chartArchive)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
+	defer cleanup()
 	chartFile, err := os.Open(chartArchive) // nolint:gosec // path from urlcache under controlled export volume
 	if err != nil {
 		return apierror.InternalError(err)
@@ -719,6 +711,35 @@ func fetchAppManifest(c *gin.Context, app *models.App) apierror.APIErrors {
 
 	response.OKYaml(c, m)
 	return nil
+}
+
+// chartArchiveFile returns the path of a local copy of the helm chart's archive, and a function
+// to clean it up again, which the caller has to invoke when done with the file.
+//
+// Charts in an OCI registry are pulled with helm. All other charts are located through
+// chartArchiveURL, and then fetched through the url cache, which owns the resulting file.
+func chartArchiveFile(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	c *models.AppChartFull,
+) (string, func(), error) {
+	if helmregistry.IsOCI(c.HelmRepo) {
+		return helm.FetchOCIChartArchive(ctx, cluster, c)
+	}
+
+	archiveURL, err := chartArchiveURL(c, cluster.RestConfig)
+	if err != nil {
+		return "", func() {}, err
+	}
+
+	requestctx.Logger(ctx).Infow("input", "chart archive", archiveURL)
+
+	file, err := urlcache.Get(ctx, archiveURL)
+	if err != nil {
+		return "", func() {}, err
+	}
+
+	return file, func() {}, nil
 }
 
 // chartArchiveURL returns a url for the helm chart's tarball.

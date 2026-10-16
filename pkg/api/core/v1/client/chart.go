@@ -12,6 +12,8 @@
 package client
 
 import (
+	"net/http"
+
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -47,6 +49,27 @@ func (c *Client) ChartCreate(request models.AppChartCreateRequest) (models.Respo
 	endpoint := api.Routes.Path("ChartCreate")
 
 	return Post(c, endpoint, request, response)
+}
+
+// ChartPush uploads a helm chart archive, which the server pushes to Epinio's registry. The server
+// creates the application chart of the given name for it. Description and short description are
+// optional.
+func (c *Client) ChartPush(name string, file FormFile, description, shortDescription string) (models.AppChartPushResponse, error) {
+	response := models.AppChartPushResponse{}
+	endpoint := api.Routes.Path("ChartPush")
+
+	fields := map[string]string{"name": name}
+	if description != "" {
+		fields["description"] = description
+	}
+	if shortDescription != "" {
+		fields["short_description"] = shortDescription
+	}
+
+	requestHandler := NewFileUploadWithFieldsRequestHandler(file, fields)
+	responseHandler := NewJSONResponseHandler(c.log, response)
+
+	return DoWithHandlers(c, endpoint, http.MethodPost, requestHandler, responseHandler)
 }
 
 // ChartUpdate updates the named application chart. The name travels in the URL;

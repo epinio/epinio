@@ -228,6 +228,19 @@ func BoundServiceNamesFromSecret(svcSecret *v1.Secret) []string {
 	return names
 }
 
+// BoundServiceNamesIfAny is the read-only counterpart of BoundServiceNames. It
+// never creates the binding secret, so GET handlers can resolve an application's
+// services without writing to the cluster. An application whose binding secret
+// does not exist yet simply has no bound services.
+func BoundServiceNamesIfAny(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
+	svcSecret, err := svcLoadIfAny(ctx, cluster, appRef)
+	if err != nil {
+		return nil, err
+	}
+
+	return BoundServiceNamesFromSecret(svcSecret), nil
+}
+
 // svcUpdate is a helper for the public functions. It encapsulates the read/modify/write cycle
 // necessary to update the application's kube resource holding the application's service names.
 func svcUpdate(ctx context.Context, cluster *kubernetes.Cluster,
@@ -257,4 +270,11 @@ func svcUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 func svcLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
 	secretName := appRef.MakeServiceSecretName()
 	return loadOrCreateSecret(ctx, cluster, appRef, secretName, "service")
+}
+
+// svcLoadIfAny returns the kube secret storing the referenced application's bound services' names,
+// without creating it when it is missing.
+func svcLoadIfAny(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
+	secretName := appRef.MakeServiceSecretName()
+	return loadSecret(ctx, cluster, appRef, secretName, "service")
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
+	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1263,6 +1264,99 @@ var _ = Describe("Services", LService, func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).ToNot(ContainSubstring(serviceName))
 			})
+		})
+	})
+
+	// EPINIO-814: an update redeployed the release with no user values,
+	// while `service show` (which reads the secret) still looked right.
+	// These check the release itself.
+	Describe("service update, release values", func() {
+		var service string
+
+		releaseValues := func() map[string]interface{} {
+			out, err := proc.Run("", false, "helm", "get", "values",
+				names.ServiceReleaseName(service),
+				"--namespace", namespace,
+				"--output", "json",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			values := map[string]interface{}{}
+			err = json.Unmarshal([]byte(out), &values)
+			Expect(err).ToNot(HaveOccurred(), out)
+			return values
+		}
+
+		hello := func(values map[string]interface{}) interface{} {
+			nesting, _ := values["nesting"].(map[string]interface{})
+			here, _ := nesting["here"].(map[string]interface{})
+			return here["hello"]
+		}
+
+		BeforeEach(func() {
+			service = catalog.NewServiceName()
+
+			By("creating service instance: " + service)
+			out, err := env.Epinio("", "service", "create",
+				catalogService.Meta.Name, service,
+				"--chart-value", "sequence=one",
+				"--chart-value", "nesting.here.hello=world",
+				"--wait",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		AfterEach(func() {
+			env.DeleteService(service)
+		})
+
+		It("keeps the untouched settings in the helm release", func() {
+			out, err := env.Epinio("", "service", "update", service,
+				"--wait",
+				"--set", "nesting.here.hello=user",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Service Changes Saved"))
+
+			values := releaseValues()
+			Expect(values).To(HaveKeyWithValue("sequence", "one"))
+			Expect(hello(values)).To(Equal("user"))
+		})
+
+		It("removes unset settings from the helm release", func() {
+			out, err := env.Epinio("", "service", "update", service,
+				"--wait",
+				"--unset", "sequence",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Service Changes Saved"))
+
+			values := releaseValues()
+			Expect(values).ToNot(HaveKey("sequence"))
+			Expect(hello(values)).To(Equal("world"))
+		})
+
+		It("replaces the settings in the helm release", func() {
+			request := models.ServiceReplaceRequest{
+				Settings: models.ChartValueSettings{
+					"nesting.here.hello": "user",
+				},
+				Wait: true,
+			}
+			body, err := json.Marshal(request)
+			Expect(err).ToNot(HaveOccurred())
+
+			endpoint := fmt.Sprintf("%s%s/%s", serverURL, apiv1.Root,
+				apiv1.Routes.Path("ServiceReplace", namespace, service))
+			response, err := env.Curl("PUT", endpoint,
+				strings.NewReader(string(body)))
+			Expect(err).ToNot(HaveOccurred())
+			defer response.Body.Close()
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			values := releaseValues()
+			Expect(values).ToNot(HaveKey("sequence"))
+			Expect(hello(values)).To(Equal("user"))
 		})
 	})
 

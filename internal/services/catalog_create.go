@@ -19,6 +19,23 @@ func (s *ServiceClient) CreateCatalogService(
 	ctx context.Context,
 	req models.CatalogServiceCreateRequest,
 ) (*unstructured.Unstructured, error) {
+
+	if req.HelmRepo.Secret != "" {
+		_, secretError := s.kubeClient.GetSecret(
+			ctx,
+			helmchart.Namespace(),
+			req.HelmRepo.Secret,
+		)
+
+		if secretError != nil {
+			return nil, errors.Wrapf(
+				secretError,
+				"Something went wrong getting helm repo secret %s.",
+				req.HelmRepo.Secret,
+			)
+		}
+	}
+
 	cr := apiv1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
