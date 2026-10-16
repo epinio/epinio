@@ -18,7 +18,6 @@ import (
 	"encoding/pem"
 	"strings"
 
-	"github.com/epinio/epinio/helpers"
 	"github.com/fatih/color"
 
 	"github.com/pkg/errors"
@@ -27,11 +26,11 @@ import (
 // SettingsColors will update the settings colors configuration
 func (c *EpinioClient) SettingsColors(ctx context.Context, colors bool) error {
 	c.ui.Note().
-		WithStringValue("Settings", helpers.AbsPath(c.Settings.Location)).
+		WithStringValue("Settings", c.Settings.Origin()).
 		Msg("Edit Colorization Flag")
 
 	c.Settings.Colors = colors
-	if err := c.Settings.Save(); err != nil {
+	if err := c.Settings.SaveUnlessEnvOnly(); err != nil {
 		return err
 	}
 
@@ -42,7 +41,7 @@ func (c *EpinioClient) SettingsColors(ctx context.Context, colors bool) error {
 // SettingsShow display the current settings configuration
 func (c *EpinioClient) SettingsShow(showPassword, showToken bool) {
 	c.ui.Note().
-		WithStringValue("Settings", helpers.AbsPath(c.Settings.Location)).
+		WithStringValue("Settings", c.Settings.Origin()).
 		Msg("Show Settings")
 
 	certInfo := color.CyanString("None defined")
@@ -89,7 +88,7 @@ func (c *EpinioClient) SettingsUpdateCA(ctx context.Context) error {
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Settings", helpers.AbsPath(c.Settings.Location)).
+		WithStringValue("Settings", c.Settings.Origin()).
 		Msg("Updating CA in the stored credentials from the current cluster")
 
 	if c.Settings.Location == "" {
