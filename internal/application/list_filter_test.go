@@ -21,24 +21,43 @@ import (
 
 var _ = Describe("ListFilter helpers", func() {
 	Describe("IsUndeployed", func() {
-		It("is true only for buildstatus build", func() {
-			Expect(application.IsUndeployed(models.App{BuildStatus: models.AppBuildStatusBuild})).To(BeTrue())
-			Expect(application.IsUndeployed(models.App{BuildStatus: models.AppBuildStatusDeployed})).To(BeFalse())
+		It("is true only for never-deployed build-only apps", func() {
+			Expect(application.IsUndeployed(models.App{
+				BuildStatus: models.AppBuildStatusBuild,
+			})).To(BeTrue())
+			Expect(application.IsUndeployed(models.App{
+				BuildStatus: models.AppBuildStatusBuild,
+				ImageURL:    "registry.example/apps/ns-app:abc",
+			})).To(BeFalse())
+			Expect(application.IsUndeployed(models.App{
+				BuildStatus: models.AppBuildStatusDeployed,
+				ImageURL:    "registry.example/apps/ns-app:abc",
+			})).To(BeFalse())
 			Expect(application.IsUndeployed(models.App{})).To(BeFalse())
 		})
 	})
 
 	Describe("IsUndeployedCR", func() {
-		It("reads spec.buildstatus from the CR", func() {
-			undeployed := &unstructured.Unstructured{Object: map[string]any{
+		It("requires buildstatus build and empty imageurl", func() {
+			neverDeployed := &unstructured.Unstructured{Object: map[string]any{
 				"spec": map[string]any{"buildstatus": models.AppBuildStatusBuild},
 			}}
+			rebuiltDeployed := &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
+					"buildstatus": models.AppBuildStatusBuild,
+					"imageurl":    "registry.example/apps/ns-app:abc",
+				},
+			}}
 			deployed := &unstructured.Unstructured{Object: map[string]any{
-				"spec": map[string]any{"buildstatus": models.AppBuildStatusDeployed},
+				"spec": map[string]any{
+					"buildstatus": models.AppBuildStatusDeployed,
+					"imageurl":    "registry.example/apps/ns-app:abc",
+				},
 			}}
 			empty := &unstructured.Unstructured{Object: map[string]any{}}
 
-			Expect(application.IsUndeployedCR(undeployed)).To(BeTrue())
+			Expect(application.IsUndeployedCR(neverDeployed)).To(BeTrue())
+			Expect(application.IsUndeployedCR(rebuiltDeployed)).To(BeFalse())
 			Expect(application.IsUndeployedCR(deployed)).To(BeFalse())
 			Expect(application.IsUndeployedCR(empty)).To(BeFalse())
 		})
@@ -50,26 +69,83 @@ var _ = Describe("ListFilter helpers", func() {
 		BeforeEach(func() {
 			apps = models.AppList{
 				{Meta: models.NewAppRef("built", "ns"), BuildStatus: models.AppBuildStatusBuild},
-				{Meta: models.NewAppRef("running", "ns"), BuildStatus: models.AppBuildStatusDeployed},
+				{
+					Meta:        models.NewAppRef("rebuilt", "ns"),
+					BuildStatus: models.AppBuildStatusBuild,
+					ImageURL:    "registry.example/apps/ns-rebuilt:abc",
+				},
+				{
+					Meta:        models.NewAppRef("running", "ns"),
+					BuildStatus: models.AppBuildStatusDeployed,
+					ImageURL:    "registry.example/apps/ns-running:abc",
+				},
 				{Meta: models.NewAppRef("created", "ns")},
 			}
 		})
 
 		It("keeps everything for ListFilterAll", func() {
-			Expect(application.FilterApps(apps, application.ListFilterAll)).To(HaveLen(3))
+			Expect(application.FilterApps(apps, application.ListFilterAll)).To(HaveLen(4))
 		})
 
-		It("drops build-only apps for ListFilterDeployed", func() {
+		It("keeps deployed and previously deployed apps for ListFilterDeployed", func() {
 			filtered := application.FilterApps(apps, application.ListFilterDeployed)
-			Expect(filtered).To(HaveLen(2))
-			Expect(filtered[0].Meta.Name).To(Equal("running"))
-			Expect(filtered[1].Meta.Name).To(Equal("created"))
+			Expect(filtered).To(HaveLen(3))
+			Expect(filtered[0].Meta.Name).To(Equal("rebuilt"))
+			Expect(filtered[1].Meta.Name).To(Equal("running"))
+			Expect(filtered[2].Meta.Name).To(Equal("created"))
 		})
 
-		It("keeps only build-only apps for ListFilterUndeployed", func() {
+		It("keeps only never-deployed apps for ListFilterUndeployed", func() {
 			filtered := application.FilterApps(apps, application.ListFilterUndeployed)
 			Expect(filtered).To(HaveLen(1))
 			Expect(filtered[0].Meta.Name).To(Equal("built"))
+		})
+
+		It("keeps a deployed app that was later rebuilt build-only in the regular list", func() {
+			filtered := application.FilterApps(apps, application.ListFilterDeployed)
+			names := []string{filtered[0].Meta.Name, filtered[1].Meta.Name, filtered[2].Meta.Name}
+			Expect(names).To(ContainElement("rebuilt"))
+			Expect(application.FilterApps(apps, application.ListFilterUndeployed)).NotTo(
+				ContainElement(HaveField("Meta.Name", "rebuilt")),
+			)
+		})
+	})
+
+	Describe("PageAppCRs", func() {
+		It("returns an empty page without clamping when page is out of range", func() {
+			crs := []unstructured.Unstructured{
+				{Object: map[string]any{"metadata": map[string]any{"name": "a"}}},
+				{Object: map[string]any{"metadata": map[string]any{"name": "b"}}},
+			}
+			page, total := application.PageAppCRs(crs, 99, 1)
+			Expect(total).To(Equal(2))
+			Expect(page).To(BeEmpty())
+		})
+	})
+
+	Describe("FilterAppCRs", func() {
+		It("applies search and undeployed filter together", func() {
+			crs := []unstructured.Unstructured{
+				{Object: map[string]any{
+					"metadata": map[string]any{"name": "built-alpha"},
+					"spec":     map[string]any{"buildstatus": models.AppBuildStatusBuild},
+				}},
+				{Object: map[string]any{
+					"metadata": map[string]any{"name": "built-beta"},
+					"spec": map[string]any{
+						"buildstatus": models.AppBuildStatusBuild,
+						"imageurl":    "registry.example/apps/beta:1",
+					},
+				}},
+				{Object: map[string]any{
+					"metadata": map[string]any{"name": "other"},
+					"spec":     map[string]any{"buildstatus": models.AppBuildStatusBuild},
+				}},
+			}
+
+			matched := application.FilterAppCRs(crs, "built", application.ListFilterUndeployed)
+			Expect(matched).To(HaveLen(1))
+			Expect(matched[0].GetName()).To(Equal("built-alpha"))
 		})
 	})
 })

@@ -19,35 +19,48 @@ import (
 )
 
 // ListFilter selects which applications a list operation returns, based on
-// the app's buildstatus (see models.AppBuildStatusBuild / Deployed).
+// whether the app has ever been deployed (see IsUndeployed).
 type ListFilter int
 
 const (
-	// ListFilterAll returns every application CR, regardless of buildstatus.
+	// ListFilterAll returns every application CR.
 	ListFilterAll ListFilter = iota
-	// ListFilterDeployed excludes apps whose last completed action was a
-	// build-only stage (buildstatus == "build"). Used by the regular
-	// applications list endpoints so the UI "Apps" view stays clean.
+	// ListFilterDeployed excludes apps that have never been deployed.
+	// Used by the regular applications list endpoints so a running app that
+	// later gets a build-only stage still appears in "Apps".
 	ListFilterDeployed
-	// ListFilterUndeployed returns only build-only apps (buildstatus ==
-	// "build"). Used by the undeployed/builds list endpoints.
+	// ListFilterUndeployed returns only apps that have never been deployed
+	// (buildstatus == "build" and no deployed image URL). Used by the
+	// undeployed/builds list endpoints.
 	ListFilterUndeployed
 )
 
-// IsUndeployed reports whether the app is build-only (staged, not deployed).
+// IsUndeployed reports whether the app has never been deployed: the last
+// completed action was a build (buildstatus == "build") and there is no
+// deployed image URL yet. A previously deployed app that is rebuilt
+// build-only stays listed in the regular Apps views because ImageURL remains set.
 func IsUndeployed(app models.App) bool {
-	return app.BuildStatus == models.AppBuildStatusBuild
+	return app.BuildStatus == models.AppBuildStatusBuild && app.ImageURL == ""
 }
 
-// IsUndeployedCR reports whether the App CR is build-only, based on
-// spec.buildstatus. Missing or unreadable buildstatus is treated as not
-// undeployed (same as an app that was never build-only staged).
+// IsUndeployedCR reports whether the App CR has never been deployed, based on
+// spec.buildstatus and spec.imageurl. Missing or unreadable fields are treated
+// as not undeployed.
 func IsUndeployedCR(app *unstructured.Unstructured) bool {
 	status, err := BuildStatus(app)
+	if err != nil || status != models.AppBuildStatusBuild {
+		return false
+	}
+	imageURL, err := ImageURL(app)
 	if err != nil {
 		return false
 	}
-	return status == models.AppBuildStatusBuild
+	return imageURL == ""
+}
+
+// MatchesListFilter reports whether the App CR matches the given ListFilter.
+func MatchesListFilter(cr *unstructured.Unstructured, filter ListFilter) bool {
+	return appCRMatchesFilter(cr, filter)
 }
 
 // FilterApps keeps apps that match the given ListFilter.
@@ -63,6 +76,12 @@ func FilterApps(apps models.AppList, filter ListFilter) models.AppList {
 		}
 	}
 	return result
+}
+
+// FilterAppCRs applies optional name search and ListFilter to App CRs before
+// pagination/enrichment, so page totals stay correct.
+func FilterAppCRs(crs []unstructured.Unstructured, search string, filter ListFilter) []unstructured.Unstructured {
+	return filterAppCRs(crs, search, filter)
 }
 
 // filterAppCRs applies optional name search and ListFilter to App CRs before

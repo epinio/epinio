@@ -113,8 +113,7 @@ var Routes = routes.NamedRoutes{
 	"AllApps":           get("/applications", errorHandler(application.FullIndex)),
 	"AllAppsGrouped":    get("/applications/grouped", errorHandler(application.GroupedIndex)),
 	"AllAppsUndeployed": get("/applications/undeployed", errorHandler(application.UndeployedFullIndex)),
-	"Apps":              get("/namespaces/:namespace/applications", errorHandler(application.Index)),
-	// Undeployed must be registered before AppShow so "undeployed" is not captured as :app.
+	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Index)),
 	"AppsUndeployed":  get("/namespaces/:namespace/applications/undeployed", errorHandler(application.UndeployedIndex)),
 	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Create)),
 	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),

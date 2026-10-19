@@ -52,7 +52,6 @@ type APIClient interface {
 	Apps(namespace string) (models.AppList, error)
 	UndeployedApps(namespace string) (models.AppList, error)
 	AllApps() (models.AppList, error)
-	AllUndeployedApps() (models.AppList, error)
 	AppShow(namespace string, appName string) (models.App, error)
 	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)
 	AppDelete(namespace string, names []string, deleteImage, deletePVC bool) (models.ApplicationDeleteResponse, error)

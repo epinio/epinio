@@ -20,8 +20,8 @@ import (
 )
 
 // Show handles the API endpoint GET /namespaces/:namespace/applications/:app
-// It returns the details of the specified application, including build-only
-// (undeployed) apps that have no running workload.
+// It returns the details of the specified application, including never-deployed
+// (build-only) apps that have no running workload.
 func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")

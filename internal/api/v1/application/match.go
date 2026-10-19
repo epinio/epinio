@@ -27,7 +27,7 @@ import (
 
 // Match handles the API endpoint /namespace/:namespace/appsmatches/:pattern (GET)
 // It returns a list of all Epinio-controlled applications matching the prefix pattern.
-// Build-only (undeployed) apps are omitted so matches align with the Apps list.
+// Never-deployed (undeployed) apps are omitted so matches align with the Apps list.
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
@@ -61,7 +61,7 @@ func Match(c *gin.Context) apierror.APIErrors {
 	matches := []string{}
 	for i := range list.Items {
 		cr := &list.Items[i]
-		if application.IsUndeployedCR(cr) {
+		if !application.MatchesListFilter(cr, application.ListFilterDeployed) {
 			continue
 		}
 		if strings.HasPrefix(cr.GetName(), prefix) {

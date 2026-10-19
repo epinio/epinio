@@ -61,18 +61,6 @@ type FakeAPIClient struct {
 		result1 models.ServiceList
 		result2 error
 	}
-	AllUndeployedAppsStub        func() (models.AppList, error)
-	allUndeployedAppsMutex       sync.RWMutex
-	allUndeployedAppsArgsForCall []struct {
-	}
-	allUndeployedAppsReturns struct {
-		result1 models.AppList
-		result2 error
-	}
-	allUndeployedAppsReturnsOnCall map[int]struct {
-		result1 models.AppList
-		result2 error
-	}
 	AppBuildDeleteStub        func(string, string) (models.Response, error)
 	appBuildDeleteMutex       sync.RWMutex
 	appBuildDeleteArgsForCall []struct {
@@ -1428,62 +1416,6 @@ func (fake *FakeAPIClient) AllServicesReturnsOnCall(i int, result1 models.Servic
 	}
 	fake.allServicesReturnsOnCall[i] = struct {
 		result1 models.ServiceList
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeAPIClient) AllUndeployedApps() (models.AppList, error) {
-	fake.allUndeployedAppsMutex.Lock()
-	ret, specificReturn := fake.allUndeployedAppsReturnsOnCall[len(fake.allUndeployedAppsArgsForCall)]
-	fake.allUndeployedAppsArgsForCall = append(fake.allUndeployedAppsArgsForCall, struct {
-	}{})
-	stub := fake.AllUndeployedAppsStub
-	fakeReturns := fake.allUndeployedAppsReturns
-	fake.recordInvocation("AllUndeployedApps", []interface{}{})
-	fake.allUndeployedAppsMutex.Unlock()
-	if stub != nil {
-		return stub()
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fakeReturns.result1, fakeReturns.result2
-}
-
-func (fake *FakeAPIClient) AllUndeployedAppsCallCount() int {
-	fake.allUndeployedAppsMutex.RLock()
-	defer fake.allUndeployedAppsMutex.RUnlock()
-	return len(fake.allUndeployedAppsArgsForCall)
-}
-
-func (fake *FakeAPIClient) AllUndeployedAppsCalls(stub func() (models.AppList, error)) {
-	fake.allUndeployedAppsMutex.Lock()
-	defer fake.allUndeployedAppsMutex.Unlock()
-	fake.AllUndeployedAppsStub = stub
-}
-
-func (fake *FakeAPIClient) AllUndeployedAppsReturns(result1 models.AppList, result2 error) {
-	fake.allUndeployedAppsMutex.Lock()
-	defer fake.allUndeployedAppsMutex.Unlock()
-	fake.AllUndeployedAppsStub = nil
-	fake.allUndeployedAppsReturns = struct {
-		result1 models.AppList
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeAPIClient) AllUndeployedAppsReturnsOnCall(i int, result1 models.AppList, result2 error) {
-	fake.allUndeployedAppsMutex.Lock()
-	defer fake.allUndeployedAppsMutex.Unlock()
-	fake.AllUndeployedAppsStub = nil
-	if fake.allUndeployedAppsReturnsOnCall == nil {
-		fake.allUndeployedAppsReturnsOnCall = make(map[int]struct {
-			result1 models.AppList
-			result2 error
-		})
-	}
-	fake.allUndeployedAppsReturnsOnCall[i] = struct {
-		result1 models.AppList
 		result2 error
 	}{result1, result2}
 }

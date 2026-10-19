@@ -183,13 +183,18 @@ func PaginateSlice[T any](items []T, page, pageSize int) PaginatedResponse[T] {
 	if page < 1 {
 		page = 1
 	}
-	if page > totalPages {
-		page = totalPages
-	}
 
+	// Out-of-range pages return an empty item list without clamping the page
+	// number, matching ListPaginated / PageAppCRs.
 	start := (page - 1) * pageSize
-	if start > total {
-		start = total
+	if start >= total {
+		return PaginatedResponse[T]{
+			Items:      []T{},
+			Page:       page,
+			PageSize:   pageSize,
+			TotalItems: total,
+			TotalPages: totalPages,
+		}
 	}
 	end := start + pageSize
 	if end > total {
