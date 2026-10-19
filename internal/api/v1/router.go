@@ -113,29 +113,29 @@ var Routes = routes.NamedRoutes{
 	"AllApps":           get("/applications", errorHandler(application.FullIndex)),
 	"AllAppsGrouped":    get("/applications/grouped", errorHandler(application.GroupedIndex)),
 	"AllAppsUndeployed": get("/applications/undeployed", errorHandler(application.UndeployedFullIndex)),
-	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Index)),
-	"AppsUndeployed":  get("/namespaces/:namespace/applications/undeployed", errorHandler(application.UndeployedIndex)),
-	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Create)),
-	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),
-	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Staged)), // See stage.go
-	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Delete)),
-	"AppBatchDelete":  delete("/namespaces/:namespace/applications", errorHandler(application.Delete)),
-	"AppBuildDelete":  delete("/namespaces/:namespace/applications/:app/build", errorHandler(application.DeleteBuild)), // See builddelete.go
-	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Deploy)),
-	"AppDeployments":  post("/namespaces/:namespace/applications/:app/deployments", errorHandler(application.DeploymentsStart)),
-	"AppDeployment":   get("/namespaces/:namespace/applications/:app/deployments/:deployment_id", errorHandler(application.DeploymentsStatus)),
-	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.ImportGit)),
-	"AppPart":         get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.GetPart)),
-	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),
-	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Running)),
-	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)),         // See stage.go
-	"AppSourcePatch":  patch("/namespaces/:namespace/applications/:app/source", errorHandler(application.SourcePatch)), // See sourcepatch.go
-	"AppSync":         post("/namespaces/:namespace/applications/:app/sync", errorHandler(application.Sync)),           // See sync.go
-	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
-	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
-	"AppSource":       get("/namespaces/:namespace/applications/:app/source", errorHandler(application.GetSource)),
-	"AppValidateCV":   get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
-	"AppExport":       post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
+	"Apps":              get("/namespaces/:namespace/applications", errorHandler(application.Index)),
+	"AppsUndeployed":    get("/namespaces/:namespace/applications/undeployed", errorHandler(application.UndeployedIndex)),
+	"AppCreate":         post("/namespaces/:namespace/applications", errorHandler(application.Create)),
+	"AppShow":           get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),
+	"StagingComplete":   get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Staged)), // See stage.go
+	"AppDelete":         delete("/namespaces/:namespace/applications/:app", errorHandler(application.Delete)),
+	"AppBatchDelete":    delete("/namespaces/:namespace/applications", errorHandler(application.Delete)),
+	"AppBuildDelete":    delete("/namespaces/:namespace/applications/:app/build", errorHandler(application.DeleteBuild)), // See builddelete.go
+	"AppDeploy":         post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Deploy)),
+	"AppDeployments":    post("/namespaces/:namespace/applications/:app/deployments", errorHandler(application.DeploymentsStart)),
+	"AppDeployment":     get("/namespaces/:namespace/applications/:app/deployments/:deployment_id", errorHandler(application.DeploymentsStatus)),
+	"AppImportGit":      post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.ImportGit)),
+	"AppPart":           get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.GetPart)),
+	"AppRestart":        post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),
+	"AppRunning":        get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Running)),
+	"AppStage":          post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)),         // See stage.go
+	"AppSourcePatch":    patch("/namespaces/:namespace/applications/:app/source", errorHandler(application.SourcePatch)), // See sourcepatch.go
+	"AppSync":           post("/namespaces/:namespace/applications/:app/sync", errorHandler(application.Sync)),           // See sync.go
+	"AppUpdate":         patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
+	"AppUpload":         post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
+	"AppSource":         get("/namespaces/:namespace/applications/:app/source", errorHandler(application.GetSource)),
+	"AppValidateCV":     get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
+	"AppExport":         post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
 
 	"AppMatch":  get("/namespaces/:namespace/appsmatches/:pattern", errorHandler(application.Match)),
 	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Match)),

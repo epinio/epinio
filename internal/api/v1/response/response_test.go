@@ -232,11 +232,11 @@ func TestPaginateSlice(t *testing.T) {
 			wantItems: []string{"e"},
 		},
 		{
-			name:  "page past the end returns empty items without clamping",
+			name:  "page past the end clamps to the last page",
 			items: items,
 			page:  99, pageSize: 2,
-			wantPage: 99, wantTotal: 5, wantPages: 3,
-			wantItems: []string{},
+			wantPage: 3, wantTotal: 5, wantPages: 3,
+			wantItems: []string{"e"},
 		},
 		{
 			name:  "no matches yields an empty page, not null",
