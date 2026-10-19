@@ -156,6 +156,12 @@ jobs:
         run: |
           sudo sh /usr/local/bin/rke2-uninstall.sh
 
+      # Only on RKE, as it uses a self-hosted runner
+      # # Comment out this cleanup step, since runners only exist for one job. Otherwise this is causing docker pull rate limit issues.
+      # - name: Clean all
+      #   if: ${{ github.event_name == 'schedule' }}
+      #   uses: colpal/actions-clean@v1
+
   # EPINIO-823: Harbor as external registry for application charts (dedicated job).
   acceptance-scenario-harbor:
     needs:
@@ -212,11 +218,8 @@ jobs:
 
       - name: Harbor App Chart Acceptance Tests
         env:
-          REGEX: ScenarioHarbor
           PUBLIC_CLOUD: 1
           KUBECONFIG: /etc/rancher/rke2/rke2.yaml
-          REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
           INGRESS_CONTROLLER: traefik
         run: |
           export RANGE_IP="$(scripts/get-free-ip.sh)"
