@@ -16,7 +16,11 @@ on:
     types: [ ready_for_review ]
     paths:
       - 'acceptance/install/scenario3_test.go'
+      - 'acceptance/install/scenario_harbor_appcharts_test.go'
       - 'acceptance/install/suite_test.go'
+      - 'acceptance/helpers/harbor/**'
+      - 'acceptance/appcharts_push_test.go'
+      - 'acceptance/helpers/catalog/download.go'
       - '.github/workflows/rke-upgrade.yml'
   workflow_dispatch:
     inputs:
