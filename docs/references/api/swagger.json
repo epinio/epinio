@@ -2993,7 +2993,7 @@
           "x-go-name": "AppChart"
         },
         "bound_configurations": {
-          "description": "BoundConfigurations is read-only. It mirrors Configurations, adding the type\nof each. Not part of the manifest.",
+          "description": "BoundConfigurations is read-only. It mirrors Configurations, adding the type\nof each. It is exported into the manifest for information only: `epinio push`\nbinds from Configurations, and editing this list in a manifest has no effect.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/BoundConfiguration"
@@ -4197,6 +4197,13 @@
         },
         "meta": {
           "$ref": "#/definitions/MetaLite"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Services"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
