@@ -36,6 +36,9 @@ const (
 	ApplicationStagingDone   = "done"
 	ApplicationStagingFailed = "failed"
 
+	// AppBuildStatusCreate marks that the application resource was created
+	// but has not been staged or deployed yet (epinio app create / empty app).
+	AppBuildStatusCreate = "create"
 	// AppBuildStatusBuild marks that the latest completed action on the
 	// application was a build: an image was staged, but it is not (yet,
 	// or not currently) running as a deployed workload.
@@ -122,9 +125,9 @@ type App struct {
 	// BuiltImageURL is the image produced by the last build (stage). It is
 	// kept apart from ImageURL, which is the image currently deployed.
 	BuiltImageURL string `json:"built_image_url,omitempty"`
-	// BuildStatus is "build" or "deployed", reflecting whether the last
-	// completed action was a build (stage) or a deploy. See
-	// AppBuildStatusBuild / AppBuildStatusDeployed.
+	// BuildStatus is "create", "build", or "deployed", reflecting the last
+	// completed lifecycle step: create (empty app), build (stage), or deploy.
+	// See AppBuildStatusCreate / AppBuildStatusBuild / AppBuildStatusDeployed.
 	BuildStatus   string `json:"buildstatus,omitempty"`
 	FailureReason string `json:"failure_reason,omitempty"`
 }

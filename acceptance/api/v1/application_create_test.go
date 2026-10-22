@@ -77,6 +77,21 @@ var _ = Describe("AppCreate Endpoint", LApplication, func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(Equal("standard"))
 		})
+
+		It("sets buildstatus to create on the app resource and AppShow", func() {
+			appCreateRequest := models.ApplicationCreateRequest{
+				Name: appName,
+			}
+			bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+			Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+
+			out, err := proc.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.buildstatus}")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(Equal(models.AppBuildStatusCreate))
+
+			shown := appShow(namespace, appName)
+			Expect(shown.BuildStatus).To(Equal(models.AppBuildStatusCreate))
+		})
 	})
 
 	Describe("app creation failures", func() {
