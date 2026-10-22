@@ -31,7 +31,7 @@ func DownloadChartArchive(url string) string {
 	client := &http.Client{Timeout: 2 * time.Minute}
 	resp, err := client.Get(url) // nolint:gosec // fixed release URL from tests
 	Expect(err).NotTo(HaveOccurred())
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	Expect(resp.StatusCode).To(Equal(http.StatusOK), fmt.Sprintf("download %s: %s", url, resp.Status))
 
 	path := filepath.Join(GinkgoT().TempDir(), "epinio-application.tgz")
