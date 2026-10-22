@@ -21,7 +21,10 @@ import (
 
 var _ = Describe("ListFilter helpers", func() {
 	Describe("IsUndeployed", func() {
-		It("is true only for never-deployed build-only apps", func() {
+		It("is true for create or build with no deployed image", func() {
+			Expect(application.IsUndeployed(models.App{
+				BuildStatus: models.AppBuildStatusCreate,
+			})).To(BeTrue())
 			Expect(application.IsUndeployed(models.App{
 				BuildStatus: models.AppBuildStatusBuild,
 			})).To(BeTrue())
@@ -38,7 +41,10 @@ var _ = Describe("ListFilter helpers", func() {
 	})
 
 	Describe("IsUndeployedCR", func() {
-		It("requires buildstatus build and empty imageurl", func() {
+		It("requires create or build status and empty imageurl", func() {
+			created := &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{"buildstatus": models.AppBuildStatusCreate},
+			}}
 			neverDeployed := &unstructured.Unstructured{Object: map[string]any{
 				"spec": map[string]any{"buildstatus": models.AppBuildStatusBuild},
 			}}
@@ -56,6 +62,7 @@ var _ = Describe("ListFilter helpers", func() {
 			}}
 			empty := &unstructured.Unstructured{Object: map[string]any{}}
 
+			Expect(application.IsUndeployedCR(created)).To(BeTrue())
 			Expect(application.IsUndeployedCR(neverDeployed)).To(BeTrue())
 			Expect(application.IsUndeployedCR(rebuiltDeployed)).To(BeFalse())
 			Expect(application.IsUndeployedCR(deployed)).To(BeFalse())
@@ -68,6 +75,7 @@ var _ = Describe("ListFilter helpers", func() {
 
 		BeforeEach(func() {
 			apps = models.AppList{
+				{Meta: models.NewAppRef("created", "ns"), BuildStatus: models.AppBuildStatusCreate},
 				{Meta: models.NewAppRef("built", "ns"), BuildStatus: models.AppBuildStatusBuild},
 				{
 					Meta:        models.NewAppRef("rebuilt", "ns"),
@@ -79,7 +87,6 @@ var _ = Describe("ListFilter helpers", func() {
 					BuildStatus: models.AppBuildStatusDeployed,
 					ImageURL:    "registry.example/apps/ns-running:abc",
 				},
-				{Meta: models.NewAppRef("created", "ns")},
 			}
 		})
 
@@ -89,21 +96,21 @@ var _ = Describe("ListFilter helpers", func() {
 
 		It("keeps deployed and previously deployed apps for ListFilterDeployed", func() {
 			filtered := application.FilterApps(apps, application.ListFilterDeployed)
-			Expect(filtered).To(HaveLen(3))
+			Expect(filtered).To(HaveLen(2))
 			Expect(filtered[0].Meta.Name).To(Equal("rebuilt"))
 			Expect(filtered[1].Meta.Name).To(Equal("running"))
-			Expect(filtered[2].Meta.Name).To(Equal("created"))
 		})
 
 		It("keeps only never-deployed apps for ListFilterUndeployed", func() {
 			filtered := application.FilterApps(apps, application.ListFilterUndeployed)
-			Expect(filtered).To(HaveLen(1))
-			Expect(filtered[0].Meta.Name).To(Equal("built"))
+			Expect(filtered).To(HaveLen(2))
+			Expect(filtered[0].Meta.Name).To(Equal("created"))
+			Expect(filtered[1].Meta.Name).To(Equal("built"))
 		})
 
 		It("keeps a deployed app that was later rebuilt build-only in the regular list", func() {
 			filtered := application.FilterApps(apps, application.ListFilterDeployed)
-			names := []string{filtered[0].Meta.Name, filtered[1].Meta.Name, filtered[2].Meta.Name}
+			names := []string{filtered[0].Meta.Name, filtered[1].Meta.Name}
 			Expect(names).To(ContainElement("rebuilt"))
 			Expect(application.FilterApps(apps, application.ListFilterUndeployed)).NotTo(
 				ContainElement(HaveField("Meta.Name", "rebuilt")),

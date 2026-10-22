@@ -112,27 +112,31 @@ var _ = Describe("Apps Undeployed Endpoints", LApplication, func() {
 	}
 
 	It("lists never-deployed apps on AppsUndeployed and AllAppsUndeployed", func() {
+		createdOnly := catalog.NewAppName()
 		neverDeployed := catalog.NewAppName()
 		rebuilt := catalog.NewAppName()
+		createApp(createdOnly)
 		createApp(neverDeployed)
 		createApp(rebuilt)
+		defer env.DeleteApp(createdOnly)
 		defer env.DeleteApp(neverDeployed)
 		defer env.DeleteApp(rebuilt)
 
+		// createdOnly keeps buildstatus=create from AppCreate
 		patchBuildFields(neverDeployed, models.AppBuildStatusBuild, "")
 		patchBuildFields(rebuilt, models.AppBuildStatusBuild, "registry.example/apps/rebuilt:abc")
 
 		nsUndeployed := getApps(v1.Routes.Path("AppsUndeployed", namespace))
-		Expect(namesOf(nsUndeployed)).To(ContainElement(neverDeployed))
+		Expect(namesOf(nsUndeployed)).To(ContainElements(createdOnly, neverDeployed))
 		Expect(namesOf(nsUndeployed)).NotTo(ContainElement(rebuilt))
 
 		allUndeployed := getApps(v1.Routes.Path("AllAppsUndeployed"))
-		Expect(namesOf(allUndeployed)).To(ContainElement(neverDeployed))
+		Expect(namesOf(allUndeployed)).To(ContainElements(createdOnly, neverDeployed))
 		Expect(namesOf(allUndeployed)).NotTo(ContainElement(rebuilt))
 
 		regular := getApps(v1.Routes.Path("Apps", namespace))
 		Expect(namesOf(regular)).To(ContainElement(rebuilt))
-		Expect(namesOf(regular)).NotTo(ContainElement(neverDeployed))
+		Expect(namesOf(regular)).NotTo(ContainElements(createdOnly, neverDeployed))
 	})
 
 	It("supports search and pagination on undeployed lists", func() {

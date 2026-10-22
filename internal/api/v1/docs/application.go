@@ -17,7 +17,7 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // swagger:route GET /applications application AllApps
 // Return list of applications in all namespaces.
-// Never-deployed (build-only) apps are omitted; use AllAppsUndeployed for those.
+// Never-deployed apps (buildstatus create|build) are omitted; use AllAppsUndeployed for those.
 // responses:
 //   200: AppsResponse
 
@@ -41,7 +41,7 @@ type AllAppsParam struct {
 // response: See Apps.
 
 // swagger:route GET /applications/undeployed application AllAppsUndeployed
-// Return list of never-deployed (build-only) applications in all namespaces.
+// Return list of never-deployed applications (buildstatus create|build) in all namespaces.
 // responses:
 //   200: AppsResponse
 
@@ -64,7 +64,7 @@ type AllAppsUndeployedParam struct {
 
 // swagger:route GET /namespaces/{Namespace}/applications application Apps
 // Return list of applications in the `Namespace`.
-// Never-deployed (build-only) apps are omitted; use AppsUndeployed for those.
+// Never-deployed apps (buildstatus create|build) are omitted; use AppsUndeployed for those.
 // responses:
 //   200: AppsResponse
 
@@ -84,7 +84,7 @@ type AppsParam struct {
 }
 
 // swagger:route GET /namespaces/{Namespace}/applications/undeployed application AppsUndeployed
-// Return list of never-deployed (build-only) applications in the `Namespace`.
+// Return list of never-deployed applications (buildstatus create|build) in the `Namespace`.
 // Supports the same search and pagination query parameters as Apps.
 // responses:
 //   200: AppsResponse
@@ -131,7 +131,7 @@ type AppCreateResponse struct {
 
 // swagger:route GET /namespaces/{Namespace}/applications/{App} application AppShow
 // Return details of the named `App` in the `Namespace`.
-// Works for both deployed and build-only (undeployed) apps.
+// Works for both deployed and never-deployed (create|build) apps.
 // The response includes `configuration.environment` (user-set variables only) and
 // `configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).
 // responses:

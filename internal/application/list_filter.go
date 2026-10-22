@@ -30,17 +30,17 @@ const (
 	// later gets a build-only stage still appears in "Apps".
 	ListFilterDeployed
 	// ListFilterUndeployed returns only apps that have never been deployed
-	// (buildstatus == "build" and no deployed image URL). Used by the
+	// (buildstatus create|build and no deployed image URL). Used by the
 	// undeployed/builds list endpoints.
 	ListFilterUndeployed
 )
 
-// IsUndeployed reports whether the app has never been deployed: the last
-// completed action was a build (buildstatus == "build") and there is no
-// deployed image URL yet. A previously deployed app that is rebuilt
-// build-only stays listed in the regular Apps views because ImageURL remains set.
+// IsUndeployed reports whether the app has never been deployed: buildstatus is
+// "create" or "build" and there is no deployed image URL yet. A previously
+// deployed app that is rebuilt build-only stays listed in the regular Apps
+// views because ImageURL remains set.
 func IsUndeployed(app models.App) bool {
-	return app.BuildStatus == models.AppBuildStatusBuild && app.ImageURL == ""
+	return isNeverDeployed(app.BuildStatus, app.ImageURL)
 }
 
 // IsUndeployedCR reports whether the App CR has never been deployed, based on
@@ -48,14 +48,23 @@ func IsUndeployed(app models.App) bool {
 // as not undeployed.
 func IsUndeployedCR(app *unstructured.Unstructured) bool {
 	status, err := BuildStatus(app)
-	if err != nil || status != models.AppBuildStatusBuild {
+	if err != nil {
 		return false
 	}
 	imageURL, err := ImageURL(app)
 	if err != nil {
 		return false
 	}
-	return imageURL == ""
+	return isNeverDeployed(status, imageURL)
+}
+
+// isNeverDeployed is true for create/build with no deployed image.
+func isNeverDeployed(buildStatus, imageURL string) bool {
+	if imageURL != "" {
+		return false
+	}
+	return buildStatus == models.AppBuildStatusCreate ||
+		buildStatus == models.AppBuildStatusBuild
 }
 
 // MatchesListFilter reports whether the App CR matches the given ListFilter.
