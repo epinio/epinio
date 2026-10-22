@@ -94,6 +94,18 @@ var _ = Describe("AppCreate Endpoint", LApplication, func() {
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(ContainSubstring("name must consist of lower case alphanumeric"))
 		})
+
+		It("fails for the reserved name undeployed", func() {
+			appCreateRequest := models.ApplicationCreateRequest{
+				Name: "undeployed",
+			}
+			bodyBytes, statusCode := appCreate(namespace, toJSON(appCreateRequest))
+			Expect(statusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
+			var responseBody map[string][]errors.APIError
+			Expect(json.Unmarshal(bodyBytes, &responseBody)).To(Succeed())
+			Expect(responseBody["errors"][0].Title).To(ContainSubstring("reserved"))
+		})
 	})
 
 	When("trying to create a new app with the epinio route", func() {

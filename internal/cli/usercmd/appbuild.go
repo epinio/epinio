@@ -17,10 +17,8 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -81,9 +79,8 @@ func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.Application
 	}
 
 	details.Info("validate app name")
-	errorMsgs := validation.IsDNS1123Subdomain(appRef.Name)
-	if len(errorMsgs) > 0 {
-		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
+	if err := validateAppName(appRef.Name); err != nil {
+		return fmt.Errorf("app name incorrect: %w", err)
 	}
 
 	if err := validateLocalDockerfile(manifest); err != nil {

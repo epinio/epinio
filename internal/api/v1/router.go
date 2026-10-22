@@ -110,8 +110,9 @@ var Routes = routes.NamedRoutes{
 
 	// app controller files see application/*.go
 
-	"AllApps":           get("/applications", errorHandler(application.FullIndex)),
-	"AllAppsGrouped":    get("/applications/grouped", errorHandler(application.GroupedIndex)),
+	"AllApps":        get("/applications", errorHandler(application.FullIndex)),
+	"AllAppsGrouped": get("/applications/grouped", errorHandler(application.GroupedIndex)),
+	// "undeployed" is a reserved app name (names.IsReservedAppName); the static path would shadow AppShow.
 	"AllAppsUndeployed": get("/applications/undeployed", errorHandler(application.UndeployedFullIndex)),
 	"Apps":              get("/namespaces/:namespace/applications", errorHandler(application.Index)),
 	"AppsUndeployed":    get("/namespaces/:namespace/applications/undeployed", errorHandler(application.UndeployedIndex)),
