@@ -178,6 +178,11 @@ func Create(
 	if err != nil {
 		return err
 	}
+	// Typed AppSpec has no BuildStatus field yet; set it on the unstructured
+	// object so new apps start as "create" until stage/deploy overwrite it.
+	if err := unstructured.SetNestedField(u, models.AppBuildStatusCreate, "spec", "buildstatus"); err != nil {
+		return err
+	}
 	us := &unstructured.Unstructured{Object: u}
 	us.SetAPIVersion("application.epinio.io/v1")
 	us.SetKind("App")
@@ -1340,6 +1345,21 @@ func DockerfilePath(app *unstructured.Unstructured) (string, error) {
 	return path, nil
 }
 
+// BuildStatus returns the "create"/"build"/"deployed" status stored on the
+// app resource, reflecting the last completed lifecycle step.
+func BuildStatus(app *unstructured.Unstructured) (string, error) {
+	status, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"buildstatus",
+	)
+	if err != nil {
+		return "", errors.New("buildstatus should be string")
+	}
+
+	return status, nil
+}
+
 // ErrBlobCleanupIncomplete is returned when blob cleanup could not complete
 // due to storage quota issues. The unstaging operation succeeded for jobs and
 // secrets, but some blobs remain in S3 storage. This is a non-fatal warning
@@ -1877,6 +1897,11 @@ func aggregate(ctx context.Context,
 		return nil, errors.Wrap(err, "finding the dockerfile path")
 	}
 
+	buildStatus, err := BuildStatus(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the build status")
+	}
+
 	settings, err := Settings(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding settings")
@@ -1907,6 +1932,7 @@ func aggregate(ctx context.Context,
 	app.StageID = stageID
 	app.BlobUID = blobUID
 	app.ImageURL = imageURL
+	app.BuildStatus = buildStatus
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath
@@ -1955,23 +1981,33 @@ func loadEnvironmentData(
 	return environment, groupedEnv, nil
 }
 
-func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, error) {
+func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, string, string, error) {
 	builderURL, err := BuilderURL(applicationCR)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "finding the builder url")
+		return "", "", "", "", "", errors.Wrap(err, "finding the builder url")
 	}
 
 	buildMode, err := BuildMode(applicationCR)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "finding the build mode")
+		return "", "", "", "", "", errors.Wrap(err, "finding the build mode")
 	}
 
 	dockerfilePath, err := DockerfilePath(applicationCR)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "finding the dockerfile path")
+		return "", "", "", "", "", errors.Wrap(err, "finding the dockerfile path")
 	}
 
-	return builderURL, buildMode, dockerfilePath, nil
+	buildStatus, err := BuildStatus(applicationCR)
+	if err != nil {
+		return "", "", "", "", "", errors.Wrap(err, "finding the build status")
+	}
+
+	imageURL, err := ImageURL(applicationCR)
+	if err != nil {
+		return "", "", "", "", "", errors.Wrap(err, "finding the image url")
+	}
+
+	return builderURL, buildMode, dockerfilePath, buildStatus, imageURL, nil
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
@@ -2066,15 +2102,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	imageURL, err := ImageURL(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding the image url")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	builderURL, buildMode, dockerfilePath, err := loadStagingFields(applicationCR)
+	builderURL, buildMode, dockerfilePath, buildStatus, imageURL, err := loadStagingFields(applicationCR)
 	if err != nil {
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
@@ -2104,6 +2132,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.StageID = stageID
 	app.BlobUID = blobUID
 	app.ImageURL = imageURL
+	app.BuildStatus = buildStatus
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath

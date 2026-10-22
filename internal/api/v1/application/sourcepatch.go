@@ -501,6 +501,12 @@ func asyncDeploy(
 	}
 	bgLog.Infow("step:swapPodImage", "ms", time.Since(t).Milliseconds())
 
+	buildStatusError := application.SetBuildStatus(bgCtx, cluster, appRef, models.AppBuildStatusDeployed)
+	if buildStatusError != nil {
+		bgLog.Errorw("failed to update build status", "error", buildStatusError)
+		return
+	}
+
 	bgLog.Infow(
 		"watch-deploy complete",
 		"image",

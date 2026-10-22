@@ -2598,6 +2598,11 @@
           "type": "string",
           "x-go-name": "BlobUID"
         },
+        "buildstatus": {
+          "description": "BuildStatus is \"create\", \"build\", or \"deployed\", reflecting the last\ncompleted lifecycle step: create (empty app), build (stage), or deploy.\nSee AppBuildStatusCreate / AppBuildStatusBuild / AppBuildStatusDeployed.",
+          "type": "string",
+          "x-go-name": "BuildStatus"
+        },
         "configuration": {
           "$ref": "#/definitions/ApplicationConfiguration"
         },
