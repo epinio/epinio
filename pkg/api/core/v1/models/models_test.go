@@ -192,3 +192,13 @@ var _ = Describe("ValidateDockerfilePath", func() {
 		Expect(err).To(HaveOccurred())
 	})
 })
+
+var _ = Describe("AppBuildStatus", func() {
+	It("defines distinct create, build, and deployed values", func() {
+		Expect(models.AppBuildStatusCreate).To(Equal("create"))
+		Expect(models.AppBuildStatusBuild).To(Equal("build"))
+		Expect(models.AppBuildStatusDeployed).To(Equal("deployed"))
+		Expect(models.AppBuildStatusCreate).NotTo(Equal(models.AppBuildStatusBuild))
+		Expect(models.AppBuildStatusBuild).NotTo(Equal(models.AppBuildStatusDeployed))
+	})
+})
