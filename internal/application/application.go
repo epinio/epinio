@@ -518,15 +518,84 @@ func List(
 	return result, nil
 }
 
+// PageAppCRs returns the CR slice for the requested page and the total count.
+// Out-of-range pages yield an empty slice (no clamping), matching ListPaginated.
+func PageAppCRs(crs []unstructured.Unstructured, page, pageSize int) ([]unstructured.Unstructured, int) {
+	totalCount := len(crs)
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 25
+	}
+	start := (page - 1) * pageSize
+	if start >= totalCount {
+		return nil, totalCount
+	}
+	end := start + pageSize
+	if end > totalCount {
+		end = totalCount
+	}
+	return crs[start:end], totalCount
+}
+
+// AppsFromCRs enriches App CRs into full App models (cross-namespace safe).
+func AppsFromCRs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	crs []unstructured.Unstructured,
+) (models.AppList, error) {
+	if len(crs) == 0 {
+		return models.AppList{}, nil
+	}
+
+	appAuxiliary, pageMetrics, enrichError := loadEnrichmentData(ctx, cluster, "", nil)
+	if enrichError != nil {
+		return nil, enrichError
+	}
+
+	result := models.AppList{}
+	for _, appCR := range crs {
+		app, aggregateError := aggregate(ctx, cluster, appCR, appAuxiliary, pageMetrics)
+		if aggregateError != nil {
+			return result, aggregateError
+		}
+		if app != nil {
+			result = append(result, *app)
+		}
+	}
+	return result, nil
+}
+
+// ListAppCRs returns App CRs in the given namespace, or across all namespaces
+// when namespace is empty.
+func ListAppCRs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+) ([]unstructured.Unstructured, error) {
+	appClient, clientError := cluster.ClientApp()
+	if clientError != nil {
+		return nil, clientError
+	}
+	appCRList, listError := appClient.Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if listError != nil {
+		return nil, listError
+	}
+	return appCRList.Items, nil
+}
+
 // ListPaginated fetches only the apps for the requested page, scoping the expensive
 // Kubernetes queries (pods, ingresses, metrics, staging jobs) to just those app names.
 // Returns the paged app list and the total app count (for building pagination metadata).
+// filter selects deployed, undeployed, or all apps (see ListFilter).
 func ListPaginated(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	namespace string,
 	page, pageSize int,
 	search string,
+	filter ListFilter,
 ) (models.AppList, int, error) {
 	appClient, clientError := cluster.ClientApp()
 	if clientError != nil {
@@ -541,17 +610,7 @@ func ListPaginated(
 		return nil, 0, listError
 	}
 
-	allCRs := appCRList.Items
-	if search != "" {
-		lower := strings.ToLower(search)
-		var matched []unstructured.Unstructured
-		for _, cr := range allCRs {
-			if strings.Contains(strings.ToLower(cr.GetName()), lower) {
-				matched = append(matched, cr)
-			}
-		}
-		allCRs = matched
-	}
+	allCRs := filterAppCRs(appCRList.Items, search, filter)
 
 	totalCount := len(allCRs)
 
@@ -615,12 +674,13 @@ type NamespaceAppsResult struct {
 // ListPaginatedByNamespace fetches the requested page of apps for every Epinio namespace.
 // All enrichment data is loaded in bulk cross-namespace calls (same as the original List),
 // then grouped and paginated in memory -- keeping total k8s API calls constant regardless
-// of namespace count.
+// of namespace count. filter selects deployed, undeployed, or all apps (see ListFilter).
 func ListPaginatedByNamespace(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	page, pageSize int,
 	search string,
+	filter ListFilter,
 ) (map[string]NamespaceAppsResult, error) {
 	if page < 1 {
 		page = 1
@@ -648,13 +708,10 @@ func ListPaginatedByNamespace(
 		return nil, listError
 	}
 
-	// II. Group by namespace and apply optional search filter in memory.
+	// II. Group by namespace and apply search + buildstatus filter in memory.
 	nsCRs := make(map[string][]unstructured.Unstructured)
-	for _, cr := range allCRList.Items {
+	for _, cr := range filterAppCRs(allCRList.Items, search, filter) {
 		namespaceName := cr.GetNamespace()
-		if search != "" && !strings.Contains(strings.ToLower(cr.GetName()), strings.ToLower(search)) {
-			continue
-		}
 		nsCRs[namespaceName] = append(nsCRs[namespaceName], cr)
 	}
 

@@ -31,6 +31,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"golang.org/x/term"
@@ -97,6 +98,18 @@ func appShowStatusLine(app models.App) string {
 	}
 }
 
+// validateAppName checks DNS-1123 rules and rejects names that collide with
+// static API path segments under /applications/ (e.g. "undeployed").
+func validateAppName(appName string) error {
+	if errorMsgs := validation.IsDNS1123Subdomain(appName); len(errorMsgs) > 0 {
+		return fmt.Errorf("application's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc')")
+	}
+	if names.IsReservedAppName(appName) {
+		return fmt.Errorf("application name %q is reserved for the undeployed apps list API", appName)
+	}
+	return nil
+}
+
 // AppCreate creates an app without a workload
 func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpdateRequest) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
@@ -116,9 +129,8 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 
 	details.Info("create application")
 
-	errorMsgs := validation.IsDNS1123Subdomain(appName)
-	if len(errorMsgs) > 0 {
-		return fmt.Errorf("application's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc')")
+	if err := validateAppName(appName); err != nil {
+		return err
 	}
 
 	request := models.ApplicationCreateRequest{
@@ -614,9 +626,9 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) er
 	}
 
 	tty := kubectlterm.TTY{
-		In:     os.Stdin,
-		Out:    os.Stdout,
-		Raw:    term.IsTerminal(int(os.Stdin.Fd())),
+		In:  os.Stdin,
+		Out: os.Stdout,
+		Raw: term.IsTerminal(int(os.Stdin.Fd())),
 		// Avoid trying /dev/tty for non-interactive runs (e.g. CI pipes), which can
 		// cause exec sessions to hang before streaming starts.
 		TryDev: false,

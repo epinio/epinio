@@ -1225,6 +1225,19 @@ type FakeAPIClient struct {
 	stagingCompleteStreamReturnsOnCall map[int]struct {
 		result1 error
 	}
+	UndeployedAppsStub        func(string) (models.AppList, error)
+	undeployedAppsMutex       sync.RWMutex
+	undeployedAppsArgsForCall []struct {
+		arg1 string
+	}
+	undeployedAppsReturns struct {
+		result1 models.AppList
+		result2 error
+	}
+	undeployedAppsReturnsOnCall map[int]struct {
+		result1 models.AppList
+		result2 error
+	}
 	VersionWarningEnabledStub        func() bool
 	versionWarningEnabledMutex       sync.RWMutex
 	versionWarningEnabledArgsForCall []struct {
@@ -6849,6 +6862,70 @@ func (fake *FakeAPIClient) StagingCompleteStreamReturnsOnCall(i int, result1 err
 	fake.stagingCompleteStreamReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeAPIClient) UndeployedApps(arg1 string) (models.AppList, error) {
+	fake.undeployedAppsMutex.Lock()
+	ret, specificReturn := fake.undeployedAppsReturnsOnCall[len(fake.undeployedAppsArgsForCall)]
+	fake.undeployedAppsArgsForCall = append(fake.undeployedAppsArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.UndeployedAppsStub
+	fakeReturns := fake.undeployedAppsReturns
+	fake.recordInvocation("UndeployedApps", []interface{}{arg1})
+	fake.undeployedAppsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) UndeployedAppsCallCount() int {
+	fake.undeployedAppsMutex.RLock()
+	defer fake.undeployedAppsMutex.RUnlock()
+	return len(fake.undeployedAppsArgsForCall)
+}
+
+func (fake *FakeAPIClient) UndeployedAppsCalls(stub func(string) (models.AppList, error)) {
+	fake.undeployedAppsMutex.Lock()
+	defer fake.undeployedAppsMutex.Unlock()
+	fake.UndeployedAppsStub = stub
+}
+
+func (fake *FakeAPIClient) UndeployedAppsArgsForCall(i int) string {
+	fake.undeployedAppsMutex.RLock()
+	defer fake.undeployedAppsMutex.RUnlock()
+	argsForCall := fake.undeployedAppsArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeAPIClient) UndeployedAppsReturns(result1 models.AppList, result2 error) {
+	fake.undeployedAppsMutex.Lock()
+	defer fake.undeployedAppsMutex.Unlock()
+	fake.UndeployedAppsStub = nil
+	fake.undeployedAppsReturns = struct {
+		result1 models.AppList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) UndeployedAppsReturnsOnCall(i int, result1 models.AppList, result2 error) {
+	fake.undeployedAppsMutex.Lock()
+	defer fake.undeployedAppsMutex.Unlock()
+	fake.UndeployedAppsStub = nil
+	if fake.undeployedAppsReturnsOnCall == nil {
+		fake.undeployedAppsReturnsOnCall = make(map[int]struct {
+			result1 models.AppList
+			result2 error
+		})
+	}
+	fake.undeployedAppsReturnsOnCall[i] = struct {
+		result1 models.AppList
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeAPIClient) VersionWarningEnabled() bool {

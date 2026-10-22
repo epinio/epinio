@@ -125,6 +125,22 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 		}, "300s", "2s").Should(Equal("1/1"))
 	})
 
+	It("shows an application that has no workload", func() {
+		app := catalog.NewAppName()
+		bodyBytes, statusCode := appCreate(namespace, toJSON(models.ApplicationCreateRequest{
+			Name: app,
+			Configuration: models.ApplicationUpdateRequest{
+				AppChart: "standard",
+			},
+		}))
+		Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+		defer env.DeleteApp(app)
+
+		appObj := appShow(namespace, app)
+		Expect(appObj.Meta.Name).To(Equal(app))
+		Expect(appObj.Workload).To(BeNil())
+	})
+
 	It("returns a 404 when the namespace does not exist", func() {
 		app := catalog.NewAppName()
 		env.MakeContainerImageApp(app, 1, containerImageURL)

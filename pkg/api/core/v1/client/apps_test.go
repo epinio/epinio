@@ -77,8 +77,14 @@ func DescribeAppsErrors() {
 			Entry("apps", func() (any, error) {
 				return epinioClient.Apps("namespace")
 			}),
+			Entry("undeployed apps", func() (any, error) {
+				return epinioClient.UndeployedApps("namespace")
+			}),
 			Entry("all apps", func() (any, error) {
 				return epinioClient.AllApps()
+			}),
+			Entry("all undeployed apps", func() (any, error) {
+				return epinioClient.AllUndeployedApps()
 			}),
 			Entry("app show", func() (any, error) {
 				return epinioClient.AppShow("namespace", "appname")

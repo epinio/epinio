@@ -51,7 +51,9 @@
     # app read endpoints
     - AllApps
     - AllAppsGrouped
+    - AllAppsUndeployed
     - Apps
+    - AppsUndeployed
     - AppShow
     - StagingComplete
     - AppDeployment

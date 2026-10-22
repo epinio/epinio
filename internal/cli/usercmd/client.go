@@ -50,6 +50,7 @@ type APIClient interface {
 	// app
 	AppCreate(req models.ApplicationCreateRequest, namespace string) (models.Response, error)
 	Apps(namespace string) (models.AppList, error)
+	UndeployedApps(namespace string) (models.AppList, error)
 	AllApps() (models.AppList, error)
 	AppShow(namespace string, appName string) (models.App, error)
 	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)

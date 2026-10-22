@@ -17,10 +17,8 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -81,9 +79,8 @@ func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.Application
 	}
 
 	details.Info("validate app name")
-	errorMsgs := validation.IsDNS1123Subdomain(appRef.Name)
-	if len(errorMsgs) > 0 {
-		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
+	if err := validateAppName(appRef.Name); err != nil {
+		return fmt.Errorf("app name incorrect: %w", err)
 	}
 
 	if err := validateLocalDockerfile(manifest); err != nil {
@@ -200,8 +197,8 @@ func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.Application
 	return nil
 }
 
-// BuildList shows every application in the targeted namespace together with
-// its current build (image and build status).
+// BuildList shows build-only (undeployed) applications in the targeted
+// namespace together with their current build image and build status.
 func (c *EpinioClient) BuildList(ctx context.Context) error {
 	log := c.Log.WithName("BuildList").WithValues("Namespace", c.Settings.Namespace)
 	log.Info("start")
@@ -213,9 +210,9 @@ func (c *EpinioClient) BuildList(ctx context.Context) error {
 
 	c.ui.Note().
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Listing application builds")
+		Msg("Listing undeployed application builds")
 
-	apps, err := c.API.Apps(c.Settings.Namespace)
+	apps, err := c.API.UndeployedApps(c.Settings.Namespace)
 	if err != nil {
 		return err
 	}

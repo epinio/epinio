@@ -12,22 +12,32 @@
 package application
 
 import (
-	"strings"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // FullIndex handles the API endpoint GET /applications
-// It lists all the known applications in all namespaces, with and without workload.
+// It lists applications in all namespaces that are not never-deployed (undeployed).
+// Never-deployed apps are returned by UndeployedFullIndex instead.
 func FullIndex(c *gin.Context) apierror.APIErrors {
+	return fullIndexWithFilter(c, application.ListFilterDeployed)
+}
+
+// UndeployedFullIndex handles GET /applications/undeployed
+// It lists never-deployed apps across namespaces the user can see, with optional
+// pagination and search.
+func UndeployedFullIndex(c *gin.Context) apierror.APIErrors {
+	return fullIndexWithFilter(c, application.ListFilterUndeployed)
+}
+
+func fullIndexWithFilter(c *gin.Context, filter application.ListFilter) apierror.APIErrors {
 	ctx := c.Request.Context()
 	user := requestctx.User(ctx)
 
@@ -36,35 +46,67 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	allApps, err := application.List(ctx, cluster, "")
+	allCRs, err := application.ListAppCRs(ctx, cluster, "")
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	namespaces := response.GetNamespacesParam(c)
+	search := response.GetSearchParam(c)
+	matched := application.FilterAppCRs(allCRs, search, filter)
+	matched = filterAppCRsByAccess(user, matched, response.GetNamespacesParam(c))
 
-	filteredApps := auth.FilterResources(user, allApps)
-	filteredApps = auth.FilterByNamespaces(filteredApps, namespaces)
-
-	if search := response.GetSearchParam(c); search != "" {
-		lower := strings.ToLower(search)
-		var searched models.AppList
-		for _, a := range filteredApps {
-			if strings.Contains(strings.ToLower(a.Meta.Name), lower) {
-				searched = append(searched, a)
-			}
+	page, pageSize, paginated := response.GetPaginationParams(c, 1, 25)
+	if paginated {
+		pageCRs, total := application.PageAppCRs(matched, page, pageSize)
+		apps, err := application.AppsFromCRs(ctx, cluster, pageCRs)
+		if err != nil {
+			return apierror.InternalError(err)
 		}
-		filteredApps = searched
-	}
-
-	// Apply optional pagination when page parameters are provided.
-	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
-		paged := response.PaginateSlice(filteredApps, page, pageSize)
-		response.OKReturn(c, paged)
+		response.OKReturn(c, response.BuildPaginatedResponse(apps, page, pageSize, total))
 		return nil
 	}
 
-	// Backwards-compatible: return full list when no page params are set.
-	response.OKReturn(c, filteredApps)
+	apps, err := application.AppsFromCRs(ctx, cluster, matched)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	response.OKReturn(c, apps)
 	return nil
+}
+
+// filterAppCRsByAccess keeps CRs the user may see, then optionally narrows to
+// the namespaces query parameter (same rules as FilterResources + FilterByNamespaces).
+func filterAppCRsByAccess(
+	user auth.User,
+	crs []unstructured.Unstructured,
+	namespaces []string,
+) []unstructured.Unstructured {
+	allowAll := user.IsAdmin() || user.HasGlobalRole()
+	allowed := make(map[string]struct{}, len(user.Namespaces))
+	for _, ns := range user.Namespaces {
+		allowed[ns] = struct{}{}
+	}
+
+	requested := make(map[string]struct{}, len(namespaces))
+	for _, ns := range namespaces {
+		requested[ns] = struct{}{}
+	}
+
+	out := make([]unstructured.Unstructured, 0, len(crs))
+	for _, cr := range crs {
+		ns := cr.GetNamespace()
+		if !allowAll {
+			if _, ok := allowed[ns]; !ok {
+				continue
+			}
+		}
+		if len(requested) > 0 {
+			if _, ok := requested[ns]; !ok {
+				continue
+			}
+		}
+		out = append(out, cr)
+	}
+	return out
 }
