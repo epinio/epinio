@@ -184,8 +184,8 @@ func SetOrigin(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	return err
 }
 
-// SetBuildStatus stores the given build status ("build"/"deployed") in the
-// referenced application resource.
+// SetBuildStatus stores the given build status ("create"/"build"/"deployed")
+// in the referenced application resource.
 func SetBuildStatus(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, status string) error {
 	client, err := cluster.ClientApp()
 	if err != nil {

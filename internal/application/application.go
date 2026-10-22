@@ -178,6 +178,11 @@ func Create(
 	if err != nil {
 		return err
 	}
+	// Typed AppSpec has no BuildStatus field yet; set it on the unstructured
+	// object so new apps start as "create" until stage/deploy overwrite it.
+	if err := unstructured.SetNestedField(u, models.AppBuildStatusCreate, "spec", "buildstatus"); err != nil {
+		return err
+	}
 	us := &unstructured.Unstructured{Object: u}
 	us.SetAPIVersion("application.epinio.io/v1")
 	us.SetKind("App")
@@ -1331,9 +1336,8 @@ func DockerfilePath(app *unstructured.Unstructured) (string, error) {
 	return path, nil
 }
 
-// BuildStatus returns the "build"/"deployed" status stored on the app
-// resource, reflecting whether the last completed action was a build
-// (stage) or a deploy.
+// BuildStatus returns the "create"/"build"/"deployed" status stored on the
+// app resource, reflecting the last completed lifecycle step.
 func BuildStatus(app *unstructured.Unstructured) (string, error) {
 	status, _, err := unstructured.NestedString(
 		app.UnstructuredContent(),
