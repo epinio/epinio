@@ -71,6 +71,13 @@ var _ = Describe("<ScenarioHarbor> Harbor as external registry for app charts", 
 		harbor.CopyCAToEpinio()
 
 		By("Installing Epinio with Harbor as the external registry")
+		// Server-side helm deploy uses server.timeoutMultiplier (default 1 → 3m).
+		// CLI EPINIO_TIMEOUT_MULTIPLIER alone does not cover that; Harbor image
+		// pull after staging often needs longer on k3d / cold CI runners.
+		timeoutMultiplier := os.Getenv("EPINIO_TIMEOUT_MULTIPLIER")
+		if timeoutMultiplier == "" {
+			timeoutMultiplier = "5"
+		}
 		flags := []string{
 			"--set", "global.domain=" + domain,
 			"--set", "ingress.tls.enabled=true",
@@ -80,6 +87,7 @@ var _ = Describe("<ScenarioHarbor> Harbor as external registry for app charts", 
 			"--set", "global.registryUsername=" + harbor.AdminUser,
 			"--set", "global.registryPassword=" + harbor.AdminPassword(),
 			"--set", "containerregistry.certificateSecret=" + harbor.ExternalRegistryTLSSecret,
+			"--set", "server.timeoutMultiplier=" + timeoutMultiplier,
 		}
 		if extraEnvName, nameOK := os.LookupEnv("EXTRAENV_NAME"); nameOK {
 			if extraEnvValue, valueOK := os.LookupEnv("EXTRAENV_VALUE"); valueOK {
