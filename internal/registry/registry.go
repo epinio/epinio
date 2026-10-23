@@ -24,7 +24,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
@@ -255,15 +254,14 @@ func (d *ConnectionDetails) RepositoryBase() (string, error) {
 // PublicRegistryURL returns the public registry URL from the connection details
 // object. Assumes to have only one non-local registry in the config. If there are more,
 // it will just return the first one found (no guaranteed order since there should only be
-// one)
+// one).
+//
+// Hosts are classified with IsInClusterHost so names like harbor.127.0.0.1.sslip.io
+// (k3d / sslip loopback domains) stay public — a substring match on "127.0.0.1" would
+// wrongly treat them as the in-cluster NodePort registry.
 func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
-	r, err := regexp.Compile(`127\.0\.0\.1`)
-	if err != nil {
-		return "", err
-	}
-
 	for _, credentials := range d.RegistryCredentials {
-		if !r.MatchString(credentials.URL) {
+		if !IsInClusterHost(registryCredentialHost(credentials.URL)) {
 			return credentials.URL, nil
 		}
 	}
@@ -276,17 +274,23 @@ func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 // NodePort. This method will return an empty string if no localhost URL exists in the
 // config.
 func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
-	r, err := regexp.Compile(`127\.0\.0\.1`)
-	if err != nil {
-		return "", err
-	}
 	for _, credentials := range d.RegistryCredentials {
-		if r.MatchString(credentials.URL) {
+		if IsInClusterHost(registryCredentialHost(credentials.URL)) {
 			return credentials.URL, nil
 		}
 	}
 
 	return "", nil
+}
+
+// registryCredentialHost extracts host[:port] from a docker-config style registry URL
+// (optional scheme, optional path / namespace).
+func registryCredentialHost(raw string) string {
+	s := raw
+	if i := strings.Index(s, "://"); i >= 0 {
+		s = s[i+3:]
+	}
+	return strings.SplitN(s, "/", 2)[0]
 }
 
 // ReplaceWithInternalRegistry replaces the registry part of the given container imageURL

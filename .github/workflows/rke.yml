@@ -18,6 +18,10 @@ on:
     types: [ ready_for_review ]
     paths:
       - 'acceptance/install/scenario3_test.go'
+      - 'acceptance/install/scenario_harbor_appcharts_test.go'
+      - 'acceptance/helpers/harbor/**'
+      - 'acceptance/appcharts_push_test.go'
+      - 'acceptance/helpers/catalog/download.go'
       - '.github/workflows/rke.yml'
   workflow_dispatch:
     inputs:
@@ -27,8 +31,8 @@ on:
         default: ""
 
 env:
-  SETUP_GO_VERSION: '1.25.0'
-  GOLANGCI_LINT_VERSION: v1.56
+  SETUP_GO_VERSION: '1.26.0'
+  GOLANGCI_LINT_VERSION: v2.9.0
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
@@ -157,3 +161,73 @@ jobs:
       # - name: Clean all
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
+
+  # EPINIO-823: Harbor as external registry for application charts (RKE / self-hosted).
+  # GitHub-hosted k3d variant: .github/workflows/harbor-k3d.yml
+  acceptance-scenario-harbor:
+    needs:
+      - linter
+    runs-on: [self-hosted, epinio]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        timeout-minutes: 5
+        with:
+          cache: false
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.16.0
+
+      - name: Cache Tools
+        uses: actions/cache@v6
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: Clean runner
+        run: make acceptance-cluster-delete
+
+      - name: Create RKE cluster
+        run: |
+          curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_METHOD=tar sh -
+          sudo sh -c "echo RKE2_KUBECONFIG_MODE=0644 > /etc/sysconfig/rke2-server"
+          sudo sh -c "mkdir -p /etc/rancher/rke2/config.yaml.d"
+          sudo sh -c "echo 'disable: rke2-ingress-nginx' > /etc/rancher/rke2/config.yaml.d/00-epinio.yaml"
+          sudo systemctl enable --now rke2-server
+          sleep 120
+
+      - name: Harbor App Chart Acceptance Tests
+        env:
+          PUBLIC_CLOUD: 1
+          KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+          INGRESS_CONTROLLER: traefik
+        run: |
+          export RANGE_IP="$(scripts/get-free-ip.sh)"
+          export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).sslip.io"
+          make test-acceptance-harbor
+
+      - name: Delete RKE cluster
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        run: |
+          sudo sh /usr/local/bin/rke2-uninstall.sh
