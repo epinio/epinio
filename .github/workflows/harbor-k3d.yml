@@ -30,7 +30,7 @@ on:
 
 env:
   SETUP_GO_VERSION: '1.26.0'
-  GINKGO_VERSION: v2.27.2
+  GINKGO_VERSION: v2.28.3
   INGRESS_CONTROLLER: nginx
 
 jobs:

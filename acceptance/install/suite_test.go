@@ -60,10 +60,15 @@ func InstallNginx() {
 	Expect(err).NotTo(HaveOccurred(), out)
 	out, err = proc.RunW("helm", "repo", "update")
 	Expect(err).NotTo(HaveOccurred(), out)
+	// Disable admission webhooks: default install races Harbor/Epinio Ingress
+	// create ("no endpoints available for service ingress-nginx-controller-admission").
+	// Same as scripts/prepare-environment-k3d.sh and harbor-k3d CI.
 	out, err = proc.RunW("helm", "upgrade", "--install", "ingress-nginx", "ingress-nginx/ingress-nginx",
 		"--namespace", "ingress-nginx",
 		"--create-namespace",
 		"--set", "controller.ingressClassResource.default=true",
+		"--set", "controller.admissionWebhooks.enabled=false",
+		"--wait",
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
 }
