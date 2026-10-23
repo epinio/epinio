@@ -90,6 +90,21 @@ var _ = Describe("ConnectionDetails", func() {
 				Expect(url).To(Equal("registry.hub.docker.com"))
 			})
 		})
+		When("the registry hostname embeds 127.0.0.1 as a dns label (sslip/nip)", func() {
+			BeforeEach(func() {
+				details = &registry.ConnectionDetails{
+					Namespace: "epinio",
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "harbor.127.0.0.1.sslip.io/epinio"},
+					},
+				}
+			})
+			It("treats it as a public registry URL", func() {
+				url, err := details.PublicRegistryURL()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(url).To(Equal("harbor.127.0.0.1.sslip.io/epinio"))
+			})
+		})
 	})
 
 	Describe("PrivateRegistryURL", func() {

@@ -98,9 +98,14 @@ var _ = Describe("<ScenarioHarbor> Harbor as external registry for app charts", 
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		By("Connecting to Epinio")
+		loginURL := "https://epinio." + domain
+		// k3d publishes HTTPS on EPINIO_PORT (usually 8443), not 443.
+		if p := os.Getenv("EPINIO_PORT"); p != "" {
+			loginURL = loginURL + ":" + p
+		}
 		Eventually(func() string {
 			out, _ := epinioHelper.Run("login", "-u", "admin", "-p", "password", "--trust-ca",
-				"https://epinio."+domain)
+				loginURL)
 			return out
 		}, "2m", "5s").Should(ContainSubstring("Login successful"))
 

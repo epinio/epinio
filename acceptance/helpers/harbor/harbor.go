@@ -104,10 +104,106 @@ func Install(domain string) string {
 		return out
 	}, "8m", "5s").Should(Equal("Running"))
 
+	// k3d / loopback: patch DNS before any in-cluster Harbor API calls (createProject).
+	// Opt-in so RKE self-hosted CI (real node IPs) is unchanged.
+	if os.Getenv("HARBOR_PATCH_INGRESS_DNS") == "1" {
+		EnsureInClusterDNS(host)
+	}
+
 	By("creating the Harbor project " + ProjectName)
 	createProject(tmpDir, host, password)
 
 	return host
+}
+
+const ingressNginxDNS = "ingress-nginx-controller.ingress-nginx.svc.cluster.local"
+
+// EnsureInClusterDNS makes harborHost resolve inside the cluster to the ingress
+// controller (not public sslip → 127.0.0.1, which pods cannot use).
+//
+// Strategy (k3d-safe):
+//  1. CoreDNS "rewrite name exact" — works alongside k3d's existing hosts plugin
+//     (a second hosts{} block crashes CoreDNS).
+//  2. Node /etc/hosts on the k3d server — kubelet does not use CoreDNS.
+//  3. Verify with an in-cluster nslookup before continuing.
+func EnsureInClusterDNS(harborHost string) {
+	GinkgoHelper()
+
+	By("rewriting CoreDNS so " + harborHost + " → " + ingressNginxDNS)
+	ingressIP := ingressControllerClusterIP()
+	Expect(ingressIP).NotTo(BeEmpty(), "ingress controller ClusterIP not found")
+
+	corefile, err := proc.RunW("kubectl", "-n", "kube-system", "get", "configmap", "coredns",
+		"-o", "jsonpath={.data.Corefile}")
+	Expect(err).NotTo(HaveOccurred(), corefile)
+	Expect(corefile).NotTo(BeEmpty())
+
+	rewriteLine := fmt.Sprintf("    rewrite name exact %s %s", harborHost, ingressNginxDNS)
+	if !strings.Contains(corefile, rewriteLine) {
+		patched := injectCoreDNSRewrite(corefile, rewriteLine)
+		tmpDir := GinkgoT().TempDir()
+		coreFilePath := filepath.Join(tmpDir, "Corefile")
+		Expect(os.WriteFile(coreFilePath, []byte(patched), 0600)).To(Succeed())
+
+		out, err := proc.RunW("sh", "-c",
+			"kubectl -n kube-system create configmap coredns --from-file=Corefile="+coreFilePath+
+				" -o yaml --dry-run=client | kubectl apply -f -")
+		Expect(err).NotTo(HaveOccurred(), out)
+
+		_, _ = proc.RunW("kubectl", "-n", "kube-system", "rollout", "restart", "deployment/coredns")
+		out, err = proc.RunW("kubectl", "-n", "kube-system", "rollout", "status",
+			"deployment/coredns", "--timeout=90s")
+		Expect(err).NotTo(HaveOccurred(), out)
+	}
+
+	By("seeding k3d node /etc/hosts for kubelet image pulls")
+	entry := ingressIP + " " + harborHost
+	out, err := proc.RunW("sh", "-c", fmt.Sprintf(`
+set -e
+entry=%q
+server=$(docker ps --filter name=k3d-epinio-acceptance-server-0 -q | head -n1)
+test -n "$server"
+docker exec -u root "$server" sh -c "grep -qF \"$entry\" /etc/hosts || echo \"$entry\" >> /etc/hosts"
+`, entry))
+	Expect(err).NotTo(HaveOccurred(), out)
+
+	By("verifying in-cluster DNS for " + harborHost)
+	Eventually(func() string {
+		_, _ = proc.RunW("kubectl", "delete", "pod", "harbor-dns-check",
+			"--ignore-not-found", "--wait=true")
+		out, _ := proc.RunW("kubectl", "run", "harbor-dns-check", "--rm", "-i", "--restart=Never",
+			"--image=busybox:1.36", "--",
+			"nslookup", harborHost)
+		return out
+	}, "2m", "5s").Should(And(
+		ContainSubstring(ingressIP),
+		// Answer must not be loopback (query name itself contains "127.0.0.1" in sslip hosts).
+		Not(MatchRegexp(`(?m)^Address:.*\b127\.0\.0\.1\b`)),
+	))
+}
+
+// injectCoreDNSRewrite inserts a rewrite line before the first "forward" directive.
+// Does not add a hosts{} block (k3d already has one).
+func injectCoreDNSRewrite(corefile, rewriteLine string) string {
+	for _, marker := range []string{"\n    forward ", "\n    cache "} {
+		if idx := strings.Index(corefile, marker); idx >= 0 {
+			return corefile[:idx] + "\n" + rewriteLine + corefile[idx:]
+		}
+	}
+	return corefile + "\n" + rewriteLine + "\n"
+}
+
+func ingressControllerClusterIP() string {
+	for _, args := range [][]string{
+		{"-n", "ingress-nginx", "get", "svc", "ingress-nginx-controller", "-o", "jsonpath={.spec.clusterIP}"},
+		{"-n", "kube-system", "get", "svc", "traefik", "-o", "jsonpath={.spec.clusterIP}"},
+	} {
+		out, err := proc.RunW("kubectl", args...)
+		if err == nil && strings.TrimSpace(out) != "" {
+			return strings.TrimSpace(out)
+		}
+	}
+	return ""
 }
 
 // Uninstall removes the Harbor release, namespace, and Epinio registry CA secret.
@@ -166,16 +262,41 @@ func ExpectAppChartRepo(host, chartName string) {
 
 	password := AdminPassword()
 	repoPrefix := "epinio_appchart_" + chartName
-	tmpDir := GinkgoT().TempDir()
+	base := harborAPIBase(host)
 
+	if useHostHarborAPI() {
+		By("checking Harbor chart repo via host API " + base)
+		out, err := proc.RunW("curl", "-sk", "--max-time", "30",
+			"-u", AdminUser+":"+password,
+			base+"/api/v2.0/projects/"+ProjectName+"/repositories?page_size=100")
+		Expect(err).NotTo(HaveOccurred(), out)
+		Expect(out).To(ContainSubstring(repoPrefix))
+		return
+	}
+
+	tmpDir := GinkgoT().TempDir()
 	script := fmt.Sprintf(`set -e
-body=$(curl -sk -u '%[1]s:%[2]s' \
-  'https://%[3]s/api/v2.0/projects/%[4]s/repositories?page_size=100' || true)
+body=$(curl -sk --max-time 30 -u '%[1]s:%[2]s' \
+  '%[3]s/api/v2.0/projects/%[4]s/repositories?page_size=100' || true)
 echo "$body"
 echo "$body" | grep -q '%[5]s'
-`, AdminUser, password, host, ProjectName, repoPrefix)
+`, AdminUser, password, base, ProjectName, repoPrefix)
 
 	runCurlScript(tmpDir, "harbor-expect-repo", script)
+}
+
+// useHostHarborAPI is true on k3d/GitHub runners where Harbor is reached via
+// the published load-balancer port (EPINIO_PORT) from the host.
+func useHostHarborAPI() bool {
+	return os.Getenv("HARBOR_PATCH_INGRESS_DNS") == "1" || os.Getenv("EPINIO_PORT") != ""
+}
+
+// harborAPIBase returns https://host or https://host:port for Harbor HTTP API calls.
+func harborAPIBase(host string) string {
+	if p := os.Getenv("EPINIO_PORT"); p != "" {
+		return "https://" + host + ":" + p
+	}
+	return "https://" + host
 }
 
 func createTLSSecret(tmpDir, host string) {
@@ -206,25 +327,55 @@ func createTLSSecret(tmpDir, host string) {
 func createProject(tmpDir, host, password string) {
 	GinkgoHelper()
 
+	base := harborAPIBase(host)
+	if useHostHarborAPI() {
+		By("creating Harbor project via host API " + base)
+		createProjectFromHost(base, password)
+		return
+	}
+
 	script := fmt.Sprintf(`set -e
 for i in $(seq 1 60); do
-  if curl -sk -u '%[1]s:%[2]s' 'https://%[3]s/api/v2.0/systeminfo' >/dev/null; then
+  if curl -sk --max-time 30 -u '%[1]s:%[2]s' '%[3]s/api/v2.0/systeminfo' >/dev/null; then
     break
   fi
   sleep 5
 done
-code=$(curl -sk -o /tmp/harbor-project.out -w '%%{http_code}' -u '%[1]s:%[2]s' \
+code=$(curl -sk --max-time 30 -o /tmp/harbor-project.out -w '%%{http_code}' -u '%[1]s:%[2]s' \
   -H 'Content-Type: application/json' \
-  -X POST 'https://%[3]s/api/v2.0/projects' \
+  -X POST '%[3]s/api/v2.0/projects' \
   -d '{"project_name":"%[4]s","public":false}' || true)
 if [ "$code" != "201" ] && [ "$code" != "409" ]; then
   echo "create project failed: HTTP $code"
   cat /tmp/harbor-project.out || true
   exit 1
 fi
-`, AdminUser, password, host, ProjectName)
+`, AdminUser, password, base, ProjectName)
 
 	runCurlScript(tmpDir, "harbor-create-project", script)
+}
+
+func createProjectFromHost(base, password string) {
+	GinkgoHelper()
+
+	Eventually(func() error {
+		_, err := proc.RunW("curl", "-sk", "--max-time", "30",
+			"-u", AdminUser+":"+password, base+"/api/v2.0/systeminfo")
+		return err
+	}, "5m", "5s").Should(Succeed())
+
+	out, err := proc.RunW("curl", "-sk", "--max-time", "30",
+		"-o", "/tmp/harbor-project.out", "-w", "%{http_code}",
+		"-u", AdminUser+":"+password,
+		"-H", "Content-Type: application/json",
+		"-X", "POST", base+"/api/v2.0/projects",
+		"-d", `{"project_name":"`+ProjectName+`","public":false}`)
+	Expect(err).NotTo(HaveOccurred(), out)
+	code := strings.TrimSpace(out)
+	if code != "201" && code != "409" {
+		body, _ := proc.RunW("cat", "/tmp/harbor-project.out")
+		Fail(fmt.Sprintf("create project failed: HTTP %s\n%s", code, body))
+	}
 }
 
 func runCurlScript(tmpDir, name, script string) {

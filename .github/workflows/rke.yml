@@ -162,7 +162,8 @@ jobs:
       #   if: ${{ github.event_name == 'schedule' }}
       #   uses: colpal/actions-clean@v1
 
-  # EPINIO-823: Harbor as external registry for application charts (dedicated job).
+  # EPINIO-823: Harbor as external registry for application charts (RKE / self-hosted).
+  # GitHub-hosted k3d variant: .github/workflows/harbor-k3d.yml
   acceptance-scenario-harbor:
     needs:
       - linter
