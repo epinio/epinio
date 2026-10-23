@@ -23,16 +23,16 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/helmchart"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-
-	"github.com/gorilla/websocket"
 )
 
 var (
@@ -228,6 +228,28 @@ func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string, includeCo
 	return ParseLogParameters(tailStr, sinceStr, sinceTimeStr, includeContainersStr, excludeContainersStr)
 }
 
+// stagingLogsUnavailableMessage is returned when staging logs cannot be read
+// because no matching staging Job exists (TTL cleanup, unknown stage ID, etc.).
+const stagingLogsUnavailableMessage = "Staging logs are no longer available (staging job not found)"
+
+// stagingLogsJobError maps a staging Job ListJobs result to an API error.
+// Missing jobs are NotFound with a clear message; list failures are InternalError.
+// A present job returns nil.
+func stagingLogsJobError(jobCount int, listErr error) apierror.APIErrors {
+	if listErr != nil {
+		return apierror.InternalError(listErr)
+	}
+	if jobCount == 0 {
+		return apierror.NewAPIError(stagingLogsUnavailableMessage, http.StatusNotFound)
+	}
+	return nil
+}
+
+// StagingLogsJobErrorForTest exposes stagingLogsJobError for unit tests.
+func StagingLogsJobErrorForTest(jobCount int, listErr error) apierror.APIErrors {
+	return stagingLogsJobError(jobCount, listErr)
+}
+
 // Logs handles the API endpoints GET /namespaces/:namespace/applications/:app/logs
 // and	GET /namespaces/:namespace/staging/:stage_id/logs
 // It arranges for the logs of the specified application to be
@@ -285,6 +307,24 @@ func Logs(c *gin.Context) {
 			apierror.NewBadRequestError("you need to specify either the stage id or the app"),
 		)
 		return
+	}
+
+	// Staging logs come from staging Job pods. If the Job is gone (TTL cleanup,
+	// unknown stage ID, etc.), return a clear error instead of an empty stream.
+	if stageID != "" {
+		selector := fmt.Sprintf(
+			"app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.io/stage-id=%s",
+			namespace, stageID,
+		)
+		jobList, err := cluster.ListJobs(ctx, helmchart.Namespace(), selector)
+		jobCount := 0
+		if jobList != nil {
+			jobCount = len(jobList.Items)
+		}
+		if apiErr := stagingLogsJobError(jobCount, err); apiErr != nil {
+			response.Error(c, apiErr)
+			return
+		}
 	}
 
 	log.Debugw("process query")
