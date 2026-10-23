@@ -15,9 +15,11 @@
 name: Harbor-k3d-CI
 
 on:
+  # GitHub-hosted (ubuntu-latest). Do not wait on self-hosted RKE runners.
+  # synchronize = every push to the PR; ready_for_review for draft→ready.
   pull_request:
     branches: [ main ]
-    types: [ ready_for_review ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
     paths:
       - 'acceptance/install/scenario_harbor_appcharts_test.go'
       - 'acceptance/helpers/harbor/**'
