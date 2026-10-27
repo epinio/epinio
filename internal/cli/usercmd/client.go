@@ -73,6 +73,7 @@ type APIClient interface {
 	AppRestart(namespace string, appName string) (models.Response, error)
 	AppGetPart(namespace, appName, part string) (models.AppPartResponse, error)
 	AppMatch(namespace, prefix string) (models.AppMatchResponse, error)
+	AppMatchAll(namespace, prefix string) (models.AppMatchResponse, error)
 	AppValidateCV(namespace string, name string) (models.Response, error)
 	AppExport(namespace, appName string, param models.AppExportRequest) (models.Response, error)
 

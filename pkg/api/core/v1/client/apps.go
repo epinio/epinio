@@ -208,6 +208,20 @@ func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, er
 	return Get(c, endpoint, response)
 }
 
+// AppMatchAll is like AppMatch but also returns never-deployed (undeployed) apps.
+func (c *Client) AppMatchAll(namespace, prefix string) (models.AppMatchResponse, error) {
+	response := models.AppMatchResponse{}
+	queryParams := url.Values{}
+	queryParams.Set("includeUndeployed", "true")
+	endpoint := fmt.Sprintf(
+		"%s?%s",
+		api.Routes.Path("AppMatch", namespace, prefix),
+		queryParams.Encode(),
+	)
+
+	return Get(c, endpoint, response)
+}
+
 // AppDelete deletes an app
 func (c *Client) AppDelete(namespace string, names []string, deleteImage, deletePVC bool) (models.ApplicationDeleteResponse, error) {
 	response := models.ApplicationDeleteResponse{}

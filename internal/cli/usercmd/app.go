@@ -162,7 +162,7 @@ func (c *EpinioClient) AppsMatching(prefix string) []string {
 
 	result := []string{}
 
-	resp, err := c.API.AppMatch(c.Settings.Namespace, prefix)
+	resp, err := c.API.AppMatchAll(c.Settings.Namespace, prefix)
 	if err != nil {
 		return result
 	}
@@ -673,7 +673,7 @@ func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, de
 
 		// Using the match API with a query matching everything. Avoids transmission
 		// of full configuration data and having to filter client-side.
-		match, err := c.API.AppMatch(c.Settings.Namespace, "")
+		match, err := c.API.AppMatchAll(c.Settings.Namespace, "")
 		if err != nil {
 			return err
 		}
@@ -723,7 +723,7 @@ func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, de
 	defer s.Stop()
 
 	go c.trackDeletion(appNames, func() []string {
-		match, err := c.API.AppMatch(c.Settings.Namespace, "")
+		match, err := c.API.AppMatchAll(c.Settings.Namespace, "")
 		if err != nil {
 			return []string{}
 		}

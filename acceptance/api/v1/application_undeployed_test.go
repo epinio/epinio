@@ -176,4 +176,29 @@ var _ = Describe("Apps Undeployed Endpoints", LApplication, func() {
 		}
 		Expect(found).To(BeTrue())
 	})
+
+	It("includes never-deployed apps in appsmatches only when includeUndeployed is set", func() {
+		name := catalog.NewAppName()
+		createApp(name)
+		defer env.DeleteApp(name)
+		patchBuildFields(name, models.AppBuildStatusBuild, "")
+
+		matchNames := func(query string) []string {
+			response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/appsmatches%s",
+				serverURL, v1.Root, namespace, query), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var resp models.AppMatchResponse
+			Expect(json.Unmarshal(bodyBytes, &resp)).To(Succeed())
+			return resp.Names
+		}
+
+		Expect(matchNames("")).NotTo(ContainElement(name))
+		Expect(matchNames("?includeUndeployed=true")).To(ContainElement(name))
+	})
 })

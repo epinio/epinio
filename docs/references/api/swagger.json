@@ -153,10 +153,11 @@
     },
     "/applications": {
       "get": {
+        "description": "Never-deployed apps (buildstatus create|build) are omitted; use AllAppsUndeployed for those.",
         "tags": [
           "application"
         ],
-        "summary": "Return list of applications in all namespaces.\nBuild-only (undeployed) apps are omitted; use AllAppsUndeployed for those.",
+        "summary": "Return list of applications in all namespaces.",
         "operationId": "AllApps",
         "parameters": [
           {
@@ -200,7 +201,7 @@
         "tags": [
           "application"
         ],
-        "summary": "Return list of build-only (undeployed) applications in all namespaces.",
+        "summary": "Return list of never-deployed applications (buildstatus create|build) in all namespaces.",
         "operationId": "AllAppsUndeployed",
         "parameters": [
           {
@@ -748,10 +749,11 @@
     },
     "/namespace/{Namespace}/appsmatches/{Pattern}": {
       "get": {
+        "description": "Return list of names for all applications whose name matches the prefix `Pattern`.",
         "tags": [
           "application"
         ],
-        "summary": "Return list of names for all applications whose name matches the prefix `Pattern`.",
+        "summary": "Set includeUndeployed=true to also match never-deployed (undeployed) apps.",
         "operationId": "AppMatch",
         "parameters": [
           {
@@ -995,10 +997,11 @@
     },
     "/namespaces/{Namespace}/applications": {
       "get": {
+        "description": "Never-deployed apps (buildstatus create|build) are omitted; use AppsUndeployed for those.",
         "tags": [
           "application"
         ],
-        "summary": "Return list of applications in the `Namespace`.\nBuild-only (undeployed) apps are omitted; use AppsUndeployed for those.",
+        "summary": "Return list of applications in the `Namespace`.",
         "operationId": "Apps",
         "parameters": [
           {
@@ -1091,10 +1094,11 @@
     },
     "/namespaces/{Namespace}/applications/undeployed": {
       "get": {
+        "description": "Supports the same search and pagination query parameters as Apps.",
         "tags": [
           "application"
         ],
-        "summary": "Return list of build-only (undeployed) applications in the `Namespace`.\nSupports the same search and pagination query parameters as Apps.",
+        "summary": "Return list of never-deployed applications (buildstatus create|build) in the `Namespace`.",
         "operationId": "AppsUndeployed",
         "parameters": [
           {
@@ -1134,11 +1138,11 @@
     },
     "/namespaces/{Namespace}/applications/{App}": {
       "get": {
-        "description": "The response includes `configuration.environment` (user-set variables only) and\n`configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).",
+        "description": "Works for both deployed and never-deployed (create|build) apps.\nThe response includes `configuration.environment` (user-set variables only) and\n`configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).",
         "tags": [
           "application"
         ],
-        "summary": "Return details of the named `App` in the `Namespace`.\nWorks for both deployed and build-only (undeployed) apps.",
+        "summary": "Return details of the named `App` in the `Namespace`.",
         "operationId": "AppShow",
         "parameters": [
           {

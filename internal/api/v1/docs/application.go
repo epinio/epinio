@@ -152,6 +152,7 @@ type AppShowResponse struct {
 }
 
 // swagger:route GET /namespace/{Namespace}/appsmatches/{Pattern} application AppMatch
+// Set includeUndeployed=true to also match never-deployed (undeployed) apps.
 // Return list of names for all applications whose name matches the prefix `Pattern`.
 // responses:
 //   200: AppMatchResponse

@@ -104,6 +104,9 @@ func DescribeAppsErrors() {
 			Entry("app match", func() (any, error) {
 				return epinioClient.AppMatch("namespace", "appprefix")
 			}),
+			Entry("app match all", func() (any, error) {
+				return epinioClient.AppMatchAll("namespace", "appprefix")
+			}),
 			Entry("app validate CV", func() (any, error) {
 				return epinioClient.AppValidateCV("namespace", "appname")
 			}),

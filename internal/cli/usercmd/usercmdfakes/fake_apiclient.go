@@ -236,6 +236,20 @@ type FakeAPIClient struct {
 		result1 models.AppMatchResponse
 		result2 error
 	}
+	AppMatchAllStub        func(string, string) (models.AppMatchResponse, error)
+	appMatchAllMutex       sync.RWMutex
+	appMatchAllArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	appMatchAllReturns struct {
+		result1 models.AppMatchResponse
+		result2 error
+	}
+	appMatchAllReturnsOnCall map[int]struct {
+		result1 models.AppMatchResponse
+		result2 error
+	}
 	AppPortForwardStub        func(string, string, string, *client.PortForwardOpts) error
 	appPortForwardMutex       sync.RWMutex
 	appPortForwardArgsForCall []struct {
@@ -2195,6 +2209,71 @@ func (fake *FakeAPIClient) AppMatchReturns(result1 models.AppMatchResponse, resu
 }
 
 func (fake *FakeAPIClient) AppMatchReturnsOnCall(i int, result1 models.AppMatchResponse, result2 error) {
+	fake.appMatchMutex.Lock()
+	defer fake.appMatchMutex.Unlock()
+	fake.AppMatchStub = nil
+	if fake.appMatchReturnsOnCall == nil {
+		fake.appMatchReturnsOnCall = make(map[int]struct {
+			result1 models.AppMatchResponse
+			result2 error
+		})
+	}
+	fake.appMatchReturnsOnCall[i] = struct {
+		result1 models.AppMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppMatchAll(arg1 string, arg2 string) (models.AppMatchResponse, error) {
+	fake.appMatchMutex.Lock()
+	ret, specificReturn := fake.appMatchReturnsOnCall[len(fake.appMatchArgsForCall)]
+	fake.appMatchArgsForCall = append(fake.appMatchArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.AppMatchStub
+	fakeReturns := fake.appMatchReturns
+	fake.recordInvocation("AppMatchAll", []interface{}{arg1, arg2})
+	fake.appMatchMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) AppMatchAllCallCount() int {
+	fake.appMatchMutex.RLock()
+	defer fake.appMatchMutex.RUnlock()
+	return len(fake.appMatchArgsForCall)
+}
+
+func (fake *FakeAPIClient) AppMatchAllCalls(stub func(string, string) (models.AppMatchResponse, error)) {
+	fake.appMatchMutex.Lock()
+	defer fake.appMatchMutex.Unlock()
+	fake.AppMatchStub = stub
+}
+
+func (fake *FakeAPIClient) AppMatchAllArgsForCall(i int) (string, string) {
+	fake.appMatchMutex.RLock()
+	defer fake.appMatchMutex.RUnlock()
+	argsForCall := fake.appMatchArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeAPIClient) AppMatchAllReturns(result1 models.AppMatchResponse, result2 error) {
+	fake.appMatchMutex.Lock()
+	defer fake.appMatchMutex.Unlock()
+	fake.AppMatchStub = nil
+	fake.appMatchReturns = struct {
+		result1 models.AppMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppMatchAllReturnsOnCall(i int, result1 models.AppMatchResponse, result2 error) {
 	fake.appMatchMutex.Lock()
 	defer fake.appMatchMutex.Unlock()
 	fake.AppMatchStub = nil

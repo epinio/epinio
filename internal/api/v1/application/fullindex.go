@@ -75,6 +75,17 @@ func fullIndexWithFilter(c *gin.Context, filter application.ListFilter) apierror
 	return nil
 }
 
+// appCRNamespace adapts an App CR to auth.NamespacedResource so the shared auth
+// helpers decide visibility, instead of a copy of their rules.
+type appCRNamespace struct {
+	unstructured.Unstructured
+}
+
+// Namespace returns the namespace of the wrapped App CR.
+func (a appCRNamespace) Namespace() string {
+	return a.GetNamespace()
+}
+
 // filterAppCRsByAccess keeps CRs the user may see, then optionally narrows to
 // the namespaces query parameter (same rules as FilterResources + FilterByNamespaces).
 func filterAppCRsByAccess(
@@ -82,31 +93,17 @@ func filterAppCRsByAccess(
 	crs []unstructured.Unstructured,
 	namespaces []string,
 ) []unstructured.Unstructured {
-	allowAll := user.IsAdmin() || user.HasGlobalRole()
-	allowed := make(map[string]struct{}, len(user.Namespaces))
-	for _, ns := range user.Namespaces {
-		allowed[ns] = struct{}{}
-	}
-
-	requested := make(map[string]struct{}, len(namespaces))
-	for _, ns := range namespaces {
-		requested[ns] = struct{}{}
-	}
-
-	out := make([]unstructured.Unstructured, 0, len(crs))
+	wrapped := make([]appCRNamespace, 0, len(crs))
 	for _, cr := range crs {
-		ns := cr.GetNamespace()
-		if !allowAll {
-			if _, ok := allowed[ns]; !ok {
-				continue
-			}
-		}
-		if len(requested) > 0 {
-			if _, ok := requested[ns]; !ok {
-				continue
-			}
-		}
-		out = append(out, cr)
+		wrapped = append(wrapped, appCRNamespace{cr})
+	}
+
+	wrapped = auth.FilterResources(user, wrapped)
+	wrapped = auth.FilterByNamespaces(wrapped, namespaces)
+
+	out := make([]unstructured.Unstructured, 0, len(wrapped))
+	for _, w := range wrapped {
+		out = append(out, w.Unstructured)
 	}
 	return out
 }

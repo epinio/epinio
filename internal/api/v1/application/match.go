@@ -27,7 +27,9 @@ import (
 
 // Match handles the API endpoint /namespace/:namespace/appsmatches/:pattern (GET)
 // It returns a list of all Epinio-controlled applications matching the prefix pattern.
-// Never-deployed (undeployed) apps are omitted so matches align with the Apps list.
+// Never-deployed (undeployed) apps are omitted so matches align with the Apps list,
+// unless the query parameter includeUndeployed=true is given (used by the CLI for
+// completion, delete --all and deletion tracking).
 func Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
@@ -58,10 +60,15 @@ func Match(c *gin.Context) apierror.APIErrors {
 	prefix := c.Param("pattern")
 
 	log.Infow("match prefix", "pattern", prefix)
+	filter := application.ListFilterDeployed
+	if c.Query("includeUndeployed") == "true" {
+		filter = application.ListFilterAll
+	}
+
 	matches := []string{}
 	for i := range list.Items {
 		cr := &list.Items[i]
-		if !application.MatchesListFilter(cr, application.ListFilterDeployed) {
+		if !application.MatchesListFilter(cr, filter) {
 			continue
 		}
 		if strings.HasPrefix(cr.GetName(), prefix) {
