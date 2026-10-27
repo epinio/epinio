@@ -121,6 +121,10 @@ func Install(domain string) string {
 	if patchK3d() {
 		EnsureNodeRegistryTrust(host, password)
 		waitAfterK3dBounce(host, password)
+		// The k3s restart reconciles its bundled CoreDNS manifest, which drops the
+		// rewrite added above. Re-apply and re-verify, or the Epinio server resolves
+		// the public sslip name to 127.0.0.1 and cannot reach Harbor.
+		EnsureInClusterDNS(host)
 	}
 
 	return host
