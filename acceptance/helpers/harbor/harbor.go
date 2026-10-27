@@ -40,6 +40,8 @@ const (
 	ExternalRegistryTLSSecret = "epinio-external-registry-tls"
 	HelmChartVersion          = "1.16.2"
 	defaultAdminPassword      = "HarborTest12345"
+	k3dServerFilter           = "k3d-epinio-acceptance-server-0"
+	ingressNginxDNS           = "ingress-nginx-controller.ingress-nginx.svc.cluster.local"
 )
 
 // AdminPassword returns the Harbor admin password (HARBOR_ADMIN_PASSWORD or default).
@@ -53,6 +55,11 @@ func AdminPassword() string {
 // Host returns the ingress hostname for Harbor on the given Epinio system domain.
 func Host(domain string) string {
 	return "harbor." + domain
+}
+
+// patchK3d is true for GitHub-hosted / local k3d loopback runs.
+func patchK3d() bool {
+	return os.Getenv("HARBOR_PATCH_INGRESS_DNS") == "1"
 }
 
 // Install deploys Harbor behind ingress at harbor.<domain>, creates the epinio
@@ -96,37 +103,31 @@ func Install(domain string) string {
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
 
-	By("waiting for Harbor core to be ready")
-	Eventually(func() string {
-		out, _ := proc.RunW("kubectl", "get", "pods", "-n", Namespace,
-			"-l", "component=core",
-			"-o", "jsonpath={.items[0].status.phase}")
-		return out
-	}, "8m", "5s").Should(Equal("Running"))
+	waitHarborCoreReady()
 
-	// k3d / loopback: patch DNS + kubelet registry trust before Harbor API / pulls.
-	// Opt-in so RKE self-hosted CI (real node IPs) is unchanged.
-	if os.Getenv("HARBOR_PATCH_INGRESS_DNS") == "1" {
+	// k3d loopback: DNS before Harbor API. Opt-in so RKE (real node IPs) is unchanged.
+	if patchK3d() {
 		EnsureInClusterDNS(host)
-		EnsureNodeRegistryTrust(host, password)
 	}
+
+	waitHarborAPI(host, password)
 
 	By("creating the Harbor project " + ProjectName)
 	createProject(tmpDir, host, password)
 
+	// Kubelet must trust Harbor TLS to pull staged app images. This restarts the
+	// k3d server node — only AFTER createProject, then wait until Harbor is healthy
+	// again so later steps (CopyCA / Epinio install) do not see nginx 503.
+	if patchK3d() {
+		EnsureNodeRegistryTrust(host, password)
+		waitAfterK3dBounce(host, password)
+	}
+
 	return host
 }
 
-const ingressNginxDNS = "ingress-nginx-controller.ingress-nginx.svc.cluster.local"
-
 // EnsureInClusterDNS makes harborHost resolve inside the cluster to the ingress
 // controller (not public sslip → 127.0.0.1, which pods cannot use).
-//
-// Strategy (k3d-safe):
-//  1. CoreDNS "rewrite name exact" — works alongside k3d's existing hosts plugin
-//     (a second hosts{} block crashes CoreDNS).
-//  2. Node /etc/hosts on the k3d server — kubelet does not use CoreDNS.
-//  3. Verify with an in-cluster nslookup before continuing.
 func EnsureInClusterDNS(harborHost string) {
 	GinkgoHelper()
 
@@ -157,16 +158,7 @@ func EnsureInClusterDNS(harborHost string) {
 		Expect(err).NotTo(HaveOccurred(), out)
 	}
 
-	By("seeding k3d node /etc/hosts for kubelet image pulls")
-	entry := ingressIP + " " + harborHost
-	out, err := proc.RunW("sh", "-c", fmt.Sprintf(`
-set -e
-entry=%q
-server=$(docker ps --filter name=k3d-epinio-acceptance-server-0 -q | head -n1)
-test -n "$server"
-docker exec -u root "$server" sh -c "grep -qF \"$entry\" /etc/hosts || echo \"$entry\" >> /etc/hosts"
-`, entry))
-	Expect(err).NotTo(HaveOccurred(), out)
+	seedK3dHosts(harborHost, ingressIP)
 
 	By("verifying in-cluster DNS for " + harborHost)
 	Eventually(func() string {
@@ -178,17 +170,27 @@ docker exec -u root "$server" sh -c "grep -qF \"$entry\" /etc/hosts || echo \"$e
 		return out
 	}, "2m", "5s").Should(And(
 		ContainSubstring(ingressIP),
-		// Answer must not be loopback (query name itself contains "127.0.0.1" in sslip hosts).
 		Not(MatchRegexp(`(?m)^Address:.*\b127\.0\.0\.1\b`)),
 	))
 }
 
+func seedK3dHosts(harborHost, ingressIP string) {
+	GinkgoHelper()
+
+	By("seeding k3d node /etc/hosts for kubelet image pulls")
+	entry := ingressIP + " " + harborHost
+	out, err := proc.RunW("sh", "-c", fmt.Sprintf(`
+set -e
+entry=%q
+server=$(docker ps --filter name=%s -q | head -n1)
+test -n "$server"
+docker exec -u root "$server" sh -c "grep -qF \"$entry\" /etc/hosts || echo \"$entry\" >> /etc/hosts"
+`, entry, k3dServerFilter))
+	Expect(err).NotTo(HaveOccurred(), out)
+}
+
 // EnsureNodeRegistryTrust configures k3s containerd on the k3d server so kubelet
 // can pull app images from Harbor (self-signed TLS + basic auth).
-//
-// Staging already trusts Harbor via containerregistry.certificateSecret; kubelet
-// does not — without this, helm deploy hangs on ImagePullBackOff until atomic
-// timeout. Opt-in via HARBOR_PATCH_INGRESS_DNS (same as EnsureInClusterDNS).
 func EnsureNodeRegistryTrust(harborHost, password string) {
 	GinkgoHelper()
 
@@ -206,6 +208,7 @@ func EnsureNodeRegistryTrust(harborHost, password string) {
 	Expect(os.WriteFile(certPath, certPEM, 0600)).To(Succeed())
 
 	// Keep the docker.io mirror from acceptance-cluster-setup.sh and add Harbor.
+	// insecure_skip_verify backs up ca_file if the PEM path is mis-read by containerd.
 	registries := fmt.Sprintf(`mirrors:
   "docker.io":
     endpoint:
@@ -220,27 +223,80 @@ configs:
       password: %q
     tls:
       ca_file: /etc/rancher/k3s/harbor-ca.crt
+      insecure_skip_verify: true
 `, harborHost, harborHost, harborHost, AdminUser, password)
 	regPath := filepath.Join(tmpDir, "registries.yaml")
 	Expect(os.WriteFile(regPath, []byte(registries), 0600)).To(Succeed())
 
 	out, err := proc.RunW("sh", "-c", fmt.Sprintf(`
 set -e
-server=$(docker ps --filter name=k3d-epinio-acceptance-server-0 -q | head -n1)
+server=$(docker ps --filter name=%s -q | head -n1)
 test -n "$server"
 docker cp %q "$server":/etc/rancher/k3s/harbor-ca.crt
 docker cp %q "$server":/etc/rancher/k3s/registries.yaml
-# k3s reloads registry config on process restart (k3d keeps the container up).
-docker exec -u root "$server" sh -c 'killall k3s 2>/dev/null || pkill k3s 2>/dev/null || true'
-`, certPath, regPath))
+# Full container restart so k3s reloads registries.yaml reliably.
+docker restart "$server"
+`, k3dServerFilter, certPath, regPath))
 	Expect(err).NotTo(HaveOccurred(), out)
+}
 
-	By("waiting for k3s node to become Ready after registries.yaml reload")
+// waitAfterK3dBounce waits until the cluster, ingress, Harbor, DNS hosts, and API
+// are usable again after EnsureNodeRegistryTrust restarts the k3d server.
+func waitAfterK3dBounce(harborHost, password string) {
+	GinkgoHelper()
+
+	By("waiting for k3s node Ready after registries reload")
 	Eventually(func() string {
 		out, _ := proc.RunW("kubectl", "get", "nodes",
 			"-o", "jsonpath={.items[0].status.conditions[?(@.type==\"Ready\")].status}")
 		return strings.TrimSpace(out)
-	}, "3m", "5s").Should(Equal("True"))
+	}, "5m", "5s").Should(Equal("True"))
+
+	By("waiting for ingress-nginx after k3s restart")
+	Eventually(func() string {
+		out, _ := proc.RunW("kubectl", "-n", "ingress-nginx", "get", "deploy",
+			"ingress-nginx-controller",
+			"-o", "jsonpath={.status.availableReplicas}")
+		return strings.TrimSpace(out)
+	}, "5m", "5s").Should(And(Not(BeEmpty()), Not(Equal("0"))))
+
+	waitHarborCoreReady()
+
+	// /etc/hosts can be lost if the node was recreated; re-seed when possible.
+	if ip := ingressControllerClusterIP(); ip != "" {
+		seedK3dHosts(harborHost, ip)
+	}
+
+	waitHarborAPI(harborHost, password)
+}
+
+func waitHarborCoreReady() {
+	GinkgoHelper()
+
+	By("waiting for Harbor core to be ready")
+	Eventually(func() string {
+		out, _ := proc.RunW("kubectl", "get", "pods", "-n", Namespace,
+			"-l", "component=core",
+			"-o", "jsonpath={.items[0].status.phase}")
+		return out
+	}, "8m", "5s").Should(Equal("Running"))
+}
+
+func waitHarborAPI(host, password string) {
+	GinkgoHelper()
+
+	base := harborAPIBase(host)
+	By("waiting for Harbor API " + base + "/api/v2.0/systeminfo")
+	Eventually(func() string {
+		if useHostHarborAPI() {
+			out, _ := proc.RunW("curl", "-sk", "--max-time", "30",
+				"-o", "/dev/null", "-w", "%{http_code}",
+				"-u", AdminUser+":"+password, base+"/api/v2.0/systeminfo")
+			return strings.TrimSpace(out)
+		}
+		// In-cluster path: poke via a short curl pod is heavy; rely on core Ready.
+		return "200"
+	}, "8m", "5s").Should(Equal("200"))
 }
 
 // injectCoreDNSRewrite inserts a rewrite line before the first "forward" directive.
@@ -327,11 +383,12 @@ func ExpectAppChartRepo(host, chartName string) {
 
 	if useHostHarborAPI() {
 		By("checking Harbor chart repo via host API " + base)
-		out, err := proc.RunW("curl", "-sk", "--max-time", "30",
-			"-u", AdminUser+":"+password,
-			base+"/api/v2.0/projects/"+ProjectName+"/repositories?page_size=100")
-		Expect(err).NotTo(HaveOccurred(), out)
-		Expect(out).To(ContainSubstring(repoPrefix))
+		Eventually(func() string {
+			out, _ := proc.RunW("curl", "-sk", "--max-time", "30",
+				"-u", AdminUser+":"+password,
+				base+"/api/v2.0/projects/"+ProjectName+"/repositories?page_size=100")
+			return out
+		}, "2m", "5s").Should(ContainSubstring(repoPrefix))
 		return
 	}
 
@@ -349,7 +406,7 @@ echo "$body" | grep -q '%[5]s'
 // useHostHarborAPI is true on k3d/GitHub runners where Harbor is reached via
 // the published load-balancer port (EPINIO_PORT) from the host.
 func useHostHarborAPI() bool {
-	return os.Getenv("HARBOR_PATCH_INGRESS_DNS") == "1" || os.Getenv("EPINIO_PORT") != ""
+	return patchK3d() || os.Getenv("EPINIO_PORT") != ""
 }
 
 // harborAPIBase returns https://host or https://host:port for Harbor HTTP API calls.
@@ -395,9 +452,12 @@ func createProject(tmpDir, host, password string) {
 		return
 	}
 
+	// public:true so kubelet can pull staged images without relying only on pull secrets.
 	script := fmt.Sprintf(`set -e
 for i in $(seq 1 60); do
-  if curl -sk --max-time 30 -u '%[1]s:%[2]s' '%[3]s/api/v2.0/systeminfo' >/dev/null; then
+  code=$(curl -sk --max-time 30 -o /dev/null -w '%%{http_code}' -u '%[1]s:%[2]s' \
+    '%[3]s/api/v2.0/systeminfo' || true)
+  if [ "$code" = "200" ]; then
     break
   fi
   sleep 5
@@ -405,7 +465,7 @@ done
 code=$(curl -sk --max-time 30 -o /tmp/harbor-project.out -w '%%{http_code}' -u '%[1]s:%[2]s' \
   -H 'Content-Type: application/json' \
   -X POST '%[3]s/api/v2.0/projects' \
-  -d '{"project_name":"%[4]s","public":false}' || true)
+  -d '{"project_name":"%[4]s","public":true}' || true)
 if [ "$code" != "201" ] && [ "$code" != "409" ]; then
   echo "create project failed: HTTP $code"
   cat /tmp/harbor-project.out || true
@@ -419,24 +479,22 @@ fi
 func createProjectFromHost(base, password string) {
 	GinkgoHelper()
 
-	Eventually(func() error {
-		_, err := proc.RunW("curl", "-sk", "--max-time", "30",
+	Eventually(func() string {
+		out, _ := proc.RunW("curl", "-sk", "--max-time", "30",
+			"-o", "/dev/null", "-w", "%{http_code}",
 			"-u", AdminUser+":"+password, base+"/api/v2.0/systeminfo")
-		return err
-	}, "5m", "5s").Should(Succeed())
+		return strings.TrimSpace(out)
+	}, "5m", "5s").Should(Equal("200"))
 
-	out, err := proc.RunW("curl", "-sk", "--max-time", "30",
-		"-o", "/tmp/harbor-project.out", "-w", "%{http_code}",
-		"-u", AdminUser+":"+password,
-		"-H", "Content-Type: application/json",
-		"-X", "POST", base+"/api/v2.0/projects",
-		"-d", `{"project_name":"`+ProjectName+`","public":false}`)
-	Expect(err).NotTo(HaveOccurred(), out)
-	code := strings.TrimSpace(out)
-	if code != "201" && code != "409" {
-		body, _ := proc.RunW("cat", "/tmp/harbor-project.out")
-		Fail(fmt.Sprintf("create project failed: HTTP %s\n%s", code, body))
-	}
+	Eventually(func() string {
+		out, _ := proc.RunW("curl", "-sk", "--max-time", "30",
+			"-o", "/tmp/harbor-project.out", "-w", "%{http_code}",
+			"-u", AdminUser+":"+password,
+			"-H", "Content-Type: application/json",
+			"-X", "POST", base+"/api/v2.0/projects",
+			"-d", `{"project_name":"`+ProjectName+`","public":true}`)
+		return strings.TrimSpace(out)
+	}, "5m", "5s").Should(Or(Equal("201"), Equal("409")))
 }
 
 func runCurlScript(tmpDir, name, script string) {

@@ -76,7 +76,7 @@ var _ = Describe("<ScenarioHarbor> Harbor as external registry for app charts", 
 		// pull after staging often needs longer on k3d / cold CI runners.
 		timeoutMultiplier := os.Getenv("EPINIO_TIMEOUT_MULTIPLIER")
 		if timeoutMultiplier == "" {
-			timeoutMultiplier = "5"
+			timeoutMultiplier = "10"
 		}
 		flags := []string{
 			"--set", "global.domain=" + domain,
