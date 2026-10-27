@@ -104,10 +104,11 @@ func Install(domain string) string {
 		return out
 	}, "8m", "5s").Should(Equal("Running"))
 
-	// k3d / loopback: patch DNS before any in-cluster Harbor API calls (createProject).
+	// k3d / loopback: patch DNS + kubelet registry trust before Harbor API / pulls.
 	// Opt-in so RKE self-hosted CI (real node IPs) is unchanged.
 	if os.Getenv("HARBOR_PATCH_INGRESS_DNS") == "1" {
 		EnsureInClusterDNS(host)
+		EnsureNodeRegistryTrust(host, password)
 	}
 
 	By("creating the Harbor project " + ProjectName)
@@ -180,6 +181,66 @@ docker exec -u root "$server" sh -c "grep -qF \"$entry\" /etc/hosts || echo \"$e
 		// Answer must not be loopback (query name itself contains "127.0.0.1" in sslip hosts).
 		Not(MatchRegexp(`(?m)^Address:.*\b127\.0\.0\.1\b`)),
 	))
+}
+
+// EnsureNodeRegistryTrust configures k3s containerd on the k3d server so kubelet
+// can pull app images from Harbor (self-signed TLS + basic auth).
+//
+// Staging already trusts Harbor via containerregistry.certificateSecret; kubelet
+// does not — without this, helm deploy hangs on ImagePullBackOff until atomic
+// timeout. Opt-in via HARBOR_PATCH_INGRESS_DNS (same as EnsureInClusterDNS).
+func EnsureNodeRegistryTrust(harborHost, password string) {
+	GinkgoHelper()
+
+	By("configuring k3s registries.yaml so kubelet trusts Harbor TLS")
+	certB64, err := proc.RunW("kubectl", "get", "secret", TLSSecretName,
+		"-n", Namespace,
+		"-o", "jsonpath={.data.tls\\.crt}")
+	Expect(err).NotTo(HaveOccurred(), certB64)
+	Expect(certB64).NotTo(BeEmpty())
+
+	tmpDir := GinkgoT().TempDir()
+	certPath := filepath.Join(tmpDir, "harbor-ca.crt")
+	certPEM, err := base64.StdEncoding.DecodeString(strings.TrimSpace(certB64))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(os.WriteFile(certPath, certPEM, 0600)).To(Succeed())
+
+	// Keep the docker.io mirror from acceptance-cluster-setup.sh and add Harbor.
+	registries := fmt.Sprintf(`mirrors:
+  "docker.io":
+    endpoint:
+      - "http://epinio-acceptance-registry-mirror:5000"
+  %q:
+    endpoint:
+      - "https://%s"
+configs:
+  %q:
+    auth:
+      username: %q
+      password: %q
+    tls:
+      ca_file: /etc/rancher/k3s/harbor-ca.crt
+`, harborHost, harborHost, harborHost, AdminUser, password)
+	regPath := filepath.Join(tmpDir, "registries.yaml")
+	Expect(os.WriteFile(regPath, []byte(registries), 0600)).To(Succeed())
+
+	out, err := proc.RunW("sh", "-c", fmt.Sprintf(`
+set -e
+server=$(docker ps --filter name=k3d-epinio-acceptance-server-0 -q | head -n1)
+test -n "$server"
+docker cp %q "$server":/etc/rancher/k3s/harbor-ca.crt
+docker cp %q "$server":/etc/rancher/k3s/registries.yaml
+# k3s reloads registry config on process restart (k3d keeps the container up).
+docker exec -u root "$server" sh -c 'killall k3s 2>/dev/null || pkill k3s 2>/dev/null || true'
+`, certPath, regPath))
+	Expect(err).NotTo(HaveOccurred(), out)
+
+	By("waiting for k3s node to become Ready after registries.yaml reload")
+	Eventually(func() string {
+		out, _ := proc.RunW("kubectl", "get", "nodes",
+			"-o", "jsonpath={.items[0].status.conditions[?(@.type==\"Ready\")].status}")
+		return strings.TrimSpace(out)
+	}, "3m", "5s").Should(Equal("True"))
 }
 
 // injectCoreDNSRewrite inserts a rewrite line before the first "forward" directive.
