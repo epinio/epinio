@@ -118,8 +118,7 @@ func (c *Client) Apps(namespace string) (models.AppList, error) {
 	return Get(c, endpoint, response)
 }
 
-// UndeployedApps returns never-deployed apps (buildstatus create|build, no
-// deployed image) in an namespace.
+// UndeployedApps returns apps with buildstatus create|build in an namespace.
 func (c *Client) UndeployedApps(namespace string) (models.AppList, error) {
 	response := models.AppList{}
 	endpoint := api.Routes.Path("AppsUndeployed", namespace)
@@ -135,8 +134,7 @@ func (c *Client) AllApps() (models.AppList, error) {
 	return Get(c, endpoint, response)
 }
 
-// AllUndeployedApps returns never-deployed apps (buildstatus create|build, no
-// deployed image) across namespaces.
+// AllUndeployedApps returns apps with buildstatus create|build across namespaces.
 func (c *Client) AllUndeployedApps() (models.AppList, error) {
 	response := models.AppList{}
 	endpoint := api.Routes.Path("AllAppsUndeployed")

@@ -19,50 +19,41 @@ import (
 )
 
 // ListFilter selects which applications a list operation returns, based on
-// whether the app has ever been deployed (see IsUndeployed).
+// buildstatus (see IsUndeployed).
 type ListFilter int
 
 const (
 	// ListFilterAll returns every application CR.
 	ListFilterAll ListFilter = iota
-	// ListFilterDeployed excludes apps that have never been deployed.
-	// Used by the regular applications list endpoints so a running app that
-	// later gets a build-only stage still appears in "Apps".
+	// ListFilterDeployed excludes apps whose buildstatus is create or build.
+	// Used by the regular applications list endpoints (deployed status only).
 	ListFilterDeployed
-	// ListFilterUndeployed returns only apps that have never been deployed
-	// (buildstatus create|build and no deployed image URL). Used by the
-	// undeployed/builds list endpoints.
+	// ListFilterUndeployed returns apps whose buildstatus is create or build
+	// (including a previously deployed app that was later rebuilt build-only).
+	// Used by the undeployed/builds list endpoints.
 	ListFilterUndeployed
 )
 
-// IsUndeployed reports whether the app has never been deployed: buildstatus is
-// "create" or "build" and there is no deployed image URL yet. A previously
-// deployed app that is rebuilt build-only stays listed in the regular Apps
-// views because ImageURL remains set.
+// IsUndeployed reports whether the app should appear on undeployed/builds
+// lists: buildstatus is "create" or "build". A previously deployed app that
+// is rebuilt build-only is included here while status remains "build".
 func IsUndeployed(app models.App) bool {
-	return isNeverDeployed(app.BuildStatus, app.ImageURL)
+	return isCreateOrBuildStatus(app.BuildStatus)
 }
 
-// IsUndeployedCR reports whether the App CR has never been deployed, based on
-// spec.buildstatus and spec.imageurl. Missing or unreadable fields are treated
+// IsUndeployedCR reports whether the App CR should appear on undeployed/builds
+// lists, based on spec.buildstatus. Missing or unreadable fields are treated
 // as not undeployed.
 func IsUndeployedCR(app *unstructured.Unstructured) bool {
 	status, err := BuildStatus(app)
 	if err != nil {
 		return false
 	}
-	imageURL, err := ImageURL(app)
-	if err != nil {
-		return false
-	}
-	return isNeverDeployed(status, imageURL)
+	return isCreateOrBuildStatus(status)
 }
 
-// isNeverDeployed is true for create/build with no deployed image.
-func isNeverDeployed(buildStatus, imageURL string) bool {
-	if imageURL != "" {
-		return false
-	}
+// isCreateOrBuildStatus is true when buildstatus is create or build.
+func isCreateOrBuildStatus(buildStatus string) bool {
 	return buildStatus == models.AppBuildStatusCreate ||
 		buildStatus == models.AppBuildStatusBuild
 }

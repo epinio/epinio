@@ -127,16 +127,13 @@ var _ = Describe("Apps Undeployed Endpoints", LApplication, func() {
 		patchBuildFields(rebuilt, models.AppBuildStatusBuild, "registry.example/apps/rebuilt:abc")
 
 		nsUndeployed := getApps(v1.Routes.Path("AppsUndeployed", namespace))
-		Expect(namesOf(nsUndeployed)).To(ContainElements(createdOnly, neverDeployed))
-		Expect(namesOf(nsUndeployed)).NotTo(ContainElement(rebuilt))
+		Expect(namesOf(nsUndeployed)).To(ContainElements(createdOnly, neverDeployed, rebuilt))
 
 		allUndeployed := getApps(v1.Routes.Path("AllAppsUndeployed"))
-		Expect(namesOf(allUndeployed)).To(ContainElements(createdOnly, neverDeployed))
-		Expect(namesOf(allUndeployed)).NotTo(ContainElement(rebuilt))
+		Expect(namesOf(allUndeployed)).To(ContainElements(createdOnly, neverDeployed, rebuilt))
 
 		regular := getApps(v1.Routes.Path("Apps", namespace))
-		Expect(namesOf(regular)).To(ContainElement(rebuilt))
-		Expect(namesOf(regular)).NotTo(ContainElements(createdOnly, neverDeployed))
+		Expect(namesOf(regular)).NotTo(ContainElements(createdOnly, neverDeployed, rebuilt))
 	})
 
 	It("supports search and pagination on undeployed lists", func() {

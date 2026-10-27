@@ -24,15 +24,15 @@ import (
 )
 
 // FullIndex handles the API endpoint GET /applications
-// It lists applications in all namespaces that are not never-deployed (undeployed).
-// Never-deployed apps are returned by UndeployedFullIndex instead.
+// It lists applications in all namespaces with buildstatus deployed.
+// Apps with buildstatus create|build are returned by UndeployedFullIndex instead.
 func FullIndex(c *gin.Context) apierror.APIErrors {
 	return fullIndexWithFilter(c, application.ListFilterDeployed)
 }
 
 // UndeployedFullIndex handles GET /applications/undeployed
-// It lists never-deployed apps across namespaces the user can see, with optional
-// pagination and search.
+// It lists apps with buildstatus create|build across namespaces the user can
+// see, with optional pagination and search.
 func UndeployedFullIndex(c *gin.Context) apierror.APIErrors {
 	return fullIndexWithFilter(c, application.ListFilterUndeployed)
 }

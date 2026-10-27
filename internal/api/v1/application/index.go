@@ -20,15 +20,14 @@ import (
 )
 
 // Index handles the API endpoint GET /namespaces/:namespace/applications
-// It lists applications in the namespace that have been deployed at least once.
-// Never-deployed apps (buildstatus create|build, empty image URL) are returned
-// by UndeployedIndex instead.
+// It lists applications in the namespace with buildstatus deployed.
+// Apps with buildstatus create|build are returned by UndeployedIndex instead.
 func Index(c *gin.Context) apierror.APIErrors {
 	return indexWithFilter(c, application.ListFilterDeployed)
 }
 
 // UndeployedIndex handles GET /namespaces/:namespace/applications/undeployed
-// It lists never-deployed apps (buildstatus create|build and empty image URL)
+// It lists apps with buildstatus create|build (including a rebuild after deploy)
 // with optional pagination and search, for the UI Builds / undeployed-apps view.
 func UndeployedIndex(c *gin.Context) apierror.APIErrors {
 	return indexWithFilter(c, application.ListFilterUndeployed)
