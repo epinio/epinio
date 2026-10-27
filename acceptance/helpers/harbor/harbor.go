@@ -105,29 +105,25 @@ func Install(domain string) string {
 
 	waitHarborCoreReady()
 
-	// k3d loopback: DNS before Harbor API. Opt-in so RKE (real node IPs) is unchanged.
+	// k3d loopback: DNS + kubelet registry trust. Opt-in so RKE is unchanged.
+	//
+	// IMPORTANT: Harbor is installed with persistence.enabled=false (emptyDir).
+	// Restarting the k3d node wipes Harbor's DB. Create the project ONLY AFTER
+	// EnsureNodeRegistryTrust / waitAfterK3dBounce, or chart push gets 401 on a
+	// missing project (seen as Unauthorized from the registry API).
 	if patchK3d() {
 		EnsureInClusterDNS(host)
+		EnsureNodeRegistryTrust(host, password)
+		waitAfterK3dBounce(host, password)
+		// k3s restart reconciles CoreDNS and drops our rewrite — re-apply.
+		EnsureInClusterDNS(host)
+		ExpectHarborBasicAuth(host, password)
 	}
 
 	waitHarborAPI(host, password)
 
 	By("creating the Harbor project " + ProjectName)
 	createProject(tmpDir, host, password)
-
-	// Kubelet must trust Harbor TLS to pull staged app images. This restarts the
-	// k3d server node — only AFTER createProject, then wait until Harbor is healthy
-	// again so later steps (CopyCA / Epinio install) do not see nginx 503.
-	if patchK3d() {
-		EnsureNodeRegistryTrust(host, password)
-		waitAfterK3dBounce(host, password)
-		// The k3s restart reconciles its bundled CoreDNS manifest, which drops the
-		// rewrite added above. Re-apply and re-verify, or the Epinio server resolves
-		// the public sslip name to 127.0.0.1 and cannot reach Harbor.
-		EnsureInClusterDNS(host)
-		// Harbor side of the chart push: admin credentials must be accepted from inside the cluster.
-		ExpectHarborBasicAuth(host, password)
-	}
 
 	return host
 }
