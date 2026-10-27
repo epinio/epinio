@@ -125,6 +125,8 @@ func Install(domain string) string {
 		// rewrite added above. Re-apply and re-verify, or the Epinio server resolves
 		// the public sslip name to 127.0.0.1 and cannot reach Harbor.
 		EnsureInClusterDNS(host)
+		// Harbor side of the chart push: admin credentials must be accepted from inside the cluster.
+		ExpectHarborBasicAuth(host, password)
 	}
 
 	return host
@@ -374,6 +376,24 @@ func CopyCAToEpinio() {
 		"-n", "epinio",
 		"--from-file=tls.crt="+certFile)
 	Expect(err).NotTo(HaveOccurred(), out)
+}
+
+// ExpectHarborBasicAuth checks from inside the cluster that Harbor accepts the admin
+// credentials Epinio uses for the registry, on the registry API root.
+func ExpectHarborBasicAuth(host, password string) {
+	GinkgoHelper()
+
+	By("checking Harbor accepts the registry credentials from inside the cluster")
+	script := fmt.Sprintf(`set -e
+code=$(curl -sk -o /dev/null -w '%%{http_code}' -u '%[1]s:%[2]s' 'https://%[3]s/v2/' || true)
+echo "GET /v2/ with registry credentials: HTTP $code"
+if [ "$code" != "200" ]; then
+  curl -sk -D - -o /dev/null 'https://%[3]s/v2/' || true
+  exit 1
+fi
+`, AdminUser, password, host)
+
+	runCurlScript(GinkgoT().TempDir(), "harbor-check-registry-auth", script)
 }
 
 // ExpectAppChartRepo lists Harbor repositories in the epinio project and asserts
