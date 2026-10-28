@@ -50,10 +50,12 @@ type APIClient interface {
 	// app
 	AppCreate(req models.ApplicationCreateRequest, namespace string) (models.Response, error)
 	Apps(namespace string) (models.AppList, error)
+	UndeployedApps(namespace string) (models.AppList, error)
 	AllApps() (models.AppList, error)
 	AppShow(namespace string, appName string) (models.App, error)
 	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)
 	AppDelete(namespace string, names []string, deleteImage, deletePVC bool) (models.ApplicationDeleteResponse, error)
+	AppBuildDelete(namespace string, name string) (models.Response, error)
 	AppUpload(namespace string, name string, file client.FormFile) (models.UploadResponse, error)
 	AppSourcePatch(namespace, name string, file client.FormFile, processCmd string) (*models.StageResponse, error)
 	AppSync(namespace, name string, file client.FormFile, mode, dest, binaryName string) (models.Response, error)
@@ -71,6 +73,7 @@ type APIClient interface {
 	AppRestart(namespace string, appName string) (models.Response, error)
 	AppGetPart(namespace, appName, part string) (models.AppPartResponse, error)
 	AppMatch(namespace, prefix string) (models.AppMatchResponse, error)
+	AppMatchAll(namespace, prefix string) (models.AppMatchResponse, error)
 	AppValidateCV(namespace string, name string) (models.Response, error)
 	AppExport(namespace, appName string, param models.AppExportRequest) (models.Response, error)
 

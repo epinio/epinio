@@ -100,6 +100,30 @@ var _ = Describe("Command 'epinio app'", func() {
 		})
 	})
 
+	Context("app build list", func() {
+		When("listing builds fails", func() {
+			It("returns an error", func() {
+				mockAppService.BuildListReturns(errors.New("something bad happened"))
+
+				appCmd := cmd.NewAppBuildListCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).To(HaveOccurred())
+				Expect(runErr.Error()).To(Equal("error listing app builds: something bad happened"))
+			})
+		})
+
+		When("listing builds succeeds", func() {
+			It("does not return an error", func() {
+				mockAppService.BuildListReturns(nil)
+
+				appCmd := cmd.NewAppBuildListCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).ToNot(HaveOccurred())
+				Expect(mockAppService.BuildListCallCount()).To(Equal(1))
+			})
+		})
+	})
+
 	Context("app list", func() {
 
 		When("called with one or more args", func() {

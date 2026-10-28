@@ -51,7 +51,9 @@
     # app read endpoints
     - AllApps
     - AllAppsGrouped
+    - AllAppsUndeployed
     - Apps
+    - AppsUndeployed
     - AppShow
     - StagingComplete
     - AppDeployment
@@ -114,6 +116,7 @@
   routes:
     - AppDelete
     - AppBatchDelete
+    - AppBuildDelete
 
 # App Update
 - id: app_update

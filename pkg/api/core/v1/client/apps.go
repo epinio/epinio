@@ -110,7 +110,8 @@ func (c *Client) AppCreate(request models.ApplicationCreateRequest, namespace st
 	return Post(c, endpoint, request, response)
 }
 
-// Apps returns a list of all apps in an namespace
+// Apps returns apps in a namespace that have a deployed instance (excludes
+// never-deployed create|build apps with no deployed image).
 func (c *Client) Apps(namespace string) (models.AppList, error) {
 	response := models.AppList{}
 	endpoint := api.Routes.Path("Apps", namespace)
@@ -118,10 +119,28 @@ func (c *Client) Apps(namespace string) (models.AppList, error) {
 	return Get(c, endpoint, response)
 }
 
-// AllApps returns a list of all apps
+// UndeployedApps returns apps with buildstatus create|build in a namespace
+// (including rebuilds that still have a deployed image).
+func (c *Client) UndeployedApps(namespace string) (models.AppList, error) {
+	response := models.AppList{}
+	endpoint := api.Routes.Path("AppsUndeployed", namespace)
+
+	return Get(c, endpoint, response)
+}
+
+// AllApps returns apps across namespaces that have a deployed instance.
 func (c *Client) AllApps() (models.AppList, error) {
 	response := models.AppList{}
 	endpoint := api.Routes.Path("AllApps")
+
+	return Get(c, endpoint, response)
+}
+
+// AllUndeployedApps returns apps with buildstatus create|build across namespaces
+// (including rebuilds that still have a deployed image).
+func (c *Client) AllUndeployedApps() (models.AppList, error) {
+	response := models.AppList{}
+	endpoint := api.Routes.Path("AllAppsUndeployed")
 
 	return Get(c, endpoint, response)
 }
@@ -190,6 +209,20 @@ func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, er
 	return Get(c, endpoint, response)
 }
 
+// AppMatchAll is like AppMatch but also returns never-deployed (undeployed) apps.
+func (c *Client) AppMatchAll(namespace, prefix string) (models.AppMatchResponse, error) {
+	response := models.AppMatchResponse{}
+	queryParams := url.Values{}
+	queryParams.Set("includeUndeployed", "true")
+	endpoint := fmt.Sprintf(
+		"%s?%s",
+		api.Routes.Path("AppMatch", namespace, prefix),
+		queryParams.Encode(),
+	)
+
+	return Get(c, endpoint, response)
+}
+
 // AppDelete deletes an app
 func (c *Client) AppDelete(namespace string, names []string, deleteImage, deletePVC bool) (models.ApplicationDeleteResponse, error) {
 	response := models.ApplicationDeleteResponse{}
@@ -211,6 +244,15 @@ func (c *Client) AppDelete(namespace string, names []string, deleteImage, delete
 	}
 
 	return Delete(c, endpoint, request, response)
+}
+
+// AppBuildDelete clears the app's current build (staged image, blob, and
+// staging leftovers) without deleting the application itself.
+func (c *Client) AppBuildDelete(namespace string, name string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("AppBuildDelete", namespace, name)
+
+	return Delete(c, endpoint, nil, response)
 }
 
 // AppUpload uploads a tarball for the named app, which is later used in staging

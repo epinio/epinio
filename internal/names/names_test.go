@@ -94,4 +94,12 @@ var _ = Describe("Names", func() {
 			Expect(Truncate(originalName, 8)).To(Equal("this-is-"))
 		})
 	})
+
+	Describe("IsReservedAppName", func() {
+		It("rejects undeployed because it shadows the builds list route", func() {
+			Expect(IsReservedAppName("undeployed")).To(BeTrue())
+			Expect(IsReservedAppName("Undeployed")).To(BeTrue())
+			Expect(IsReservedAppName("my-app")).To(BeFalse())
+		})
+	})
 })

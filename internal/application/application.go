@@ -178,6 +178,11 @@ func Create(
 	if err != nil {
 		return err
 	}
+	// Typed AppSpec has no BuildStatus field yet; set it on the unstructured
+	// object so new apps start as "create" until stage/deploy overwrite it.
+	if err := unstructured.SetNestedField(u, models.AppBuildStatusCreate, "spec", "buildstatus"); err != nil {
+		return err
+	}
 	us := &unstructured.Unstructured{Object: u}
 	us.SetAPIVersion("application.epinio.io/v1")
 	us.SetKind("App")
@@ -406,7 +411,12 @@ func loadEnrichmentData(
 	cluster *kubernetes.Cluster,
 	namespace string,
 	appNames []string,
-) (map[ConfigurationKey]AppData, map[string]metricsv1beta1.PodMetrics, map[ConfigurationKey]string, error) {
+) (
+	map[ConfigurationKey]AppData,
+	map[string]metricsv1beta1.PodMetrics,
+	map[ConfigurationKey]string,
+	error,
+) {
 	secrets, secretsError := cluster.Kubectl.CoreV1().Secrets(namespace).List(
 		ctx,
 		metav1.ListOptions{LabelSelector: "app.kubernetes.io/managed-by=epinio"},
@@ -520,15 +530,91 @@ func List(
 	return result, nil
 }
 
+// PageAppCRs returns the CR slice for the requested page and the total count.
+// Out-of-range pages yield an empty slice (no clamping), matching ListPaginated.
+func PageAppCRs(crs []unstructured.Unstructured, page, pageSize int) ([]unstructured.Unstructured, int) {
+	totalCount := len(crs)
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 25
+	}
+	start := (page - 1) * pageSize
+	if start >= totalCount {
+		return nil, totalCount
+	}
+	end := start + pageSize
+	if end > totalCount {
+		end = totalCount
+	}
+	return crs[start:end], totalCount
+}
+
+// AppsFromCRs enriches App CRs into full App models (cross-namespace safe).
+func AppsFromCRs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	crs []unstructured.Unstructured,
+) (models.AppList, error) {
+	if len(crs) == 0 {
+		return models.AppList{}, nil
+	}
+
+	appAuxiliary, pageMetrics, configurationTypes, enrichError := loadEnrichmentData(ctx, cluster, "", nil)
+	if enrichError != nil {
+		return nil, enrichError
+	}
+
+	result := models.AppList{}
+	for _, appCR := range crs {
+		app, aggregateError := aggregate(
+			ctx,
+			cluster,
+			appCR,
+			appAuxiliary,
+			pageMetrics,
+			configurationTypes,
+		)
+		if aggregateError != nil {
+			return result, aggregateError
+		}
+		if app != nil {
+			result = append(result, *app)
+		}
+	}
+	return result, nil
+}
+
+// ListAppCRs returns App CRs in the given namespace, or across all namespaces
+// when namespace is empty.
+func ListAppCRs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+) ([]unstructured.Unstructured, error) {
+	appClient, clientError := cluster.ClientApp()
+	if clientError != nil {
+		return nil, clientError
+	}
+	appCRList, listError := appClient.Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if listError != nil {
+		return nil, listError
+	}
+	return appCRList.Items, nil
+}
+
 // ListPaginated fetches only the apps for the requested page, scoping the expensive
 // Kubernetes queries (pods, ingresses, metrics, staging jobs) to just those app names.
 // Returns the paged app list and the total app count (for building pagination metadata).
+// filter selects deployed, undeployed, or all apps (see ListFilter).
 func ListPaginated(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	namespace string,
 	page, pageSize int,
 	search string,
+	filter ListFilter,
 ) (models.AppList, int, error) {
 	appClient, clientError := cluster.ClientApp()
 	if clientError != nil {
@@ -543,17 +629,7 @@ func ListPaginated(
 		return nil, 0, listError
 	}
 
-	allCRs := appCRList.Items
-	if search != "" {
-		lower := strings.ToLower(search)
-		var matched []unstructured.Unstructured
-		for _, cr := range allCRs {
-			if strings.Contains(strings.ToLower(cr.GetName()), lower) {
-				matched = append(matched, cr)
-			}
-		}
-		allCRs = matched
-	}
+	allCRs := filterAppCRs(appCRList.Items, search, filter)
 
 	totalCount := len(allCRs)
 
@@ -618,12 +694,13 @@ type NamespaceAppsResult struct {
 // ListPaginatedByNamespace fetches the requested page of apps for every Epinio namespace.
 // All enrichment data is loaded in bulk cross-namespace calls (same as the original List),
 // then grouped and paginated in memory -- keeping total k8s API calls constant regardless
-// of namespace count.
+// of namespace count. filter selects deployed, undeployed, or all apps (see ListFilter).
 func ListPaginatedByNamespace(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	page, pageSize int,
 	search string,
+	filter ListFilter,
 ) (map[string]NamespaceAppsResult, error) {
 	if page < 1 {
 		page = 1
@@ -651,13 +728,10 @@ func ListPaginatedByNamespace(
 		return nil, listError
 	}
 
-	// II. Group by namespace and apply optional search filter in memory.
+	// II. Group by namespace and apply search + buildstatus filter in memory.
 	nsCRs := make(map[string][]unstructured.Unstructured)
-	for _, cr := range allCRList.Items {
+	for _, cr := range filterAppCRs(allCRList.Items, search, filter) {
 		namespaceName := cr.GetNamespace()
-		if search != "" && !strings.Contains(strings.ToLower(cr.GetName()), strings.ToLower(search)) {
-			continue
-		}
 		nsCRs[namespaceName] = append(nsCRs[namespaceName], cr)
 	}
 
@@ -812,9 +886,8 @@ func Delete(
 
 	// Delete container image from registry if requested
 	if deleteImage && imageURL != "" {
-		err = deleteContainerImage(ctx, cluster, imageURL)
-		// A registry with deletes disabled keeps the image, as before.
-		if err != nil && !errors.Is(err, registry.ErrDeletionDisabled) {
+		err = DeleteContainerImage(ctx, cluster, imageURL)
+		if err != nil {
 			// Log the error but don't fail the deletion - the app is already deleted
 			log.Errorw("Failed to delete container image from registry", "error", err, "image", imageURL)
 		}
@@ -861,8 +934,8 @@ func Delete(
 	return result, nil
 }
 
-// deleteContainerImage deletes the container image from the registry
-func deleteContainerImage(
+// DeleteContainerImage deletes the container image from the registry
+func DeleteContainerImage(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	imageURL string,
@@ -1165,6 +1238,10 @@ func BlobUID(app *unstructured.Unstructured) (string, error) {
 // StagingDone with no workload is transitional (Helm/pods still spinning up),
 // not a failure — report deploying until a workload appears. Once the staging
 // Job is gone, use StageID and ImageURL to distinguish staging vs deploy failure.
+//
+// Exception: BuildStatus == "build" means the last completed action was an
+// intentional build-only (no deploy). That must stay "created"/built, not
+// "deploying" or "deployment failed".
 func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 	if app.StagingStatus == models.ApplicationStagingActive {
 		app.Status = models.ApplicationStaging
@@ -1180,6 +1257,14 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 			}
 			return
 		case models.ApplicationStagingDone:
+			// Build-only: staged image stored, deploy not requested.
+			if app.BuildStatus == models.AppBuildStatusBuild {
+				app.Status = models.ApplicationCreated
+				if app.StatusMessage == "" {
+					app.StatusMessage = "built"
+				}
+				return
+			}
 			// Staging succeeded; workload not visible yet while instances are
 			// desired (deploy in progress / waiting on k8s). Keep a non-error
 			// transitional status so the UI does not flash "deployment failed".
@@ -1198,8 +1283,16 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 				return
 			}
 		default:
-			// Job gone (TTL/cleanup) but a stage was recorded → keep Error, not Created.
+			// Job gone (TTL/cleanup) but a stage was recorded → keep Error, not Created,
+			// unless this was an intentional build-only that never asked to deploy.
 			if app.StageID != "" && wantsInstances(app) {
+				if app.BuildStatus == models.AppBuildStatusBuild {
+					app.Status = models.ApplicationCreated
+					if app.StatusMessage == "" {
+						app.StatusMessage = "built"
+					}
+					return
+				}
 				app.Status = models.ApplicationError
 				if app.StatusMessage == "" {
 					if app.ImageURL != "" {
@@ -1294,6 +1387,21 @@ func ImageURL(app *unstructured.Unstructured) (string, error) {
 	return imageURL, nil
 }
 
+// BuiltImageURL returns the image produced by the last build (stage) of the
+// app, which may differ from the currently deployed ImageURL.
+func BuiltImageURL(app *unstructured.Unstructured) (string, error) {
+	imageURL, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"builtimageurl",
+	)
+	if err != nil {
+		return "", errors.New("builtimageurl should be string")
+	}
+
+	return imageURL, nil
+}
+
 /*
 BuilderURL returns the builder url of the currently running build, if one
 exists. It returns an empty string otherwise. The information is pulled out
@@ -1338,6 +1446,21 @@ func DockerfilePath(app *unstructured.Unstructured) (string, error) {
 	}
 
 	return path, nil
+}
+
+// BuildStatus returns the "create"/"build"/"deployed" status stored on the
+// app resource, reflecting the last completed lifecycle step.
+func BuildStatus(app *unstructured.Unstructured) (string, error) {
+	status, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"buildstatus",
+	)
+	if err != nil {
+		return "", errors.New("buildstatus should be string")
+	}
+
+	return status, nil
 }
 
 // ErrBlobCleanupIncomplete is returned when blob cleanup could not complete
@@ -1789,7 +1912,8 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[ConfigurationKey]AppData {
 // Aggregate is an internal helper for List. It merges the information from an
 // application resource and adjacent secrets, pods, metrics, etc. into a proper
 // application structure.
-func aggregate(ctx context.Context,
+func aggregate(
+	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appCR unstructured.Unstructured,
 	auxiliary map[ConfigurationKey]AppData,
@@ -1862,6 +1986,11 @@ func aggregate(ctx context.Context,
 		return nil, errors.Wrap(err, "finding the image url")
 	}
 
+	builtImageURL, err := BuiltImageURL(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the built image url")
+	}
+
 	builderURL, err := BuilderURL(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding the builder url")
@@ -1875,6 +2004,11 @@ func aggregate(ctx context.Context,
 	dockerfilePath, err := DockerfilePath(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding the dockerfile path")
+	}
+
+	buildStatus, err := BuildStatus(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the build status")
 	}
 
 	settings, err := Settings(&appCR)
@@ -1907,6 +2041,8 @@ func aggregate(ctx context.Context,
 	app.StageID = stageID
 	app.BlobUID = blobUID
 	app.ImageURL = imageURL
+	app.BuiltImageURL = builtImageURL
+	app.BuildStatus = buildStatus
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath
@@ -1955,23 +2091,38 @@ func loadEnvironmentData(
 	return environment, groupedEnv, nil
 }
 
-func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, error) {
+func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, string, string, string, error) {
 	builderURL, err := BuilderURL(applicationCR)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "finding the builder url")
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the builder url")
 	}
 
 	buildMode, err := BuildMode(applicationCR)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "finding the build mode")
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the build mode")
 	}
 
 	dockerfilePath, err := DockerfilePath(applicationCR)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "finding the dockerfile path")
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the dockerfile path")
 	}
 
-	return builderURL, buildMode, dockerfilePath, nil
+	buildStatus, err := BuildStatus(applicationCR)
+	if err != nil {
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the build status")
+	}
+
+	imageURL, err := ImageURL(applicationCR)
+	if err != nil {
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the image url")
+	}
+
+	builtImageURL, err := BuiltImageURL(applicationCR)
+	if err != nil {
+		return "", "", "", "", "", "", errors.Wrap(err, "finding the built image url")
+	}
+
+	return builderURL, buildMode, dockerfilePath, buildStatus, imageURL, builtImageURL, nil
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
@@ -2066,15 +2217,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	imageURL, err := ImageURL(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding the image url")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	builderURL, buildMode, dockerfilePath, err := loadStagingFields(applicationCR)
+	builderURL, buildMode, dockerfilePath, buildStatus, imageURL, builtImageURL, err := loadStagingFields(applicationCR)
 	if err != nil {
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
@@ -2104,6 +2247,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.StageID = stageID
 	app.BlobUID = blobUID
 	app.ImageURL = imageURL
+	app.BuiltImageURL = builtImageURL
+	app.BuildStatus = buildStatus
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath
