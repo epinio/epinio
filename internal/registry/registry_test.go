@@ -105,6 +105,22 @@ var _ = Describe("ConnectionDetails", func() {
 				Expect(url).To(Equal("harbor.127.0.0.1.sslip.io/epinio"))
 			})
 		})
+		When("the default in-cluster registry has svc and nodeport URLs", func() {
+			BeforeEach(func() {
+				details = &registry.ConnectionDetails{
+					Namespace: "epinio",
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "http://127.0.0.1:30500"},
+						{URL: "registry.epinio.svc.cluster.local:5000"},
+					},
+				}
+			})
+			It("returns the cluster service URL as public", func() {
+				url, err := details.PublicRegistryURL()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(url).To(Equal("registry.epinio.svc.cluster.local:5000"))
+			})
+		})
 	})
 
 	Describe("PrivateRegistryURL", func() {

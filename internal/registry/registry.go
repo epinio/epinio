@@ -256,12 +256,15 @@ func (d *ConnectionDetails) RepositoryBase() (string, error) {
 // it will just return the first one found (no guaranteed order since there should only be
 // one).
 //
-// Hosts are classified with IsInClusterHost so names like harbor.127.0.0.1.sslip.io
-// (k3d / sslip loopback domains) stay public — a substring match on "127.0.0.1" would
-// wrongly treat them as the in-cluster NodePort registry.
+// Only exact loopback hosts (see isLoopbackRegistryHost) are treated as non-public.
+// That keeps harbor.127.0.0.1.sslip.io public (unlike a substring match on "127.0.0.1")
+// and still returns registry.*.svc.cluster.local as public — the default Epinio
+// registry advertises that hostname as its public URL alongside 127.0.0.1 NodePort.
+// IsInClusterHost must not be used here: it also matches .svc.cluster.local and would
+// leave PublicRegistryURL empty ("no public registry URL found").
 func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 	for _, credentials := range d.RegistryCredentials {
-		if !IsInClusterHost(registryCredentialHost(credentials.URL)) {
+		if !isLoopbackRegistryHost(registryCredentialHost(credentials.URL)) {
 			return credentials.URL, nil
 		}
 	}
@@ -275,7 +278,7 @@ func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 // config.
 func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
 	for _, credentials := range d.RegistryCredentials {
-		if IsInClusterHost(registryCredentialHost(credentials.URL)) {
+		if isLoopbackRegistryHost(registryCredentialHost(credentials.URL)) {
 			return credentials.URL, nil
 		}
 	}
@@ -291,6 +294,21 @@ func registryCredentialHost(raw string) string {
 		s = s[i+3:]
 	}
 	return strings.SplitN(s, "/", 2)[0]
+}
+
+// isLoopbackRegistryHost is true only for exact localhost / loopback addresses.
+// Unlike IsInClusterHost it does not treat *.svc.cluster.local as loopback — that
+// hostname is the public side of Epinio's bundled registry.
+func isLoopbackRegistryHost(hostname string) bool {
+	host := hostname
+	if h, _, err := net.SplitHostPort(hostname); err == nil {
+		host = h
+	}
+	host = strings.ToLower(strings.TrimSuffix(strings.Trim(host, "[]"), "."))
+
+	return host == "localhost" ||
+		host == "127.0.0.1" ||
+		host == "::1"
 }
 
 // ReplaceWithInternalRegistry replaces the registry part of the given container imageURL
