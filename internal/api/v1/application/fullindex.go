@@ -24,8 +24,8 @@ import (
 )
 
 // FullIndex handles the API endpoint GET /applications
-// It lists applications in all namespaces with buildstatus deployed.
-// Apps with buildstatus create|build are returned by UndeployedFullIndex instead.
+// It lists applications that have a deployed instance across namespaces.
+// Rebuilds after deploy can also appear on UndeployedFullIndex.
 func FullIndex(c *gin.Context) apierror.APIErrors {
 	return fullIndexWithFilter(c, application.ListFilterDeployed)
 }

@@ -132,8 +132,11 @@ var _ = Describe("Apps Undeployed Endpoints", LApplication, func() {
 		allUndeployed := getApps(v1.Routes.Path("AllAppsUndeployed"))
 		Expect(namesOf(allUndeployed)).To(ContainElements(createdOnly, neverDeployed, rebuilt))
 
+		// Never-deployed create/build stay off Apps; a rebuild that still has a
+		// deployed imageurl appears on both undeployed and Apps lists.
 		regular := getApps(v1.Routes.Path("Apps", namespace))
-		Expect(namesOf(regular)).NotTo(ContainElements(createdOnly, neverDeployed, rebuilt))
+		Expect(namesOf(regular)).NotTo(ContainElements(createdOnly, neverDeployed))
+		Expect(namesOf(regular)).To(ContainElement(rebuilt))
 	})
 
 	It("supports search and pagination on undeployed lists", func() {

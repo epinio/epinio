@@ -94,10 +94,11 @@ var _ = Describe("ListFilter helpers", func() {
 			Expect(application.FilterApps(apps, application.ListFilterAll)).To(HaveLen(4))
 		})
 
-		It("keeps only deployed-status apps for ListFilterDeployed", func() {
+		It("keeps apps with a deployed image or deployed status for ListFilterDeployed", func() {
 			filtered := application.FilterApps(apps, application.ListFilterDeployed)
-			Expect(filtered).To(HaveLen(1))
-			Expect(filtered[0].Meta.Name).To(Equal("running"))
+			Expect(filtered).To(HaveLen(2))
+			Expect(filtered[0].Meta.Name).To(Equal("rebuilt"))
+			Expect(filtered[1].Meta.Name).To(Equal("running"))
 		})
 
 		It("keeps create and build status apps for ListFilterUndeployed", func() {
@@ -108,12 +109,21 @@ var _ = Describe("ListFilter helpers", func() {
 			Expect(filtered[2].Meta.Name).To(Equal("rebuilt"))
 		})
 
-		It("lists a previously deployed rebuild on undeployed, not Apps", func() {
+		It("lists a previously deployed rebuild on both undeployed and Apps", func() {
 			Expect(application.FilterApps(apps, application.ListFilterUndeployed)).To(
 				ContainElement(HaveField("Meta.Name", "rebuilt")),
 			)
-			Expect(application.FilterApps(apps, application.ListFilterDeployed)).NotTo(
+			Expect(application.FilterApps(apps, application.ListFilterDeployed)).To(
 				ContainElement(HaveField("Meta.Name", "rebuilt")),
+			)
+		})
+
+		It("keeps never-deployed create/build only on undeployed, not Apps", func() {
+			Expect(application.FilterApps(apps, application.ListFilterDeployed)).NotTo(
+				ContainElement(HaveField("Meta.Name", "created")),
+			)
+			Expect(application.FilterApps(apps, application.ListFilterDeployed)).NotTo(
+				ContainElement(HaveField("Meta.Name", "built")),
 			)
 		})
 	})
@@ -154,6 +164,26 @@ var _ = Describe("ListFilter helpers", func() {
 			Expect(matched).To(HaveLen(2))
 			Expect(matched[0].GetName()).To(Equal("built-alpha"))
 			Expect(matched[1].GetName()).To(Equal("built-beta"))
+		})
+
+		It("includes rebuild-with-imageurl on deployed filter", func() {
+			crs := []unstructured.Unstructured{
+				{Object: map[string]any{
+					"metadata": map[string]any{"name": "never"},
+					"spec":     map[string]any{"buildstatus": models.AppBuildStatusBuild},
+				}},
+				{Object: map[string]any{
+					"metadata": map[string]any{"name": "rebuilt"},
+					"spec": map[string]any{
+						"buildstatus": models.AppBuildStatusBuild,
+						"imageurl":    "registry.example/apps/rebuilt:1",
+					},
+				}},
+			}
+
+			matched := application.FilterAppCRs(crs, "", application.ListFilterDeployed)
+			Expect(matched).To(HaveLen(1))
+			Expect(matched[0].GetName()).To(Equal("rebuilt"))
 		})
 	})
 })

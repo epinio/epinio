@@ -2225,16 +2225,16 @@ func (fake *FakeAPIClient) AppMatchReturnsOnCall(i int, result1 models.AppMatchR
 }
 
 func (fake *FakeAPIClient) AppMatchAll(arg1 string, arg2 string) (models.AppMatchResponse, error) {
-	fake.appMatchMutex.Lock()
-	ret, specificReturn := fake.appMatchReturnsOnCall[len(fake.appMatchArgsForCall)]
-	fake.appMatchArgsForCall = append(fake.appMatchArgsForCall, struct {
+	fake.appMatchAllMutex.Lock()
+	ret, specificReturn := fake.appMatchAllReturnsOnCall[len(fake.appMatchAllArgsForCall)]
+	fake.appMatchAllArgsForCall = append(fake.appMatchAllArgsForCall, struct {
 		arg1 string
 		arg2 string
 	}{arg1, arg2})
-	stub := fake.AppMatchStub
-	fakeReturns := fake.appMatchReturns
+	stub := fake.AppMatchAllStub
+	fakeReturns := fake.appMatchAllReturns
 	fake.recordInvocation("AppMatchAll", []interface{}{arg1, arg2})
-	fake.appMatchMutex.Unlock()
+	fake.appMatchAllMutex.Unlock()
 	if stub != nil {
 		return stub(arg1, arg2)
 	}
@@ -2245,45 +2245,45 @@ func (fake *FakeAPIClient) AppMatchAll(arg1 string, arg2 string) (models.AppMatc
 }
 
 func (fake *FakeAPIClient) AppMatchAllCallCount() int {
-	fake.appMatchMutex.RLock()
-	defer fake.appMatchMutex.RUnlock()
-	return len(fake.appMatchArgsForCall)
+	fake.appMatchAllMutex.RLock()
+	defer fake.appMatchAllMutex.RUnlock()
+	return len(fake.appMatchAllArgsForCall)
 }
 
 func (fake *FakeAPIClient) AppMatchAllCalls(stub func(string, string) (models.AppMatchResponse, error)) {
-	fake.appMatchMutex.Lock()
-	defer fake.appMatchMutex.Unlock()
-	fake.AppMatchStub = stub
+	fake.appMatchAllMutex.Lock()
+	defer fake.appMatchAllMutex.Unlock()
+	fake.AppMatchAllStub = stub
 }
 
 func (fake *FakeAPIClient) AppMatchAllArgsForCall(i int) (string, string) {
-	fake.appMatchMutex.RLock()
-	defer fake.appMatchMutex.RUnlock()
-	argsForCall := fake.appMatchArgsForCall[i]
+	fake.appMatchAllMutex.RLock()
+	defer fake.appMatchAllMutex.RUnlock()
+	argsForCall := fake.appMatchAllArgsForCall[i]
 	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeAPIClient) AppMatchAllReturns(result1 models.AppMatchResponse, result2 error) {
-	fake.appMatchMutex.Lock()
-	defer fake.appMatchMutex.Unlock()
-	fake.AppMatchStub = nil
-	fake.appMatchReturns = struct {
+	fake.appMatchAllMutex.Lock()
+	defer fake.appMatchAllMutex.Unlock()
+	fake.AppMatchAllStub = nil
+	fake.appMatchAllReturns = struct {
 		result1 models.AppMatchResponse
 		result2 error
 	}{result1, result2}
 }
 
 func (fake *FakeAPIClient) AppMatchAllReturnsOnCall(i int, result1 models.AppMatchResponse, result2 error) {
-	fake.appMatchMutex.Lock()
-	defer fake.appMatchMutex.Unlock()
-	fake.AppMatchStub = nil
-	if fake.appMatchReturnsOnCall == nil {
-		fake.appMatchReturnsOnCall = make(map[int]struct {
+	fake.appMatchAllMutex.Lock()
+	defer fake.appMatchAllMutex.Unlock()
+	fake.AppMatchAllStub = nil
+	if fake.appMatchAllReturnsOnCall == nil {
+		fake.appMatchAllReturnsOnCall = make(map[int]struct {
 			result1 models.AppMatchResponse
 			result2 error
 		})
 	}
-	fake.appMatchReturnsOnCall[i] = struct {
+	fake.appMatchAllReturnsOnCall[i] = struct {
 		result1 models.AppMatchResponse
 		result2 error
 	}{result1, result2}

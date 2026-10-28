@@ -18,15 +18,18 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// ListFilter selects which applications a list operation returns, based on
-// buildstatus (see IsUndeployed).
+// ListFilter selects which applications a list operation returns.
+// Deployed and undeployed filters are intentionally not mutually exclusive:
+// an app rebuilt after deploy (buildstatus create|build with a deployed
+// ImageURL still set) appears on both the Apps list and the Builds list.
 type ListFilter int
 
 const (
 	// ListFilterAll returns every application CR.
 	ListFilterAll ListFilter = iota
-	// ListFilterDeployed excludes apps whose buildstatus is create or build.
-	// Used by the regular applications list endpoints (deployed status only).
+	// ListFilterDeployed returns apps that have a deployed instance:
+	// spec.imageurl is set (currently deployed image) and/or buildstatus is
+	// deployed. Used by the regular applications list endpoints.
 	ListFilterDeployed
 	// ListFilterUndeployed returns apps whose buildstatus is create or build
 	// (including a previously deployed app that was later rebuilt build-only).
@@ -58,6 +61,17 @@ func isCreateOrBuildStatus(buildStatus string) bool {
 		buildStatus == models.AppBuildStatusBuild
 }
 
+// hasDeployedInstance is true when the app has (or had) a deployed image, or
+// buildstatus is explicitly deployed. ImageURL is the currently deployed image
+// and stays set across a later build-only stage, so rebuilds still match the
+// Apps list while also matching undeployed via buildstatus.
+func hasDeployedInstance(buildStatus, imageURL string) bool {
+	if imageURL != "" {
+		return true
+	}
+	return buildStatus == models.AppBuildStatusDeployed
+}
+
 // MatchesListFilter reports whether the App CR matches the given ListFilter.
 func MatchesListFilter(cr *unstructured.Unstructured, filter ListFilter) bool {
 	return appCRMatchesFilter(cr, filter)
@@ -71,7 +85,7 @@ func FilterApps(apps models.AppList, filter ListFilter) models.AppList {
 
 	result := make(models.AppList, 0, len(apps))
 	for _, app := range apps {
-		if appMatchesFilter(IsUndeployed(app), filter) {
+		if matchesListFilter(app.BuildStatus, app.ImageURL, filter) {
 			result = append(result, app)
 		}
 	}
@@ -106,15 +120,23 @@ func filterAppCRs(crs []unstructured.Unstructured, search string, filter ListFil
 }
 
 func appCRMatchesFilter(cr *unstructured.Unstructured, filter ListFilter) bool {
-	return appMatchesFilter(IsUndeployedCR(cr), filter)
+	status, err := BuildStatus(cr)
+	if err != nil {
+		status = ""
+	}
+	imageURL, err := ImageURL(cr)
+	if err != nil {
+		imageURL = ""
+	}
+	return matchesListFilter(status, imageURL, filter)
 }
 
-func appMatchesFilter(undeployed bool, filter ListFilter) bool {
+func matchesListFilter(buildStatus, imageURL string, filter ListFilter) bool {
 	switch filter {
 	case ListFilterUndeployed:
-		return undeployed
+		return isCreateOrBuildStatus(buildStatus)
 	case ListFilterDeployed:
-		return !undeployed
+		return hasDeployedInstance(buildStatus, imageURL)
 	default:
 		return true
 	}

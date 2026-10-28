@@ -73,7 +73,7 @@ func NewApplicationsCmd(client ApplicationsService, rootCfg *RootConfig) *cobra.
 	}
 
 	appsCmd.AddCommand(
-		NewAppBuildCmd(client), // See appbuild.go for implementation
+		NewAppBuildCmd(client),
 		NewAppChartCmd(client), // See appchart.go for implementation
 		NewAppCreateCmd(client),
 		NewAppDeleteCmd(client),
@@ -94,6 +94,129 @@ func NewApplicationsCmd(client ApplicationsService, rootCfg *RootConfig) *cobra.
 	)
 
 	return appsCmd
+}
+
+//counterfeiter:generate -header ../../../LICENSE_HEADER . AppBuildService
+type AppBuildService interface {
+	AppBuild(ctx context.Context, manifest models.ApplicationManifest) error
+	BuildList(ctx context.Context) error
+	BuildShow(ctx context.Context, name string) error
+	BuildDelete(ctx context.Context, name string) error
+
+	AppMatcher
+}
+
+// NewAppBuildCmd returns a new 'epinio app build' command.
+// Running the parent builds and stores an image (no deploy). Subcommands
+// list/show/delete manage existing builds.
+func NewAppBuildCmd(client ApplicationsService) *cobra.Command {
+	var envReplace bool
+
+	cmd := &cobra.Command{
+		Use:   "build [flags] [PATH_TO_APPLICATION_MANIFEST]",
+		Short: "Build and store an application image without deploying it",
+		Long: `Build and store an application image without deploying it.
+
+Use the same source flags as 'epinio app push' (path, git, manifest). After a
+successful build, deploy with: epinio app deploy NAME
+
+Subcommands manage existing builds:
+  list, show, delete`,
+		Args: cobra.RangeArgs(0, 1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			m, err := loadAppManifestFromCLI(cmd, args, &envReplace)
+			if err != nil {
+				return err
+			}
+
+			err = client.AppBuild(cmd.Context(), m)
+			if err != nil {
+				return errors.Wrap(err, "error building app")
+			}
+
+			return nil
+		},
+	}
+
+	// Same origin flags as push — UpdateBASN/UpdateICE read these by name.
+	// Container origins are rejected later in AppBuild (nothing to build).
+	cmd.Flags().StringP("git", "g", "", "Git repository and revision of sources separated by comma (e.g. GIT_URL,REVISION)")
+	cmd.Flags().String("container-image-url", "", "Container image url (not usable with build; use push/deploy instead)")
+	cmd.Flags().StringP("name", "n", "", "Application name. (mandatory if no manifest is provided)")
+	cmd.Flags().StringP("path", "p", "", "Path to application sources.")
+	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
+	cmd.Flags().String("build-mode", "", "Staging build mode: buildpack (default) or dockerfile")
+	cmd.Flags().String("dockerfile-path", "", "Path to Dockerfile within the application sources (default: Dockerfile)")
+
+	gitConfigOption(cmd, client)
+	routeOption(cmd)
+	bindOption(cmd, client)
+	envOption(cmd)
+	instancesOption(cmd)
+	chartValueOptionX(cmd)
+	cmd.Flags().BoolVar(&envReplace, "env-replace", false, "Replace existing environment instead of merging")
+	bindFlag(cmd, "env-replace")
+
+	cmd.Flags().String("app-chart", "", "App chart to use for deployment")
+	bindFlag(cmd, "app-chart")
+	bindFlagCompletionFunc(cmd, "app-chart", NewAppChartMatcherValueFunc(client))
+
+	cmd.AddCommand(
+		NewAppBuildListCmd(client),
+		NewAppBuildShowCmd(client),
+		NewAppBuildDeleteCmd(client),
+	)
+
+	return cmd
+}
+
+// NewAppBuildListCmd returns a new `epinio app build list` command
+func NewAppBuildListCmd(client AppBuildService) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List applications and their current build",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+			return errors.Wrap(client.BuildList(cmd.Context()), "error listing app builds")
+		},
+	}
+
+	return cmd
+}
+
+// NewAppBuildShowCmd returns a new `epinio app build show` command
+func NewAppBuildShowCmd(client AppBuildService) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "show NAME",
+		Short:             "Show the named application's current build",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: NewAppMatcherFirstFunc(client),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+			return errors.Wrap(client.BuildShow(cmd.Context(), args[0]), "error showing app build")
+		},
+	}
+
+	return cmd
+}
+
+// NewAppBuildDeleteCmd returns a new `epinio app build delete` command
+func NewAppBuildDeleteCmd(client AppBuildService) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "delete NAME",
+		Short:             "Delete the named application's current build",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: NewAppMatcherFirstFunc(client),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+			return errors.Wrap(client.BuildDelete(cmd.Context(), args[0]), "error deleting app build")
+		},
+	}
+
+	return cmd
 }
 
 // NewAppCreateCmd returns a new `epinio apps create` command

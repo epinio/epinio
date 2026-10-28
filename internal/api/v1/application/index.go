@@ -20,8 +20,9 @@ import (
 )
 
 // Index handles the API endpoint GET /namespaces/:namespace/applications
-// It lists applications in the namespace with buildstatus deployed.
-// Apps with buildstatus create|build are returned by UndeployedIndex instead.
+// It lists applications that have a deployed instance (imageurl set and/or
+// buildstatus deployed). A rebuild after deploy (buildstatus create|build with
+// imageurl still set) still appears here and also on UndeployedIndex.
 func Index(c *gin.Context) apierror.APIErrors {
 	return indexWithFilter(c, application.ListFilterDeployed)
 }

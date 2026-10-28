@@ -41,7 +41,8 @@ type AllAppsParam struct {
 // response: See Apps.
 
 // swagger:route GET /applications/undeployed application AllAppsUndeployed
-// Return list of never-deployed applications (buildstatus create|build) in all namespaces.
+// Return list of applications with buildstatus create|build in all namespaces
+// (including rebuilds after deploy).
 // responses:
 //   200: AppsResponse
 
@@ -84,7 +85,8 @@ type AppsParam struct {
 }
 
 // swagger:route GET /namespaces/{Namespace}/applications/undeployed application AppsUndeployed
-// Return list of never-deployed applications (buildstatus create|build) in the `Namespace`.
+// Return list of applications with buildstatus create|build in the `Namespace`
+// (including rebuilds after deploy).
 // Supports the same search and pagination query parameters as Apps.
 // responses:
 //   200: AppsResponse
