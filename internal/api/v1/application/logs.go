@@ -309,8 +309,9 @@ func Logs(c *gin.Context) {
 		return
 	}
 
-	// Staging logs come from staging Job pods. If the Job is gone (TTL cleanup,
-	// unknown stage ID, etc.), return a clear error instead of an empty stream.
+	// Staging logs come from staging Job pods. Once the Job is gone (TTL cleanup,
+	// unknown stage ID, etc.) the persisted logs are served, if there are any.
+	// Otherwise return a clear error instead of an empty stream.
 	if stageID != "" {
 		selector := fmt.Sprintf(
 			"app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.io/stage-id=%s",
@@ -320,6 +321,10 @@ func Logs(c *gin.Context) {
 		jobCount := 0
 		if jobList != nil {
 			jobCount = len(jobList.Items)
+		}
+		if err == nil && jobCount == 0 {
+			serveStoredStagingLogs(c, cluster, namespace, stageID)
+			return
 		}
 		if apiErr := stagingLogsJobError(jobCount, err); apiErr != nil {
 			response.Error(c, apiErr)
