@@ -38,7 +38,11 @@ func GroupedIndex(c *gin.Context) apierror.APIErrors {
 	page, pageSize, _ := response.GetPaginationParams(c, 1, 10)
 	search := response.GetSearchParam(c)
 
-	grouped, err := application.ListPaginatedByNamespace(ctx, cluster, page, pageSize, search)
+	// List apps with a deployed instance; never-deployed create|build apps are
+	// listed via the undeployed endpoints. Rebuilds with imageurl still appear here.
+	grouped, err := application.ListPaginatedByNamespace(
+		ctx, cluster, page, pageSize, search, application.ListFilterDeployed,
+	)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

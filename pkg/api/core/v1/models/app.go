@@ -122,6 +122,9 @@ type App struct {
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
 	BlobUID       string                   `json:"blobuid,omitempty"`  // last staged source blob in S3/seaweedfs
 	ImageURL      string                   `json:"image_url"`
+	// BuiltImageURL is the image produced by the last build (stage). It is
+	// kept apart from ImageURL, which is the image currently deployed.
+	BuiltImageURL string `json:"built_image_url,omitempty"`
 	// BuildStatus is "create", "build", or "deployed", reflecting the last
 	// completed lifecycle step: create (empty app), build (stage), or deploy.
 	// See AppBuildStatusCreate / AppBuildStatusBuild / AppBuildStatusDeployed.

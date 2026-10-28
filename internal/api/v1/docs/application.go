@@ -17,6 +17,7 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // swagger:route GET /applications application AllApps
 // Return list of applications in all namespaces.
+// Never-deployed apps (buildstatus create|build) are omitted; use AllAppsUndeployed for those.
 // responses:
 //   200: AppsResponse
 
@@ -39,8 +40,32 @@ type AllAppsParam struct {
 
 // response: See Apps.
 
+// swagger:route GET /applications/undeployed application AllAppsUndeployed
+// Return list of applications with buildstatus create|build in all namespaces
+// (including rebuilds after deploy).
+// responses:
+//   200: AppsResponse
+
+// swagger:parameters AllAppsUndeployed
+type AllAppsUndeployedParam struct {
+	// Comma-separated namespaces to filter by, e.g. "ns1,ns2". Names the user
+	// cannot see, or that do not exist, are ignored.
+	// in: query
+	Namespaces string `json:"namespaces"`
+	// Case-insensitive substring match on the application name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based. Pagination is off unless page or pageSize is set.
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 25)
+	// in: query
+	PageSize string `json:"pageSize"`
+}
+
 // swagger:route GET /namespaces/{Namespace}/applications application Apps
 // Return list of applications in the `Namespace`.
+// Never-deployed apps (buildstatus create|build) are omitted; use AppsUndeployed for those.
 // responses:
 //   200: AppsResponse
 
@@ -48,6 +73,37 @@ type AllAppsParam struct {
 type AppsParam struct {
 	// in: path
 	Namespace string
+	// Case-insensitive substring match on the application name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based. Pagination is off unless page or pageSize is set.
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 25)
+	// in: query
+	PageSize string `json:"pageSize"`
+}
+
+// swagger:route GET /namespaces/{Namespace}/applications/undeployed application AppsUndeployed
+// Return list of applications with buildstatus create|build in the `Namespace`
+// (including rebuilds after deploy).
+// Supports the same search and pagination query parameters as Apps.
+// responses:
+//   200: AppsResponse
+
+// swagger:parameters AppsUndeployed
+type AppsUndeployedParam struct {
+	// in: path
+	Namespace string
+	// Case-insensitive substring match on the application name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based. Pagination is off unless page or pageSize is set.
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 25)
+	// in: query
+	PageSize string `json:"pageSize"`
 }
 
 // swagger:response AppsResponse
@@ -77,6 +133,7 @@ type AppCreateResponse struct {
 
 // swagger:route GET /namespaces/{Namespace}/applications/{App} application AppShow
 // Return details of the named `App` in the `Namespace`.
+// Works for both deployed and never-deployed (create|build) apps.
 // The response includes `configuration.environment` (user-set variables only) and
 // `configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).
 // responses:
@@ -97,6 +154,7 @@ type AppShowResponse struct {
 }
 
 // swagger:route GET /namespace/{Namespace}/appsmatches/{Pattern} application AppMatch
+// Set includeUndeployed=true to also match never-deployed (undeployed) apps.
 // Return list of names for all applications whose name matches the prefix `Pattern`.
 // responses:
 //   200: AppMatchResponse
@@ -291,6 +349,25 @@ type AppDeleteParam struct {
 	Namespace string
 	// in: path
 	App string
+}
+
+// swagger:route DELETE /namespaces/{Namespace}/applications/{App}/build application AppBuildDelete
+// Delete the current build of the named `App` in the `Namespace` without deleting the app.
+// responses:
+//   200: AppBuildDeleteResponse
+
+// swagger:parameters AppBuildDelete
+type AppBuildDeleteParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:response AppBuildDeleteResponse
+type AppBuildDeleteResponse struct {
+	// in: body
+	Body models.Response
 }
 
 // swagger:parameters AppBatchDelete

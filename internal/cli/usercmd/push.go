@@ -24,7 +24,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/termui"
@@ -99,9 +98,8 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 	}
 
 	details.Info("validate app name")
-	errorMsgs := validation.IsDNS1123Subdomain(appRef.Name)
-	if len(errorMsgs) > 0 {
-		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
+	if err := validateAppName(appRef.Name); err != nil {
+		return fmt.Errorf("app name incorrect: %w", err)
 	}
 
 	if err := validateLocalDockerfile(manifest); err != nil {

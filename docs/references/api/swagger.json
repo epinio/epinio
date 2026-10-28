@@ -153,11 +153,56 @@
     },
     "/applications": {
       "get": {
+        "description": "Never-deployed apps (buildstatus create|build) are omitted; use AllAppsUndeployed for those.",
         "tags": [
           "application"
         ],
         "summary": "Return list of applications in all namespaces.",
         "operationId": "AllApps",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Namespaces",
+            "description": "Comma-separated namespaces to filter by, e.g. \"ns1,ns2\". Names the user\ncannot see, or that do not exist, are ignored.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the application name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppsResponse"
+          }
+        }
+      }
+    },
+    "/applications/undeployed": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return list of never-deployed applications (buildstatus create|build) in all namespaces.",
+        "operationId": "AllAppsUndeployed",
         "parameters": [
           {
             "type": "string",
@@ -704,10 +749,11 @@
     },
     "/namespace/{Namespace}/appsmatches/{Pattern}": {
       "get": {
+        "description": "Return list of names for all applications whose name matches the prefix `Pattern`.",
         "tags": [
           "application"
         ],
-        "summary": "Return list of names for all applications whose name matches the prefix `Pattern`.",
+        "summary": "Set includeUndeployed=true to also match never-deployed (undeployed) apps.",
         "operationId": "AppMatch",
         "parameters": [
           {
@@ -951,6 +997,7 @@
     },
     "/namespaces/{Namespace}/applications": {
       "get": {
+        "description": "Never-deployed apps (buildstatus create|build) are omitted; use AppsUndeployed for those.",
         "tags": [
           "application"
         ],
@@ -962,6 +1009,27 @@
             "name": "Namespace",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the application name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1024,9 +1092,53 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/undeployed": {
+      "get": {
+        "description": "Supports the same search and pagination query parameters as Apps.",
+        "tags": [
+          "application"
+        ],
+        "summary": "Return list of never-deployed applications (buildstatus create|build) in the `Namespace`.",
+        "operationId": "AppsUndeployed",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the application name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 25)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppsResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/applications/{App}": {
       "get": {
-        "description": "The response includes `configuration.environment` (user-set variables only) and\n`configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).",
+        "description": "Works for both deployed and never-deployed (create|build) apps.\nThe response includes `configuration.environment` (user-set variables only) and\n`configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).",
         "tags": [
           "application"
         ],
@@ -1108,6 +1220,34 @@
         "responses": {
           "200": {
             "$ref": "#/responses/AppUpdateResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/applications/{App}/build": {
+      "delete": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Delete the current build of the named `App` in the `Namespace` without deleting the app.",
+        "operationId": "AppBuildDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppBuildDeleteResponse"
           }
         }
       }
@@ -2555,6 +2695,11 @@
           "description": "BuildStatus is \"create\", \"build\", or \"deployed\", reflecting the last\ncompleted lifecycle step: create (empty app), build (stage), or deploy.\nSee AppBuildStatusCreate / AppBuildStatusBuild / AppBuildStatusDeployed.",
           "type": "string",
           "x-go-name": "BuildStatus"
+        },
+        "built_image_url": {
+          "description": "BuiltImageURL is the image produced by the last build (stage). It is\nkept apart from ImageURL, which is the image currently deployed.",
+          "type": "string",
+          "x-go-name": "BuiltImageURL"
         },
         "configuration": {
           "$ref": "#/definitions/ApplicationConfiguration"
@@ -4525,6 +4670,9 @@
         "dockerfilepath": {
           "type": "string",
           "x-go-name": "DockerfilePath"
+        },
+        "origin": {
+          "$ref": "#/definitions/ApplicationOrigin"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4584,6 +4732,12 @@
     }
   },
   "responses": {
+    "AppBuildDeleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
     "AppChartsResponse": {
       "description": "",
       "schema": {
