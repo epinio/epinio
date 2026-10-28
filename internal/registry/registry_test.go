@@ -121,6 +121,21 @@ var _ = Describe("ConnectionDetails", func() {
 				Expect(url).To(Equal("registry.epinio.svc.cluster.local:5000"))
 			})
 		})
+		When("the registry is on localhost by name (helmtest)", func() {
+			BeforeEach(func() {
+				details = &registry.ConnectionDetails{
+					Namespace: "apps",
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "https://localhost:5000"},
+					},
+				}
+			})
+			It("treats localhost as a public registry URL", func() {
+				url, err := details.PublicRegistryURL()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(url).To(Equal("https://localhost:5000"))
+			})
+		})
 	})
 
 	Describe("PrivateRegistryURL", func() {

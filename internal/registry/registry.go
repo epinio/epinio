@@ -256,15 +256,18 @@ func (d *ConnectionDetails) RepositoryBase() (string, error) {
 // it will just return the first one found (no guaranteed order since there should only be
 // one).
 //
-// Only exact loopback hosts (see isLoopbackRegistryHost) are treated as non-public.
-// That keeps harbor.127.0.0.1.sslip.io public (unlike a substring match on "127.0.0.1")
-// and still returns registry.*.svc.cluster.local as public — the default Epinio
-// registry advertises that hostname as its public URL alongside 127.0.0.1 NodePort.
-// IsInClusterHost must not be used here: it also matches .svc.cluster.local and would
-// leave PublicRegistryURL empty ("no public registry URL found").
+// Non-public hosts are only exact 127.0.0.1 / ::1 (see isNodePortRegistryHost), matching
+// the historical substring filter on "127.0.0.1" but not matching that string inside a
+// DNS label (harbor.127.0.0.1.sslip.io stays public). localhost is intentionally public
+// here: unit tests and helmtest registries use https://localhost:<port> so the URL is
+// not ignored (see helmtest.Registry.Host). *.svc.cluster.local is also public — the
+// default Epinio registry advertises it alongside the 127.0.0.1 NodePort.
+//
+// Do not use IsInClusterHost: it treats localhost and *.svc.cluster.local as in-cluster
+// and would empty PublicRegistryURL ("no public registry URL found").
 func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 	for _, credentials := range d.RegistryCredentials {
-		if !isLoopbackRegistryHost(registryCredentialHost(credentials.URL)) {
+		if !isNodePortRegistryHost(registryCredentialHost(credentials.URL)) {
 			return credentials.URL, nil
 		}
 	}
@@ -278,7 +281,7 @@ func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 // config.
 func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
 	for _, credentials := range d.RegistryCredentials {
-		if isLoopbackRegistryHost(registryCredentialHost(credentials.URL)) {
+		if isNodePortRegistryHost(registryCredentialHost(credentials.URL)) {
 			return credentials.URL, nil
 		}
 	}
@@ -296,19 +299,17 @@ func registryCredentialHost(raw string) string {
 	return strings.SplitN(s, "/", 2)[0]
 }
 
-// isLoopbackRegistryHost is true only for exact localhost / loopback addresses.
-// Unlike IsInClusterHost it does not treat *.svc.cluster.local as loopback — that
-// hostname is the public side of Epinio's bundled registry.
-func isLoopbackRegistryHost(hostname string) bool {
+// isNodePortRegistryHost is true for the exact IPv4/IPv6 loopback addresses used as the
+// NodePort side of Epinio's bundled registry. It does not match "localhost" (kept as the
+// public URL in tests) or *.svc.cluster.local.
+func isNodePortRegistryHost(hostname string) bool {
 	host := hostname
 	if h, _, err := net.SplitHostPort(hostname); err == nil {
 		host = h
 	}
 	host = strings.ToLower(strings.TrimSuffix(strings.Trim(host, "[]"), "."))
 
-	return host == "localhost" ||
-		host == "127.0.0.1" ||
-		host == "::1"
+	return host == "127.0.0.1" || host == "::1"
 }
 
 // ReplaceWithInternalRegistry replaces the registry part of the given container imageURL
