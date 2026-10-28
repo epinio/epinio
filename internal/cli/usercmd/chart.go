@@ -14,6 +14,7 @@ package usercmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/fatih/color"
@@ -159,6 +160,38 @@ func (c *EpinioClient) ChartCreate(ctx context.Context, request models.AppChartC
 	c.ui.Success().
 		WithStringValue("Name", request.Name).
 		Msg("Application Chart Created.")
+
+	return nil
+}
+
+// ChartPush uploads the helm chart archive at the given path. The server stores it in Epinio's
+// registry and creates the application chart of the given name for it.
+func (c *EpinioClient) ChartPush(ctx context.Context, name, archivePath, description, shortDescription string) error {
+	log := c.Log.WithName("ChartPush")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Archive", archivePath).
+		Msg("Pushing Application Chart...")
+
+	file, err := os.Open(archivePath) // nolint:gosec // path given by the user for their own upload
+	if err != nil {
+		return errors.Wrap(err, "can't read the chart archive")
+	}
+	defer func() { _ = file.Close() }()
+
+	response, err := c.API.ChartPush(name, file, description, shortDescription)
+	if err != nil {
+		return errors.Wrap(err, "chart push failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", response.Name).
+		WithStringValue("Helm Chart", response.HelmChart).
+		WithStringValue("Helm Repository", response.HelmRepo).
+		Msg("Application Chart Pushed.")
 
 	return nil
 }

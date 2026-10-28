@@ -26,6 +26,12 @@ func getCatalogServiceParam(c *gin.Context) string {
 	return c.Query("catalog_service")
 }
 
+// getAppParam returns the optional `app` query parameter, narrowing a service
+// list to the instances bound to a single application.
+func getAppParam(c *gin.Context) string {
+	return c.Query("app")
+}
+
 // filterServices narrows a service list by the optional `search` and
 // `catalog_service` filters. A service has to pass both to survive; empty
 // filters match everything.

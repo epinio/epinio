@@ -411,13 +411,19 @@ func loadEnrichmentData(
 	cluster *kubernetes.Cluster,
 	namespace string,
 	appNames []string,
-) (map[ConfigurationKey]AppData, map[string]metricsv1beta1.PodMetrics, error) {
+) (map[ConfigurationKey]AppData, map[string]metricsv1beta1.PodMetrics, map[ConfigurationKey]string, error) {
 	secrets, secretsError := cluster.Kubectl.CoreV1().Secrets(namespace).List(
 		ctx,
 		metav1.ListOptions{LabelSelector: "app.kubernetes.io/managed-by=epinio"},
 	)
 	if secretsError != nil {
-		return nil, nil, secretsError
+		return nil, nil, nil, secretsError
+	}
+
+	// Configuration secrets are not managed-by=epinio, so they need their own call.
+	configurationTypes, typesError := ConfigurationTypes(ctx, cluster, namespace)
+	if typesError != nil {
+		return nil, nil, nil, typesError
 	}
 
 	appAuxiliary := makeAuxiliaryMap(secrets.Items)
@@ -430,7 +436,7 @@ func loadEnrichmentData(
 		appNames,
 	)
 	if podsError != nil {
-		return nil, nil, podsError
+		return nil, nil, nil, podsError
 	}
 
 	appAuxiliary, routesError := AddActualApplicationRoutes(
@@ -441,7 +447,7 @@ func loadEnrichmentData(
 		appNames,
 	)
 	if routesError != nil {
-		return nil, nil, routesError
+		return nil, nil, nil, routesError
 	}
 
 	pageMetrics, metricsError := GetPodMetrics(ctx, cluster, namespace, appNames)
@@ -456,14 +462,14 @@ func loadEnrichmentData(
 		appNames,
 	)
 	if stagingError != nil {
-		return nil, nil, stagingError
+		return nil, nil, nil, stagingError
 	}
 	appAuxiliary = updateAppDataMapWithStagingJobStatus(
 		appAuxiliary,
 		stagingJobs,
 	)
 
-	return appAuxiliary, pageMetrics, nil
+	return appAuxiliary, pageMetrics, configurationTypes, nil
 }
 
 /*
@@ -488,7 +494,7 @@ func List(
 		return nil, listError
 	}
 
-	appAuxiliary, appMetrics, enrichError := loadEnrichmentData(
+	appAuxiliary, appMetrics, configurationTypes, enrichError := loadEnrichmentData(
 		ctx,
 		cluster,
 		namespace,
@@ -506,6 +512,7 @@ func List(
 			appCR,
 			appAuxiliary,
 			appMetrics,
+			configurationTypes,
 		)
 		if aggregateError != nil {
 			return result, aggregateError
@@ -635,7 +642,7 @@ func ListPaginated(
 		pageAppNames = append(pageAppNames, cr.GetName())
 	}
 
-	appAuxiliary, pageMetrics, enrichError := loadEnrichmentData(
+	appAuxiliary, pageMetrics, configurationTypes, enrichError := loadEnrichmentData(
 		ctx,
 		cluster,
 		namespace,
@@ -653,6 +660,7 @@ func ListPaginated(
 			appCR,
 			appAuxiliary,
 			pageMetrics,
+			configurationTypes,
 		)
 		if aggregateError != nil {
 			return result, totalCount, aggregateError
@@ -740,7 +748,7 @@ func ListPaginatedByNamespace(
 
 	// IV. Bulk-load all enrichment data cross-namespace, one k8s call per
 	// resource type.
-	appAuxiliary, pageMetrics, enrichError := loadEnrichmentData(
+	appAuxiliary, pageMetrics, configurationTypes, enrichError := loadEnrichmentData(
 		ctx,
 		cluster,
 		"",
@@ -761,6 +769,7 @@ func ListPaginatedByNamespace(
 				appCR,
 				appAuxiliary,
 				pageMetrics,
+				configurationTypes,
 			)
 			if aggregateError != nil {
 				return nil, aggregateError
@@ -1019,10 +1028,9 @@ func DeleteContainerImage(
 
 	// Build TLS config based on what we have
 	if tlsConfig == nil {
-		// Check if this is an internal registry (cluster.local domain)
-		isInternalRegistry := strings.Contains(imageRegistryURL, ".svc.cluster.local") ||
-			strings.Contains(imageRegistryURL, "127.0.0.1") ||
-			strings.Contains(imageRegistryURL, "localhost")
+		// Check if this is an internal registry. The host has to match
+		// exactly, a substring would let `localhost.example.com` in.
+		isInternalRegistry := registry.IsInClusterHost(imageRegistryURL)
 
 		if certsAdded {
 			// We have certificates in the pool, use them
@@ -1897,6 +1905,7 @@ func aggregate(ctx context.Context,
 	appCR unstructured.Unstructured,
 	auxiliary map[ConfigurationKey]AppData,
 	metrics map[string]metricsv1beta1.PodMetrics,
+	configurationTypes map[ConfigurationKey]string,
 ) (*models.App, error) {
 	appName := appCR.GetName()
 	namespace := appCR.GetNamespace()
@@ -2008,6 +2017,8 @@ func aggregate(ctx context.Context,
 
 	app.Configuration.Instances = &instances
 	app.Configuration.Configurations = configurations
+	app.Configuration.BoundConfigurations = BoundConfigurationsWithType(
+		configurations, namespace, configurationTypes)
 	app.Configuration.Environment = environment
 	app.Configuration.Services = services
 	app.Configuration.Routes = desiredRoutes
@@ -2154,9 +2165,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	configurations, err := BoundConfigurationNames(ctx, cluster, app.Meta)
+	configurations, boundConfigurations, err := BoundConfigurationsFor(ctx, cluster, app.Meta)
 	if err != nil {
-		err = errors.Wrap(err, "finding configurations")
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
 		return err
@@ -2213,6 +2223,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 
 	app.Configuration.Instances = &instances
 	app.Configuration.Configurations = configurations
+	app.Configuration.BoundConfigurations = boundConfigurations
 	app.Configuration.Environment = environment
 	app.Configuration.EnvironmentGrouped = &groupedEnv
 	app.Configuration.Services = services

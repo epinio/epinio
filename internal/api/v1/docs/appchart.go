@@ -13,7 +13,11 @@ package docs
 
 //go:generate swagger generate spec
 
-import "github.com/epinio/epinio/pkg/api/core/v1/models"
+import (
+	"io"
+
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+)
 
 // swagger:route GET /appcharts appcharts AllCharts
 // Return list of app charts.
@@ -88,8 +92,39 @@ type ChartCreateParam struct {
 // swagger:response ChartCreateResponse
 type ChartCreateResponse struct{}
 
+// swagger:route POST /appcharts/push appcharts ChartPush
+// Upload a helm chart archive. It is pushed to Epinio's registry, and a new appchart
+// referencing it is created. For the name of an appchart pushed before, which no application uses, its chart is replaced.
+// consumes:
+//   - multipart/form-data
+// responses:
+//   200: ChartPushResponse
+
+// swagger:parameters ChartPush
+type ChartPushParam struct {
+	// The chart archive (.tgz)
+	// in: formData
+	// swagger:file
+	File io.ReadCloser `json:"file"`
+	// Name of the appchart to create
+	// in: formData
+	Name string `json:"name"`
+	// Long description of the appchart
+	// in: formData
+	Description string `json:"description"`
+	// Short description of the appchart
+	// in: formData
+	ShortDescription string `json:"short_description"`
+}
+
+// swagger:response ChartPushResponse
+type ChartPushResponse struct {
+	// in: body
+	Body models.AppChartPushResponse
+}
+
 // swagger:route PATCH /appcharts/{Chart} appcharts ChartUpdate
-// Update fields on the named `Chart`.
+// Update fields on the named `Chart`. The chart and repository cannot be changed while applications use the `Chart`, nor for a chart pushed to Epinio's registry.
 // responses:
 //   200: ChartUpdateResponse
 
@@ -105,7 +140,7 @@ type ChartUpdateParam struct {
 type ChartUpdateResponse struct{}
 
 // swagger:route DELETE /appcharts/{Chart} appcharts ChartDelete
-// Delete the named `Chart`.
+// Delete the named `Chart`. A chart pushed to Epinio's registry is removed from it as well.
 // responses:
 //   200: ChartDeleteResponse
 

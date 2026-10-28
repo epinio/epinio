@@ -46,6 +46,53 @@
         }
       }
     },
+    "/appcharts/push": {
+      "post": {
+        "description": "Upload a helm chart archive. It is pushed to Epinio's registry, and a new appchart\nreferencing it is created. For the name of an appchart pushed before, which no application uses, its chart is replaced.",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "tags": [
+          "appcharts"
+        ],
+        "operationId": "ChartPush",
+        "parameters": [
+          {
+            "type": "file",
+            "x-go-name": "File",
+            "description": "The chart archive (.tgz)",
+            "name": "file",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Name",
+            "description": "Name of the appchart to create",
+            "name": "name",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Description",
+            "description": "Long description of the appchart",
+            "name": "description",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "x-go-name": "ShortDescription",
+            "description": "Short description of the appchart",
+            "name": "short_description",
+            "in": "formData"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ChartPushResponse"
+          }
+        }
+      }
+    },
     "/appcharts/{Chart}": {
       "get": {
         "tags": [
@@ -71,7 +118,7 @@
         "tags": [
           "appcharts"
         ],
-        "summary": "Delete the named `Chart`.",
+        "summary": "Delete the named `Chart`. A chart pushed to Epinio's registry is removed from it as well.",
         "operationId": "ChartDelete",
         "parameters": [
           {
@@ -91,7 +138,7 @@
         "tags": [
           "appcharts"
         ],
-        "summary": "Update fields on the named `Chart`.",
+        "summary": "Update fields on the named `Chart`. The chart and repository cannot be changed while applications use the `Chart`, nor for a chart pushed to Epinio's registry.",
         "operationId": "ChartUpdate",
         "parameters": [
           {
@@ -2866,6 +2913,25 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "AppChartPushResponse": {
+      "description": "AppChartPushResponse is the server's response to a successful push of a chart archive. It\nnames the application chart created for the pushed chart, and where the chart was stored.",
+      "type": "object",
+      "properties": {
+        "helm_chart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
+        "helm_repo": {
+          "type": "string",
+          "x-go-name": "HelmRepo"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "AppChartUpdateRequest": {
       "type": "object",
       "properties": {
@@ -3076,6 +3142,14 @@
           "type": "string",
           "x-go-name": "AppChart"
         },
+        "bound_configurations": {
+          "description": "BoundConfigurations is read-only. It mirrors Configurations, adding the type\nof each. Not part of the manifest.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BoundConfiguration"
+          },
+          "x-go-name": "BoundConfigurations"
+        },
         "configurations": {
           "type": "array",
           "items": {
@@ -3282,6 +3356,21 @@
             "type": "string"
           },
           "x-go-name": "WasBound"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "BoundConfiguration": {
+      "description": "BoundConfiguration names a configuration bound to an application, together with\nits type (\"custom\" or \"service\"), so clients can tell configurations a user made\nfrom ones a service created.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "type": {
+          "type": "string",
+          "x-go-name": "Type"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4896,6 +4985,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/ChartMatchResponse"
+      }
+    },
+    "ChartPushResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AppChartPushResponse"
       }
     },
     "ChartShowResponse": {

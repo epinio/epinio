@@ -17,6 +17,7 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/auth"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -54,14 +55,34 @@ func ID(ctx context.Context) string {
 	return id
 }
 
-// Logger returns the centralized logger with request context when available.
+// Logger returns the centralized logger enriched with request context when
+// available. When the context carries a valid OpenTelemetry span, trace_id
+// and span_id are added so standard log output can be correlated with traces.
+// A context.Context field is also attached for the otelzap bridge (used as
+// the emit context, not printed when TeeCore's console stripper is active).
 func Logger(ctx context.Context) *zap.SugaredLogger {
 	if helpers.Logger == nil {
 		return zap.NewNop().Sugar()
 	}
-	requestID := ID(ctx)
-	if requestID == "" {
+
+	fields := make([]zap.Field, 0, 4)
+	if requestID := ID(ctx); requestID != "" {
+		fields = append(fields, zap.String("requestId", requestID))
+	}
+	if sc := trace.SpanContextFromContext(ctx); sc.IsValid() {
+		fields = append(fields,
+			zap.String("trace_id", sc.TraceID().String()),
+			zap.String("span_id", sc.SpanID().String()),
+		)
+	}
+	// otelzap treats a context.Context field as the emit context and skips it
+	// as an attribute. helpers.TeeCore strips it from the console core too.
+	if len(fields) > 0 {
+		fields = append(fields, zap.Any("context", ctx))
+	}
+
+	if len(fields) == 0 {
 		return helpers.Logger
 	}
-	return helpers.Logger.With("requestId", requestID)
+	return helpers.Logger.Desugar().With(fields...).Sugar()
 }

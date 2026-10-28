@@ -57,9 +57,6 @@ type BeforeSuiteMessage struct {
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
-	fmt.Println("Creating the S3 helper pod")
-	createS3HelperPod()
-
 	// login just once
 	globalSettings, err := settings.LoadFrom(testenv.EpinioYAML())
 	Expect(err).NotTo(HaveOccurred())
