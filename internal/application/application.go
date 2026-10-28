@@ -411,7 +411,12 @@ func loadEnrichmentData(
 	cluster *kubernetes.Cluster,
 	namespace string,
 	appNames []string,
-) (map[ConfigurationKey]AppData, map[string]metricsv1beta1.PodMetrics, map[ConfigurationKey]string, error) {
+) (
+	map[ConfigurationKey]AppData,
+	map[string]metricsv1beta1.PodMetrics,
+	map[ConfigurationKey]string,
+	error,
+) {
 	secrets, secretsError := cluster.Kubectl.CoreV1().Secrets(namespace).List(
 		ctx,
 		metav1.ListOptions{LabelSelector: "app.kubernetes.io/managed-by=epinio"},
@@ -556,14 +561,21 @@ func AppsFromCRs(
 		return models.AppList{}, nil
 	}
 
-	appAuxiliary, pageMetrics, enrichError := loadEnrichmentData(ctx, cluster, "", nil)
+	appAuxiliary, pageMetrics, configurationTypes, enrichError := loadEnrichmentData(ctx, cluster, "", nil)
 	if enrichError != nil {
 		return nil, enrichError
 	}
 
 	result := models.AppList{}
 	for _, appCR := range crs {
-		app, aggregateError := aggregate(ctx, cluster, appCR, appAuxiliary, pageMetrics)
+		app, aggregateError := aggregate(
+			ctx,
+			cluster,
+			appCR,
+			appAuxiliary,
+			pageMetrics,
+			configurationTypes,
+		)
 		if aggregateError != nil {
 			return result, aggregateError
 		}
@@ -1900,7 +1912,8 @@ func makeAuxiliaryMap(secrets []v1.Secret) map[ConfigurationKey]AppData {
 // Aggregate is an internal helper for List. It merges the information from an
 // application resource and adjacent secrets, pods, metrics, etc. into a proper
 // application structure.
-func aggregate(ctx context.Context,
+func aggregate(
+	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appCR unstructured.Unstructured,
 	auxiliary map[ConfigurationKey]AppData,
