@@ -110,6 +110,8 @@ type HelmValuesMap struct {
 	Affinity                corev1.Affinity             `json:"affinity,omitempty"`
 	Resources               corev1.ResourceRequirements `json:"resources,omitempty"`
 	TTLSecondsAfterFinished int32                       `json:"ttlSecondsAfterFinished,omitempty"`
+	PersistLogs             bool                        `json:"persistLogs,omitempty"`
+	PersistLogsMaxSizeMB    int                         `json:"persistLogsMaxSizeMB,omitempty"`
 	Storage                 struct {
 		SourceBlobs StagingStorageValues `json:"sourceBlobs,omitempty"`
 		Cache       StagingStorageValues `json:"cache,omitempty"`
@@ -503,6 +505,7 @@ func Staged(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err)
 	}
+	persistFinishedStagingLogs(ctx, cluster, jobs, namespace, id)
 	if !success {
 		return apierror.NewInternalError("Failed to stage",
 			fmt.Sprintf("stage-id = %s", id))
@@ -571,6 +574,7 @@ func StagedWebsocket(c *gin.Context) {
 
 	// If the job already completed before the websocket upgrade, send the final state immediately.
 	if done, success := jobDoneState(jobs); done {
+		persistFinishedStagingLogs(ctx, cluster, jobs, namespace, stageID)
 		if success {
 			_ = sendUpdate(models.StageStatusSucceeded, "", true)
 		} else {
@@ -612,6 +616,7 @@ func StagedWebsocket(c *gin.Context) {
 				_ = sendUpdate(models.StageStatusError, res.err.Error(), true)
 				return
 			}
+			persistFinishedStagingLogs(ctx, cluster, jobs, namespace, stageID)
 			if res.success {
 				_ = sendUpdate(models.StageStatusSucceeded, "", true)
 				return

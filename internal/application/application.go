@@ -832,6 +832,15 @@ func Delete(
 		log.Info("warning: "+warning, "failedBlobs", unstageResult.FailedBlobCleanups)
 	}
 
+	// delete the persisted staging logs of the app
+	err = DeleteStagingLogs(ctx, cluster, appRef.Namespace, appRef.Name)
+	if err != nil {
+		warning := fmt.Sprintf("persisted staging logs of app %s/%s could not be deleted: %v",
+			appRef.Namespace, appRef.Name, err)
+		result.Warnings = append(result.Warnings, warning)
+		log.Info("warning: " + warning)
+	}
+
 	// delete staging PVC (the one that holds the "source" and "cache" workspaces)
 	err = deleteCacheStagePVC(ctx, cluster, appRef)
 	if err != nil && !apierrors.IsNotFound(err) {
