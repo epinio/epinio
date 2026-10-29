@@ -2,8 +2,10 @@ package helm
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -153,20 +155,62 @@ func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
 	return statusAction.Run(name)
 }
 
-func (c *SynchronizedClient) RegistryLogin(hostname, username, password string, opts ...action.RegistryLoginOpt) error {
+// RegistryLogin logs into an OCI registry. When insecure is true, the shared registry
+// client's TLS config is replaced with a fresh InsecureSkipVerify config before login,
+// instead of using Helm's LoginOptInsecure which mutates the in-use tls.Config and
+// races with concurrent chart push/pull HTTP (-race).
+func (c *SynchronizedClient) RegistryLogin(
+	hostname, username, password string,
+	insecure bool,
+	opts ...action.RegistryLoginOpt,
+) error {
+	c.registryMu.Lock()
+	defer c.registryMu.Unlock()
+
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
 		return fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
+	}
+
+	if insecure {
+		// Replace tls.Config before Helm mutates InsecureSkipVerify so in-flight
+		// HTTP on the previous client keeps the old pointer (no -race).
+		if err := replaceRegistryClientTLS(concreteHelmClient, &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}); err != nil {
+			return err
+		}
+		opts = append(opts, action.WithInsecure(true))
 	}
 
 	registryLoginAction := action.NewRegistryLogin(concreteHelmClient.ActionConfig)
 	return registryLoginAction.Run(nil, hostname, username, password, opts...)
 }
 
+// replaceRegistryClientTLS swaps the helm registry client for one using cfg.
+// In-flight HTTP on the previous client keeps the old tls.Config pointer.
+func replaceRegistryClientTLS(helmClient *hc.HelmClient, cfg *tls.Config) error {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = cfg
+	registryClient, err := registry.NewClient(
+		registry.ClientOptDebug(helmClient.Settings.Debug),
+		registry.ClientOptCredentialsFile(helmClient.Settings.RegistryConfig),
+		registry.ClientOptHTTPClient(&http.Client{Transport: transport}),
+	)
+	if err != nil {
+		return err
+	}
+	helmClient.ActionConfig.RegistryClient = registryClient
+	return nil
+}
+
 // Pull implements the 'helm pull' command. It downloads the chart with the given reference
 // (and version, if not empty) into destDir, and returns the path of the saved chart archive.
 // OCI references (oci://...) are supported, using the registry logins of this client.
 func (c *SynchronizedClient) Pull(chartRef, version, destDir string) (string, error) {
+	c.registryMu.Lock()
+	defer c.registryMu.Unlock()
+
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
 		return "", fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
@@ -201,6 +245,9 @@ func ociTag(version string) string {
 // OCIChartExists tells whether the chart with the given OCI reference (oci://host/path/chart) and
 // version is already present in its registry. It uses the registry logins of this client.
 func (c *SynchronizedClient) OCIChartExists(chartRef, version string) (bool, error) {
+	c.registryMu.Lock()
+	defer c.registryMu.Unlock()
+
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
 		return false, fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
@@ -226,6 +273,9 @@ func (c *SynchronizedClient) OCIChartExists(chartRef, version string) (bool, err
 // may differ from the name and version of the chart. helm resolves such a
 // reference all the same when pulling it.
 func (c *SynchronizedClient) PushAt(data []byte, ref string) error {
+	c.registryMu.Lock()
+	defer c.registryMu.Unlock()
+
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
 		return fmt.Errorf(
@@ -248,6 +298,9 @@ func (c *SynchronizedClient) Push(
 	remote string,
 	opts ...action.PushOpt,
 ) (string, error) {
+	c.registryMu.Lock()
+	defer c.registryMu.Unlock()
+
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
 		return "", fmt.Errorf(

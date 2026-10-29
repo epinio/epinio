@@ -272,7 +272,7 @@ func initHelmOCIRegistryOrRepository(client *SynchronizedClient, service models.
 		// if auth credentials are available try to login
 		if username != "" && password != "" {
 			registryHostname := strings.TrimPrefix(repoURL, "oci://")
-			err := client.RegistryLogin(registryHostname, username, password)
+			err := client.RegistryLogin(registryHostname, username, password, false)
 			if err != nil {
 				return "", errors.Wrap(err, "logging into the helm registry")
 			}
@@ -623,7 +623,11 @@ var syncNamespaceClientMap sync.Map
 type SynchronizedClient struct {
 	namespace string
 	// mutexMap is holding the mutexes for the same releases
-	mutexMap   sync.Map
+	mutexMap sync.Map
+	// registryMu serializes OCI registry login/push/pull on the shared helm
+	// registry client. Helm's LoginOptInsecure mutates tls.Config in place; without
+	// this lock that races with concurrent oras HTTP (-race in appchart unit tests).
+	registryMu sync.Mutex
 	helmClient hc.Client
 }
 
@@ -943,15 +947,14 @@ func loginToOCIRegistryIfInternal(ctx context.Context, cluster *kubernetes.Clust
 		return nil
 	}
 
-	// Note that helm applies the insecure setting to the registry client itself, i.e. it stays in
-	// effect for all later registry operations on this (per namespace, shared) client. That is
-	// acceptable as the client is only used for Epinio's own charts and registry. Keep it so, do
-	// not route unrelated registries through the same client.
+	// Insecure replaces the shared registry client's TLS config (see RegistryLogin).
+	// That stays in effect for later ops on this per-namespace client — acceptable
+	// because it is only used for Epinio's own charts/registry.
 	return client.RegistryLogin(
 		creds.Hostname,
 		creds.Username,
 		creds.Password,
-		action.WithInsecure(creds.Insecure),
+		creds.Insecure,
 	)
 }
 

@@ -248,6 +248,7 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 		destinationHost,
 		destination.Username,
 		destination.Password,
+		false,
 		rOpts...,
 	)
 	if err != nil {
