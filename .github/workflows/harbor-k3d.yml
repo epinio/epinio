@@ -18,7 +18,7 @@ on:
   # GitHub-hosted (ubuntu-latest). Do not wait on self-hosted RKE runners.
   # synchronize = every push to the PR; ready_for_review for draft→ready.
   pull_request:
-    branches: [ main ]
+    branches: [ main, '1.14.4' ]
     types: [ opened, synchronize, reopened, ready_for_review ]
     paths:
       - 'acceptance/install/scenario_harbor_appcharts_test.go'
