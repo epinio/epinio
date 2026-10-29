@@ -177,7 +177,7 @@ var _ = Describe("Charts in a registry", func() {
 			client = helmClient()
 			repo = "oci://" + reg.Host() + "/charts"
 
-			Expect(client.RegistryLogin(reg.Host(), username, password, action.WithInsecure(true))).To(Succeed())
+			Expect(client.RegistryLogin(reg.Host(), username, password, true)).To(Succeed())
 		})
 
 		loadedVersion := func(archive string) string {

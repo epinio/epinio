@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"helm.sh/helm/v3/pkg/action"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/appchart"
@@ -72,7 +71,7 @@ func OpenChartRegistry(
 		creds.Hostname,
 		creds.Username,
 		creds.Password,
-		action.WithInsecure(creds.Insecure),
+		creds.Insecure,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "logging into the registry")
