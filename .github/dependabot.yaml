@@ -13,7 +13,7 @@ version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
-    target: "development"
+    target-branch: "development"
     schedule:
       interval: "monthly"
     labels:
