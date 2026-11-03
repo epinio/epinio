@@ -173,6 +173,8 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			// - /repos/USERNAME/REPO/commits
 			// - /repos/USERNAME/REPO/branches
 			// - /repos/USERNAME/REPO/branches/BRANCH
+			// - /repos/USERNAME/REPO/tags
+			// - /repos/USERNAME/REPO/releases
 			// - /users/USERNAME/repos
 			// - /search/repositories
 
@@ -192,6 +194,8 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			setupAndRun("/repos/USERNAME/REPO/commits")
 			setupAndRun("/repos/USERNAME/REPO/branches")
 			setupAndRun("/repos/USERNAME/REPO/branches/BRANCH")
+			setupAndRun("/repos/USERNAME/REPO/tags")
+			setupAndRun("/repos/USERNAME/REPO/releases")
 		})
 
 		It("passes for Github Enterprise Server whitelisted URLs", func() {
@@ -215,6 +219,8 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			setupAndRun("/repos/USERNAME/REPO/commits")
 			setupAndRun("/repos/USERNAME/REPO/branches")
 			setupAndRun("/repos/USERNAME/REPO/branches/BRANCH")
+			setupAndRun("/repos/USERNAME/REPO/tags")
+			setupAndRun("/repos/USERNAME/REPO/releases")
 		})
 
 		It("passes for Github Enterprise Cloud data-residency (ghe.com) whitelisted URLs", func() {
@@ -232,6 +238,8 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			setupAndRun("/repos/USERNAME/REPO")
 			setupAndRun("/repos/USERNAME/REPO/commits")
 			setupAndRun("/repos/USERNAME/REPO/branches")
+			setupAndRun("/repos/USERNAME/REPO/tags")
+			setupAndRun("/repos/USERNAME/REPO/releases")
 		})
 
 		It("fails for a non-ghe.com host using bare Github paths", func() {
@@ -267,8 +275,10 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			// - /api/v4/users/USERNAME/projects (and ?search=TERM)
 			// - /api/v4/groups/USERNAME/projects (and ?search=TERM)
 			// - /api/v4/projects/USERNAME%2FREPO
+			// - /api/v4/projects/USERNAME%2FREPO/releases
 			// - /api/v4/projects/USERNAME%2FREPO/repository/commits
 			// - /api/v4/projects/USERNAME%2FREPO/repository/branches
+			// - /api/v4/projects/USERNAME%2FREPO/repository/tags
 			// - /api/v4/projects/USERNAME%2FREPO/repository/branches/BRANCH
 
 			setupAndRun := func(path string) {
@@ -288,8 +298,10 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			setupAndRun("/users/USERNAME/projects?search=TERM")
 			setupAndRun("/groups/USERNAME/projects")
 			setupAndRun("/projects/USERNAME%2FREPO")
+			setupAndRun("/projects/USERNAME%2FREPO/releases")
 			setupAndRun("/projects/USERNAME%2FREPO/repository/commits")
 			setupAndRun("/projects/USERNAME%2FREPO/repository/branches")
+			setupAndRun("/projects/USERNAME%2FREPO/repository/tags")
 			setupAndRun("/projects/USERNAME%2FREPO/repository/branches/BRANCH")
 		})
 
