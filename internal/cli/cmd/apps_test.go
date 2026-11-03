@@ -16,10 +16,12 @@ import (
 	"errors"
 	"io"
 	"os"
+	"time"
 
 	"github.com/epinio/epinio/internal/cli/cmd"
 	"github.com/epinio/epinio/internal/cli/cmd/cmdfakes"
 	"github.com/epinio/epinio/internal/cli/usercmd/usercmdfakes"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	//	. "github.com/epinio/epinio/acceptance/helpers/matchers"
@@ -268,6 +270,63 @@ var _ = Describe("Command 'epinio app'", func() {
 				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
 				Expect(runErr).ToNot(HaveOccurred())
 				Expect(mockAppService.AppWatchCallCount()).To(Equal(1))
+			})
+		})
+	})
+
+	Context("app logs", func() {
+
+		When("called without filter flags", func() {
+			It("passes nil log options", func() {
+				args = append(args, "myapp")
+
+				mockAppService.AppLogsStub = func(name, stageID string, follow bool, options *client.LogOptions) error {
+					Expect(name).To(Equal("myapp"))
+					Expect(stageID).To(Equal(""))
+					Expect(follow).To(BeFalse())
+					Expect(options).To(BeNil())
+					return nil
+				}
+
+				appCmd := cmd.NewAppLogsCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).ToNot(HaveOccurred())
+				Expect(mockAppService.AppLogsCallCount()).To(Equal(1))
+			})
+		})
+
+		When("called with --tail and --since", func() {
+			It("passes the filter options through", func() {
+				args = append(args, "myapp", "--tail", "100", "--since", "1h", "--follow")
+
+				mockAppService.AppLogsStub = func(name, stageID string, follow bool, options *client.LogOptions) error {
+					Expect(name).To(Equal("myapp"))
+					Expect(follow).To(BeTrue())
+					Expect(options).ToNot(BeNil())
+					Expect(options.Tail).ToNot(BeNil())
+					Expect(*options.Tail).To(Equal(int64(100)))
+					Expect(options.Since).ToNot(BeNil())
+					Expect(*options.Since).To(Equal(time.Hour))
+					Expect(options.SinceTime).To(BeNil())
+					return nil
+				}
+
+				appCmd := cmd.NewAppLogsCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).ToNot(HaveOccurred())
+				Expect(mockAppService.AppLogsCallCount()).To(Equal(1))
+			})
+		})
+
+		When("called with an invalid --since value", func() {
+			It("returns an error", func() {
+				args = append(args, "myapp", "--since", "yesterday")
+
+				appCmd := cmd.NewAppLogsCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).To(HaveOccurred())
+				Expect(runErr.Error()).To(ContainSubstring("invalid --since duration"))
+				Expect(mockAppService.AppLogsCallCount()).To(Equal(0))
 			})
 		})
 	})
