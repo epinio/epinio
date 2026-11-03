@@ -264,6 +264,7 @@ func runAsyncDeployment(ctx context.Context, deploymentID string, req models.Asy
 			failErr(waitErr)
 			return
 		}
+		persistFinishedStagingLogs(ctx, cluster, jobs, req.App.Namespace, stageID)
 		if !success {
 			failAPI(apierror.NewInternalError("Failed to stage", "staging job failed"))
 			return
