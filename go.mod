@@ -34,13 +34,13 @@ require (
 	github.com/h2non/filetype v1.1.3
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/mattn/go-isatty v0.0.24
-	github.com/maxbrunsfeld/counterfeiter/v6 v6.12.1
+	github.com/maxbrunsfeld/counterfeiter/v6 v6.14.0
 	github.com/mholt/archives v0.1.5
 	github.com/mittwald/go-helm-client v0.12.18
 	github.com/novln/docker-parser v1.0.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/ginkgo/v2 v2.28.3
-	github.com/onsi/gomega v1.42.1
+	github.com/onsi/gomega v1.43.1
 	github.com/paketo-buildpacks/ca-certificates/v3 v3.12.5
 	github.com/panjf2000/ants/v2 v2.11.3
 	github.com/pkg/errors v0.9.1
