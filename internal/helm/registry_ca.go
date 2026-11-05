@@ -11,6 +11,7 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/registry"
+	"oras.land/oras-go/v2/registry/remote/retry"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -98,18 +99,19 @@ func rootCAsWith(cert []byte) (*x509.CertPool, error) {
 	return pool, nil
 }
 
-// trustRegistryCAs gives the helm client a registry client verifying
-// registries with the CAs of registryRootCAs. It has to happen before the
-// client is shared, as helm offers no safe way to change them later. Without a
-// registry certificate the client is left as it is.
+// setupRegistryClient installs a registry client whose *http.Transport we keep.
+// That transport is what RegistryLogin detaches when insecure TLS is needed,
+// instead of Helm's LoginOptInsecure mutating an in-use tls.Config (-race).
+// RootCAs from registryRootCAs are used when present; otherwise the system CAs.
+// The transport is wrapped with oras retry, matching Helm's default client.
 //
-// A failure is logged, and the client keeps the system CAs. Only a registry
-// with a private CA is affected, and it fails with a clear x509 error.
-func trustRegistryCAs(
+// It must run before the helm client is shared. A failure is logged and nil is
+// returned; the caller keeps Helm's default registry client.
+func setupRegistryClient(
 	ctx context.Context,
 	restConfig *rest.Config,
 	helmClient *hc.HelmClient,
-) {
+) *http.Transport {
 	pool, err := registryRootCAs(ctx, restConfig)
 	if err != nil {
 		helpers.Logger.Errorw(
@@ -117,33 +119,31 @@ func trustRegistryCAs(
 			"error",
 			err,
 		)
-		return
-	}
-	if pool == nil {
-		return
+		pool = nil
 	}
 
-	// Like the registry client helm-client creates, with our CAs added.
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{
 		RootCAs:    pool,
 		MinVersion: tls.VersionTLS12,
 	}
 	registryClient, err := registry.NewClient(
-		registry.ClientOptDebug(helmClient.Settings.Debug),
 		registry.ClientOptCredentialsFile(helmClient.Settings.RegistryConfig),
-		registry.ClientOptHTTPClient(&http.Client{Transport: transport}),
+		registry.ClientOptHTTPClient(&http.Client{
+			Transport: retry.NewTransport(transport),
+		}),
 	)
 	if err != nil {
 		helpers.Logger.Errorw(
-			"creating the registry client, using the system CAs",
+			"creating the registry client, using the default",
 			"error",
 			err,
 		)
-		return
+		return nil
 	}
 
 	helmClient.ActionConfig.RegistryClient = registryClient
+	return transport
 }
 
 // tlsConfig returns the TLS configuration for talking to the registry
