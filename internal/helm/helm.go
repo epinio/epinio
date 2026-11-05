@@ -18,6 +18,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -272,7 +273,7 @@ func initHelmOCIRegistryOrRepository(client *SynchronizedClient, service models.
 		// if auth credentials are available try to login
 		if username != "" && password != "" {
 			registryHostname := strings.TrimPrefix(repoURL, "oci://")
-			err := client.RegistryLogin(registryHostname, username, password)
+			err := client.RegistryLogin(registryHostname, username, password, false, "")
 			if err != nil {
 				return "", errors.Wrap(err, "logging into the helm registry")
 			}
@@ -623,8 +624,16 @@ var syncNamespaceClientMap sync.Map
 type SynchronizedClient struct {
 	namespace string
 	// mutexMap is holding the mutexes for the same releases
-	mutexMap   sync.Map
-	helmClient hc.Client
+	mutexMap sync.Map
+	// registryTransport is the http.Transport of ActionConfig.RegistryClient.
+	// RegistryLogin detaches TLS on this pointer once when insecure login is needed.
+	registryTransport *http.Transport
+	// registryTLSMu guards the one-time insecure TLS detach (not registry I/O).
+	registryTLSMu sync.Mutex
+	// insecureTLSReady is true after TLSClientConfig was replaced with an
+	// InsecureSkipVerify config so LoginOptInsecure is never needed.
+	insecureTLSReady bool
+	helmClient       hc.Client
 }
 
 func GetHelmClient(
@@ -648,17 +657,19 @@ func GetHelmClient(
 	if err != nil {
 		return nil, err
 	}
+	var registryTransport *http.Transport
 	if concrete, ok := helmClient.(*hc.HelmClient); ok {
-		trustRegistryCAs(context.Background(), restConfig, concrete)
+		registryTransport = setupRegistryClient(context.Background(), restConfig, concrete)
 	}
 
-	return GetNamespaceSynchronizedHelmClient(namespace, helmClient)
+	return GetNamespaceSynchronizedHelmClient(namespace, helmClient, registryTransport)
 }
 
-func GetNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client) (*SynchronizedClient, error) {
+func GetNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client, registryTransport *http.Transport) (*SynchronizedClient, error) {
 	synchronizedHelmClient := &SynchronizedClient{
-		namespace:  namespace,
-		helmClient: helmClient,
+		namespace:         namespace,
+		helmClient:        helmClient,
+		registryTransport: registryTransport,
 	}
 
 	// we are loading the SynchronizedClient for this namespace, if any
@@ -943,15 +954,15 @@ func loginToOCIRegistryIfInternal(ctx context.Context, cluster *kubernetes.Clust
 		return nil
 	}
 
-	// Note that helm applies the insecure setting to the registry client itself, i.e. it stays in
-	// effect for all later registry operations on this (per namespace, shared) client. That is
-	// acceptable as the client is only used for Epinio's own charts and registry. Keep it so, do
-	// not route unrelated registries through the same client.
+	// Insecure detaches TLS once on the shared registry transport (see RegistryLogin).
+	// That stays in effect for later ops on this per-namespace client — acceptable
+	// because it is only used for Epinio's own charts/registry.
 	return client.RegistryLogin(
 		creds.Hostname,
 		creds.Username,
 		creds.Password,
-		action.WithInsecure(creds.Insecure),
+		creds.Insecure,
+		"",
 	)
 }
 
