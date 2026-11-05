@@ -3,9 +3,11 @@ package helm
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -156,14 +158,19 @@ func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
 	return statusAction.Run(name)
 }
 
-// RegistryLogin logs into an OCI registry. When insecure is true, the registry
-// transport's tls.Config is detached once (new pointer with InsecureSkipVerify)
-// instead of using Helm's LoginOptInsecure, which mutates the in-use tls.Config
-// and races with concurrent chart push/pull HTTP (-race).
+// RegistryLogin logs into an OCI registry.
+//
+// TLS is applied on our registry transport (insecure detach and optional CA
+// file) instead of Helm's LoginOptInsecure / LoginOptTLSClientConfig, which
+// mutate an in-use tls.Config (-race) and panic when the HTTP client uses a
+// bare retry.NewTransport wrap (Harbor chart-push 500). Login itself uses
+// RegistryClient.Login with BasicAuth only.
+//
+// caFile is optional; empty keeps the transport's existing RootCAs.
 func (c *SynchronizedClient) RegistryLogin(
 	hostname, username, password string,
 	insecure bool,
-	opts ...action.RegistryLoginOpt,
+	caFile string,
 ) error {
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
@@ -174,11 +181,17 @@ func (c *SynchronizedClient) RegistryLogin(
 		if err := c.ensureInsecureRegistryTLS(concreteHelmClient); err != nil {
 			return err
 		}
-		// Do not pass WithInsecure: TLS is already insecure on a detached config.
+	}
+	if caFile != "" {
+		if err := c.applyRegistryCAFile(caFile); err != nil {
+			return err
+		}
 	}
 
-	registryLoginAction := action.NewRegistryLogin(concreteHelmClient.ActionConfig)
-	return registryLoginAction.Run(nil, hostname, username, password, opts...)
+	return concreteHelmClient.ActionConfig.RegistryClient.Login(
+		hostname,
+		registry.LoginOptBasicAuth(username, password),
+	)
 }
 
 // ensureInsecureRegistryTLS replaces TLSClientConfig once with an insecure config.
@@ -219,6 +232,39 @@ func (c *SynchronizedClient) ensureInsecureRegistryTLS(helmClient *hc.HelmClient
 	helmClient.ActionConfig.RegistryClient = registryClient
 	c.registryTransport = transport
 	c.insecureTLSReady = true
+	return nil
+}
+
+// applyRegistryCAFile detaches TLSClientConfig and trusts caFile as RootCAs.
+func (c *SynchronizedClient) applyRegistryCAFile(caFile string) error {
+	c.registryTLSMu.Lock()
+	defer c.registryTLSMu.Unlock()
+
+	if c.registryTransport == nil {
+		return fmt.Errorf("registry transport is not initialized")
+	}
+
+	pem, err := os.ReadFile(caFile)
+	if err != nil {
+		return err
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		pool = x509.NewCertPool()
+	}
+	if !pool.AppendCertsFromPEM(pem) {
+		return fmt.Errorf("no certificate found in %s", caFile)
+	}
+
+	cfg := &tls.Config{
+		RootCAs:    pool,
+		MinVersion: tls.VersionTLS12,
+	}
+	if c.registryTransport.TLSClientConfig != nil {
+		cfg.InsecureSkipVerify = c.registryTransport.TLSClientConfig.InsecureSkipVerify
+		cfg.Certificates = c.registryTransport.TLSClientConfig.Certificates
+	}
+	c.registryTransport.TLSClientConfig = cfg
 	return nil
 }
 

@@ -273,7 +273,7 @@ func initHelmOCIRegistryOrRepository(client *SynchronizedClient, service models.
 		// if auth credentials are available try to login
 		if username != "" && password != "" {
 			registryHostname := strings.TrimPrefix(repoURL, "oci://")
-			err := client.RegistryLogin(registryHostname, username, password, false)
+			err := client.RegistryLogin(registryHostname, username, password, false, "")
 			if err != nil {
 				return "", errors.Wrap(err, "logging into the helm registry")
 			}
@@ -962,6 +962,7 @@ func loginToOCIRegistryIfInternal(ctx context.Context, cluster *kubernetes.Clust
 		creds.Username,
 		creds.Password,
 		creds.Insecure,
+		"",
 	)
 }
 

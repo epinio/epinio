@@ -72,6 +72,7 @@ func OpenChartRegistry(
 		creds.Username,
 		creds.Password,
 		creds.Insecure,
+		"",
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "logging into the registry")

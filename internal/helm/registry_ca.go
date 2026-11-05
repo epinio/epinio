@@ -103,7 +103,12 @@ func rootCAsWith(cert []byte) (*x509.CertPool, error) {
 // That transport is what RegistryLogin detaches when insecure TLS is needed,
 // instead of Helm's LoginOptInsecure mutating an in-use tls.Config (-race).
 // RootCAs from registryRootCAs are used when present; otherwise the system CAs.
-// The transport is wrapped with oras retry, matching Helm's default client.
+// The client uses oras retry.NewTransport around that *http.Transport.
+//
+// RegistryLogin must not call Helm's action.RegistryLogin / LoginOptInsecure:
+// those only unwrap Helm's unexported fallbackTransport chain, so a bare retry
+// wrap would make ensureTLSConfig fail and panic. We log in via
+// RegistryClient.Login with BasicAuth only, and set TLS on this transport.
 //
 // It must run before the helm client is shared. A failure is logged and nil is
 // returned; the caller keeps Helm's default registry client.
