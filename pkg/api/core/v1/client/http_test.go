@@ -18,12 +18,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"golang.org/x/oauth2"
 )
 
 var _ = Describe("Client HTTP", func() {
@@ -182,6 +184,98 @@ var _ = Describe("Client HTTP", func() {
 				_, handlerError := handler(http.MethodPost, "http://localhost/sync")
 				Expect(handlerError).To(HaveOccurred())
 			})
+		})
+	})
+})
+
+var _ = Describe("Client settings origin", func() {
+	var srv *httptest.Server
+
+	BeforeEach(func() {
+		srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, `{"status":"ok"}`)
+		}))
+		DeferCleanup(srv.Close)
+	})
+
+	It("accepts settings without a file, when the API comes from the environment", func() {
+		epinioClient := client.New(context.Background(), &settings.Settings{API: srv.URL})
+
+		_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("rejects missing settings", func() {
+		epinioClient := client.New(context.Background(), &settings.Settings{})
+
+		_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
+		Expect(err).To(MatchError(ContainSubstring("Client settings not found")))
+	})
+
+	It("rejects settings from a file which name no server", func() {
+		epinioClient := client.New(context.Background(), &settings.Settings{Location: "fake"})
+
+		_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
+		Expect(err).To(MatchError(ContainSubstring("No Epinio server found in settings")))
+	})
+})
+
+var _ = Describe("Client refreshed token", func() {
+	var (
+		srv          *httptest.Server
+		settingsFile string
+		epinioClient *client.Client
+	)
+
+	// refreshing returns a client whose token source swaps the stored token for "new-token".
+	refreshing := func() *http.Client {
+		return &http.Client{Transport: &oauth2.Transport{
+			Source: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "new-token"}),
+			Base:   http.DefaultTransport,
+		}}
+	}
+
+	BeforeEach(func() {
+		srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, `{"status":"ok"}`)
+		}))
+		DeferCleanup(srv.Close)
+
+		settingsFile = filepath.Join(GinkgoT().TempDir(), "settings.yaml")
+		GinkgoT().Setenv("EPINIO_API", srv.URL)
+		GinkgoT().Setenv("EPINIO_API_TOKEN", "old-token")
+	})
+
+	JustBeforeEach(func() {
+		cfg, err := settings.LoadFrom(settingsFile)
+		Expect(err).ToNot(HaveOccurred())
+
+		epinioClient = client.New(context.Background(), cfg)
+		epinioClient.HttpClient = refreshing()
+	})
+
+	When("the settings did not come from a file", func() {
+		It("does not write a settings file", func() {
+			_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(epinioClient.Settings.Token.AccessToken).To(Equal("new-token"))
+			Expect(settingsFile).ToNot(BeAnExistingFile())
+		})
+	})
+
+	When("the settings came from a file", func() {
+		BeforeEach(func() {
+			Expect(os.WriteFile(settingsFile, []byte("api: "+srv.URL+"\n"), 0600)).To(Succeed())
+		})
+
+		It("saves the refreshed token", func() {
+			_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
+			Expect(err).ToNot(HaveOccurred())
+
+			content, err := os.ReadFile(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(content)).To(ContainSubstring("new-token"))
 		})
 	})
 })
