@@ -152,6 +152,9 @@ func (c *EpinioClient) BindConfiguration(configurationName, appName string) erro
 	if err != nil {
 		return err
 	}
+	if err := c.waitRedeploys(br.OperationsResponse); err != nil {
+		return err
+	}
 
 	if len(br.WasBound) > 0 {
 		c.ui.Success().
@@ -189,8 +192,13 @@ func (c *EpinioClient) UnbindConfiguration(configurationName, appName string) er
 		return err
 	}
 
-	_, err := c.API.ConfigurationBindingDelete(c.Settings.Namespace, appName, configurationName)
+	ops, err := c.API.ConfigurationBindingDelete(
+		c.Settings.Namespace, appName, configurationName,
+	)
 	if err != nil {
+		return err
+	}
+	if err := c.waitRedeploys(ops); err != nil {
 		return err
 	}
 
@@ -262,7 +270,9 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) err
 		return match.Names
 	})
 
-	_, err := c.API.ConfigurationDelete(request, c.Settings.Namespace, names)
+	deleted, err := c.API.ConfigurationDelete(
+		request, c.Settings.Namespace, names,
+	)
 	if err != nil {
 		epinioAPIError := &client.APIError{}
 		// something bad happened
@@ -292,6 +302,11 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) err
 
 		// (1.)
 		bound = strings.Split(firstErr.Details, ",")
+	}
+	if err == nil {
+		if err := c.waitRedeploys(deleted.OperationsResponse); err != nil {
+			return err
+		}
 	}
 
 	if len(bound) > 0 {
@@ -343,8 +358,11 @@ func (c *EpinioClient) UpdateConfiguration(name string, removedKeys []string, as
 		Restart: &restart,
 	}
 
-	_, err := c.API.ConfigurationUpdate(request, c.Settings.Namespace, name)
+	ops, err := c.API.ConfigurationUpdate(request, c.Settings.Namespace, name)
 	if err != nil {
+		return err
+	}
+	if err := c.waitRedeploys(ops); err != nil {
 		return err
 	}
 

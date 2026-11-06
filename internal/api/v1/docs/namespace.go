@@ -15,7 +15,7 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 //go:generate swagger generate spec
 
-// swagger:route GET /namespaces namespace Namespaces
+// swagger:route GET /namespaces Namespaces Namespaces
 // Return list of all controlled namespaces.
 // responses:
 //   200: NamespacesResponse
@@ -43,7 +43,7 @@ type NamespacesResponse struct {
 	Body models.NamespaceList
 }
 
-// swagger:route POST /namespaces namespace NamespaceCreate
+// swagger:route POST /namespaces Namespaces NamespaceCreate
 // Create the posted new namespace.
 // responses:
 //   200: NamespaceCreateResponse
@@ -60,12 +60,12 @@ type NamespaceCreateResponse struct {
 	Body models.Response
 }
 
-// swagger:route DELETE /namespaces NamespaceBatchDelete
+// swagger:route DELETE /namespaces Namespaces NamespaceBatchDelete
 // Delete the named namespaces.
 // responses:
 //   200: NamespaceDeleteResponse
 
-// swagger:route DELETE /namespaces/{Namespace} namespace NamespaceDelete
+// swagger:route DELETE /namespaces/{Namespace} Namespaces NamespaceDelete
 // Delete the named `Namespace`.
 // responses:
 //   200: NamespaceDeleteResponse
@@ -88,7 +88,7 @@ type NamespaceDeleteResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /namespaces/{Namespace} namespace NamespaceShow
+// swagger:route GET /namespaces/{Namespace} Namespaces NamespaceShow
 // Return details of the named `Namespace`.
 // responses:
 //   200: NamespaceShowResponse
@@ -105,12 +105,12 @@ type NamespaceShowResponse struct {
 	Body models.Namespace
 }
 
-// swagger:route GET /namespacematches/{Pattern} namespace NamespaceMatch
+// swagger:route GET /namespacematches/{Pattern} Namespaces NamespacesMatch
 // Return list of names for all controlled namespaces whose name matches the prefix `Pattern`.
 // responses:
 //   200: NamespaceMatchResponse
 
-// swagger:parameters NamespaceMatch
+// swagger:parameters NamespacesMatch
 type NamespaceMatchParam struct {
 	// in: path
 	Pattern string
@@ -122,12 +122,12 @@ type NamespaceMatchResponse struct {
 	Body models.NamespacesMatchResponse
 }
 
-// swagger:route GET /namespacematches namespace NamespaceMatch0
-// Return list of names for all controlled namespaces (No prefix = empty prefix = match everything)
+// swagger:route GET /namespacematches Namespaces NamespacesMatch0
+// Return all namespace names.
 // responses:
 //   200: NamespaceMatchResponse
 
-// swagger:parameters NamespaceMatch0
+// swagger:parameters NamespacesMatch0
 type NamespaceMatch0Param struct{}
 
 // response: See NamespaceMatch.

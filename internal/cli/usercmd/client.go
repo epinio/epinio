@@ -53,24 +53,27 @@ type APIClient interface {
 	UndeployedApps(namespace string) (models.AppList, error)
 	AllApps() (models.AppList, error)
 	AppShow(namespace string, appName string) (models.App, error)
-	AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error)
+	AppUpdate(
+		req models.ApplicationUpdateRequest,
+		namespace string,
+		appName string,
+	) (*models.AppOperation, error)
+	AppState(namespace, appName string) (models.AppState, error)
 	AppDelete(namespace string, names []string, deleteImage, deletePVC bool) (models.ApplicationDeleteResponse, error)
 	AppBuildDelete(namespace string, name string) (models.Response, error)
 	AppUpload(namespace string, name string, file client.FormFile) (models.UploadResponse, error)
-	AppSourcePatch(namespace, name string, file client.FormFile, processCmd string) (*models.StageResponse, error)
+	AppSourcePatch(
+		namespace, name string,
+		file client.FormFile,
+		processCmd string,
+	) (*models.AppOperation, error)
 	AppSync(namespace, name string, file client.FormFile, mode, dest, binaryName string) (models.Response, error)
-	AppImportGit(namespace string, name string, gitRef models.GitRef) (models.ImportGitResponse, error)
-	AppStage(req models.StageRequest) (*models.StageResponse, error)
-	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
-	AppDeploymentsStart(req models.AsyncDeployRequest) (*models.AsyncDeployStatus, error)
-	AppDeploymentStatus(namespace, appName, deploymentID string) (models.AsyncDeployStatus, error)
+	AppStage(req models.StageRequest) (*models.AppOperation, error)
+	AppDeploy(req models.DeployRequest) (*models.AppOperation, error)
 	AppLogs(namespace, appName, stageID string, follow bool, options *client.LogOptions, callback func(tailer.ContainerLogLine)) error
-	StagingComplete(namespace string, id string) (models.Response, error)
-	StagingCompleteStream(ctx context.Context, namespace, id string, callback func(models.StageCompleteEvent) error) error
-	AppRunning(app models.AppRef) (models.Response, error)
 	AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error
 	AppPortForward(namespace string, appName, instance string, opts *client.PortForwardOpts) error
-	AppRestart(namespace string, appName string) (models.Response, error)
+	AppRestart(namespace string, appName string) (*models.AppOperation, error)
 	AppGetPart(namespace, appName, part string) (models.AppPartResponse, error)
 	AppMatch(namespace, prefix string) (models.AppMatchResponse, error)
 	AppMatchAll(namespace, prefix string) (models.AppMatchResponse, error)
@@ -80,9 +83,17 @@ type APIClient interface {
 	// env
 	EnvList(namespace string, appName string) (models.EnvVariableMap, error)
 	EnvListGrouped(namespace string, appName string) (models.EnvVariableGroupedResponse, error)
-	EnvSet(req models.EnvVariableMap, namespace string, appName string) (models.Response, error)
+	EnvSet(
+		req models.EnvVariableMap,
+		namespace string,
+		appName string,
+	) (models.OperationsResponse, error)
 	EnvShow(namespace string, appName string, envName string) (models.EnvVariable, error)
-	EnvUnset(namespace string, appName string, envName string) (models.Response, error)
+	EnvUnset(
+		namespace string,
+		appName string,
+		envName string,
+	) (models.OperationsResponse, error)
 	EnvMatch(namespace string, appName string, prefix string) (models.EnvMatchResponse, error)
 
 	// info
@@ -99,10 +110,17 @@ type APIClient interface {
 	Configurations(namespace string) (models.ConfigurationResponseList, error)
 	AllConfigurations() (models.ConfigurationResponseList, error)
 	ConfigurationBindingCreate(req models.BindRequest, namespace string, appName string) (models.BindResponse, error)
-	ConfigurationBindingDelete(namespace string, appName string, configurationName string) (models.Response, error)
+	ConfigurationBindingDelete(
+		namespace string,
+		appName string,
+		configurationName string,
+	) (models.OperationsResponse, error)
 	ConfigurationDelete(req models.ConfigurationDeleteRequest, namespace string, names []string) (models.ConfigurationDeleteResponse, error)
 	ConfigurationCreate(req models.ConfigurationCreateRequest, namespace string) (models.Response, error)
-	ConfigurationUpdate(req models.ConfigurationUpdateRequest, namespace, name string) (models.Response, error)
+	ConfigurationUpdate(
+		req models.ConfigurationUpdateRequest,
+		namespace, name string,
+	) (models.OperationsResponse, error)
 	// note: The replace endpoint is not used by the cli.
 	ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error)
 	ConfigurationApps(namespace string) (models.ConfigurationAppsResponse, error)
@@ -119,9 +137,18 @@ type APIClient interface {
 	AllServices() (models.ServiceList, error)
 	ServiceShow(namespace, name string) (*models.Service, error)
 	ServiceCreate(req models.ServiceCreateRequest, namespace string) (models.Response, error)
-	ServiceBind(req models.ServiceBindRequest, namespace, name string) (models.Response, error)
-	ServiceBatchBind(req models.ServiceBatchBindRequest, namespace, appName string) (models.Response, error)
-	ServiceUnbind(req models.ServiceUnbindRequest, namespace, name string) (models.Response, error)
+	ServiceBind(
+		req models.ServiceBindRequest,
+		namespace, name string,
+	) (models.OperationsResponse, error)
+	ServiceBatchBind(
+		req models.ServiceBatchBindRequest,
+		namespace, appName string,
+	) (models.OperationsResponse, error)
+	ServiceUnbind(
+		req models.ServiceUnbindRequest,
+		namespace, name string,
+	) (models.OperationsResponse, error)
 	ServiceDelete(req models.ServiceDeleteRequest, namespace string, names []string) (models.ServiceDeleteResponse, error)
 	ServiceList(namespace string) (models.ServiceList, error)
 	ServiceMatch(namespace, prefix string) (models.ServiceMatchResponse, error)

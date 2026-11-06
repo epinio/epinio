@@ -121,23 +121,35 @@ func (c *Client) ServiceDelete(request models.ServiceDeleteRequest, namespace st
 	return Delete(c, endpoint, request, response)
 }
 
-func (c *Client) ServiceBind(request models.ServiceBindRequest, namespace, name string) (models.Response, error) {
-	response := models.Response{}
+func (c *Client) ServiceBind(
+	request models.ServiceBindRequest,
+	namespace,
+	name string,
+) (models.OperationsResponse, error) {
+	response := models.OperationsResponse{}
 	endpoint := api.Routes.Path("ServiceBind", namespace, name)
 
 	return Post(c, endpoint, request, response)
 }
 
-func (c *Client) ServiceUnbind(request models.ServiceUnbindRequest, namespace, name string) (models.Response, error) {
-	response := models.Response{}
+func (c *Client) ServiceUnbind(
+	request models.ServiceUnbindRequest,
+	namespace,
+	name string,
+) (models.OperationsResponse, error) {
+	response := models.OperationsResponse{}
 	endpoint := api.Routes.Path("ServiceUnbind", namespace, name)
 
 	return Post(c, endpoint, request, response)
 }
 
 // ServiceBatchBind binds multiple services to an application at once
-func (c *Client) ServiceBatchBind(request models.ServiceBatchBindRequest, namespace, appName string) (models.Response, error) {
-	response := models.Response{}
+func (c *Client) ServiceBatchBind(
+	request models.ServiceBatchBindRequest,
+	namespace,
+	appName string,
+) (models.OperationsResponse, error) {
+	response := models.OperationsResponse{}
 	endpoint := api.Routes.Path("ServiceBatchBind", namespace, appName)
 
 	return Post(c, endpoint, request, response)

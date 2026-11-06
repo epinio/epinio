@@ -111,8 +111,7 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 				deployRequest.ImageURL = stageResponse.ImageURL
 				deployRequest.Stage = stageResponse.Stage
 
-				_, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
-				Expect(statusCode).To(Equal(http.StatusOK))
+				deployApplication(namespace, appName, deployRequest)
 
 				By("waiting for the old blob to be gone")
 				Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
@@ -160,8 +159,7 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 				deployRequest.ImageURL = stageResponse.ImageURL
 				deployRequest.Stage.ID = stageResponse.Stage.ID
 
-				_, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
-				Expect(statusCode).To(Equal(http.StatusOK))
+				deployApplication(namespace, appName, deployRequest)
 
 				Consistently(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(theOnlyBlob)))
 			})
@@ -187,11 +185,8 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 
 		When("deploying a new app", func() {
 			It("returns a success", func() {
-				bodyBytes, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
-				Expect(statusCode).To(Equal(http.StatusOK))
-
-				deployResponse := fromJSON[models.DeployResponse](bodyBytes)
-				Expect(deployResponse.Routes[0]).To(MatchRegexp(appName + `\..*\.(?:sslip\.io|nip\.io)`))
+				deployed := deployApplication(namespace, appName, deployRequest)
+				Expect(deployed.Routes[0]).To(MatchRegexp(appName + `\..*\.(?:sslip\.io|nip\.io)`))
 
 				Eventually(func() string {
 					return appShow(namespace, appName).Workload.Status
@@ -221,8 +216,7 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 
 			It("the app Ingress matches the specified route", func() {
 				// call the deploy action. Deploy should respect the routes on the App CR.
-				_, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
-				Expect(statusCode).To(Equal(http.StatusOK))
+				deployApplication(namespace, appName, deployRequest)
 
 				out, err := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")
@@ -264,12 +258,16 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 
 			It("should fail the second deployment", func() {
 				// call the deploy action. Deploy should respect the routes on the App CR.
-				_, statusCode := appDeploy(namespace, appName, toJSON(deployRequest))
-				Expect(statusCode).To(Equal(http.StatusOK))
+				deployApplication(namespace, appName, deployRequest)
 
+				// The route conflict is rejected on the request, before any
+				// operation starts.
 				deployRequest.App.Name = appName2
-				_, statusCode = appDeploy(namespace, appName, toJSON(deployRequest))
-				Expect(statusCode).To(Equal(http.StatusBadRequest))
+				bodyBytes, statusCode := appDeploy(
+					namespace, appName2, toJSON(deployRequest),
+				)
+				Expect(statusCode).To(Equal(http.StatusBadRequest),
+					string(bodyBytes))
 
 				out, err := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")

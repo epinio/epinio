@@ -14,7 +14,6 @@ package configuration
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apiapp "github.com/epinio/epinio/internal/api/v1/application"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -55,6 +54,8 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 
 	// backward compatibility: if no flag provided then restart the app
 	restart := (replaceRequest.Restart == nil || *replaceRequest.Restart) && dataChanged
+	redeploys := models.OperationsResponse{}
+	var apiErr apierror.APIErrors
 	if restart {
 		// Determine bound apps, as candidates for restart.
 		appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
@@ -63,12 +64,12 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 		}
 
 		// Perform restart on the candidates which are actually running
-		apiErr := apiapp.Redeploy(ctx, cluster, namespace, appNames)
+		redeploys, apiErr = apiapp.Redeploy(ctx, cluster, namespace, appNames)
 		if apiErr != nil {
 			return apiErr
 		}
 	}
 
-	response.OK(c)
+	apiapp.RespondRedeploys(c, redeploys)
 	return nil
 }

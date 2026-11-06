@@ -11,12 +11,17 @@
 
 // Epinio API
 //
-// This is the API specification of the Epinio API
+// The Epinio server API, used by the CLI, the dashboard and the MCP server.
+//
+// Requests authenticate with Basic Auth. Lifecycle
+// requests (stage, deploy, restart, update, source patch, and changes that
+// redeploy bound apps) answer 202 with an operation; poll AppState until
+// the operation is done.
 //
 //     Schemes: http, https
 //     Host:
 //     BasePath: /api/v1
-//     Version: 1.0.0
+//     Version: v1
 //
 //     SecurityDefinitions:
 //     basicAuth:
@@ -27,3 +32,14 @@
 //
 // swagger:meta
 package docs
+
+import (
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
+)
+
+// The error body every failed request returns.
+// swagger:response ErrorResponse
+type ErrorResponse struct {
+	// in: body
+	Body apierrors.ErrorResponse
+}

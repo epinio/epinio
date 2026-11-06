@@ -17,15 +17,17 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Configurations
 
-// swagger:route DELETE /namespaces/{Namespace}/configurations/{Configuration} configuration ConfigurationDelete
+// swagger:route DELETE /namespaces/{Namespace}/configurations/{Configuration} Configurations ConfigurationDelete
 // Delete the named `Configuration` in the `Namespace`.
 // responses:
 //   200: ConfigurationDeleteResponse
+//   202: ConfigurationDeleteResponse
 
-// swagger:route DELETE /namespaces/{Namespace}/configurations ConfigurationBatchDelete
+// swagger:route DELETE /namespaces/{Namespace}/configurations Configurations ConfigurationBatchDelete
 // Delete the named `Configurations` in the `Namespace`.
 // responses:
 //   200: ConfigurationDeleteResponse
+//   202: ConfigurationDeleteResponse
 
 // swagger:parameters ConfigurationDelete
 type ConfigurationDeleteParam struct {
@@ -53,7 +55,7 @@ type ConfigurationDeleteResponse struct {
 	Body models.ConfigurationDeleteResponse
 }
 
-// swagger:route GET /namespaces/{Namespace}/configurationapps configuration ConfigurationApps
+// swagger:route GET /namespaces/{Namespace}/configurationapps Configurations ConfigurationApps
 // Return map from configurations in the `Namespace`, to the apps in the same.
 // responses:
 //   200: ConfigurationAppsResponse
@@ -70,7 +72,7 @@ type ConfigurationAppsResponse struct {
 	Body map[string]models.AppList
 }
 
-// swagger:route GET /namespaces/{Namespace}/configurations configuration Configurations
+// swagger:route GET /namespaces/{Namespace}/configurations Configurations Configurations
 // Return list of configurations in the `Namespace`.
 // responses:
 //   200: ConfigurationsResponse
@@ -87,7 +89,7 @@ type ConfigurationsResponse struct {
 	Body models.ConfigurationResponseList
 }
 
-// swagger:route GET /namespaces/{Namespace}/configurations/{Configuration} configuration ConfigurationShow
+// swagger:route GET /namespaces/{Namespace}/configurations/{Configuration} Configurations ConfigurationShow
 // Return details of the named `Configuration` in the `Namespace`.
 // responses:
 //   200: ConfigurationShowResponse
@@ -106,7 +108,7 @@ type ConfigurationShowResponse struct {
 	Body models.ConfigurationResponse
 }
 
-// swagger:route GET /namespace/{Namespace}/configurationsmatches/{Pattern} configuration ConfigurationMatch
+// swagger:route GET /namespaces/{Namespace}/configurationsmatches/{Pattern} Configurations ConfigurationMatch
 // Return list of names for all configurations whose name matches the prefix `Pattern`.
 // responses:
 //   200: ConfigurationMatchResponse
@@ -125,7 +127,7 @@ type ConfigurationMatchResponse struct {
 	Body models.ConfigurationMatchResponse
 }
 
-// swagger:route POST /namespaces/{Namespace}/configurations configuration ConfigurationCreate
+// swagger:route POST /namespaces/{Namespace}/configurations Configurations ConfigurationCreate
 // Create the posted new configuration in the `Namespace`.
 // responses:
 //   200: ConfigurationCreateResponse
@@ -144,10 +146,14 @@ type ConfigurationCreateResponse struct {
 	Body models.Response
 }
 
-// swagger:route PATCH /namespaces/{Namespace}/configurations/{Configuration} configuration ConfigurationUpdate
-// Update the named `Configuration` in the `Namespace` as per the instructions in the body
+// swagger:route PATCH /namespaces/{Namespace}/configurations/{Configuration} Configurations ConfigurationUpdate
+// Update the named `Configuration` in the `Namespace`.
+//
+// Answers 202 with the redeploys of the running apps bound to it, unless
+// the request turns restarts off.
 // responses:
 //   200: ConfigurationUpdateResponse
+//   202: OperationsResponse
 
 // swagger:parameters ConfigurationUpdate
 type ConfigurationUpdateParam struct {
@@ -165,10 +171,14 @@ type ConfigurationUpdateResponse struct {
 	Body models.Response
 }
 
-// swagger:route PUT /namespaces/{Namespace}/configurations/{Configuration} configuration ConfigurationReplace
-// Replace the named `Configuration` in the `Namespace` as per the instructions in the body
+// swagger:route PUT /namespaces/{Namespace}/configurations/{Configuration} Configurations ConfigurationReplace
+// Replace the data of the named `Configuration` in the `Namespace`.
+//
+// Answers 202 with the redeploys of the running apps bound to it, when the
+// data changed.
 // responses:
 //   200: ConfigurationReplaceResponse
+//   202: OperationsResponse
 
 // swagger:parameters ConfigurationReplace
 type ConfigurationReplaceParam struct {
@@ -186,7 +196,7 @@ type ConfigurationReplaceResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /configurations configuration AllConfigurations
+// swagger:route GET /configurations Configurations AllConfigurations
 // Return list of configurations in all namespaces.
 // responses:
 //   200: ConfigurationsResponse
@@ -209,3 +219,17 @@ type ConfigurationAllConfigurationsParam struct {
 }
 
 // response: See Configurations.
+
+// swagger:route GET /namespaces/{Namespace}/configurationsmatches Configurations ConfigurationMatch0
+// Return list of names for all configurations in the `Namespace`.
+// (No prefix == empty prefix == match everything)
+// responses:
+//   200: ConfigurationMatchResponse
+
+// swagger:parameters ConfigurationMatch0
+type ConfigurationMatch0Param struct {
+	// in: path
+	Namespace string
+}
+
+// response: See ConfigurationMatch.

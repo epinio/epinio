@@ -200,7 +200,11 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 		bindEndpoint := makeEndpoint(v1.Routes.Path("ServiceBind", namespace, serviceName))
 		bindBody := toJSON(models.ServiceBindRequest{AppName: app})
 		bindBodyBytes, bindStatus := curl(http.MethodPost, bindEndpoint, bindBody)
-		ExpectResponseToBeOK(bindBodyBytes, bindStatus)
+		// 202 when the bind redeployed a running app, else 200.
+		Expect(bindStatus).To(
+			BeElementOf(http.StatusOK, http.StatusAccepted),
+			string(bindBodyBytes),
+		)
 
 		// Fetch grouped environment from the dedicated environment endpoint
 		envEndpoint := makeEndpoint(v1.Routes.Path("EnvList", namespace, app) + "?grouped=true")

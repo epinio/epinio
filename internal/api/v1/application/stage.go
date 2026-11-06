@@ -19,10 +19,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
@@ -40,7 +38,6 @@ import (
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
@@ -190,7 +187,6 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, config StagingS
 // It creates a Job resource to stage the app
 func Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
@@ -209,44 +205,152 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	if apiErr := validateStageRequestBuildSettings(req); apiErr != nil {
 		return apiErr
 	}
+	if apiErr := validateStageRequestOrigin(req); apiErr != nil {
+		return apiErr
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err, "failed to get access to a kube client")
 	}
 
+	exists, err := application.Exists(ctx, cluster, req.App)
+	if err != nil {
+		return apierror.InternalError(
+			err, "failed to get the application resource",
+		)
+	}
+	if !exists {
+		return apierror.AppIsNotKnown(
+			"cannot stage app, application resource is missing",
+		)
+	}
+
+	// Authorize the origin's git configuration now, so a forbidden one is
+	// a 403 on this request rather than a failed operation.
+	if apiErr := authorizeOrigin(ctx, cluster, req.Origin); apiErr != nil {
+		return apiErr
+	}
+	apiErr := validateRequestedBlob(ctx, cluster, req.App, req.BlobUID)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	return startOperation(c, req.App, models.OperationBuild,
+		func(ctx context.Context, rep operationReporter) error {
+			_, err := buildAndWait(ctx, cluster, req, username, rep)
+			return err
+		})
+}
+
+// buildAndWait is the build operation: it runs the build core, reports
+// the stage ID as soon as the staging Job exists (clients use it to
+// stream the staging logs), and waits for the Job to finish.
+func buildAndWait(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	req models.StageRequest,
+	username string,
+	rep operationReporter,
+) (models.StageResponse, error) {
+	rep.Phase(models.OperationStaging)
+
+	staged, apiErr := stageApp(ctx, cluster, req, username)
+	if apiErr != nil {
+		return staged, apiErrorAsError(apiErr)
+	}
+	rep.Staged(staged.Stage.ID, staged.ImageURL)
+
+	jobs, apiErr := stageJobs(ctx, cluster, req.App.Namespace, staged.Stage.ID)
+	if apiErr != nil {
+		return staged, apiErrorAsError(apiErr)
+	}
+
+	success, err := waitForStagingCompletion(ctx, cluster, jobs)
+	if err != nil {
+		return staged, fmt.Errorf("waiting for the build: %w", err)
+	}
+	if !success {
+		return staged, fmt.Errorf(
+			"build %s failed; see the staging logs", staged.Stage.ID,
+		)
+	}
+
+	return staged, nil
+}
+
+// validateStageRequestOrigin rejects a git origin with a malformed URL
+// when staging will have to clone it (no blob was uploaded). It is the
+// check ImportGit made before it cloned.
+func validateStageRequestOrigin(req models.StageRequest) apierror.APIErrors {
+	if req.BlobUID != "" || req.Origin.Kind != models.OriginGit {
+		return nil
+	}
+	if req.Origin.Git == nil {
+		return apierror.NewBadRequestError(
+			"git origin is missing its repository",
+		)
+	}
+
+	return validateGitURL(req.Origin.Git.URL)
+}
+
+// stageApp is the one build core: it loads the app, saves the origin the
+// client sent, resolves the source (uploaded blob, stored blob, or a git
+// clone), and creates the staging Job. The Stage handler and the async
+// deploy runner both call it; the caller waits for the Job if it needs to.
+func stageApp(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	req models.StageRequest,
+	username string,
+) (models.StageResponse, apierror.APIErrors) {
+	log := requestctx.Logger(ctx)
+	namespace := req.App.Namespace
+
 	// check application resource
 	app, err := application.Get(ctx, cluster, req.App)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return apierror.AppIsNotKnown("cannot stage app, application resource is missing")
+			return models.StageResponse{}, apierror.AppIsNotKnown(
+				"cannot stage app, application resource is missing",
+			)
 		}
-		return apierror.InternalError(err, "failed to get the application resource")
+		return models.StageResponse{}, apierror.InternalError(
+			err,
+			"failed to get the application resource",
+		)
 	}
 
 	// Quickly reject conflict with (still) active staging
 	staging, err := application.IsCurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
 	if err != nil {
-		return apierror.InternalError(err)
+		return models.StageResponse{}, apierror.InternalError(err)
 	}
 	if staging {
-		return apierror.NewBadRequestError("staging job for image ID still running")
+		return models.StageResponse{}, apierror.NewBadRequestError(
+			"staging job for image ID still running",
+		)
 	}
 
-	// Persist origin early when the client supplies one (build-only CLI path),
-	// so a later deploy-only step still knows where the sources came from.
+	// Persist the origin the client sent before anything can fail, so a
+	// failed build still knows where its sources came from and a retry
+	// (or a later deploy-only step) can re-clone them.
 	if req.Origin.Kind != models.OriginNone {
 		if apierr := authorizeOrigin(ctx, cluster, req.Origin); apierr != nil {
-			return apierr
+			return models.StageResponse{}, apierr
 		}
 		if err := application.SetOrigin(ctx, cluster, req.App, req.Origin); err != nil {
-			return apierror.InternalError(err, "saving the app origin")
+			return models.StageResponse{}, apierror.InternalError(
+				err,
+				"saving the app origin",
+			)
 		}
 	}
 
 	buildMode, dockerfilePath, builderImage, config, setupErr := resolveStagingImagesAndScripts(ctx, cluster, req, app)
 	if setupErr != nil {
-		return setupErr
+		return models.StageResponse{}, setupErr
 	}
 
 	log.Infow("staging app", "scripts", config.Name)
@@ -260,31 +364,44 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	log.Infow("staging app", "groupid", config.GroupID)
 	log.Infow("staging app", "build env", config.Env)
 	log.Infow("staging app", "Staging Values", config.HelmValues)
-	log.Infow("staging app", "namespace", namespace, "app", req)
+	log.Infow("staging app", "namespace", namespace, "app", req.App)
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
-		return apierror.InternalError(err, "failed to fetch the S3 connection details")
+		return models.StageResponse{}, apierror.InternalError(
+			err,
+			"failed to fetch the S3 connection details",
+		)
 	}
 
-	blobUID, blobErr := resolveBlobUID(
+	blobUID, cloned, blobErr := resolveBlobUID(
 		ctx, cluster, s3ConnectionDetails, req, app, username,
 	)
 	if blobErr != nil {
-		return blobErr
+		return models.StageResponse{}, blobErr
+	}
+	apierr := recordClonedRevision(ctx, cluster, req, cloned)
+	if apierr != nil {
+		return models.StageResponse{}, apierr
 	}
 
 	// Create uid identifying the staging job to be
 
 	uid, err := randstr.Hex16()
 	if err != nil {
-		return apierror.InternalError(err, "failed to generate a uid")
+		return models.StageResponse{}, apierror.InternalError(
+			err,
+			"failed to generate a uid",
+		)
 	}
 
 	environment, err := application.Environment(ctx, cluster, req.App)
 	if err != nil {
-		return apierror.InternalError(err, "failed to access application runtime environment")
+		return models.StageResponse{}, apierror.InternalError(
+			err,
+			"failed to access application runtime environment",
+		)
 	}
 
 	owner := metav1.OwnerReference{
@@ -298,7 +415,10 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	// From the view of the new build we are about to create this is the previous id.
 	previousID, err := application.StageID(app)
 	if err != nil {
-		return apierror.InternalError(err, "failed to determine application stage id")
+		return models.StageResponse{}, apierror.InternalError(
+			err,
+			"failed to determine application stage id",
+		)
 	}
 	if previousID == "" {
 		previousID = uid
@@ -306,13 +426,19 @@ func Stage(c *gin.Context) apierror.APIErrors {
 
 	registryPublicURL, err := getRegistryURL(ctx, cluster)
 	if err != nil {
-		return apierror.InternalError(err, "getting the Epinio registry public URL")
+		return models.StageResponse{}, apierror.InternalError(
+			err,
+			"getting the Epinio registry public URL",
+		)
 	}
 
 	registryCertificateSecret, registryCACertKey, registryCertificateHash, err :=
 		resolveRegistryCertHash(ctx, cluster)
 	if err != nil {
-		return apierror.InternalError(err, "cannot calculate Certificate hash")
+		return models.StageResponse{}, apierror.InternalError(
+			err,
+			"cannot calculate Certificate hash",
+		)
 	}
 
 	// merge buildpack and general EV, i.e. `config.Env`, and `environment`.
@@ -349,12 +475,37 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		HelmValues:          config.HelmValues,
 	}
 
-	stageResponse, stageErr := executeStage(ctx, cluster, app, req, params)
-	if stageErr != nil {
-		return stageErr
+	return executeStage(ctx, cluster, app, req, params)
+}
+
+// recordClonedRevision stamps the branch and commit a fresh clone
+// resolved onto the origin the client sent, so a rebuild re-clones the
+// same commit. ImportGit returned these for the client to stamp; now
+// that staging clones, it stamps them itself. Clones from the stored
+// origin (the missing-blob fallback) leave it unchanged.
+func recordClonedRevision(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	req models.StageRequest,
+	cloned *models.GitRef,
+) apierror.APIErrors {
+	if cloned == nil || req.Origin.Kind != models.OriginGit ||
+		req.Origin.Git == nil {
+		return nil
 	}
 
-	response.OKReturn(c, stageResponse)
+	origin := req.Origin
+	git := *req.Origin.Git
+	git.Revision = cloned.Revision
+	if git.Branch == "" {
+		git.Branch = cloned.Branch
+	}
+	origin.Git = &git
+
+	if err := application.SetOrigin(ctx, cluster, req.App, origin); err != nil {
+		return apierror.InternalError(err, "saving the resolved git revision")
+	}
+
 	return nil
 }
 
@@ -492,157 +643,28 @@ func jobDoneState(jobs []batchv1.Job) (done bool, success bool) {
 	return allDone, allSuccess
 }
 
-// Staged handles the API endpoint /namespaces/:namespace/staging/:stage_id/complete
-// It waits for the Job resource staging the app to complete
-func Staged(c *gin.Context) apierror.APIErrors {
-	ctx := c.Request.Context()
-
-	namespace := c.Param("namespace")
-	id := c.Param("stage_id")
-
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	jobs, apiErr := stageJobs(ctx, cluster, namespace, id)
-	if apiErr != nil {
-		return apiErr
-	}
-
-	success, err := waitForStagingCompletion(ctx, cluster, jobs)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if !success {
-		return apierror.NewInternalError("Failed to stage",
-			fmt.Sprintf("stage-id = %s", id))
-	}
-
-	response.OK(c)
-	return nil
-}
-
-// StagedWebsocket handles the websocket endpoint /namespaces/:namespace/staging/:stage_id/complete
-// It streams a small status payload when the staging job finishes (success or failure) and then closes the socket.
-func StagedWebsocket(c *gin.Context) {
-	ctx := c.Request.Context()
-	log := requestctx.Logger(ctx)
-
-	namespace := c.Param("namespace")
-	stageID := c.Param("stage_id")
-
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		response.Error(c, apierror.InternalError(err))
-		return
-	}
-
-	jobs, apiErr := stageJobs(ctx, cluster, namespace, stageID)
-	if apiErr != nil {
-		response.Error(c, apiErr)
-		return
-	}
-
-	upgrader := newUpgrader()
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		response.Error(c, apierror.InternalError(err))
-		return
-	}
-	defer func() {
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-		_ = conn.Close()
-	}()
-
-	sendUpdate := func(status, message string, completed bool) error {
-		payload := models.StageCompleteEvent{
-			StageID:   stageID,
-			Namespace: namespace,
-			Status:    status,
-			Message:   message,
-			Completed: completed,
-		}
-
-		data, marshalErr := json.Marshal(payload)
-		if marshalErr != nil {
-			return marshalErr
-		}
-
-		return conn.WriteMessage(websocket.TextMessage, data)
-	}
-
-	// initial acknowledgement so the caller knows the socket is established
-	if err := sendUpdate(models.StageStatusWaiting, "waiting for staging job to finish", false); err != nil {
-		log.Errorw("failed to send initial staging websocket message",
-			"error", err,
-		)
-		return
-	}
-
-	// If the job already completed before the websocket upgrade, send the final state immediately.
-	if done, success := jobDoneState(jobs); done {
-		if success {
-			_ = sendUpdate(models.StageStatusSucceeded, "", true)
-		} else {
-			_ = sendUpdate(models.StageStatusFailed, fmt.Sprintf("stage-id = %s failed to complete", stageID), true)
-		}
-		return
-	}
-
-	// Cancel the wait if the client disconnects.
-	waitCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	conn.SetCloseHandler(func(code int, text string) error {
-		cancel()
+// validateRequestedBlob checks an uploaded blob the request names before
+// any operation starts, so a blob of another app is a 400 on the request.
+// It is a metadata read on S3, cheap enough to run in the request.
+func validateRequestedBlob(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+	blobUID string,
+) apierror.APIErrors {
+	if blobUID == "" {
 		return nil
-	})
-
-	type result struct {
-		success bool
-		err     error
 	}
-	resultCh := make(chan result, 1)
 
-	go func() {
-		success, waitErr := waitForStagingCompletion(waitCtx, cluster, jobs)
-		resultCh <- result{success: success, err: waitErr}
-	}()
-
-	heartbeat := time.NewTicker(10 * time.Second)
-	defer heartbeat.Stop()
-
-	for {
-		select {
-		case <-waitCtx.Done():
-			_ = sendUpdate(models.StageStatusError, "staging wait cancelled", true)
-			return
-		case res := <-resultCh:
-			if res.err != nil {
-				log.Errorw("staging completion watcher failed", "error", res.err)
-				_ = sendUpdate(models.StageStatusError, res.err.Error(), true)
-				return
-			}
-			if res.success {
-				_ = sendUpdate(models.StageStatusSucceeded, "", true)
-				return
-			}
-			_ = sendUpdate(
-				models.StageStatusFailed,
-				fmt.Sprintf("stage-id = %s failed to complete", stageID),
-				true,
-			)
-			return
-		case <-heartbeat.C:
-			if err := sendUpdate(
-				models.StageStatusWaiting,
-				"waiting for staging job to finish",
-				false,
-			); err != nil {
-				log.Errorw("failed to send staging heartbeat", "error", err)
-			}
-		}
+	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
+		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
+	if err != nil {
+		return apierror.InternalError(
+			err, "failed to fetch the S3 connection details",
+		)
 	}
+
+	return validateBlob(ctx, blobUID, app, s3ConnectionDetails)
 }
 
 func validateBlob(
@@ -1092,7 +1114,9 @@ func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (s
 // a specific blob and cannot have it gets an error, never a silent substitute.
 // A blob recorded on the app CR may have been reaped from S3, so failing to use
 // it falls through to the git origin. With neither, the git origin is the only
-// source left.
+// source left. The git origin is the request's when it carries one, else the
+// stored one. After a clone it also returns the branch and commit the clone
+// resolved, so the caller can stamp them; otherwise that value is nil.
 func resolveBlobUID(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
@@ -1100,7 +1124,7 @@ func resolveBlobUID(
 	req models.StageRequest,
 	app *unstructured.Unstructured,
 	username string,
-) (string, apierror.APIErrors) {
+) (string, *models.GitRef, apierror.APIErrors) {
 	log := requestctx.Logger(ctx)
 	namespace := req.App.Namespace
 	name := req.App.Name
@@ -1110,15 +1134,15 @@ func resolveBlobUID(
 			ctx, req.BlobUID, req.App, s3ConnectionDetails,
 		)
 		if validateError != nil {
-			return "", validateError
+			return "", nil, validateError
 		}
 
-		return req.BlobUID, nil
+		return req.BlobUID, nil, nil
 	}
 
 	storedBlobUID, lookupError := application.BlobUID(app)
 	if lookupError != nil {
-		return "", apierror.InternalError(
+		return "", nil, apierror.InternalError(
 			lookupError, "looking up the previous blob UID",
 		)
 	}
@@ -1128,7 +1152,7 @@ func resolveBlobUID(
 			ctx, storedBlobUID, req.App, s3ConnectionDetails,
 		)
 		if validateError == nil {
-			return storedBlobUID, nil
+			return storedBlobUID, nil, nil
 		}
 
 		log.Infow("stored blob unusable, checking for git origin fallback",
@@ -1142,12 +1166,14 @@ func resolveBlobUID(
 			"no stored blob is available, and it has no git origin to re-clone",
 	)
 
-	origin, originError := application.Origin(app)
+	// Prefer the origin the client just sent: app was read before that
+	// origin was saved, so the stored one may be missing or stale.
+	origin, originError := sourceOrigin(req, app)
 	if originError != nil || origin.Git == nil {
 		log.Infow("no git origin available for fallback",
 			"namespace", namespace, "app", name,
 		)
-		return "", blobError
+		return "", nil, blobError
 	}
 
 	log.Infow("git origin found, re-cloning to S3",
@@ -1161,7 +1187,10 @@ func resolveBlobUID(
 		cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()),
 	)
 	if managerError != nil {
-		return "", apierror.InternalError(managerError, "creating git configuration manager")
+		return "", nil, apierror.InternalError(
+			managerError,
+			"creating git configuration manager",
+		)
 	}
 
 	var gitConfig *gitbridge.Configuration
@@ -1177,7 +1206,7 @@ func resolveBlobUID(
 		} else {
 			user := requestctx.User(ctx)
 			if !auth.CanUseGitconfig(user, *config) {
-				return "", apierror.NewAPIError(
+				return "", nil, apierror.NewAPIError(
 					fmt.Sprintf(
 						"user unauthorized to use gitconfig [%s]",
 						origin.Git.Gitconfig,
@@ -1187,7 +1216,7 @@ func resolveBlobUID(
 			}
 
 			if !config.AllowsHost(origin.Git.URL) {
-				return "", apierror.NewAPIError(
+				return "", nil, apierror.NewAPIError(
 					fmt.Sprintf(
 						"gitconfig [%s] is not allowed for the host of url [%s]",
 						origin.Git.Gitconfig,
@@ -1204,7 +1233,7 @@ func resolveBlobUID(
 		// pre-upgrade behavior so private-repo re-clones keep working on redeploy.
 		config, findError := manager.FindConfiguration(origin.Git.URL)
 		if findError != nil {
-			return "", apierror.InternalError(findError,
+			return "", nil, apierror.InternalError(findError,
 				fmt.Sprintf("finding git configuration for gitURL [%s]", origin.Git.URL))
 		}
 		if config != nil {
@@ -1215,18 +1244,35 @@ func resolveBlobUID(
 		}
 	}
 
-	blobUID, _, _, cloneError := cloneAndUpload(
+	blobUID, branch, revision, cloneError := cloneAndUpload(
 		ctx, cluster,
 		origin.Git.URL, origin.Git.Revision,
 		namespace, name, username, gitConfig,
 	)
 	if cloneError != nil {
-		return "", cloneError
+		return "", nil, cloneError
 	}
 	log.Infow("git fallback clone succeeded",
 		"namespace", namespace, "app", name, "blobUID", blobUID,
 	)
-	return blobUID, nil
+	return blobUID, &models.GitRef{
+		URL:      origin.Git.URL,
+		Branch:   branch,
+		Revision: revision,
+	}, nil
+}
+
+// sourceOrigin returns the origin to clone from: the request's git
+// origin when it has one, else the origin stored on the App CR.
+func sourceOrigin(
+	req models.StageRequest,
+	app *unstructured.Unstructured,
+) (models.ApplicationOrigin, error) {
+	if req.Origin.Kind == models.OriginGit && req.Origin.Git != nil {
+		return req.Origin, nil
+	}
+
+	return application.Origin(app)
 }
 
 // ensureStagingPVCs creates persistent volume claims for the staging job

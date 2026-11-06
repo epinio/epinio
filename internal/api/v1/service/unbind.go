@@ -15,8 +15,8 @@ import (
 	"context"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
@@ -81,15 +81,21 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 
 	logger.Infow("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
 
-	apiErr = UnbindService(ctx, cluster, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
+	apiErr = UnbindService(ctx, cluster, namespace, serviceName,
+		app.AppRef().Name, username, serviceConfigurations)
 	if apiErr != nil {
 		return apiErr
 	}
 
-	response.OK(c)
+	apiapp.RespondRedeploys(c, apiapp.RedeployIfRunning(
+		ctx, cluster, []models.App{*app}, false,
+	))
 	return nil
 }
 
+// UnbindService unbinds the service's configurations from the app and
+// drops the service from the app's bound services. It does not redeploy;
+// the caller redeploys every affected app once.
 func UnbindService(
 	ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, serviceName, appName, userName string,
@@ -110,8 +116,8 @@ func UnbindService(
 	// Call DeleteBinding ONCE with all configuration names
 	// This is the key optimization: 1 helm upgrade instead of N
 	if len(configurationNames) > 0 {
-		errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, appName, userName, configurationNames,
+		_, errors := configurationbinding.DeleteBinding(
+			ctx, cluster, namespace, appName, configurationNames,
 		)
 		if errors != nil {
 			return apierror.NewMultiError(errors.Errors())
@@ -136,7 +142,9 @@ func deleteServiceBindings(
 	cluster *kubernetes.Cluster,
 	namespace, appName, userName string,
 	serviceConfigurations []v1.Secret,
-	deleteBinding func(context.Context, *kubernetes.Cluster, string, string, string, []string) apierror.APIErrors,
+	deleteBinding func(
+		context.Context, *kubernetes.Cluster, string, string, []string,
+	) (*models.App, apierror.APIErrors),
 ) apierror.APIErrors {
 	configNames := make([]string, 0, len(serviceConfigurations))
 	for _, secret := range serviceConfigurations {
@@ -148,5 +156,6 @@ func deleteServiceBindings(
 		return nil
 	}
 
-	return deleteBinding(ctx, cluster, namespace, appName, userName, configNames)
+	_, apiErr := deleteBinding(ctx, cluster, namespace, appName, configNames)
+	return apiErr
 }

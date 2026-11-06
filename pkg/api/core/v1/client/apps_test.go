@@ -98,9 +98,6 @@ func DescribeAppsErrors() {
 			Entry("app upload", func() (any, error) {
 				return epinioClient.AppUpload("namespace", "appname", nil)
 			}),
-			Entry("app import git", func() (any, error) {
-				return epinioClient.AppImportGit("namespace", "appname", models.GitRef{})
-			}),
 			Entry("app match", func() (any, error) {
 				return epinioClient.AppMatch("namespace", "appprefix")
 			}),
@@ -116,11 +113,8 @@ func DescribeAppsErrors() {
 			Entry("app deploy", func() (any, error) {
 				return epinioClient.AppDeploy(models.DeployRequest{})
 			}),
-			Entry("app staging complete", func() (any, error) {
-				return epinioClient.StagingComplete("namespace", "stageID")
-			}),
-			Entry("app running", func() (any, error) {
-				return epinioClient.AppRunning(models.AppRef{})
+			Entry("app state", func() (any, error) {
+				return epinioClient.AppState("namespace", "appname")
 			}),
 			Entry("authtoken", func() (any, error) {
 				return epinioClient.AuthToken()

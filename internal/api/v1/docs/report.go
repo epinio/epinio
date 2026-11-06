@@ -15,8 +15,8 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Node Report
 
-// swagger:route GET /report/nodes report NodeReport
-// Return a rancher-like node report
+// swagger:route GET /report/nodes Reports NodeReport
+// Return a report on the cluster nodes.
 // responses:
 //   200: NodeReportResponse
 

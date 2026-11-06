@@ -15,8 +15,7 @@ import (
 	"context"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/api/v1/deploy"
-	"github.com/epinio/epinio/internal/api/v1/response"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
@@ -67,7 +66,9 @@ func Create(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	boundedConfigs, errors := CreateConfigurationBinding(ctx, cluster, namespace, *app, bindRequest.Names)
+	boundedConfigs, changed, errors := CreateConfigurationBinding(
+		ctx, cluster, namespace, *app, bindRequest.Names,
+	)
 	if errors != nil {
 		return errors
 	}
@@ -76,19 +77,28 @@ func Create(c *gin.Context) apierror.APIErrors {
 	if len(boundedConfigs) > 0 {
 		resp.WasBound = boundedConfigs
 	}
+	if changed {
+		resp.OperationsResponse = apiapp.RedeployIfRunning(
+			ctx, cluster, []models.App{*app}, false,
+		)
+	}
 
-	response.OKReturn(c, resp)
+	c.JSON(apiapp.RedeployStatus(resp.OperationsResponse), resp)
 	return nil
 }
 
+// CreateConfigurationBinding binds the named configurations to app. It
+// does not redeploy: it reports whether the bindings changed, and the
+// caller redeploys every affected app once (apiapp.RedeployIfRunning).
 func CreateConfigurationBinding(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	namespace string,
 	app models.App,
 	configurationNames []string,
-) ([]string, apierror.APIErrors) {
+) ([]string, bool, apierror.APIErrors) {
 	logger := requestctx.Logger(ctx).With("component", "CreateConfigurationBinding")
+	changed := false
 
 	// Collect errors and warnings per configuration, to report as much
 	// as possible while also applying as much as possible. IOW
@@ -100,7 +110,7 @@ func CreateConfigurationBinding(
 	logger.Infow("BoundConfigurationNameSet")
 	oldBound, err := application.BoundConfigurationNameSet(ctx, cluster, app.Meta)
 	if err != nil {
-		return nil, apierror.InternalError(err)
+		return nil, false, apierror.InternalError(err)
 	}
 
 	var boundedConfigs []string
@@ -126,7 +136,7 @@ func CreateConfigurationBinding(
 			}
 
 			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-			return nil, apierror.NewMultiError(theIssues)
+			return nil, false, apierror.NewMultiError(theIssues)
 		}
 
 		okToBind = append(okToBind, configurationName)
@@ -142,25 +152,15 @@ func CreateConfigurationBinding(
 		err := application.BoundConfigurationsSet(ctx, cluster, app.Meta, okToBind, false)
 		if err != nil {
 			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-			return nil, apierror.NewMultiError(theIssues)
+			return nil, false, apierror.NewMultiError(theIssues)
 		}
 
-		logger.Infow("DeployApp")
-
-		// Update the workload, if there is any.
-		if app.Workload != nil && app.Status == models.ApplicationRunning {
-			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, requestctx.User(ctx).Username, "")
-			if apierr != nil {
-				return nil, apierr
-			}
-		} else if app.Workload != nil {
-			logger.Infow("configuration binding was saved, but restart was skipped because application is not running", "status", app.Status)
-		}
+		changed = true
 	}
 
 	if len(theIssues) > 0 {
-		return boundedConfigs, apierror.NewMultiError(theIssues)
+		return boundedConfigs, changed, apierror.NewMultiError(theIssues)
 	}
 
-	return boundedConfigs, nil
+	return boundedConfigs, changed, nil
 }

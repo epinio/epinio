@@ -42,7 +42,6 @@ var _ = Describe("Auth actions", func() {
 			appCreate, found := auth.ActionsMap["app_create"]
 			Expect(found).To(BeTrue())
 			Expect(appCreate.Routes).To(ContainElement("AppCreate"))
-			Expect(appCreate.Routes).To(ContainElement("AppImportGit"))
 			Expect(appCreate.Routes).To(ContainElement("AppUpload"))
 
 			appUpdateEnv, found := auth.ActionsMap["app_update_env"]

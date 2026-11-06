@@ -349,7 +349,9 @@ func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind, all bool) er
 		return match.Names
 	})
 
-	_, err := c.API.ServiceDelete(request, c.Settings.Namespace, serviceNames)
+	deleted, err := c.API.ServiceDelete(
+		request, c.Settings.Namespace, serviceNames,
+	)
 	if err != nil {
 		epinioAPIError := &client.APIError{}
 		// something bad happened
@@ -367,6 +369,11 @@ func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind, all bool) er
 
 		firstErr := epinioAPIError.Err.Errors[0]
 		bound = strings.Split(firstErr.Details, ",")
+	}
+	if err == nil {
+		if err := c.waitRedeploys(deleted.OperationsResponse); err != nil {
+			return err
+		}
 	}
 
 	if len(bound) > 0 {
@@ -403,9 +410,12 @@ func (c *EpinioClient) ServiceBind(name, appName string) error {
 		AppName: appName,
 	}
 
-	_, err := c.API.ServiceBind(request, c.Settings.Namespace, name)
-	// Note: errors.Wrap (nil, "...") == nil
-	return errors.Wrap(err, "service bind failed")
+	ops, err := c.API.ServiceBind(request, c.Settings.Namespace, name)
+	if err != nil {
+		return errors.Wrap(err, "service bind failed")
+	}
+
+	return c.waitRedeploys(ops)
 }
 
 // ServiceBatchBind binds multiple services to an application at once
@@ -424,9 +434,12 @@ func (c *EpinioClient) ServiceBatchBind(appName string, serviceNames []string) e
 		ServiceNames: serviceNames,
 	}
 
-	_, err := c.API.ServiceBatchBind(request, c.Settings.Namespace, appName)
+	ops, err := c.API.ServiceBatchBind(request, c.Settings.Namespace, appName)
 	if err != nil {
 		return errors.Wrap(err, "service batch bind failed")
+	}
+	if err := c.waitRedeploys(ops); err != nil {
+		return err
 	}
 
 	c.ui.Success().
@@ -450,8 +463,12 @@ func (c *EpinioClient) ServiceUnbind(name, appName string) error {
 		AppName: appName,
 	}
 
-	_, err := c.API.ServiceUnbind(request, c.Settings.Namespace, name)
-	return errors.Wrap(err, "service unbind failed")
+	ops, err := c.API.ServiceUnbind(request, c.Settings.Namespace, name)
+	if err != nil {
+		return errors.Wrap(err, "service unbind failed")
+	}
+
+	return c.waitRedeploys(ops)
 }
 
 // ServiceList list of the service instances in the targeted namespace

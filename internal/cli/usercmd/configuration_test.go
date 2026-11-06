@@ -30,7 +30,7 @@ var _ = Describe("Client Configurations unit tests", func() {
 	BeforeEach(func() {
 		fake = &usercmdfakes.FakeAPIClient{}
 		fake.ConfigurationCreateReturns(models.Response{}, nil)
-		fake.ConfigurationUpdateReturns(models.Response{}, nil)
+		fake.ConfigurationUpdateReturns(models.OperationsResponse{}, nil)
 
 		var err error
 		epinioClient, err = usercmd.New()

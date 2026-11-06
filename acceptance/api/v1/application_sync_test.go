@@ -236,7 +236,7 @@ var _ = Describe("AppSourcePatch and AppSync Endpoints",
 				responseBody, readError := io.ReadAll(response.Body)
 				Expect(readError).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(
-					Equal(http.StatusOK), string(responseBody),
+					Equal(http.StatusAccepted), string(responseBody),
 				)
 
 				By("waiting for the patched content to be served")

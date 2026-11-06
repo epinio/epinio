@@ -24,7 +24,6 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 
@@ -92,37 +91,30 @@ func uploadApplication(appName, namespace string) *models.UploadResponse {
 	return respObj
 }
 
-func stageApplication(appName, namespace string, stageRequest models.StageRequest) *models.StageResponse {
+// stageApplication builds the app and waits for the build to succeed. It
+// returns the stage and image as /stage did before it became an operation.
+func stageApplication(
+	appName, namespace string,
+	stageRequest models.StageRequest,
+) *models.StageResponse {
 	b, err := json.Marshal(stageRequest)
 	Expect(err).NotTo(HaveOccurred())
-	body := string(b)
 
 	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppStage", namespace, appName)
-	response, err := env.Curl("POST", url, strings.NewReader(body))
+	response, err := env.Curl("POST", url, strings.NewReader(string(b)))
 	Expect(err).NotTo(HaveOccurred())
 
 	b, err = io.ReadAll(response.Body)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(response.StatusCode).To(Equal(200), string(b))
 
-	stage := &models.StageResponse{}
-	err = json.Unmarshal(b, stage)
-	Expect(err).NotTo(HaveOccurred())
+	op := startedOperation(b, response.StatusCode)
+	done := waitForOperation(namespace, appName, op.ID)
+	Expect(done.Phase).To(Equal(models.OperationSucceeded), done.Error)
 
-	jobName := names.GenerateResourceName("stage", namespace, appName, stage.Stage.ID)
-	waitForStaging(jobName)
-	return stage
-}
-
-func waitForStaging(jobName string) {
-	Eventually(func() string {
-		out, err := proc.Kubectl("get", "job",
-			"--namespace", testenv.Namespace,
-			jobName,
-			"-o", "jsonpath={.status.conditions[0].status}")
-		Expect(err).NotTo(HaveOccurred(), out)
-		return out
-	}, "5m").Should(Equal("True"))
+	return &models.StageResponse{
+		Stage:    models.NewStage(done.StageID),
+		ImageURL: done.ImageURL,
+	}
 }
 
 // listS3Blobs returns the names of all objects currently stored on S3.

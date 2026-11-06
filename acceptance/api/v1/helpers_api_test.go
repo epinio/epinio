@@ -17,10 +17,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -72,49 +68,64 @@ func appDeploy(namespace, app string, body io.Reader) ([]byte, int) {
 	return curl(http.MethodPost, endpoint, body)
 }
 
-func appImportGit(namespace, app, gitURL, revision string) ([]byte, int) {
+func appState(namespace, app string) models.AppState {
 	GinkgoHelper()
 
-	data := url.Values{}
-	data.Set("giturl", gitURL)
-	data.Set("gitrev", revision)
+	endpoint := makeEndpoint(v1.Routes.Path("AppState", namespace, app))
+	bodyBytes, statusCode := curl(http.MethodGet, endpoint, nil)
+	Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-	endpoint := makeEndpoint(v1.Routes.Path("AppImportGit", namespace, app))
-	body := data.Encode()
+	return fromJSON[models.AppState](bodyBytes)
+}
 
-	// Use a long timeout (6m); git clone can be slow and gateways may allow up to 5m
-	client := &http.Client{
-		Transport: env.Client().Transport,
-		Timeout:   6 * time.Minute,
-	}
+// waitForOperation polls the app state until the operation finishes and
+// returns it. The server bounds every operation; 15m covers a build plus
+// a deploy on a slow CI cluster.
+func waitForOperation(namespace, app, opID string) models.AppOperation {
+	GinkgoHelper()
 
-	var bodyBytes []byte
-	var statusCode int
-	for attempt := 0; attempt < 2; attempt++ {
-		request, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(body))
-		Expect(err).ToNot(HaveOccurred())
+	endpoint := makeEndpoint(v1.Routes.Path("AppState", namespace, app))
 
-		request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
-		request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		request.Header.Add("Content-Length", strconv.Itoa(len(body)))
+	var op models.AppOperation
+	Eventually(func(g Gomega) {
+		// A failed poll (the API server restarting under load) is retried,
+		// not fatal; only the operation's own outcome decides the spec.
+		bodyBytes, statusCode := curl(http.MethodGet, endpoint, nil)
+		g.Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-		response, err := client.Do(request)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(response).ToNot(BeNil())
+		state := fromJSON[models.AppState](bodyBytes)
+		g.Expect(state.Operation).ToNot(BeNil())
+		g.Expect(state.Operation.ID).To(Equal(opID))
+		g.Expect(state.Operation.Done()).To(BeTrue())
+		op = *state.Operation
+	}, "15m", "2s").Should(Succeed())
 
-		bodyBytes, err = io.ReadAll(response.Body)
-		response.Body.Close()
-		Expect(err).ToNot(HaveOccurred())
+	return op
+}
 
-		statusCode = response.StatusCode
-		if statusCode != http.StatusGatewayTimeout || attempt == 1 {
-			break
-		}
-		// Retry once on 504 (gateway timeout); clone may succeed on retry
-		time.Sleep(2 * time.Second)
-	}
+// startOperation decodes a 202 response into the operation it started.
+func startedOperation(bodyBytes []byte, statusCode int) models.AppOperation {
+	GinkgoHelper()
 
-	return bodyBytes, statusCode
+	Expect(statusCode).To(Equal(http.StatusAccepted), string(bodyBytes))
+	op := fromJSON[models.AppOperation](bodyBytes)
+	Expect(op.ID).ToNot(BeEmpty(), string(bodyBytes))
+
+	return op
+}
+
+// deployApplication deploys and waits for the deploy to succeed.
+func deployApplication(
+	namespace, app string,
+	request models.DeployRequest,
+) models.AppOperation {
+	GinkgoHelper()
+
+	op := startedOperation(appDeploy(namespace, app, toJSON(request)))
+	done := waitForOperation(namespace, app, op.ID)
+	Expect(done.Phase).To(Equal(models.OperationSucceeded), done.Error)
+
+	return done
 }
 
 func gitproxy(body io.Reader) ([]byte, int) {

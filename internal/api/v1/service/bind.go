@@ -13,9 +13,9 @@ package service
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/gin-gonic/gin"
@@ -83,7 +83,7 @@ func Bind(c *gin.Context) apierror.APIErrors {
 
 	logger.Infow("binding service configuration")
 
-	_, errors := configurationbinding.CreateConfigurationBinding(
+	_, changed, errors := configurationbinding.CreateConfigurationBinding(
 		ctx, cluster, namespace, *app, configurationNames,
 	)
 
@@ -104,6 +104,13 @@ func Bind(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OK(c)
+	redeploys := models.OperationsResponse{}
+	if changed {
+		redeploys = apiapp.RedeployIfRunning(
+			ctx, cluster, []models.App{*app}, false,
+		)
+	}
+
+	apiapp.RespondRedeploys(c, redeploys)
 	return nil
 }
