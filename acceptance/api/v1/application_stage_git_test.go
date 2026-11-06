@@ -43,8 +43,10 @@ var _ = Describe("AppStage from a git origin", LApplication, func() {
 		env.SetupAndTargetNamespace(namespace)
 		app = catalog.NewAppName()
 
-		bodyBytes, statusCode := appCreate(namespace,
-			toJSON(models.ApplicationCreateRequest{Name: app}))
+		bodyBytes, statusCode := appCreate(
+			namespace,
+			toJSON(models.ApplicationCreateRequest{Name: app}),
+		)
 		Expect(statusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 
 		DeferCleanup(func() {
@@ -69,13 +71,17 @@ var _ = Describe("AppStage from a git origin", LApplication, func() {
 	clonedOrigin := func(url, revision string) models.App {
 		op := startedOperation(stageGit(url, revision))
 
-		Eventually(func(g Gomega) {
-			state := appState(namespace, app)
-			g.Expect(state.Operation).ToNot(BeNil())
-			g.Expect(state.Operation.ID).To(Equal(op.ID))
-			g.Expect(state.Operation.Error).To(BeEmpty())
-			g.Expect(state.Operation.StageID).ToNot(BeEmpty())
-		}, "5m", "2s").Should(Succeed())
+		Eventually(
+			func(g Gomega) {
+				state := appState(namespace, app)
+				g.Expect(state.Operation).ToNot(BeNil())
+				g.Expect(state.Operation.ID).To(Equal(op.ID))
+				g.Expect(state.Operation.Error).To(BeEmpty())
+				g.Expect(state.Operation.StageID).ToNot(BeEmpty())
+			},
+			"5m",
+			"2s",
+		).Should(Succeed())
 
 		stored := appShow(namespace, app)
 		Expect(stored.Origin.Kind).To(Equal(models.OriginGit))
@@ -93,16 +99,25 @@ var _ = Describe("AppStage from a git origin", LApplication, func() {
 
 	It("rejects a malformed git url", func() {
 		bodyBytes, statusCode := stageGit("github.com", "")
-		ExpectBadRequestError(bodyBytes, statusCode,
-			"missing scheme or host in giturl [://]")
+		ExpectBadRequestError(
+			bodyBytes,
+			statusCode,
+			"missing scheme or host in giturl [://]",
+		)
 
 		bodyBytes, statusCode = stageGit("//github.com", "")
-		ExpectBadRequestError(bodyBytes, statusCode,
-			"missing scheme or host in giturl [://github.com]")
+		ExpectBadRequestError(
+			bodyBytes,
+			statusCode,
+			"missing scheme or host in giturl [://github.com]",
+		)
 
 		bodyBytes, statusCode = stageGit("git://", "")
-		ExpectBadRequestError(bodyBytes, statusCode,
-			"missing scheme or host in giturl [git://]")
+		ExpectBadRequestError(
+			bodyBytes,
+			statusCode,
+			"missing scheme or host in giturl [git://]",
+		)
 	})
 
 	It("fails the operation for a revision that does not exist", func() {

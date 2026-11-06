@@ -123,7 +123,7 @@ func (c *Client) ServiceDelete(request models.ServiceDeleteRequest, namespace st
 
 func (c *Client) ServiceBind(
 	request models.ServiceBindRequest,
-	namespace,
+	namespace string,
 	name string,
 ) (models.OperationsResponse, error) {
 	response := models.OperationsResponse{}
@@ -134,7 +134,7 @@ func (c *Client) ServiceBind(
 
 func (c *Client) ServiceUnbind(
 	request models.ServiceUnbindRequest,
-	namespace,
+	namespace string,
 	name string,
 ) (models.OperationsResponse, error) {
 	response := models.OperationsResponse{}
@@ -146,7 +146,7 @@ func (c *Client) ServiceUnbind(
 // ServiceBatchBind binds multiple services to an application at once
 func (c *Client) ServiceBatchBind(
 	request models.ServiceBatchBindRequest,
-	namespace,
+	namespace string,
 	appName string,
 ) (models.OperationsResponse, error) {
 	response := models.OperationsResponse{}

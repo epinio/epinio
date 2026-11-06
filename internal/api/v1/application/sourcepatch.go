@@ -111,8 +111,15 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 		models.OperationSource,
 		func(ctx context.Context, rep operationReporter) error {
 			rep.Staged(stageResponse.Stage.ID, stageResponse.ImageURL)
-			return watchDeploy(ctx, cluster, appRef,
-				stageResponse, params, processCmd, rep)
+			return watchDeploy(
+				ctx,
+				cluster,
+				appRef,
+				stageResponse,
+				params,
+				processCmd,
+				rep,
+			)
 		},
 	)
 	if errors.Is(err, application.ErrOperationInProgress) {
@@ -433,9 +440,12 @@ func watchDeploy(
 	rep operationReporter,
 ) error {
 	log := requestctx.Logger(ctx).With(
-		"stageID", params.Stage.ID,
-		"app", appRef.Name,
-		"namespace", appRef.Namespace,
+		"stageID",
+		params.Stage.ID,
+		"app",
+		appRef.Name,
+		"namespace",
+		appRef.Namespace,
 	)
 	totalStart := time.Now()
 
@@ -453,7 +463,8 @@ func watchDeploy(
 	}
 	if !success {
 		return fmt.Errorf(
-			"build %s failed; see the staging logs", params.Stage.ID,
+			"build %s failed; see the staging logs",
+			params.Stage.ID,
 		)
 	}
 	log.Infow("step:staging", "ms", time.Since(t).Milliseconds())
@@ -505,15 +516,21 @@ func watchDeploy(
 	log.Infow("step:swapPodImage", "ms", time.Since(t).Milliseconds())
 
 	err = application.SetBuildStatus(
-		ctx, cluster, appRef, models.AppBuildStatusDeployed,
+		ctx,
+		cluster,
+		appRef,
+		models.AppBuildStatusDeployed,
 	)
 	if err != nil {
 		return fmt.Errorf("updating the build status: %w", err)
 	}
 
-	log.Infow("watch-deploy complete",
-		"image", stageResponse.ImageURL,
-		"total_ms", time.Since(totalStart).Milliseconds(),
+	log.Infow(
+		"watch-deploy complete",
+		"image",
+		stageResponse.ImageURL,
+		"total_ms",
+		time.Since(totalStart).Milliseconds(),
 	)
 
 	return nil

@@ -282,7 +282,7 @@ func (c *Client) AppUpload(namespace string, name string, file FormFile) (models
 // Returns the operation, which already carries the stage ID; poll
 // AppState until it is done.
 func (c *Client) AppSourcePatch(
-	namespace,
+	namespace string,
 	name string,
 	file FormFile,
 	processCmd string,
@@ -378,7 +378,8 @@ func (c *Client) AppDeploy(
 // AppState returns an app's lifecycle state: its status and its latest
 // operation. Clients poll it after any request that answered 202.
 func (c *Client) AppState(
-	namespace, appName string,
+	namespace string,
+	appName string,
 ) (models.AppState, error) {
 	response := models.AppState{}
 	endpoint := api.Routes.Path("AppState", namespace, appName)

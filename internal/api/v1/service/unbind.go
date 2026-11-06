@@ -81,14 +81,24 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 
 	logger.Infow("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
 
-	apiErr = UnbindService(ctx, cluster, namespace, serviceName,
-		app.AppRef().Name, username, serviceConfigurations)
+	apiErr = UnbindService(
+		ctx,
+		cluster,
+		namespace,
+		serviceName,
+		app.AppRef().Name,
+		username,
+		serviceConfigurations,
+	)
 	if apiErr != nil {
 		return apiErr
 	}
 
 	apiapp.RespondRedeploys(c, apiapp.RedeployIfRunning(
-		ctx, cluster, []models.App{*app}, false,
+		ctx,
+		cluster,
+		[]models.App{*app},
+		false,
 	))
 	return nil
 }
@@ -117,7 +127,11 @@ func UnbindService(
 	// This is the key optimization: 1 helm upgrade instead of N
 	if len(configurationNames) > 0 {
 		_, errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, appName, configurationNames,
+			ctx,
+			cluster,
+			namespace,
+			appName,
+			configurationNames,
 		)
 		if errors != nil {
 			return apierror.NewMultiError(errors.Errors())
@@ -140,10 +154,16 @@ func UnbindService(
 func deleteServiceBindings(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
-	namespace, appName, userName string,
+	namespace string,
+	appName string,
+	userName string,
 	serviceConfigurations []v1.Secret,
 	deleteBinding func(
-		context.Context, *kubernetes.Cluster, string, string, []string,
+		context.Context,
+		*kubernetes.Cluster,
+		string,
+		string,
+		[]string,
 	) (*models.App, apierror.APIErrors),
 ) apierror.APIErrors {
 	configNames := make([]string, 0, len(serviceConfigurations))

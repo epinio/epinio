@@ -217,7 +217,8 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	exists, err := application.Exists(ctx, cluster, req.App)
 	if err != nil {
 		return apierror.InternalError(
-			err, "failed to get the application resource",
+			err,
+			"failed to get the application resource",
 		)
 	}
 	if !exists {
@@ -236,11 +237,15 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		return apiErr
 	}
 
-	return startOperation(c, req.App, models.OperationBuild,
+	return startOperation(
+		c,
+		req.App,
+		models.OperationBuild,
 		func(ctx context.Context, rep operationReporter) error {
 			_, err := buildAndWait(ctx, cluster, req, username, rep)
 			return err
-		})
+		},
+	)
 }
 
 // buildAndWait is the build operation: it runs the build core, reports
@@ -272,7 +277,8 @@ func buildAndWait(
 	}
 	if !success {
 		return staged, fmt.Errorf(
-			"build %s failed; see the staging logs", staged.Stage.ID,
+			"build %s failed; see the staging logs",
+			staged.Stage.ID,
 		)
 	}
 
@@ -376,7 +382,12 @@ func stageApp(
 	}
 
 	blobUID, cloned, blobErr := resolveBlobUID(
-		ctx, cluster, s3ConnectionDetails, req, app, username,
+		ctx,
+		cluster,
+		s3ConnectionDetails,
+		req,
+		app,
+		username,
 	)
 	if blobErr != nil {
 		return models.StageResponse{}, blobErr
@@ -656,11 +667,16 @@ func validateRequestedBlob(
 		return nil
 	}
 
-	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
-		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
+	s3ConnectionDetails, err := s3manager.GetConnectionDetails(
+		ctx,
+		cluster,
+		helmchart.Namespace(),
+		helmchart.S3ConnectionDetailsSecretName,
+	)
 	if err != nil {
 		return apierror.InternalError(
-			err, "failed to fetch the S3 connection details",
+			err,
+			"failed to fetch the S3 connection details",
 		)
 	}
 
@@ -1143,7 +1159,8 @@ func resolveBlobUID(
 	storedBlobUID, lookupError := application.BlobUID(app)
 	if lookupError != nil {
 		return "", nil, apierror.InternalError(
-			lookupError, "looking up the previous blob UID",
+			lookupError,
+			"looking up the previous blob UID",
 		)
 	}
 
@@ -1233,8 +1250,13 @@ func resolveBlobUID(
 		// pre-upgrade behavior so private-repo re-clones keep working on redeploy.
 		config, findError := manager.FindConfiguration(origin.Git.URL)
 		if findError != nil {
-			return "", nil, apierror.InternalError(findError,
-				fmt.Sprintf("finding git configuration for gitURL [%s]", origin.Git.URL))
+			return "", nil, apierror.InternalError(
+				findError,
+				fmt.Sprintf(
+					"finding git configuration for gitURL [%s]",
+					origin.Git.URL,
+				),
+			)
 		}
 		if config != nil {
 			log.Infow("legacy app without stored gitconfig, matched by url",
@@ -1245,9 +1267,14 @@ func resolveBlobUID(
 	}
 
 	blobUID, branch, revision, cloneError := cloneAndUpload(
-		ctx, cluster,
-		origin.Git.URL, origin.Git.Revision,
-		namespace, name, username, gitConfig,
+		ctx,
+		cluster,
+		origin.Git.URL,
+		origin.Git.Revision,
+		namespace,
+		name,
+		username,
+		gitConfig,
 	)
 	if cloneError != nil {
 		return "", nil, cloneError

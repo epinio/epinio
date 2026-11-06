@@ -190,7 +190,8 @@ var _ = Describe("OperationRegistry", func() {
 		Expect(opCtx.Err()).To(MatchError(context.Canceled))
 	})
 
-	It("does not cancel the new operation when an old runner finishes",
+	It(
+		"does not cancel the new operation when an old runner finishes",
 		func() {
 			first, _, _ := reg.Start(ctx, app, models.OperationBuild)
 			reg.Delete(app)
@@ -199,7 +200,8 @@ var _ = Describe("OperationRegistry", func() {
 
 			reg.Finish(app, first.ID, errors.New("canceled"))
 			Expect(secondCtx.Err()).ToNot(HaveOccurred())
-		})
+		},
+	)
 
 	It("reports busy only while an operation runs", func() {
 		Expect(reg.Busy(app)).To(BeFalse())
@@ -245,7 +247,9 @@ var _ = Describe("StateOf", func() {
 
 	start := func() models.AppOperation {
 		op, _, err := application.Operations.Start(
-			context.Background(), app.Meta, models.OperationDeploy,
+			context.Background(),
+			app.Meta,
+			models.OperationDeploy,
 		)
 		Expect(err).ToNot(HaveOccurred())
 		return op
@@ -264,11 +268,14 @@ var _ = Describe("StateOf", func() {
 
 	It("reports a staging operation as staging, with its stage", func() {
 		op := start()
-		application.Operations.Update(app.Meta, op.ID,
+		application.Operations.Update(
+			app.Meta,
+			op.ID,
 			func(o *models.AppOperation) {
 				o.Phase = models.OperationStaging
 				o.StageID = "new-stage"
-			})
+			},
+		)
 
 		state := application.StateOf(&app)
 
@@ -281,10 +288,13 @@ var _ = Describe("StateOf", func() {
 
 	It("reports a deploying operation as deploying", func() {
 		op := start()
-		application.Operations.Update(app.Meta, op.ID,
+		application.Operations.Update(
+			app.Meta,
+			op.ID,
 			func(o *models.AppOperation) {
 				o.Phase = models.OperationDeploying
-			})
+			},
+		)
 
 		Expect(application.StateOf(&app).Status).To(Equal(
 			models.ApplicationStatus(models.ApplicationDeploying),

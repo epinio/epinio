@@ -87,18 +87,22 @@ func waitForOperation(namespace, app, opID string) models.AppOperation {
 	endpoint := makeEndpoint(v1.Routes.Path("AppState", namespace, app))
 
 	var op models.AppOperation
-	Eventually(func(g Gomega) {
-		// A failed poll (the API server restarting under load) is retried,
-		// not fatal; only the operation's own outcome decides the spec.
-		bodyBytes, statusCode := curl(http.MethodGet, endpoint, nil)
-		g.Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
+	Eventually(
+		func(g Gomega) {
+			// A failed poll (the API server restarting under load) is retried,
+			// not fatal; only the operation's own outcome decides the spec.
+			bodyBytes, statusCode := curl(http.MethodGet, endpoint, nil)
+			g.Expect(statusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-		state := fromJSON[models.AppState](bodyBytes)
-		g.Expect(state.Operation).ToNot(BeNil())
-		g.Expect(state.Operation.ID).To(Equal(opID))
-		g.Expect(state.Operation.Done()).To(BeTrue())
-		op = *state.Operation
-	}, "15m", "2s").Should(Succeed())
+			state := fromJSON[models.AppState](bodyBytes)
+			g.Expect(state.Operation).ToNot(BeNil())
+			g.Expect(state.Operation.ID).To(Equal(opID))
+			g.Expect(state.Operation.Done()).To(BeTrue())
+			op = *state.Operation
+		},
+		"15m",
+		"2s",
+	).Should(Succeed())
 
 	return op
 }
@@ -116,7 +120,8 @@ func startedOperation(bodyBytes []byte, statusCode int) models.AppOperation {
 
 // deployApplication deploys and waits for the deploy to succeed.
 func deployApplication(
-	namespace, app string,
+	namespace string,
+	app string,
 	request models.DeployRequest,
 ) models.AppOperation {
 	GinkgoHelper()

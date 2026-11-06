@@ -67,7 +67,8 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(
-			err, "failed to get access to a kube client",
+			err,
+			"failed to get access to a kube client",
 		)
 	}
 
@@ -79,10 +80,14 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 			)
 		}
 		return apierror.InternalError(
-			err, "failed to get the application resource",
+			err,
+			"failed to get the application resource",
 		)
 	}
 
+	// Without an image the deploy builds first, so it needs a source to
+	// build from (blob, stored blob, or git origin). With an image it only
+	// deploys, so the named build must exist and not still be running.
 	var sourceErr apierror.APIErrors
 	if req.Builds() {
 		sourceErr = requireResolvableSource(applicationCR, req)
@@ -96,7 +101,9 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 	// Reject routes another app already owns now, as the synchronous
 	// deploy did; the operation checks them again before Helm runs.
 	desiredRoutes, found, err := unstructured.NestedStringSlice(
-		applicationCR.Object, "spec", "routes",
+		applicationCR.Object,
+		"spec",
+		"routes",
 	)
 	if err != nil {
 		return apierror.InternalError(err, "failed to get the application routes")
@@ -120,10 +127,14 @@ func Deploy(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	return startOperation(c, req.App, models.OperationDeploy,
+	return startOperation(
+		c,
+		req.App,
+		models.OperationDeploy,
 		func(ctx context.Context, rep operationReporter) error {
 			return runDeploy(ctx, cluster, req, username, rep)
-		})
+		},
+	)
 }
 
 // validateDeployRequest checks the request body without touching the
@@ -137,7 +148,8 @@ func validateDeployRequest(req models.DeployRequest) apierror.APIErrors {
 
 		if err := provider.ValidateURL(req.Origin.Git.URL); err != nil {
 			return apierror.NewBadRequestErrorf(
-				"validating git url: `%s`", err.Error(),
+				"validating git url: `%s`",
+				err.Error(),
 			)
 		}
 	}
@@ -171,7 +183,8 @@ func requireResolvableSource(
 	blobUID, blobErr := application.BlobUID(app)
 	if blobErr != nil {
 		return apierror.InternalError(
-			blobErr, "looking up the previous blob UID",
+			blobErr,
+			"looking up the previous blob UID",
 		)
 	}
 	if blobUID != "" {
@@ -202,7 +215,10 @@ func requireDeployableStage(
 	}
 
 	app, err := application.Lookup(
-		ctx, cluster, req.App.Namespace, req.App.Name,
+		ctx,
+		cluster,
+		req.App.Namespace,
+		req.App.Name,
 	)
 	if err != nil {
 		return apierror.InternalError(err, "failed to look up the application")
@@ -240,7 +256,11 @@ func runDeploy(
 		// The build core saves req.Origin before staging, so a build whose
 		// deploy fails still keeps its origin.
 		built, err := buildAndWait(
-			ctx, cluster, req.StageRequest(), username, rep,
+			ctx,
+			cluster,
+			req.StageRequest(),
+			username,
+			rep,
 		)
 		if err != nil {
 			return err
@@ -262,7 +282,12 @@ func runDeploy(
 	rep.Phase(models.OperationDeploying)
 
 	result, err := deployImage(
-		ctx, cluster, req.App, username, stageID, imageURL,
+		ctx,
+		cluster,
+		req.App,
+		username,
+		stageID,
+		imageURL,
 	)
 	if err != nil {
 		return err
@@ -278,28 +303,35 @@ func deployImage(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
-	username, stageID, imageURL string,
+	username string,
+	stageID string,
+	imageURL string,
 ) (models.DeployResponse, error) {
 	applicationCR, err := application.Get(ctx, cluster, appRef)
 	if err != nil {
 		return models.DeployResponse{}, fmt.Errorf(
-			"getting the application resource: %w", err,
+			"getting the application resource: %w",
+			err,
 		)
 	}
 
 	err = deploy.UpdateImageURL(ctx, cluster, applicationCR, imageURL)
 	if err != nil {
 		return models.DeployResponse{}, fmt.Errorf(
-			"setting the application's image url: %w", err,
+			"setting the application's image url: %w",
+			err,
 		)
 	}
 
 	desiredRoutes, found, err := unstructured.NestedStringSlice(
-		applicationCR.Object, "spec", "routes",
+		applicationCR.Object,
+		"spec",
+		"routes",
 	)
 	if err != nil {
 		return models.DeployResponse{}, fmt.Errorf(
-			"getting the application routes: %w", err,
+			"getting the application routes: %w",
+			err,
 		)
 	}
 	if !found {
@@ -308,7 +340,11 @@ func deployImage(
 	}
 
 	apiErr := validateRoutes(
-		ctx, cluster, appRef.Name, appRef.Namespace, desiredRoutes,
+		ctx,
+		cluster,
+		appRef.Name,
+		appRef.Namespace,
+		desiredRoutes,
 	)
 	if apiErr != nil {
 		return models.DeployResponse{}, apiErrorAsError(apiErr)
@@ -320,11 +356,15 @@ func deployImage(
 	}
 
 	err = application.SetBuildStatus(
-		ctx, cluster, appRef, models.AppBuildStatusDeployed,
+		ctx,
+		cluster,
+		appRef,
+		models.AppBuildStatusDeployed,
 	)
 	if err != nil {
 		return models.DeployResponse{}, fmt.Errorf(
-			"saving the app build status: %w", err,
+			"saving the app build status: %w",
+			err,
 		)
 	}
 

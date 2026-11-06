@@ -21,7 +21,8 @@ func TestDeleteServiceBindingsAggregatesConfigNames(t *testing.T) {
 	stubDelete := func(
 		_ context.Context,
 		_ *kubernetes.Cluster,
-		namespace, appName string,
+		namespace string,
+		appName string,
 		configs []string,
 	) (*models.App, apierror.APIErrors) {
 		calls++
@@ -65,7 +66,8 @@ func TestDeleteServiceBindingsSkipsEmptyConfigs(t *testing.T) {
 	stubDelete := func(
 		_ context.Context,
 		_ *kubernetes.Cluster,
-		_, _ string,
+		_ string,
+		_ string,
 		_ []string,
 	) (*models.App, apierror.APIErrors) {
 		calls++

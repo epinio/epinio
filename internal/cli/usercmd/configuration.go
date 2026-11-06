@@ -193,7 +193,9 @@ func (c *EpinioClient) UnbindConfiguration(configurationName, appName string) er
 	}
 
 	ops, err := c.API.ConfigurationBindingDelete(
-		c.Settings.Namespace, appName, configurationName,
+		c.Settings.Namespace,
+		appName,
+		configurationName,
 	)
 	if err != nil {
 		return err
@@ -271,7 +273,9 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind, all bool) err
 	})
 
 	deleted, err := c.API.ConfigurationDelete(
-		request, c.Settings.Namespace, names,
+		request,
+		c.Settings.Namespace,
+		names,
 	)
 	if err != nil {
 		epinioAPIError := &client.APIError{}

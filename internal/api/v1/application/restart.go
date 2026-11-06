@@ -51,11 +51,15 @@ func Restart(c *gin.Context) apierror.APIErrors {
 		return apierror.NewAPIError("No restart possible for an application with no instances", http.StatusBadRequest)
 	}
 
-	return startOperation(c, app.Meta, models.OperationRestart,
+	return startOperation(
+		c,
+		app.Meta,
+		models.OperationRestart,
 		func(ctx context.Context, rep operationReporter) error {
 			rep.Phase(models.OperationDeploying)
 			return restartApp(ctx, cluster, app, username)
-		})
+		},
+	)
 }
 
 // restartApp is the restart operation. It brings up a newer build when
@@ -92,7 +96,11 @@ func restartApp(
 	}
 
 	_, apiErr := deploy.DeployAppWithRestart(
-		ctx, cluster, app.Meta, username, "",
+		ctx,
+		cluster,
+		app.Meta,
+		username,
+		"",
 	)
 	if apiErr != nil {
 		return apiErrorAsError(apiErr)
@@ -100,7 +108,10 @@ func restartApp(
 
 	if restaged {
 		err := application.SetBuildStatus(
-			ctx, cluster, app.Meta, models.AppBuildStatusDeployed,
+			ctx,
+			cluster,
+			app.Meta,
+			models.AppBuildStatusDeployed,
 		)
 		if err != nil {
 			return fmt.Errorf("saving the app build status: %w", err)

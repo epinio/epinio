@@ -94,7 +94,8 @@ func uploadApplication(appName, namespace string) *models.UploadResponse {
 // stageApplication builds the app and waits for the build to succeed. It
 // returns the stage and image as /stage did before it became an operation.
 func stageApplication(
-	appName, namespace string,
+	appName string,
+	namespace string,
 	stageRequest models.StageRequest,
 ) *models.StageResponse {
 	b, err := json.Marshal(stageRequest)

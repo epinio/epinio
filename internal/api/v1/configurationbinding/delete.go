@@ -49,14 +49,21 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	app, apiErr := DeleteBinding(
-		ctx, cluster, namespace, appName, []string{configurationName},
+		ctx,
+		cluster,
+		namespace,
+		appName,
+		[]string{configurationName},
 	)
 	if apiErr != nil {
 		return apiErr
 	}
 
 	apiapp.RespondRedeploys(c, apiapp.RedeployIfRunning(
-		ctx, cluster, []models.App{*app}, false,
+		ctx,
+		cluster,
+		[]models.App{*app},
+		false,
 	))
 	return nil
 }

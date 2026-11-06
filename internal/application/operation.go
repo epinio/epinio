@@ -99,7 +99,8 @@ func (r *OperationRegistry) Start(
 	id, err := r.newID()
 	if err != nil {
 		return models.AppOperation{}, nil, fmt.Errorf(
-			"generating operation id: %w", err,
+			"generating operation id: %w",
+			err,
 		)
 	}
 

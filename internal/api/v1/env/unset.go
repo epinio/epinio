@@ -54,7 +54,10 @@ func Unset(c *gin.Context) apierror.APIErrors {
 	}
 
 	apiapp.RespondRedeploys(c, apiapp.RedeployIfRunning(
-		ctx, cluster, []models.App{*app}, false,
+		ctx,
+		cluster,
+		[]models.App{*app},
+		false,
 	))
 	return nil
 }

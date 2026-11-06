@@ -118,7 +118,10 @@ func BatchBind(c *gin.Context) apierror.APIErrors {
 	redeploys := models.OperationsResponse{}
 	if changed {
 		redeploys = apiapp.RedeployIfRunning(
-			ctx, cluster, []models.App{*app}, false,
+			ctx,
+			cluster,
+			[]models.App{*app},
+			false,
 		)
 	}
 

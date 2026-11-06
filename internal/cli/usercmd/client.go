@@ -63,7 +63,8 @@ type APIClient interface {
 	AppBuildDelete(namespace string, name string) (models.Response, error)
 	AppUpload(namespace string, name string, file client.FormFile) (models.UploadResponse, error)
 	AppSourcePatch(
-		namespace, name string,
+		namespace string,
+		name string,
 		file client.FormFile,
 		processCmd string,
 	) (*models.AppOperation, error)
@@ -119,7 +120,8 @@ type APIClient interface {
 	ConfigurationCreate(req models.ConfigurationCreateRequest, namespace string) (models.Response, error)
 	ConfigurationUpdate(
 		req models.ConfigurationUpdateRequest,
-		namespace, name string,
+		namespace string,
+		name string,
 	) (models.OperationsResponse, error)
 	// note: The replace endpoint is not used by the cli.
 	ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error)
@@ -139,15 +141,18 @@ type APIClient interface {
 	ServiceCreate(req models.ServiceCreateRequest, namespace string) (models.Response, error)
 	ServiceBind(
 		req models.ServiceBindRequest,
-		namespace, name string,
+		namespace string,
+		name string,
 	) (models.OperationsResponse, error)
 	ServiceBatchBind(
 		req models.ServiceBatchBindRequest,
-		namespace, appName string,
+		namespace string,
+		appName string,
 	) (models.OperationsResponse, error)
 	ServiceUnbind(
 		req models.ServiceUnbindRequest,
-		namespace, name string,
+		namespace string,
+		name string,
 	) (models.OperationsResponse, error)
 	ServiceDelete(req models.ServiceDeleteRequest, namespace string, names []string) (models.ServiceDeleteResponse, error)
 	ServiceList(namespace string) (models.ServiceList, error)

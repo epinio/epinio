@@ -350,7 +350,9 @@ func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind, all bool) er
 	})
 
 	deleted, err := c.API.ServiceDelete(
-		request, c.Settings.Namespace, serviceNames,
+		request,
+		c.Settings.Namespace,
+		serviceNames,
 	)
 	if err != nil {
 		epinioAPIError := &client.APIError{}

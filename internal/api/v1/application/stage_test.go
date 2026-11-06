@@ -72,24 +72,41 @@ func TestValidateStageRequestOrigin(t *testing.T) {
 		req     models.StageRequest
 		wantErr bool
 	}{
-		{"uploaded blob skips the check",
-			gitStageRequest("blob", ""), false},
+		{
+			"uploaded blob skips the check",
+			gitStageRequest("blob", ""),
+			false,
+		},
 		{"no origin", models.StageRequest{}, false},
-		{"valid git url",
-			gitStageRequest("", "https://github.com/epinio/x"), false},
+		{
+			"valid git url",
+			gitStageRequest("", "https://github.com/epinio/x"),
+			false,
+		},
 		{"empty git url", gitStageRequest("", ""), true},
-		{"url without scheme",
-			gitStageRequest("", "github.com/epinio/x"), true},
-		{"git origin without repository", models.StageRequest{
-			Origin: models.ApplicationOrigin{Kind: models.OriginGit},
-		}, true},
+		{
+			"url without scheme",
+			gitStageRequest("", "github.com/epinio/x"),
+			true,
+		},
+		{
+			"git origin without repository",
+			models.StageRequest{
+				Origin: models.ApplicationOrigin{Kind: models.OriginGit},
+			},
+			true,
+		},
 	}
 
 	for _, tc := range cases {
 		err := validateStageRequestOrigin(tc.req)
 		if (err != nil) != tc.wantErr {
-			t.Errorf("%s: got error %v, want error %v",
-				tc.name, err, tc.wantErr)
+			t.Errorf(
+				"%s: got error %v, want error %v",
+				tc.name,
+				err,
+				tc.wantErr,
+			)
 		}
 	}
 }
@@ -138,9 +155,11 @@ func originPatches(t *testing.T) (*kubernetes.Cluster, *[][]byte) {
 			body, _ := io.ReadAll(r.Body)
 			bodies = append(bodies, body)
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"apiVersion":"application.epinio.io/v1",` +
-				`"kind":"App","metadata":{"name":"app","namespace":"ns"}}`))
-		}))
+			response := `{"apiVersion":"application.epinio.io/v1",` +
+				`"kind":"App","metadata":{"name":"app","namespace":"ns"}}`
+			_, _ = w.Write([]byte(response))
+		},
+	))
 	t.Cleanup(srv.Close)
 
 	return &kubernetes.Cluster{
@@ -170,7 +189,10 @@ func TestRecordClonedRevisionStampsTheCommit(t *testing.T) {
 	cloned := &models.GitRef{Branch: "main", Revision: "abc123"}
 
 	if err := recordClonedRevision(
-		context.Background(), cluster, req, cloned,
+		context.Background(),
+		cluster,
+		req,
+		cloned,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +217,10 @@ func TestRecordClonedRevisionKeepsTheRequestedBranch(t *testing.T) {
 	cloned := &models.GitRef{Branch: "other", Revision: "abc123"}
 
 	if err := recordClonedRevision(
-		context.Background(), cluster, req, cloned,
+		context.Background(),
+		cluster,
+		req,
+		cloned,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -214,13 +239,19 @@ func TestRecordClonedRevisionSkipsWithoutAClone(t *testing.T) {
 		cloned *models.GitRef
 	}{
 		{"no clone", gitStageRequest("", "https://example.com/a.git"), nil},
-		{"clone from the stored origin", models.StageRequest{},
-			&models.GitRef{Revision: "abc123"}},
+		{
+			"clone from the stored origin",
+			models.StageRequest{},
+			&models.GitRef{Revision: "abc123"},
+		},
 	}
 
 	for _, tc := range cases {
 		if err := recordClonedRevision(
-			context.Background(), cluster, tc.req, tc.cloned,
+			context.Background(),
+			cluster,
+			tc.req,
+			tc.cloned,
 		); err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}

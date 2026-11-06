@@ -264,10 +264,14 @@ var _ = Describe("AppDeploy Endpoint", LApplication, func() {
 				// operation starts.
 				deployRequest.App.Name = appName2
 				bodyBytes, statusCode := appDeploy(
-					namespace, appName2, toJSON(deployRequest),
+					namespace,
+					appName2,
+					toJSON(deployRequest),
 				)
-				Expect(statusCode).To(Equal(http.StatusBadRequest),
-					string(bodyBytes))
+				Expect(statusCode).To(
+					Equal(http.StatusBadRequest),
+					string(bodyBytes),
+				)
 
 				out, err := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")

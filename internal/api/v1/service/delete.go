@@ -200,7 +200,10 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	resp := models.ServiceDeleteResponse{
 		BoundApps: boundAppNames,
 		OperationsResponse: apiapp.RedeployIfRunning(
-			ctx, cluster, unboundApps, false,
+			ctx,
+			cluster,
+			unboundApps,
+			false,
 		),
 	}
 

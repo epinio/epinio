@@ -171,20 +171,28 @@ func runOperation(
 	defer cancel()
 
 	log := requestctx.Logger(ctx).With(
-		"component", "app-operation",
-		"operation", op.ID,
-		"kind", op.Kind,
-		"namespace", op.App.Namespace,
-		"app", op.App.Name,
+		"component",
+		"app-operation",
+		"operation",
+		op.ID,
+		"kind",
+		op.Kind,
+		"namespace",
+		op.App.Namespace,
+		"app",
+		op.App.Name,
 	)
 
 	// An unrecovered panic in a goroutine kills the whole server, so a
 	// bug in work fails the operation instead.
 	defer func() {
 		if p := recover(); p != nil {
-			log.Errorw("operation panicked",
-				"panic", p,
-				"stack", string(debug.Stack()),
+			log.Errorw(
+				"operation panicked",
+				"panic",
+				p,
+				"stack",
+				string(debug.Stack()),
 			)
 			application.Operations.Finish(
 				op.App,
@@ -252,11 +260,15 @@ func StartRedeploys(
 
 	result := models.OperationsResponse{}
 	for _, app := range apps {
-		op, err := launchOperation(parent, app, models.OperationUpdate,
+		op, err := launchOperation(
+			parent,
+			app,
+			models.OperationUpdate,
 			func(ctx context.Context, rep operationReporter) error {
 				rep.Phase(models.OperationDeploying)
 				return redeployApp(ctx, cluster, app, username, restart)
-			})
+			},
+		)
 		if err != nil {
 			reason := err.Error()
 			if errors.Is(err, application.ErrOperationInProgress) {
@@ -351,7 +363,11 @@ func redeployApp(
 ) error {
 	if restart {
 		_, apiErr := deploy.DeployAppWithRestart(
-			ctx, cluster, app, username, "",
+			ctx,
+			cluster,
+			app,
+			username,
+			"",
 		)
 		return apiErrorAsError(apiErr)
 	}

@@ -82,11 +82,15 @@ var _ = Describe("Operation runner", func() {
 		defer close(release)
 
 		c, w := operationRequest(context.Background())
-		apiErr := startOperation(c, app, models.OperationBuild,
+		apiErr := startOperation(
+			c,
+			app,
+			models.OperationBuild,
 			func(ctx context.Context, _ operationReporter) error {
 				<-release
 				return nil
-			})
+			},
+		)
 		Expect(apiErr).To(BeNil())
 
 		Expect(w.Code).To(Equal(http.StatusAccepted))
@@ -106,19 +110,27 @@ var _ = Describe("Operation runner", func() {
 		defer close(release)
 
 		c, _ := operationRequest(context.Background())
-		Expect(startOperation(c, app, models.OperationBuild,
+		Expect(startOperation(
+			c,
+			app,
+			models.OperationBuild,
 			func(ctx context.Context, _ operationReporter) error {
 				<-release
 				return nil
-			})).To(BeNil())
+			},
+		)).To(BeNil())
 
 		var secondRan atomic.Bool
 		c2, _ := operationRequest(context.Background())
-		apiErr := startOperation(c2, app, models.OperationDeploy,
+		apiErr := startOperation(
+			c2,
+			app,
+			models.OperationDeploy,
 			func(ctx context.Context, _ operationReporter) error {
 				secondRan.Store(true)
 				return nil
-			})
+			},
+		)
 
 		Expect(apiErr).ToNot(BeNil())
 		Expect(apiErr.FirstStatus()).To(Equal(http.StatusConflict))
@@ -127,14 +139,18 @@ var _ = Describe("Operation runner", func() {
 
 	It("records success and the reported progress", func() {
 		c, _ := operationRequest(context.Background())
-		Expect(startOperation(c, app, models.OperationDeploy,
+		Expect(startOperation(
+			c,
+			app,
+			models.OperationDeploy,
 			func(ctx context.Context, rep operationReporter) error {
 				rep.Phase(models.OperationStaging)
 				rep.Staged("s1", "registry/img:s1")
 				rep.Phase(models.OperationDeploying)
 				rep.Deployed([]string{"app.example.com"}, nil)
 				return nil
-			})).To(BeNil())
+			},
+		)).To(BeNil())
 
 		op := eventuallyOperation(app)
 		Expect(op.Phase).To(Equal(models.OperationSucceeded))
@@ -146,10 +162,14 @@ var _ = Describe("Operation runner", func() {
 
 	It("records a failure with the work's error", func() {
 		c, _ := operationRequest(context.Background())
-		Expect(startOperation(c, app, models.OperationRestart,
+		Expect(startOperation(
+			c,
+			app,
+			models.OperationRestart,
 			func(ctx context.Context, _ operationReporter) error {
 				return errors.New("helm upgrade failed")
-			})).To(BeNil())
+			},
+		)).To(BeNil())
 
 		op := eventuallyOperation(app)
 		Expect(op.Phase).To(Equal(models.OperationFailed))
@@ -158,10 +178,14 @@ var _ = Describe("Operation runner", func() {
 
 	It("fails the operation when work panics", func() {
 		c, _ := operationRequest(context.Background())
-		Expect(startOperation(c, app, models.OperationBuild,
+		Expect(startOperation(
+			c,
+			app,
+			models.OperationBuild,
 			func(ctx context.Context, _ operationReporter) error {
 				panic("boom")
-			})).To(BeNil())
+			},
+		)).To(BeNil())
 
 		op := eventuallyOperation(app)
 		Expect(op.Phase).To(Equal(models.OperationFailed))
@@ -172,12 +196,16 @@ var _ = Describe("Operation runner", func() {
 		canceled := make(chan struct{})
 
 		c, _ := operationRequest(context.Background())
-		Expect(startOperation(c, app, models.OperationDeploy,
+		Expect(startOperation(
+			c,
+			app,
+			models.OperationDeploy,
 			func(ctx context.Context, _ operationReporter) error {
 				<-ctx.Done()
 				close(canceled)
 				return ctx.Err()
-			})).To(BeNil())
+			},
+		)).To(BeNil())
 
 		application.Operations.Delete(app)
 		Eventually(canceled).Should(BeClosed())
@@ -201,7 +229,10 @@ var _ = Describe("Operation runner", func() {
 		proceed := make(chan struct{})
 
 		c, _ := operationRequest(reqCtx)
-		Expect(startOperation(c, app, models.OperationBuild,
+		Expect(startOperation(
+			c,
+			app,
+			models.OperationBuild,
 			func(ctx context.Context, _ operationReporter) error {
 				<-proceed
 				got <- seen{
@@ -210,7 +241,8 @@ var _ = Describe("Operation runner", func() {
 					err:  ctx.Err(),
 				}
 				return nil
-			})).To(BeNil())
+			},
+		)).To(BeNil())
 
 		endRequest()
 		close(proceed)
@@ -265,7 +297,10 @@ var _ = Describe("RedeployIfRunning", func() {
 		app := deployedApp(models.ApplicationError)
 
 		result := RedeployIfRunning(
-			context.Background(), nil, []models.App{app}, false,
+			context.Background(),
+			nil,
+			[]models.App{app},
+			false,
 		)
 
 		Expect(result.Operations).To(BeEmpty())
@@ -275,8 +310,12 @@ var _ = Describe("RedeployIfRunning", func() {
 	})
 
 	It("ignores an app that was never deployed", func() {
-		result := RedeployIfRunning(context.Background(), nil,
-			[]models.App{{Meta: uniqueOperationApp()}}, false)
+		result := RedeployIfRunning(
+			context.Background(),
+			nil,
+			[]models.App{{Meta: uniqueOperationApp()}},
+			false,
+		)
 
 		Expect(result.Operations).To(BeEmpty())
 		Expect(result.Skipped).To(BeEmpty())
@@ -285,12 +324,17 @@ var _ = Describe("RedeployIfRunning", func() {
 	It("reports a running app that is busy as skipped", func() {
 		app := deployedApp(models.ApplicationRunning)
 		_, _, err := application.Operations.Start(
-			context.Background(), app.Meta, models.OperationBuild,
+			context.Background(),
+			app.Meta,
+			models.OperationBuild,
 		)
 		Expect(err).ToNot(HaveOccurred())
 
 		result := RedeployIfRunning(
-			context.Background(), nil, []models.App{app}, false,
+			context.Background(),
+			nil,
+			[]models.App{app},
+			false,
 		)
 
 		Expect(result.Operations).To(BeEmpty())
@@ -304,7 +348,10 @@ var _ = Describe("RedeployIfRunning", func() {
 		app := deployedApp(models.ApplicationError)
 
 		result := RedeployIfRunning(
-			context.Background(), nil, []models.App{app, app}, false,
+			context.Background(),
+			nil,
+			[]models.App{app, app},
+			false,
 		)
 
 		Expect(result.Skipped).To(HaveLen(1))

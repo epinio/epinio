@@ -63,7 +63,8 @@ func DescribeAppsErrors() {
 				}`
 		})
 
-		DescribeTable("the APIs are returning an error",
+		DescribeTable(
+			"the APIs are returning an error",
 			func(call func() (any, error)) {
 				_, err := call()
 				Expect(err).To(HaveOccurred())

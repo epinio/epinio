@@ -84,7 +84,7 @@ func (c *Client) ConfigurationCreate(request models.ConfigurationCreateRequest, 
 // ConfigurationUpdate updates a configuration by invoking the associated API endpoint
 func (c *Client) ConfigurationUpdate(
 	request models.ConfigurationUpdateRequest,
-	namespace,
+	namespace string,
 	name string,
 ) (models.OperationsResponse, error) {
 	response := models.OperationsResponse{}

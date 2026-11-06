@@ -67,7 +67,11 @@ func Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	boundedConfigs, changed, errors := CreateConfigurationBinding(
-		ctx, cluster, namespace, *app, bindRequest.Names,
+		ctx,
+		cluster,
+		namespace,
+		*app,
+		bindRequest.Names,
 	)
 	if errors != nil {
 		return errors
@@ -79,7 +83,10 @@ func Create(c *gin.Context) apierror.APIErrors {
 	}
 	if changed {
 		resp.OperationsResponse = apiapp.RedeployIfRunning(
-			ctx, cluster, []models.App{*app}, false,
+			ctx,
+			cluster,
+			[]models.App{*app},
+			false,
 		)
 	}
 

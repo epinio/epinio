@@ -26,7 +26,8 @@ import (
 func DeleteBinding(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
-	namespace, appName string,
+	namespace string,
+	appName string,
 	configurationNames []string,
 ) (*models.App, apierror.APIErrors) {
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
@@ -38,7 +39,10 @@ func DeleteBinding(
 	}
 
 	err = application.BoundConfigurationsUnset(
-		ctx, cluster, app.Meta, configurationNames,
+		ctx,
+		cluster,
+		app.Meta,
+		configurationNames,
 	)
 	if err != nil {
 		return nil, apierror.InternalError(err)

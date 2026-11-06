@@ -104,7 +104,11 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			// failed, i.e. the configuration is standalone.
 
 			app, apiErr := configurationbinding.DeleteBinding(
-				ctx, cluster, namespace, appName, cNames,
+				ctx,
+				cluster,
+				namespace,
+				appName,
+				cNames,
 			)
 			if apiErr != nil {
 				return apiErr
@@ -125,7 +129,10 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	resp := models.ConfigurationDeleteResponse{
 		BoundApps: allBoundApps,
 		OperationsResponse: apiapp.RedeployIfRunning(
-			ctx, cluster, unboundApps, false,
+			ctx,
+			cluster,
+			unboundApps,
+			false,
 		),
 	}
 

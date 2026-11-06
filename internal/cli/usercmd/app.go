@@ -475,7 +475,11 @@ func (c *EpinioClient) AppRestart(appName string) error {
 
 	appRef := models.NewAppRef(appName, c.Settings.Namespace)
 	_, err = c.waitOperation(
-		context.Background(), appRef, op, false, log.V(1),
+		context.Background(),
+		appRef,
+		op,
+		false,
+		log.V(1),
 	)
 	return err
 }
@@ -779,7 +783,11 @@ func (c *EpinioClient) AppDeploy(appName string) error {
 	defer s.Stop()
 
 	deployed, err := c.waitOperation(
-		context.Background(), app.Meta, op, false, log.V(1),
+		context.Background(),
+		app.Meta,
+		op,
+		false,
+		log.V(1),
 	)
 	if err != nil {
 		return err
@@ -831,7 +839,11 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 		s := c.ui.Progress("Redeploying")
 		appRef := models.NewAppRef(appName, c.Settings.Namespace)
 		_, err = c.waitOperation(
-			context.Background(), appRef, op, false, details,
+			context.Background(),
+			appRef,
+			op,
+			false,
+			details,
 		)
 		s.Stop()
 		if err != nil {
@@ -1214,7 +1226,11 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 
 	log.V(1).Info("wait for the build", "operation", op.ID)
 	_, err = c.waitOperation(
-		context.Background(), app.Meta, op, true, log.V(1),
+		context.Background(),
+		app.Meta,
+		op,
+		true,
+		log.V(1),
 	)
 	if err != nil {
 		return err
@@ -1229,7 +1245,11 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 			return err
 		}
 		_, err = c.waitOperation(
-			context.Background(), app.Meta, op, false, log.V(1),
+			context.Background(),
+			app.Meta,
+			op,
+			false,
+			log.V(1),
 		)
 		return err
 	}
@@ -1259,11 +1279,17 @@ func (c *EpinioClient) waitRedeploys(ops models.OperationsResponse) error {
 	for i := range ops.Operations {
 		op := ops.Operations[i]
 		_, err := c.waitOperation(
-			context.Background(), op.App, &op, false, c.Log.V(1),
+			context.Background(),
+			op.App,
+			&op,
+			false,
+			c.Log.V(1),
 		)
 		if err != nil {
-			failed = append(failed,
-				fmt.Sprintf("%s: %s", op.App.Name, err.Error()))
+			failed = append(
+				failed,
+				fmt.Sprintf("%s: %s", op.App.Name, err.Error()),
+			)
 		}
 	}
 
@@ -1324,8 +1350,13 @@ func (c *EpinioClient) waitOperation(
 			)
 		}
 
-		logger.Info("operation", "phase", current.Phase,
-			"stageID", current.StageID)
+		logger.Info(
+			"operation",
+			"phase",
+			current.Phase,
+			"stageID",
+			current.StageID,
+		)
 
 		if streamLogs && stageID == "" && current.StageID != "" {
 			stageID = current.StageID

@@ -86,8 +86,11 @@ func makeMultipartRequest(
 	return request
 }
 
-var _ = Describe("AppSourcePatch and AppSync Endpoints",
-	LApplication, Ordered, func() {
+var _ = Describe(
+	"AppSourcePatch and AppSync Endpoints",
+	LApplication,
+	Ordered,
+	func() {
 		var (
 			namespace string
 			appName   string
@@ -236,7 +239,8 @@ var _ = Describe("AppSourcePatch and AppSync Endpoints",
 				responseBody, readError := io.ReadAll(response.Body)
 				Expect(readError).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(
-					Equal(http.StatusAccepted), string(responseBody),
+					Equal(http.StatusAccepted),
+					string(responseBody),
 				)
 
 				By("waiting for the patched content to be served")
@@ -289,4 +293,5 @@ var _ = Describe("AppSourcePatch and AppSync Endpoints",
 				)
 			})
 		})
-	})
+	},
+)

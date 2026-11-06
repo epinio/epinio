@@ -100,7 +100,8 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 				}
 
 				fake.AppStateStub = func(
-					namespace, appName string,
+					namespace string,
+					appName string,
 				) (models.AppState, error) {
 					return models.AppState{Operation: &models.AppOperation{
 						ID:    "op1",
@@ -158,12 +159,14 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 		BeforeEach(func() {
 			fake = &usercmdfakes.FakeAPIClient{}
 			fake.AppRestartStub = func(
-				namespace, appName string,
+				namespace string,
+				appName string,
 			) (*models.AppOperation, error) {
 				return &models.AppOperation{ID: "op1"}, nil
 			}
 			fake.AppStateStub = func(
-				namespace, appName string,
+				namespace string,
+				appName string,
 			) (models.AppState, error) {
 				return state, nil
 			}
@@ -181,7 +184,8 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 
 		It("succeeds when the operation succeeds", func() {
 			state = models.AppState{Operation: &models.AppOperation{
-				ID: "op1", Phase: models.OperationSucceeded,
+				ID:    "op1",
+				Phase: models.OperationSucceeded,
 			}}
 
 			Expect(restart()).To(Succeed())
@@ -189,7 +193,8 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 
 		It("returns the server's error when the operation fails", func() {
 			state = models.AppState{Operation: &models.AppOperation{
-				ID: "op1", Phase: models.OperationFailed,
+				ID:    "op1",
+				Phase: models.OperationFailed,
 				Error: "helm upgrade failed",
 			}}
 
@@ -206,7 +211,8 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 
 		It("fails when another operation replaced it", func() {
 			state = models.AppState{Operation: &models.AppOperation{
-				ID: "op2", Phase: models.OperationStaging,
+				ID:    "op2",
+				Phase: models.OperationStaging,
 			}}
 
 			Expect(restart()).To(MatchError(
@@ -221,18 +227,24 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 		BeforeEach(func() {
 			fake = &usercmdfakes.FakeAPIClient{}
 			app := models.NewAppRef("appname", "workspace")
-			fake.EnvSetReturns(models.OperationsResponse{
-				Operations: []models.AppOperation{{ID: "op1", App: app}},
-				Skipped: []models.SkippedApp{{
-					App:    models.NewAppRef("busy", "workspace"),
-					Reason: "busy",
-				}},
-			}, nil)
+			fake.EnvSetReturns(
+				models.OperationsResponse{
+					Operations: []models.AppOperation{{ID: "op1", App: app}},
+					Skipped: []models.SkippedApp{{
+						App:    models.NewAppRef("busy", "workspace"),
+						Reason: "busy",
+					}},
+				},
+				nil,
+			)
 			fake.AppStateStub = func(
-				namespace, appName string,
+				namespace string,
+				appName string,
 			) (models.AppState, error) {
 				return models.AppState{Operation: &models.AppOperation{
-					ID: "op1", Phase: phase, Error: "helm failed",
+					ID:    "op1",
+					Phase: phase,
+					Error: "helm failed",
 				}}, nil
 			}
 		})
@@ -245,7 +257,10 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 			epinioClient.API = fake
 
 			return epinioClient.EnvSet(
-				context.Background(), "appname", "KEY", "value",
+				context.Background(),
+				"appname",
+				"KEY",
+				"value",
 			)
 		}
 
