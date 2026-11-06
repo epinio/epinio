@@ -15,7 +15,7 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 //go:generate swagger generate spec
 
-// swagger:route GET /gitconfigs gitconfig Gitconfigs
+// swagger:route GET /gitconfigs GitConfigs Gitconfigs
 // Return list of all controlled gitconfigs.
 // responses:
 //   200: GitconfigsResponse
@@ -26,7 +26,7 @@ type GitconfigsResponse struct {
 	Body models.GitconfigList
 }
 
-// swagger:route POST /gitconfigs gitconfig GitconfigCreate
+// swagger:route POST /gitconfigs GitConfigs GitconfigCreate
 // Create the posted new gitconfig.
 // responses:
 //   200: GitconfigCreateResponse
@@ -43,12 +43,12 @@ type GitconfigCreateResponse struct {
 	Body models.Response
 }
 
-// swagger:route DELETE /gitconfigs GitconfigBatchDelete
+// swagger:route DELETE /gitconfigs GitConfigs GitconfigBatchDelete
 // Delete the named gitconfigs.
 // responses:
 //   200: GitconfigDeleteResponse
 
-// swagger:route DELETE /gitconfigs/{Gitconfig} gitconfig GitconfigDelete
+// swagger:route DELETE /gitconfigs/{Gitconfig} GitConfigs GitconfigDelete
 // Delete the named `Gitconfig`.
 // responses:
 //   200: GitconfigDeleteResponse
@@ -71,12 +71,12 @@ type GitconfigDeleteResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /gitconfigs/{Gitconfig} gitconfig Gitconfigshow
+// swagger:route GET /gitconfigs/{Gitconfig} GitConfigs GitconfigShow
 // Return details of the named `Gitconfig`.
 // responses:
 //   200: GitconfigshowResponse
 
-// swagger:parameters Gitconfigshow
+// swagger:parameters GitconfigShow
 type GitconfigshowParam struct {
 	// in: path
 	Gitconfig string
@@ -88,12 +88,12 @@ type GitconfigshowResponse struct {
 	Body models.Gitconfig
 }
 
-// swagger:route GET /gitconfigmatches/{Pattern} gitconfig GitconfigMatch
+// swagger:route GET /gitconfigsmatch/{Pattern} GitConfigs GitconfigsMatch
 // Return list of names for all controlled gitconfigs whose name matches the prefix `Pattern`.
 // responses:
 //   200: GitconfigMatchResponse
 
-// swagger:parameters GitconfigMatch
+// swagger:parameters GitconfigsMatch
 type GitconfigMatchParam struct {
 	// in: path
 	Pattern string
@@ -105,12 +105,12 @@ type GitconfigMatchResponse struct {
 	Body models.GitconfigsMatchResponse
 }
 
-// swagger:route GET /gitconfigmatches gitconfig GitconfigMatch0
-// Return list of names for all controlled gitconfigs (No prefix = empty prefix = match everything)
+// swagger:route GET /gitconfigsmatch GitConfigs GitconfigsMatch0
+// Return all git configuration names.
 // responses:
 //   200: GitconfigMatchResponse
 
-// swagger:parameters GitconfigMatch0
+// swagger:parameters GitconfigsMatch0
 type GitconfigMatch0Param struct{}
 
 // response: See GitconfigMatch.

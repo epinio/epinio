@@ -17,7 +17,7 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Env -- Application Environment
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App}/environment app-env EnvList
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/environment Environment EnvList
 // Return the environment variable assignments for the `App` in the namespace`.
 // responses:
 //   200: EnvListResponse
@@ -36,7 +36,7 @@ type EnvListResponse struct {
 	Body models.EnvVariableMap
 }
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App}/environmentmatch/{Pattern} app-env EnvMatch
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/environmentmatch/{Pattern} Environment EnvMatch
 // Return the environment variable names of the `App` in the `Namespace` with prefix `Pattern`.
 // responses:
 //   200: EnvMatchResponse
@@ -57,8 +57,8 @@ type EnvMatchResponse struct {
 	Body models.EnvMatchResponse
 }
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App}/environmentmatch app-env EnvMatch0
-// Return the environment variable names of the `App` in the `Namespace`. (No prefix == Empty prefix == All match)
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/environmentmatch Environment EnvMatch0
+// Return all environment variable names of the `App`.
 // responses:
 //   200: EnvMatchResponse
 
@@ -72,10 +72,11 @@ type EnvMatch0Params struct {
 
 // See EnvMatch above
 
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/environment app-env EnvSet
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/environment Environment EnvSet
 // Create/modify the posted environment variable assignments for the `App` in the `Namespace`.
 // responses:
 //   200: EnvSetResponse
+//   202: OperationsResponse
 
 // swagger:parameters EnvSet
 type EnvSetParams struct {
@@ -93,7 +94,7 @@ type EnvSetResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App}/environment/{Env} app-env EnvShow
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/environment/{Env} Environment EnvShow
 // Return the named `Env` variable assignment for the `App` in the `Namespace`.
 // responses:
 //   200: EnvShowResponse
@@ -114,10 +115,11 @@ type EnvShowResponse struct {
 	Body models.EnvVariable
 }
 
-// swagger:route DELETE /namespaces/{Namespace}/applications/{App}/environment/{Env} app-env EnvUnset
+// swagger:route DELETE /namespaces/{Namespace}/applications/{App}/environment/{Env} Environment EnvUnset
 // Remove the named `Env` variable from the `App` in the `Namespace`.
 // responses:
 //   200: EnvUnsetResponse
+//   202: OperationsResponse
 
 // swagger:parameters EnvUnset
 type EnvUnsetParams struct {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -17,7 +18,13 @@ func TestDeleteServiceBindingsAggregatesConfigNames(t *testing.T) {
 	var calls int
 	var received []string
 
-	stubDelete := func(_ context.Context, _ *kubernetes.Cluster, namespace, appName, userName string, configs []string) apierror.APIErrors {
+	stubDelete := func(
+		_ context.Context,
+		_ *kubernetes.Cluster,
+		namespace string,
+		appName string,
+		configs []string,
+	) (*models.App, apierror.APIErrors) {
 		calls++
 
 		if namespace != "test-ns" {
@@ -26,12 +33,9 @@ func TestDeleteServiceBindingsAggregatesConfigNames(t *testing.T) {
 		if appName != "my-app" {
 			t.Fatalf("expected app my-app, got %s", appName)
 		}
-		if userName != "alice" {
-			t.Fatalf("expected user alice, got %s", userName)
-		}
 
 		received = append([]string{}, configs...)
-		return nil
+		return nil, nil
 	}
 
 	serviceConfigurations := []v1.Secret{
@@ -59,9 +63,15 @@ func TestDeleteServiceBindingsSkipsEmptyConfigs(t *testing.T) {
 	ctx := context.Background()
 
 	var calls int
-	stubDelete := func(_ context.Context, _ *kubernetes.Cluster, _, _, _ string, _ []string) apierror.APIErrors {
+	stubDelete := func(
+		_ context.Context,
+		_ *kubernetes.Cluster,
+		_ string,
+		_ string,
+		_ []string,
+	) (*models.App, apierror.APIErrors) {
 		calls++
-		return nil
+		return nil, nil
 	}
 
 	errs := deleteServiceBindings(ctx, nil, "test-ns", "my-app", "alice", nil, stubDelete)

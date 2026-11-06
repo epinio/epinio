@@ -831,6 +831,10 @@ func Delete(
 ) (*DeleteResult, error) {
 	result := &DeleteResult{}
 
+	// Stop any running operation first, so its runner does not stage or
+	// deploy into the resources being removed (or a recreated app).
+	Operations.Delete(appRef)
+
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return nil, err

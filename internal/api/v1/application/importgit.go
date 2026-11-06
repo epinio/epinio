@@ -83,7 +83,6 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	gitbridge "github.com/epinio/epinio/internal/bridge/git"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -91,55 +90,12 @@ import (
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
-
-// ImportGit handles the API endpoint /namespaces/:namespace/applications/:app/import-git.
-// It receives a Git repo url and revision, clones that (shallow clone), creates a tarball
-// of the repo and puts it on S3.
-func ImportGit(c *gin.Context) apierror.APIErrors {
-	ctx := c.Request.Context()
-	user := requestctx.User(ctx)
-
-	namespace := c.Param("namespace")
-	name := c.Param("app")
-	giturl := c.PostForm("giturl")
-	revision := c.PostForm("gitrev")
-	gitconfigName := c.PostForm("gitconfig")
-
-	if apiErr := validateGitURL(giturl); apiErr != nil {
-		return apiErr
-	}
-
-	cluster, clusterError := kubernetes.GetCluster(ctx)
-	if clusterError != nil {
-		return apierror.InternalError(clusterError, "failed to get access to a kube client")
-	}
-
-	gitConfig, resolveError := resolveGitconfig(cluster, user, gitconfigName)
-	if resolveError != nil {
-		return resolveError
-	}
-
-	blobUID, branch, resolvedRevision, uploadError := cloneAndUpload(
-		ctx, cluster, giturl, revision, namespace, name, user.Username, gitConfig,
-	)
-	if uploadError != nil {
-		return uploadError
-	}
-
-	response.OKReturn(c, models.ImportGitResponse{
-		BlobUID:  blobUID,
-		Branch:   branch,
-		Revision: resolvedRevision,
-	})
-	return nil
-}
 
 // resolveGitconfig returns the explicitly selected git configuration, or nil when
 // none was requested. Selection is intentional: there is no implicit URL matching.

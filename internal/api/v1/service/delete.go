@@ -16,7 +16,7 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/api/v1/response"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
@@ -95,6 +95,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 	appConfigurationsMap := make(map[string][]appInfo)
 	boundAppNames := []string{}
+	unboundApps := []models.App{}
 
 	for _, service := range theServices {
 		serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
@@ -163,6 +164,15 @@ func Delete(c *gin.Context) apierror.APIErrors {
 					return apiErr
 				}
 			}
+
+			// Redeployed once, after all its services are unbound.
+			app, err := application.Lookup(ctx, cluster, namespace, appName)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+			if app != nil {
+				unboundApps = append(unboundApps, *app)
+			}
 		}
 	}
 
@@ -187,8 +197,16 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	response.OKReturn(c, models.ServiceDeleteResponse{
+	resp := models.ServiceDeleteResponse{
 		BoundApps: boundAppNames,
-	})
+		OperationsResponse: apiapp.RedeployIfRunning(
+			ctx,
+			cluster,
+			unboundApps,
+			false,
+		),
+	}
+
+	c.JSON(apiapp.RedeployStatus(resp.OperationsResponse), resp)
 	return nil
 }

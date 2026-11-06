@@ -130,6 +130,9 @@ type App struct {
 	// See AppBuildStatusCreate / AppBuildStatusBuild / AppBuildStatusDeployed.
 	BuildStatus   string `json:"buildstatus,omitempty"`
 	FailureReason string `json:"failure_reason,omitempty"`
+	// Operation is the app's latest lifecycle operation, when this server
+	// still holds a record of it. See AppState.
+	Operation *AppOperation `json:"operation,omitempty"`
 }
 
 type PodInfo struct {

@@ -201,6 +201,7 @@ getswagger:
 
 swagger: getswagger
 	swagger generate spec > docs/references/api/swagger.json
+	./scripts/swagger-postprocess.sh docs/references/api/swagger.json
 	swagger validate        docs/references/api/swagger.json
 
 swagger-serve:

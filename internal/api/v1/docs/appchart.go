@@ -19,12 +19,12 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// swagger:route GET /appcharts appcharts AllCharts
+// swagger:route GET /appcharts AppCharts ChartList
 // Return list of app charts.
 // responses:
 //   200: AppChartsResponse
 
-// swagger:parameters AllCharts
+// swagger:parameters ChartList
 type AllChartsParam struct{}
 
 // swagger:response AppChartsResponse
@@ -33,7 +33,7 @@ type AppChartsResponse struct {
 	Body models.AppChartList
 }
 
-// swagger:route GET /appcharts/{Chart} appcharts ChartShow
+// swagger:route GET /appcharts/{Chart} AppCharts ChartShow
 // Return details of the named `Chart`.
 // responses:
 //   200: ChartShowResponse
@@ -50,7 +50,7 @@ type ChartShowResponse struct {
 	Body models.AppChart
 }
 
-// swagger:route GET /appchartsmatch/{Pattern} appcharts ChartMatch
+// swagger:route GET /appchartsmatch/{Pattern} AppCharts ChartMatch
 // Return the chart names with prefix `Pattern`.
 // responses:
 //   200: ChartMatchResponse
@@ -67,8 +67,8 @@ type ChartMatchResponse struct {
 	Body models.ChartMatchResponse
 }
 
-// swagger:route GET /appchartsmatch appcharts ChartMatch0
-// Return the chart names. (No prefix == Empty prefix == All match)
+// swagger:route GET /appchartsmatch AppCharts ChartMatch0
+// Return all app chart names.
 // responses:
 //   200: ChartMatchResponse
 
@@ -78,7 +78,7 @@ type ChartMatch0Params struct {
 
 // See ChartMatch above
 
-// swagger:route POST /appcharts appcharts ChartCreate
+// swagger:route POST /appcharts AppCharts ChartCreate
 // Create a new appchart.
 // responses:
 //   201: ChartCreateResponse
@@ -92,11 +92,11 @@ type ChartCreateParam struct {
 // swagger:response ChartCreateResponse
 type ChartCreateResponse struct{}
 
-// swagger:route POST /appcharts/push appcharts ChartPush
-// Upload a helm chart archive. It is pushed to Epinio's registry, and a new appchart
-// referencing it is created. For the name of an appchart pushed before, which no application uses, its chart is replaced.
-// consumes:
-//   - multipart/form-data
+// swagger:route POST /appcharts/push AppCharts ChartPush
+// Upload a Helm chart archive as a new app chart.
+//
+// The chart is pushed to Epinio's registry, and an app chart is created
+// that references it.
 // responses:
 //   200: ChartPushResponse
 
@@ -123,7 +123,7 @@ type ChartPushResponse struct {
 	Body models.AppChartPushResponse
 }
 
-// swagger:route PATCH /appcharts/{Chart} appcharts ChartUpdate
+// swagger:route PATCH /appcharts/{Chart} AppCharts ChartUpdate
 // Update fields on the named `Chart`. The chart and repository cannot be changed while applications use the `Chart`, nor for a chart pushed to Epinio's registry.
 // responses:
 //   200: ChartUpdateResponse
@@ -139,7 +139,7 @@ type ChartUpdateParam struct {
 // swagger:response ChartUpdateResponse
 type ChartUpdateResponse struct{}
 
-// swagger:route DELETE /appcharts/{Chart} appcharts ChartDelete
+// swagger:route DELETE /appcharts/{Chart} AppCharts ChartDelete
 // Delete the named `Chart`. A chart pushed to Epinio's registry is removed from it as well.
 // responses:
 //   200: ChartDeleteResponse

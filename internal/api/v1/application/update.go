@@ -61,6 +61,12 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 		return apierror.AppIsNotKnown(appName)
 	}
 
+	// Reject a busy app before changing anything, so a 409 never leaves
+	// half of an update applied.
+	if application.Operations.Busy(appRef) {
+		return operationInProgress(appRef)
+	}
+
 	// Retrieve and validate update request ...
 
 	var updateRequest models.ApplicationUpdateRequest
@@ -210,38 +216,95 @@ func Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplifica
 	// Redeploy (default when Restart is omitted or true) picks up the new helm chart.
 	// On deploy failure after a chart change, roll the CRD chart name back.
 	restart := updateRequest.Restart == nil || *updateRequest.Restart
-	if restart {
-		instancesChanged := appInstancesChanged(app, updateRequest.Instances)
-		chartRedeploy := chartChanging && app.Workload != nil
+	if !restart {
+		response.OK(c)
+		return nil
+	}
 
-		var apierr apierror.APIErrors
-		if instancesChanged || chartRedeploy {
-			log.Infow("updating app -- deploying", "chartChanging", chartChanging, "instancesChanged", instancesChanged)
-			_, apierr = deploy.DeployApp(ctx, cluster, app.Meta, username, "")
-		} else if app.Workload != nil && app.Status == models.ApplicationRunning {
-			log.Infow("updating app -- restarting")
-			apierr = deployAppIfImageReady(ctx, cluster, app, username)
-		} else if app.Workload != nil {
-			log.Infow("updating app -- restart skipped because application is not running", "status", app.Status)
-		} else if desired > 0 {
-			log.Infow("updating app -- deploying")
-			_, apierr = deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+	instancesChanged := appInstancesChanged(app, updateRequest.Instances)
+	chartRedeploy := chartChanging && app.Workload != nil
+
+	var redeploy func(ctx context.Context) apierror.APIErrors
+	switch {
+	case instancesChanged || chartRedeploy:
+		log.Infow(
+			"updating app -- deploying",
+			"chartChanging",
+			chartChanging,
+			"instancesChanged",
+			instancesChanged,
+		)
+		redeploy = func(ctx context.Context) apierror.APIErrors {
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+			return apierr
 		}
-
-		if apierr != nil {
-			if chartChanging {
-				log.Errorw("deploy after app chart change failed, rolling chart back",
-					"from", updateRequest.AppChart, "to", previousChart, "error", apierr)
-				if rbErr := updateAppChart(ctx, cluster, client, app.Meta.Namespace, app.Meta.Name, previousChart); rbErr != nil {
-					log.Errorw("failed to roll back app chart after deploy error", "error", rbErr)
-				}
-			}
+	case app.Workload != nil && app.Status == models.ApplicationRunning:
+		log.Infow("updating app -- restarting")
+		redeploy = func(ctx context.Context) apierror.APIErrors {
+			return deployAppIfImageReady(ctx, cluster, app, username)
+		}
+	case app.Workload != nil:
+		log.Infow(
+			"updating app -- restart skipped, application not running",
+			"status",
+			app.Status,
+		)
+	case desired > 0:
+		log.Infow("updating app -- deploying")
+		redeploy = func(ctx context.Context) apierror.APIErrors {
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
 			return apierr
 		}
 	}
 
-	response.OK(c)
-	return nil
+	if redeploy == nil {
+		response.OK(c)
+		return nil
+	}
+
+	return startOperation(
+		c,
+		appRef,
+		models.OperationUpdate,
+		func(ctx context.Context, rep operationReporter) error {
+			rep.Phase(models.OperationDeploying)
+			apierr := redeploy(ctx)
+			if apierr == nil {
+				return nil
+			}
+
+			// On deploy failure after a chart change, roll the CRD chart
+			// name back.
+			if chartChanging {
+				log.Errorw(
+					"deploy after app chart change failed, rolling chart back",
+					"from",
+					updateRequest.AppChart,
+					"to",
+					previousChart,
+					"error",
+					apierr,
+				)
+				rbErr := updateAppChart(
+					ctx,
+					cluster,
+					client,
+					app.Meta.Namespace,
+					app.Meta.Name,
+					previousChart,
+				)
+				if rbErr != nil {
+					log.Errorw(
+						"rolling the app chart back failed",
+						"error",
+						rbErr,
+					)
+				}
+			}
+
+			return apiErrorAsError(apierr)
+		},
+	)
 }
 
 // deployAppIfImageReady runs DeployApp only when the app already has a built image.
@@ -253,7 +316,13 @@ func deployAppIfImageReady(ctx context.Context, cluster *kubernetes.Cluster, app
 		return nil
 	}
 
-	_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
+	_, apierr := deploy.DeployApp(
+		ctx,
+		cluster,
+		app.Meta,
+		username,
+		"",
+	)
 	return apierr
 }
 

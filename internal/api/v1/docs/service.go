@@ -15,7 +15,7 @@ package docs
 
 import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
-// swagger:route GET /catalogservices service ServiceCatalog
+// swagger:route GET /catalogservices CatalogServices ServiceCatalog
 // Return all available Epinio Catalog services.
 // responses:
 //   200: ServiceCatalogResponse
@@ -29,7 +29,7 @@ type ServiceCatalogResponse struct {
 	Body models.CatalogServices
 }
 
-// swagger:route GET /catalogservices/{CatalogService} service ServiceCatalogShow
+// swagger:route GET /catalogservices/{CatalogService} CatalogServices ServiceCatalogShow
 // Return details of the named Epinio `CatalogService`.
 // responses:
 //   200: ServiceCatalogShowResponse
@@ -46,7 +46,7 @@ type ServiceCatalogShowResponse struct {
 	Body models.CatalogService
 }
 
-// swagger:route POST /catalogservices service ServiceCatalogCreate
+// swagger:route POST /catalogservices CatalogServices ServiceCatalogCreate
 // Create a new catalog service.
 // responses:
 //   201: ServiceCatalogCreateResponse
@@ -60,7 +60,7 @@ type ServiceCatalogCreateParam struct {
 // swagger:response ServiceCatalogCreateResponse
 type ServiceCatalogCreateResponse struct{}
 
-// swagger:route PATCH /catalogservices/{CatalogService} service ServiceCatalogUpdate
+// swagger:route PATCH /catalogservices/{CatalogService} CatalogServices ServiceCatalogUpdate
 // Update fields on the named `CatalogService`.
 // responses:
 //   200: ServiceCatalogUpdateResponse
@@ -76,7 +76,7 @@ type ServiceCatalogUpdateParam struct {
 // swagger:response ServiceCatalogUpdateResponse
 type ServiceCatalogUpdateResponse struct{}
 
-// swagger:route DELETE /catalogservices/{CatalogService} service ServiceCatalogDelete
+// swagger:route DELETE /catalogservices/{CatalogService} CatalogServices ServiceCatalogDelete
 // Delete the named `CatalogService`.
 // responses:
 //   200: ServiceCatalogDeleteResponse
@@ -90,12 +90,12 @@ type ServiceCatalogDeleteParam struct {
 // swagger:response ServiceCatalogDeleteResponse
 type ServiceCatalogDeleteResponse struct{}
 
-// swagger:route GET /catalogservicesmatches/{Pattern} catalogservice CatalogServiceMatch
+// swagger:route GET /catalogservicesmatches/{Pattern} CatalogServices ServiceCatalogMatch
 // Return list of names for all catalog entries whose name matches the prefix `Pattern`.
 // responses:
 //   200: CatalogMatchResponse
 
-// swagger:parameters CatalogServiceMatch
+// swagger:parameters ServiceCatalogMatch
 type CatalogServiceMatchParam struct {
 	// in: path
 	Pattern string
@@ -107,7 +107,7 @@ type CatalogMatchResponse struct {
 	Body models.CatalogMatchResponse
 }
 
-// swagger:route GET /services service AllServices
+// swagger:route GET /services Services AllServices
 // Return all the `Services` where the User has authorization.
 // responses:
 //   200: ServiceListResponse
@@ -129,7 +129,7 @@ type AllServicesParam struct {
 	PageSize string `json:"pageSize"`
 }
 
-// swagger:route POST /namespaces/{Namespace}/services service ServiceCreate
+// swagger:route POST /namespaces/{Namespace}/services Services ServiceCreate
 // Create a named service of an Epinio catalog service in the `Namespace`.
 // responses:
 //   200: ServiceCreateResponse
@@ -148,8 +148,11 @@ type ServiceCreateResponse struct {
 	Body models.Response
 }
 
-// swagger:route PATCH /namespaces/{Namespace}/services/{Service} service ServiceUpdate
-// Update the named `Service` in the `Namespace` as per the instructions in the body
+// swagger:route PATCH /namespaces/{Namespace}/services/{Service} Services ServiceUpdate
+// Update the settings of the named `Service` in the `Namespace`.
+//
+// Bound apps are redeployed after the service deploys, which can be after
+// this response; poll AppState for each app.
 // responses:
 //   200: ServiceUpdateResponse
 
@@ -169,8 +172,11 @@ type ServiceUpdateResponse struct {
 	Body models.Response
 }
 
-// swagger:route PUT /namespaces/{Namespace}/services/{Service} service ServiceReplace
-// Replace the named `Service` in the `Namespace` as per the instructions in the body
+// swagger:route PUT /namespaces/{Namespace}/services/{Service} Services ServiceReplace
+// Replace the settings of the named `Service` in the `Namespace`.
+//
+// Bound apps are redeployed after the service deploys, which can be after
+// this response; poll AppState for each app.
 // responses:
 //   200: ServiceReplaceResponse
 
@@ -190,7 +196,7 @@ type ServiceReplaceResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /namespaces/{Namespace}/services service ServiceList
+// swagger:route GET /namespaces/{Namespace}/services Services ServiceList
 // Return list of services in the `Namespace`.
 // responses:
 //   200: ServiceListResponse
@@ -207,7 +213,7 @@ type ServiceListResponse struct {
 	Body models.ServiceList
 }
 
-// swagger:route GET /namespaces/{Namespace}/services/{Service} service ServiceShow
+// swagger:route GET /namespaces/{Namespace}/services/{Service} Services ServiceShow
 // Return details of the named `Service` in the `Namespace`.
 // responses:
 //   200: ServiceShowResponse
@@ -226,7 +232,7 @@ type ServiceShowParam struct {
 	Service string
 }
 
-// swagger:route GET /namespace/{Namespace}/servicesmatches/{Pattern} service ServiceMatch
+// swagger:route GET /namespaces/{Namespace}/servicesmatches/{Pattern} Services ServiceMatch
 // Return list of names for all services whose name matches the prefix `Pattern`.
 // responses:
 //   200: ServiceMatchResponse
@@ -245,15 +251,17 @@ type ServiceMatchResponse struct {
 	Body models.ServiceMatchResponse
 }
 
-// swagger:route DELETE /namespaces/{Namespace}/services/{Service} service ServiceDelete
+// swagger:route DELETE /namespaces/{Namespace}/services/{Service} Services ServiceDelete
 // Delete the named `Service` in the `Namespace`.
 // responses:
 //   200: ServiceDeleteResponse
+//   202: ServiceDeleteResponse
 
-// swagger:route DELETE /namespaces/{Namespace}/services ServiceBatchDelete
+// swagger:route DELETE /namespaces/{Namespace}/services Services ServiceBatchDelete
 // Delete the named `Services` in the `Namespace`.
 // responses:
 //   200: ServiceDeleteResponse
+//   202: ServiceDeleteResponse
 
 // swagger:parameters ServiceDelete
 type ServiceDeleteParam struct {
@@ -281,7 +289,7 @@ type ServiceDeleteResponse struct {
 	Body models.ServiceDeleteResponse
 }
 
-// swagger:route GET /namespaces/{Namespace}/serviceapps service ServiceApps
+// swagger:route GET /namespaces/{Namespace}/serviceapps Services ServiceApps
 // Return map from services in the `Namespace`, to the apps in the same.
 // responses:
 //   200: ServiceAppsResponse
@@ -298,10 +306,11 @@ type ServiceAppsResponse struct {
 	Body map[string]models.AppList
 }
 
-// swagger:route POST /namespaces/{Namespace}/services/{Service}/bind service ServiceBind
+// swagger:route POST /namespaces/{Namespace}/services/{Service}/bind Services ServiceBind
 // Bind the named `Service` in the `Namespace` to an App.
 // responses:
 //   200: ServiceBindResponse
+//   202: OperationsResponse
 
 // swagger:parameters ServiceBind
 type ServiceBindParam struct {
@@ -319,10 +328,11 @@ type ServiceBindResponse struct {
 	Body models.Response
 }
 
-// swagger:route POST /namespaces/{Namespace}/services/{Service}/unbind service ServiceUnbind
+// swagger:route POST /namespaces/{Namespace}/services/{Service}/unbind Services ServiceUnbind
 // Unbind the named `Service` in the `Namespace` from an App.
 // responses:
 //   200: ServiceUnbindResponse
+//   202: OperationsResponse
 
 // swagger:parameters ServiceUnbind
 type ServiceUnbindParam struct {
@@ -340,6 +350,11 @@ type ServiceUnbindResponse struct {
 	Body models.Response
 }
 
+// swagger:route GET /namespaces/{Namespace}/services/{Service}/portforward Services ServicePortForward
+// Forward a local port to the named `Service` in the `Namespace` over a websocket.
+// responses:
+//   200: ServicePortForwardResponse
+
 // swagger:parameters ServicePortForward
 type ServicePortForwardParam struct {
 	// in: path
@@ -350,3 +365,51 @@ type ServicePortForwardParam struct {
 
 // swagger:response ServicePortForwardResponse
 type ServicePortForwardResponse struct{}
+
+// swagger:route GET /namespaces/{Namespace}/servicesmatches Services ServiceMatch0
+// Return list of names for all services in the `Namespace`.
+// (No prefix == empty prefix == match everything)
+// responses:
+//   200: ServiceMatchResponse
+
+// swagger:parameters ServiceMatch0
+type ServiceMatch0Param struct {
+	// in: path
+	Namespace string
+}
+
+// response: See ServiceMatch.
+
+// swagger:route GET /catalogservicesmatches CatalogServices ServiceCatalogMatch0
+// Return list of names for all catalog services.
+// (No prefix == empty prefix == match everything)
+// responses:
+//   200: CatalogMatchResponse
+
+// swagger:parameters ServiceCatalogMatch0
+type ServiceCatalogMatch0Param struct{}
+
+// response: See CatalogServiceMatch.
+
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/servicebindings Services ServiceBatchBind
+// Bind several services to the named `App` in the `Namespace` in one call.
+// All services are validated before any binding is applied.
+// responses:
+//   200: ServiceBatchBindResponse
+//   202: OperationsResponse
+
+// swagger:parameters ServiceBatchBind
+type ServiceBatchBindParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+	// in: body
+	Body models.ServiceBatchBindRequest
+}
+
+// swagger:response ServiceBatchBindResponse
+type ServiceBatchBindResponse struct {
+	// in: body
+	Body models.Response
+}

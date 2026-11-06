@@ -74,7 +74,9 @@ func Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplific
 			}
 
 			// Perform restart on the candidates which are actually running
-			apiErr := apiapp.Redeploy(ctx, cluster, namespace, appNames)
+			// This hook can run after the response was sent, so the
+			// redeploys are not reported; clients poll each app's state.
+			_, apiErr := apiapp.Redeploy(ctx, cluster, namespace, appNames)
 			if apiErr != nil {
 				x := apiErr.(apierror.APIError)
 				return fmt.Errorf("%s: %s", x.Title, x.Details)
