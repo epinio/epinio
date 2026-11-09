@@ -168,15 +168,8 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	// No ReuseValues: the values passed in are the complete set, built from
 	// the catalog values and the settings stored in the service secret.
 	// Reusing the old release's values would bring back removed settings.
-	chartSpec := hc.ChartSpec{
-		ReleaseName:  releaseName,
-		ChartName:    helmChart,
-		Version:      catalogService.ChartVersion,
-		Namespace:    parameters.Namespace,
-		WaitStrategy: waitStrategyFor(parameters.Wait),
-		ValuesYaml:   string(parameters.Values),
-		Timeout:      duration.ToDeployment(),
-	}
+	chartSpec := serviceChartSpec(releaseName, helmChart, catalogService.ChartVersion,
+		parameters.Namespace, string(parameters.Values), parameters.Wait)
 
 	if !parameters.Wait {
 		// Note: We are backgrounding the action. The incoming context cannot be used, as it
@@ -240,6 +233,27 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 
 	logger.Infow("completed service deployment SYNC")
 	return nil
+}
+
+// serviceChartSpec builds the ChartSpec for a service (de)ploy.
+func serviceChartSpec(releaseName, helmChart, chartVersion, namespace, valuesYAML string, wait bool) hc.ChartSpec {
+	return hc.ChartSpec{
+		ReleaseName: releaseName,
+		ChartName:   helmChart,
+		Version:     chartVersion,
+		Namespace:   namespace,
+		// DryRunStrategy must be set explicitly, to action.DryRunNone, for this to actually
+		// install/upgrade anything. Helm v4's install/upgrade actions default to DryRunNone
+		// only when constructed directly via action.NewInstall/NewUpgrade; go-helm-client's
+		// mergeInstallOptions/mergeUpgradeOptions unconditionally overwrite that default
+		// with this field. A zero-value ("") DryRunStrategy does not mean "really install" -
+		// it makes Helm skip the cluster reachability check and swap in a client-only fake
+		// KubeClient and in-memory release storage, so nothing is ever actually deployed.
+		DryRunStrategy: action.DryRunNone,
+		WaitStrategy:   waitStrategyFor(wait),
+		ValuesYaml:     valuesYAML,
+		Timeout:        duration.ToDeployment(),
+	}
 }
 
 // initHelmOCIRegistryOrRepository will perform the initial setup for the helm Client and the specified Service,
@@ -417,13 +431,15 @@ func Deploy(parameters ChartParameters) error {
 // appChartSpec builds the ChartSpec for an application (de)ploy. It always installs/upgrades
 // atomically: wait for every resource (WaitStrategy: watcher) and roll back on failure. This
 // replaces Helm v3's `Atomic: true` (which implied `Wait: true`); Helm v4 splits that into two
-// separate fields that must both be set to get the same atomic behavior.
+// separate fields that must both be set to get the same atomic behavior. See serviceChartSpec
+// for why DryRunStrategy must always be set explicitly too.
 func appChartSpec(releaseName, helmChart, helmVersion, namespace, valuesYAML string, reuseValues bool) hc.ChartSpec {
 	return hc.ChartSpec{
 		ReleaseName:       releaseName,
 		ChartName:         helmChart,
 		Version:           helmVersion,
 		Namespace:         namespace,
+		DryRunStrategy:    action.DryRunNone,
 		WaitStrategy:      kube.StatusWatcherStrategy,
 		RollbackOnFailure: true, // implies `WaitStrategy: watcher`
 		ValuesYaml:        valuesYAML,
