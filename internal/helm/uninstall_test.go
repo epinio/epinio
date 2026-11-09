@@ -17,6 +17,7 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	hcmock "github.com/mittwald/go-helm-client/mock"
 	"go.uber.org/mock/gomock"
+	"helm.sh/helm/v4/pkg/action"
 	"helm.sh/helm/v4/pkg/kube"
 	"helm.sh/helm/v4/pkg/release/common"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
@@ -55,6 +56,39 @@ var _ = Describe("appChartSpec()", func() {
 		Expect(spec.Namespace).To(Equal("my-namespace"))
 		Expect(spec.ValuesYaml).To(Equal("values: yaml"))
 		Expect(spec.ReuseValues).To(BeTrue())
+	})
+
+	It("always sets DryRunStrategy to DryRunNone, never the unset zero value", func() {
+		// go-helm-client's mergeInstallOptions/mergeUpgradeOptions overwrite
+		// action.NewInstall/NewUpgrade's own DryRunNone default with whatever
+		// ChartSpec.DryRunStrategy holds - including its unset zero value (""). Helm v4
+		// treats "" as "don't talk to the cluster at all": it skips the reachability
+		// check and silently swaps in a discarding fake KubeClient and in-memory release
+		// storage, so the install/upgrade "succeeds" without ever touching the real
+		// cluster. DryRunStrategy must always be the explicit action.DryRunNone.
+		spec := appChartSpec("my-release", "my-chart", "1.2.3", "my-namespace", "values: yaml", true)
+		Expect(spec.DryRunStrategy).To(Equal(action.DryRunNone))
+		Expect(spec.DryRunStrategy).ToNot(BeEmpty())
+	})
+})
+
+var _ = Describe("serviceChartSpec()", func() {
+	It("maps wait through to WaitStrategy and always sets DryRunStrategy", func() {
+		waiting := serviceChartSpec("my-release", "my-chart", "1.2.3", "my-namespace", "values: yaml", true)
+		Expect(waiting.WaitStrategy).To(Equal(kube.StatusWatcherStrategy))
+
+		notWaiting := serviceChartSpec("my-release", "my-chart", "1.2.3", "my-namespace", "values: yaml", false)
+		Expect(notWaiting.WaitStrategy).To(Equal(kube.HookOnlyStrategy))
+
+		// See the equivalent appChartSpec test for why this must never be the zero value.
+		Expect(waiting.DryRunStrategy).To(Equal(action.DryRunNone))
+		Expect(notWaiting.DryRunStrategy).To(Equal(action.DryRunNone))
+
+		Expect(waiting.ReleaseName).To(Equal("my-release"))
+		Expect(waiting.ChartName).To(Equal("my-chart"))
+		Expect(waiting.Version).To(Equal("1.2.3"))
+		Expect(waiting.Namespace).To(Equal("my-namespace"))
+		Expect(waiting.ValuesYaml).To(Equal("values: yaml"))
 	})
 })
 
