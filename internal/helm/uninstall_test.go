@@ -70,6 +70,16 @@ var _ = Describe("appChartSpec()", func() {
 		Expect(spec.DryRunStrategy).To(Equal(action.DryRunNone))
 		Expect(spec.DryRunStrategy).ToNot(BeEmpty())
 	})
+
+	It("always sets ServerSideApply to a value Helm v4's upgrade path accepts", func() {
+		// go-helm-client passes ChartSpec.ServerSideApply straight through, unparsed, to
+		// Helm v4's upgrade action, which only accepts "auto", "true", or "false" and
+		// errors on anything else - including the unset zero value (""). Since an upgrade
+		// is what happens on every app push once a release already exists, leaving this
+		// field unset would break every one of those, not just the first install.
+		spec := appChartSpec("my-release", "my-chart", "1.2.3", "my-namespace", "values: yaml", true)
+		Expect(spec.ServerSideApply).To(Equal(serverSideApplyOff))
+	})
 })
 
 var _ = Describe("serviceChartSpec()", func() {
@@ -80,9 +90,10 @@ var _ = Describe("serviceChartSpec()", func() {
 		notWaiting := serviceChartSpec("my-release", "my-chart", "1.2.3", "my-namespace", "values: yaml", false)
 		Expect(notWaiting.WaitStrategy).To(Equal(kube.HookOnlyStrategy))
 
-		// See the equivalent appChartSpec test for why this must never be the zero value.
+		// See the equivalent appChartSpec tests for why these must never be the zero value.
 		Expect(waiting.DryRunStrategy).To(Equal(action.DryRunNone))
 		Expect(notWaiting.DryRunStrategy).To(Equal(action.DryRunNone))
+		Expect(waiting.ServerSideApply).To(Equal(serverSideApplyOff))
 
 		Expect(waiting.ReleaseName).To(Equal("my-release"))
 		Expect(waiting.ChartName).To(Equal("my-chart"))

@@ -235,24 +235,31 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	return nil
 }
 
-// serviceChartSpec builds the ChartSpec for a service (de)ploy.
+// serverSideApplyOff is the explicit, string-typed "off" value for ChartSpec.ServerSideApply.
+// go-helm-client reads this field completely differently for install vs upgrade: for install it
+// goes through ChartSpec.ServerSideApplyEnabled(), which treats anything but the literal "true" as
+// off, so an unset field is merely a no-op there. For upgrade, go-helm-client passes the raw string
+// straight through to Helm v4's strict parser, which only accepts "auto", "true", or "false" and
+// errors on anything else, including "" - "invalid/unknown release server-side apply method: ".
+// Since an upgrade is exactly what happens on every app push or service update once a release
+// already exists, leaving this field unset breaks every one of those. Both ChartSpec builders set
+// it explicitly to keep install and upgrade consistent (client-side apply, matching Helm v3, which
+// never had server-side apply at all).
+const serverSideApplyOff = "false"
+
+// serviceChartSpec builds the ChartSpec for a service (de)ploy. See serverSideApplyOff and
+// appChartSpec for why DryRunStrategy and ServerSideApply must always be set explicitly.
 func serviceChartSpec(releaseName, helmChart, chartVersion, namespace, valuesYAML string, wait bool) hc.ChartSpec {
 	return hc.ChartSpec{
-		ReleaseName: releaseName,
-		ChartName:   helmChart,
-		Version:     chartVersion,
-		Namespace:   namespace,
-		// DryRunStrategy must be set explicitly, to action.DryRunNone, for this to actually
-		// install/upgrade anything. Helm v4's install/upgrade actions default to DryRunNone
-		// only when constructed directly via action.NewInstall/NewUpgrade; go-helm-client's
-		// mergeInstallOptions/mergeUpgradeOptions unconditionally overwrite that default
-		// with this field. A zero-value ("") DryRunStrategy does not mean "really install" -
-		// it makes Helm skip the cluster reachability check and swap in a client-only fake
-		// KubeClient and in-memory release storage, so nothing is ever actually deployed.
-		DryRunStrategy: action.DryRunNone,
-		WaitStrategy:   waitStrategyFor(wait),
-		ValuesYaml:     valuesYAML,
-		Timeout:        duration.ToDeployment(),
+		ReleaseName:     releaseName,
+		ChartName:       helmChart,
+		Version:         chartVersion,
+		Namespace:       namespace,
+		DryRunStrategy:  action.DryRunNone,
+		WaitStrategy:    waitStrategyFor(wait),
+		ValuesYaml:      valuesYAML,
+		Timeout:         duration.ToDeployment(),
+		ServerSideApply: serverSideApplyOff,
 	}
 }
 
@@ -445,6 +452,7 @@ func appChartSpec(releaseName, helmChart, helmVersion, namespace, valuesYAML str
 		ValuesYaml:        valuesYAML,
 		Timeout:           duration.ToDeployment(),
 		ReuseValues:       reuseValues,
+		ServerSideApply:   serverSideApplyOff,
 	}
 }
 
