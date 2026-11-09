@@ -21,7 +21,7 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	hcmock "github.com/mittwald/go-helm-client/mock"
 	"go.uber.org/mock/gomock"
-	"helm.sh/helm/v3/pkg/release"
+	release "helm.sh/helm/v4/pkg/release/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -82,6 +82,22 @@ var _ = Describe("SynchronizedClient", func() {
 			Expect(err).To(BeNil())
 
 			Expect(syncClient1).To(Not(Equal(syncClient2)))
+		})
+	})
+
+	When("getting the status of a release", func() {
+		It("rejects a client that isn't the concrete *hc.HelmClient", func() {
+			// Status reaches into go-helm-client internals (action.NewStatus needs the
+			// concrete *hc.HelmClient for its ActionConfig), which a mock Client can
+			// never satisfy. This guards that the resulting error is reported cleanly
+			// instead of panicking on a failed type assertion.
+			namespace := catalog.NewNamespaceName()
+			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			Expect(err).To(BeNil())
+
+			_, err = syncClient.Status("my-release")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("is not of the right type"))
 		})
 	})
 
