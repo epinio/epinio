@@ -35,10 +35,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/chart/common"
+	commonutil "helm.sh/helm/v4/pkg/chart/common/util"
+	"helm.sh/helm/v4/pkg/chart/v2/loader"
+	chartutil "helm.sh/helm/v4/pkg/chart/v2/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -329,7 +330,7 @@ func rewriteChart(
 	appChart.Metadata.Name = name
 	appChart.Metadata.Version = version
 
-	merged := chartutil.CoalesceTables(params, appChart.Values)
+	merged := commonutil.CoalesceTables(params, appChart.Values)
 
 	// ATTENTION: While we can directly edit the meta data and see it in the saved tarball the
 	// handling of the values is more complex. The `appChart.Values` is a read-only convenience
@@ -352,7 +353,7 @@ func rewriteChart(
 	}
 	if !ok {
 		// Values file missing, create it.
-		appChart.Raw = append(appChart.Raw, &chart.File{
+		appChart.Raw = append(appChart.Raw, &common.File{
 			Name: chartutil.ValuesfileName,
 			Data: yaml,
 		})

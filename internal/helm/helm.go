@@ -40,12 +40,14 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/registry"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/repo"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/chart/v2/loader"
+	"helm.sh/helm/v4/pkg/kube"
+	"helm.sh/helm/v4/pkg/registry"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	"helm.sh/helm/v4/pkg/release/common"
+	repo "helm.sh/helm/v4/pkg/repo/v1"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
@@ -118,7 +120,7 @@ func Remove(
 		return err
 	}
 
-	return client.UninstallReleaseByName(names.ReleaseName(app.Name))
+	return uninstallRelease(client, names.ReleaseName(app.Name), kube.HookOnlyStrategy)
 }
 
 func RemoveService(
@@ -130,7 +132,7 @@ func RemoveService(
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	err = client.UninstallReleaseByName(names.ServiceReleaseName(app.Name))
+	err = uninstallRelease(client, names.ServiceReleaseName(app.Name), kube.HookOnlyStrategy)
 	return errors.Wrap(err, "deleting release")
 }
 
@@ -167,13 +169,13 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	// the catalog values and the settings stored in the service secret.
 	// Reusing the old release's values would bring back removed settings.
 	chartSpec := hc.ChartSpec{
-		ReleaseName: releaseName,
-		ChartName:   helmChart,
-		Version:     catalogService.ChartVersion,
-		Namespace:   parameters.Namespace,
-		Wait:        parameters.Wait,
-		ValuesYaml:  string(parameters.Values),
-		Timeout:     duration.ToDeployment(),
+		ReleaseName:  releaseName,
+		ChartName:    helmChart,
+		Version:      catalogService.ChartVersion,
+		Namespace:    parameters.Namespace,
+		WaitStrategy: waitStrategyFor(parameters.Wait),
+		ValuesYaml:   string(parameters.Values),
+		Timeout:      duration.ToDeployment(),
 	}
 
 	if !parameters.Wait {
@@ -405,21 +407,29 @@ func Deploy(parameters ChartParameters) error {
 	reuseValues := shouldReuseHelmValues(
 		parameters.Context, parameters.Cluster, client, releaseName, appChart, helmChart, helmVersion)
 
-	chartSpec := hc.ChartSpec{
-		ReleaseName: releaseName,
-		ChartName:   helmChart,
-		Version:     helmVersion,
-		Namespace:   parameters.Namespace,
-		Wait:        true,
-		Atomic:      true, // implies `Wait true`
-		ValuesYaml:  params,
-		Timeout:     duration.ToDeployment(),
-		ReuseValues: reuseValues,
-	}
+	chartSpec := appChartSpec(releaseName, helmChart, helmVersion, parameters.Namespace, params, reuseValues)
 
 	_, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil)
 
 	return err
+}
+
+// appChartSpec builds the ChartSpec for an application (de)ploy. It always installs/upgrades
+// atomically: wait for every resource (WaitStrategy: watcher) and roll back on failure. This
+// replaces Helm v3's `Atomic: true` (which implied `Wait: true`); Helm v4 splits that into two
+// separate fields that must both be set to get the same atomic behavior.
+func appChartSpec(releaseName, helmChart, helmVersion, namespace, valuesYAML string, reuseValues bool) hc.ChartSpec {
+	return hc.ChartSpec{
+		ReleaseName:       releaseName,
+		ChartName:         helmChart,
+		Version:           helmVersion,
+		Namespace:         namespace,
+		WaitStrategy:      kube.StatusWatcherStrategy,
+		RollbackOnFailure: true, // implies `WaitStrategy: watcher`
+		ValuesYaml:        valuesYAML,
+		Timeout:           duration.ToDeployment(),
+		ReuseValues:       reuseValues,
+	}
 }
 
 // shouldReuseHelmValues is false when an existing release was installed from a different
@@ -579,8 +589,10 @@ const (
 	StatusNotReady ReleaseStatus = "not-ready"
 )
 
-// Release returns the named Helm release, including the associated resources. This is the internal
-// equivalent of the `helm status` command.
+// Release returns the named Helm release as stored, without querying the live state of its
+// resources. See Status below for why: under Helm v4, action.Status (the `helm status` backend)
+// unconditionally fetches the live state of every resource in the release manifest, no matter the
+// options passed to it. GetRelease (the `helm get` backend) does not, and is what this needs.
 func Release(ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, releaseName string) (*helmrelease.Release, error) {
 
@@ -589,7 +601,7 @@ func Release(ctx context.Context, cluster *kubernetes.Cluster,
 		return nil, err
 	}
 
-	release, err := helmClient.Status(releaseName)
+	release, err := helmClient.GetRelease(releaseName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting release status %s - %s", namespace, releaseName)
 	}
@@ -605,12 +617,12 @@ func Release(ctx context.Context, cluster *kubernetes.Cluster,
 func Status(_ context.Context, _ *kubernetes.Cluster,
 	release *helmrelease.Release) (ReleaseStatus, error) {
 	switch release.Info.Status {
-	case helmrelease.StatusDeployed:
+	case common.StatusDeployed:
 		return StatusReady, nil
 	case
-		helmrelease.StatusPendingInstall,
-		helmrelease.StatusPendingUpgrade,
-		helmrelease.StatusPendingRollback:
+		common.StatusPendingInstall,
+		common.StatusPendingUpgrade,
+		common.StatusPendingRollback:
 		return StatusNotReady, nil
 	default:
 		return StatusUnknown, nil
@@ -671,6 +683,28 @@ func GetNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client) 
 	return synchronizedHelmClient, nil
 }
 
+// waitStrategyFor maps Epinio's boolean "wait for deployment" setting to a Helm v4 WaitStrategy.
+// This is the same default mapping Helm's own --wait CLI flag uses: unset/false means don't wait
+// for all resources (hookOnly), true means wait (watcher). Helm v4 rejects an unset WaitStrategy
+// outright, unlike v3 where omitting Wait simply meant "don't wait".
+func waitStrategyFor(wait bool) kube.WaitStrategy {
+	if wait {
+		return kube.StatusWatcherStrategy
+	}
+	return kube.HookOnlyStrategy
+}
+
+// uninstallRelease uninstalls the named release with the given WaitStrategy. Helm v4's
+// UninstallReleaseByName (unlike UninstallRelease) never sets a WaitStrategy on the underlying
+// action, so it always fails with "wait strategy not set" - route every uninstall through this
+// instead.
+func uninstallRelease(c hc.Client, name string, strategy kube.WaitStrategy) error {
+	return c.UninstallRelease(&hc.ChartSpec{
+		ReleaseName:  name,
+		WaitStrategy: strategy,
+	})
+}
+
 // cleanupReleaseIfNeeded will delete the helm release if it exists and is not
 // in "deployed" state. The reason is that helm will refuse to upgrade a release
 // that is in pending-install state. This would be the case, when the app container
@@ -686,15 +720,12 @@ func cleanupReleaseIfNeeded(c hc.Client, name string) error {
 		return errors.Wrap(err, "getting the helm release")
 	}
 
-	if r.Info.Status == helmrelease.StatusDeployed {
+	if r.Info.Status == common.StatusDeployed {
 		return nil
 	}
 
 	logger.Infow("Will remove existing release with status", "status", string(r.Info.Status))
-	err = c.UninstallRelease(&hc.ChartSpec{
-		ReleaseName: name,
-		Wait:        true,
-	})
+	err = uninstallRelease(c, name, kube.StatusWatcherStrategy)
 
 	if err != nil {
 		logger.Errorw("uninstalling the release", "error", err, "status", r.Info.Status)
