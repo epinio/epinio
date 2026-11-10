@@ -39,6 +39,45 @@ var _ = Describe("Gitproxy endpoint", LMisc, func() {
 		Expect(m["full_name"]).To(Equal("epinio/epinio"))
 	})
 
+	It("proxies github repository tags", func() {
+		gitproxyRequest := models.GitProxyRequest{
+			URL: "https://api.github.com/repos/epinio/example-go/tags",
+		}
+
+		resp, statusCode := gitproxy(toJSON(gitproxyRequest))
+		Expect(statusCode).To(Equal(http.StatusOK), string(resp))
+
+		var tags []map[string]interface{}
+		err := json.Unmarshal(resp, &tags)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(tags).ToNot(BeEmpty())
+
+		names := make([]string, 0, len(tags))
+		for _, tag := range tags {
+			name, ok := tag["name"].(string)
+			Expect(ok).To(BeTrue())
+			names = append(names, name)
+		}
+		Expect(names).To(ContainElement("v0.0.2"))
+	})
+
+	It("proxies github repository releases", func() {
+		gitproxyRequest := models.GitProxyRequest{
+			URL: "https://api.github.com/repos/epinio/epinio/releases",
+		}
+
+		resp, statusCode := gitproxy(toJSON(gitproxyRequest))
+		Expect(statusCode).To(Equal(http.StatusOK), string(resp))
+
+		var releases []map[string]interface{}
+		err := json.Unmarshal(resp, &releases)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(releases).ToNot(BeEmpty())
+
+		_, ok := releases[0]["tag_name"].(string)
+		Expect(ok).To(BeTrue())
+	})
+
 	It("fails for unknown endpoint", func() {
 		gitproxyRequest := models.GitProxyRequest{
 			URL: "https://example.com",

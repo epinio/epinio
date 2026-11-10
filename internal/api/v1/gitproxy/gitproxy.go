@@ -173,6 +173,8 @@ func isGHEComAPIHost(host string) bool {
 // - /repos/USERNAME/REPO/commits
 // - /repos/USERNAME/REPO/branches
 // - /repos/USERNAME/REPO/branches/BRANCH
+// - /repos/USERNAME/REPO/tags
+// - /repos/USERNAME/REPO/releases
 // - /users/USERNAME/repos
 // - /users/USERNAME          (account info, used to detect user vs org)
 // - /user/repos              (authenticated user's repos, including private)
@@ -212,8 +214,11 @@ func validateGithubURL(path string) error {
 	// with 4 parts we support these endpoints:
 	// - /repos/USERNAME/REPO/commits
 	// - /repos/USERNAME/REPO/branches
+	// - /repos/USERNAME/REPO/tags
+	// - /repos/USERNAME/REPO/releases
 	if len(parts) == 4 {
-		if parts[0] == "repos" && (parts[3] == "commits" || parts[3] == "branches") {
+		if parts[0] == "repos" &&
+			(parts[3] == "commits" || parts[3] == "branches" || parts[3] == "tags" || parts[3] == "releases") {
 			return nil
 		}
 	}
@@ -239,12 +244,14 @@ func validateGithubURL(path string) error {
 // - /avatar
 // - /projects                (e.g. ?membership=true, the user's projects including private)
 // - /projects/USERNAME%2FREPO
+// - /projects/USERNAME%2FREPO/releases
 // - /users                   (e.g. ?username=NAME, to resolve a user)
 // - /users/USERNAME/projects
 // - /groups/GROUP            (group info, used to detect user vs group)
 // - /groups/USERNAME/projects
 // - /projects/USERNAME%2FREPO/repository/branches
 // - /projects/USERNAME%2FREPO/repository/commits
+// - /projects/USERNAME%2FREPO/repository/tags
 // - /projects/REPO/repository/branches/BRANCH
 //
 // Project listing/search uses the `?search=` query on the list endpoints; GitLab
@@ -274,8 +281,10 @@ func validateGitlabURL(path string) error {
 	// with 3 parts we support these endpoints:
 	// - /users/USERNAME/projects
 	// - /groups/USERNAME/projects
+	// - /projects/USERNAME%2FREPO/releases
 	if len(parts) == 3 {
-		if (parts[0] == "users" || parts[0] == "groups") && parts[2] == "projects" {
+		if ((parts[0] == "users" || parts[0] == "groups") && parts[2] == "projects") ||
+			(parts[0] == "projects" && parts[2] == "releases") {
 			return nil
 		}
 	}
@@ -283,9 +292,10 @@ func validateGitlabURL(path string) error {
 	// with 4 parts we support these endpoints:
 	// - /projects/USERNAME%2FREPO/repository/branches
 	// - /projects/USERNAME%2FREPO/repository/commits
+	// - /projects/USERNAME%2FREPO/repository/tags
 	if len(parts) == 4 {
 		if parts[0] == "projects" && parts[2] == "repository" &&
-			(parts[3] == "branches" || parts[3] == "commits") {
+			(parts[3] == "branches" || parts[3] == "commits" || parts[3] == "tags") {
 			return nil
 		}
 	}

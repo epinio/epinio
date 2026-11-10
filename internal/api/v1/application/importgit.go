@@ -374,7 +374,7 @@ func checkoutRepository(ctx context.Context, gitRepo, url, revision string, gitc
 	}
 	log.Infow("importgit, resolved", "revision", hash)
 
-	ref, err = findReferenceForRevision(repo, *hash)
+	ref, err = findReferenceForRevision(repo, revision, *hash)
 	if err != nil && !errors.Is(err, errReferenceNotFound) {
 		return nil, err
 	}
@@ -444,7 +444,13 @@ func branchCheckout(ctx context.Context, gitRepo, revision string, opts git.Clon
 
 // findReferenceForRevision will loop through all the available refs (branches, tags, ...) and it will try
 // to see if any of those contains the specified revision.
-func findReferenceForRevision(repo *git.Repository, revision plumbing.Hash) (*plumbing.Reference, error) {
+func findReferenceForRevision(repo *git.Repository, revisionName string, revision plumbing.Hash) (*plumbing.Reference, error) {
+	// a tag named like the requested revision is the reference the user asked for, so use it
+	// instead of whichever ref happens to contain the commit first (usually HEAD)
+	if _, err := repo.Tag(revisionName); err == nil {
+		return plumbing.NewReferenceFromStrings(revisionName, revision.String()), nil
+	}
+
 	// this map will be used to stop the iteration when we have reached already seen commits
 	commitMap := map[string]struct{}{}
 
