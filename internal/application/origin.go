@@ -208,6 +208,35 @@ func SetBuildStatus(ctx context.Context, cluster *kubernetes.Cluster, app models
 	return err
 }
 
+// SetBuiltImageURL stores the image produced by a successful build in the
+// referenced application resource.
+func SetBuiltImageURL(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+	imageURL string,
+) error {
+	client, err := cluster.ClientApp()
+	if err != nil {
+		return err
+	}
+
+	patch, err := json.Marshal(map[string]any{
+		"spec": map[string]any{"builtimageurl": imageURL},
+	})
+	if err != nil {
+		return errors.Wrap(err, "error building body patch")
+	}
+
+	_, err = client.Namespace(app.Namespace).Patch(ctx,
+		app.Name,
+		types.MergePatchType,
+		patch,
+		metav1.PatchOptions{})
+
+	return err
+}
+
 func buildBodyPatch(origin models.ApplicationOrigin) ([]byte, error) {
 	operations := []PatchOperation{{
 		Op:    "replace",

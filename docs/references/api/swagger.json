@@ -1853,7 +1853,7 @@
     },
     "/namespaces/{Namespace}/applications/{App}/restart": {
       "post": {
-        "description": "Starts a restart operation and answers 202 with it. Poll AppState until\nthe operation is done.",
+        "description": "Restarts the deployed image; it never switches to a newer build. Deploy a\nbuild with AppDeploy. Starts a restart operation and answers 202 with it.\nPoll AppState until the operation is done.",
         "tags": [
           "Applications"
         ],

@@ -469,6 +469,16 @@ func watchDeploy(
 	}
 	log.Infow("step:staging", "ms", time.Since(t).Milliseconds())
 
+	err = application.SetBuiltImageURL(
+		ctx,
+		cluster,
+		appRef,
+		stageResponse.ImageURL,
+	)
+	if err != nil {
+		return fmt.Errorf("saving the built image: %w", err)
+	}
+
 	rep.Phase(models.OperationDeploying)
 
 	freshApp, err := application.Get(ctx, cluster, appRef)

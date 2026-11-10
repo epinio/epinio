@@ -1192,10 +1192,9 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 			c.ui.Exclamation().Msg("Attention: Application is already staging")
 			return nil
 		}
-		if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
-			// Scaled to zero, no workload desired -> prevent (re)start.
-			restart = false
-		}
+		// Not running: rebuild only. Deploying here would put a build-only
+		// or scaled-to-zero app live, which restage must not do.
+		restart = false
 	}
 
 	m := c.ui.Note().
@@ -1218,6 +1217,27 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 		return nil
 	}
 
+	if restart {
+		// One build-and-deploy, as `epinio push` and the UI restage do. A
+		// stage followed by a restart would keep the old image: restart
+		// never switches images (see restartApp on the server).
+		req := models.DeployRequest{App: app.Meta}
+		op, err := c.API.AppDeploy(req)
+		if err != nil {
+			return err
+		}
+
+		log.V(1).Info("wait for the build and deploy", "operation", op.ID)
+		_, err = c.waitOperation(
+			context.Background(),
+			app.Meta,
+			op,
+			true,
+			log.V(1),
+		)
+		return err
+	}
+
 	req := models.StageRequest{App: app.Meta}
 	op, err := c.API.AppStage(req)
 	if err != nil {
@@ -1233,24 +1253,6 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 		log.V(1),
 	)
 	if err != nil {
-		return err
-	}
-
-	if restart {
-		c.ui.Note().Msg("Restarting application")
-		log.V(1).Info("restarting application")
-
-		op, err := c.API.AppRestart(c.Settings.Namespace, appName)
-		if err != nil {
-			return err
-		}
-		_, err = c.waitOperation(
-			context.Background(),
-			app.Meta,
-			op,
-			false,
-			log.V(1),
-		)
 		return err
 	}
 

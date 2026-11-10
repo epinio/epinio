@@ -26,6 +26,7 @@ const (
 
 	EpinioCreatedByAnnotation = "epinio.io/created-by"
 
+	ApplicationBuilt     = "built"
 	ApplicationCreated   = "created"
 	ApplicationStaging   = "staging"
 	ApplicationDeploying = "deploying"

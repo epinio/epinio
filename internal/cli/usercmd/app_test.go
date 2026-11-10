@@ -151,6 +151,95 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 		})
+
+		When("restaging", func() {
+			var running bool
+
+			BeforeEach(func() {
+				running = true
+				fake = &usercmdfakes.FakeAPIClient{}
+
+				fake.AppShowStub = func(
+					namespace string,
+					appName string,
+				) (models.App, error) {
+					app := models.NewApp(appName, namespace)
+					if running {
+						app.Workload = &models.AppDeployment{Active: true}
+					}
+					return *app, nil
+				}
+				op := &models.AppOperation{ID: "op1", StageID: "ID"}
+				fake.AppDeployStub = func(
+					models.DeployRequest,
+				) (*models.AppOperation, error) {
+					return op, nil
+				}
+				fake.AppStageStub = func(
+					models.StageRequest,
+				) (*models.AppOperation, error) {
+					return op, nil
+				}
+				fake.AppLogsStub = func(
+					namespace, appName, stageID string,
+					follow bool,
+					options *client.LogOptions,
+					callback func(tailer.ContainerLogLine),
+				) error {
+					return nil
+				}
+				fake.AppStateStub = func(
+					namespace string,
+					appName string,
+				) (models.AppState, error) {
+					return models.AppState{Operation: &models.AppOperation{
+						ID:    "op1",
+						Phase: models.OperationSucceeded,
+					}}, nil
+				}
+			})
+
+			restage := func(restart bool) {
+				epinioClient, err := usercmd.New()
+				Expect(err).ToNot(HaveOccurred())
+
+				epinioClient.Settings = &settings.Settings{
+					Namespace: "workspace",
+				}
+				epinioClient.API = fake
+
+				Expect(epinioClient.AppRestage("appname", restart)).
+					To(Succeed())
+			}
+
+			It("builds and deploys a running app in one operation", func() {
+				restage(true)
+
+				Expect(fake.AppDeployCallCount()).To(Equal(1))
+				Expect(fake.AppDeployArgsForCall(0).App.Name).
+					To(Equal("appname"))
+				Expect(fake.AppDeployArgsForCall(0).Builds()).To(BeTrue())
+				Expect(fake.AppStageCallCount()).To(BeZero())
+				Expect(fake.AppRestartCallCount()).To(BeZero())
+			})
+
+			It("only builds a running app with no-restart", func() {
+				restage(false)
+
+				Expect(fake.AppStageCallCount()).To(Equal(1))
+				Expect(fake.AppDeployCallCount()).To(BeZero())
+				Expect(fake.AppRestartCallCount()).To(BeZero())
+			})
+
+			It("only builds an app that is not running", func() {
+				running = false
+				restage(true)
+
+				Expect(fake.AppStageCallCount()).To(Equal(1))
+				Expect(fake.AppDeployCallCount()).To(BeZero())
+				Expect(fake.AppRestartCallCount()).To(BeZero())
+			})
+		})
 	})
 
 	Describe("AppRestart waits for the operation", func() {

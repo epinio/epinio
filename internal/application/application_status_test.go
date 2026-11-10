@@ -47,7 +47,7 @@ var _ = Describe("assignApplicationStatus", func() {
 		Expect(app.StatusMessage).To(Equal("deploying"))
 	})
 
-	It("keeps created when staging done for an intentional build-only", func() {
+	It("marks built when staging done for an intentional build-only", func() {
 		app := &models.App{
 			StagingStatus: models.ApplicationStagingDone,
 			BuildStatus:   models.AppBuildStatusBuild,
@@ -56,11 +56,11 @@ var _ = Describe("assignApplicationStatus", func() {
 			Configuration: models.ApplicationConfiguration{Instances: &one},
 		}
 		assignApplicationStatus(app, nil)
-		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationCreated)))
-		Expect(app.StatusMessage).To(Equal("built"))
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationBuilt)))
+		Expect(app.StatusMessage).To(BeEmpty())
 	})
 
-	It("keeps created when build-only stage id remains after staging job is gone", func() {
+	It("marks built when a build-only staging job is gone", func() {
 		app := &models.App{
 			StageID:       "abc123",
 			ImageURL:      "registry.example/apps/ns-app:abc123",
@@ -68,8 +68,20 @@ var _ = Describe("assignApplicationStatus", func() {
 			Configuration: models.ApplicationConfiguration{Instances: &one},
 		}
 		assignApplicationStatus(app, nil)
-		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationCreated)))
-		Expect(app.StatusMessage).To(Equal("built"))
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationBuilt)))
+		Expect(app.StatusMessage).To(BeEmpty())
+	})
+
+	It("marks error when a build-only staging job fails", func() {
+		app := &models.App{
+			StagingStatus: models.ApplicationStagingFailed,
+			BuildStatus:   models.AppBuildStatusBuild,
+			StageID:       "abc123",
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.StatusMessage).To(Equal("staging failed"))
 	})
 
 	It("marks staging done without workload as deploying when instances nil", func() {

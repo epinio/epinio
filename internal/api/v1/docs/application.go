@@ -374,8 +374,9 @@ type AppUploadResponse struct {
 // swagger:route POST /namespaces/{Namespace}/applications/{App}/restart Applications AppRestart
 // Restart the named `App` in the `Namespace`.
 //
-// Starts a restart operation and answers 202 with it. Poll AppState until
-// the operation is done.
+// Restarts the deployed image; it never switches to a newer build. Deploy a
+// build with AppDeploy. Starts a restart operation and answers 202 with it.
+// Poll AppState until the operation is done.
 // responses:
 //   202: AppOperationResponse
 //   400: ErrorResponse

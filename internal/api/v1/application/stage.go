@@ -243,7 +243,17 @@ func Stage(c *gin.Context) apierror.APIErrors {
 		models.OperationBuild,
 		func(ctx context.Context, rep operationReporter) error {
 			_, err := buildAndWait(ctx, cluster, req, username, rep)
-			return err
+
+			if err != nil {
+				return err
+			}
+
+			return application.SetBuildStatus(
+				ctx,
+				cluster,
+				req.App,
+				models.AppBuildStatusBuild,
+			)
 		},
 	)
 }
@@ -280,6 +290,18 @@ func buildAndWait(
 			"build %s failed; see the staging logs",
 			staged.Stage.ID,
 		)
+	}
+
+	// Only a finished build has an image to point at, so a failed rebuild
+	// keeps the previous builtimageurl.
+	err = application.SetBuiltImageURL(
+		ctx,
+		cluster,
+		req.App,
+		staged.ImageURL,
+	)
+	if err != nil {
+		return staged, fmt.Errorf("saving the built image: %w", err)
 	}
 
 	return staged, nil
@@ -1359,33 +1381,43 @@ func resolveRegistryCertHash(
 	return secret, certKey, hash, nil
 }
 
-func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
+func updateApp(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app *unstructured.Unstructured,
+	params stageParam,
+) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
 	}
 
-	namespace, _, err := unstructured.NestedString(app.UnstructuredContent(), "metadata", "namespace")
+	namespace, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"metadata",
+		"namespace",
+	)
 	if err != nil {
 		return err
 	}
-	name, _, err := unstructured.NestedString(app.UnstructuredContent(), "metadata", "name")
+	name, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"metadata",
+		"name",
+	)
 	if err != nil {
 		return err
 	}
 
-	// Persist the image reference the staging job will produce so that
-	// build-only flows (and later `epinio app deploy`) can find it without
-	// going through Deploy. buildstatus stays "build" until Deploy runs.
-	// It goes into builtimageurl, not imageurl: imageurl is the deployed
-	// image and is read by every redeploy (env, scale, bind, restart).
+	// Record the stage so its Job and logs can be found. buildstatus and
+	// builtimageurl are written only once the build succeeds (buildAndWait,
+	// Stage, watchDeploy): writing them here put a deployed app on the
+	// builds list during every restage and made a failed build look built.
 	specPatch := map[string]any{
 		"stageid":        params.Stage.ID,
 		"blobuid":        params.BlobUID,
 		"buildmode":      params.BuildMode,
 		"dockerfilepath": params.DockerfilePath,
-		"buildstatus":    models.AppBuildStatusBuild,
-		"builtimageurl":  params.ImageURL(params.RegistryURL),
 	}
 	if models.NormalizeBuildMode(params.BuildMode) == models.BuildModeBuildpack {
 		specPatch["builderimage"] = params.BuilderImage
