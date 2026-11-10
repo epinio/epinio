@@ -482,6 +482,20 @@ func streamPodLogs(
 					"params", update.Params,
 				)
 
+				// Validate the replacement before clearing the UI or stopping the
+				// current stream. Invalid updates leave the active stream intact.
+				parsedParams, parsedParamsError := parseLogParameterUpdate(update)
+				if parsedParamsError != nil {
+					log.Errorw("failed to parse updated log parameters",
+						"error", parsedParamsError,
+					)
+					continue
+				}
+				if err := validateContainerFilterPatterns(parsedParams); err != nil {
+					log.Errorw("invalid updated log parameters", "error", err)
+					continue
+				}
+
 				// Send marker directly to WebSocket to tell frontend to clear logs
 				// We do this BEFORE cancelling to ensure it arrives before any buffered messages
 				startMarker := tailer.ContainerLogLine{
@@ -503,16 +517,6 @@ func streamPodLogs(
 
 				// Start new streaming with updated parameters
 				logCtx, logCancelFunc = context.WithCancel(ctx)
-
-				// Make sure we have valid parameters before continuing, if not, log
-				// the error and ignore the update
-				parsedParams, parsedParamsError := parseLogParameterUpdate(update)
-				if parsedParamsError != nil {
-					log.Errorw("failed to parse updated log parameters",
-						"error", parsedParamsError,
-					)
-					continue
-				}
 
 				logWg.Add(1)
 				go startLogStreaming(

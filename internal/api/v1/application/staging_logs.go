@@ -185,14 +185,13 @@ func serveStoredStagingLogs(
 			continue
 		}
 
-		if err := writeStoredStagingLogMarker(conn, "___FILTER_START___"); err != nil {
-			log.Errorw("failed to send filter start marker for stored staging logs", "error", err)
-			return
-		}
-
 		parsedParams, err := parseLogParameterUpdate(update)
 		if err != nil {
 			log.Errorw("failed to parse stored staging log parameter update", "error", err)
+			continue
+		}
+		if err := validateContainerFilterPatterns(parsedParams); err != nil {
+			log.Errorw("invalid stored staging log parameter update", "error", err)
 			continue
 		}
 
@@ -200,6 +199,14 @@ func serveStoredStagingLogs(
 		if err != nil {
 			log.Errorw("failed to filter stored staging logs", "error", err)
 			continue
+		}
+
+		// Do not tell the UI to clear its logs until the update has been fully
+		// parsed, validated and applied. Otherwise a bad update leaves the UI
+		// waiting for a FILTER_COMPLETE marker that can never arrive.
+		if err := writeStoredStagingLogMarker(conn, "___FILTER_START___"); err != nil {
+			log.Errorw("failed to send filter start marker for stored staging logs", "error", err)
+			return
 		}
 		if err := writeStoredStagingLogLines(conn, filtered); err != nil {
 			log.Errorw("failed to write filtered stored staging logs", "error", err)
