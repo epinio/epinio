@@ -53,5 +53,9 @@ func clearAuthSettings() (*settings.Settings, error) {
 	epinioSettings.Certs = ""
 	epinioSettings.Token = settings.TokenSetting{}
 
+	// Logout must wipe credentials on disk even when EPINIO_PASSWORD /
+	// EPINIO_API_TOKEN are set; otherwise Save would restore the file's old secrets.
+	epinioSettings.ClearEnvCredentialOverrides()
+
 	return epinioSettings, nil
 }

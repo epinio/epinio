@@ -15,6 +15,7 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -151,15 +152,23 @@ var _ = Describe("Settings API token", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(cfg.Token.AccessToken).To(Equal("file-token"))
 			Expect(cfg.Token.RefreshToken).To(Equal("file-refresh"))
+			Expect(cfg.AccessTokenFromEnv()).To(BeFalse())
 		})
 
-		It("lets EPINIO_API_TOKEN override the stored access token only", func() {
-			GinkgoT().Setenv("EPINIO_API_TOKEN", "env-token")
-
+		It("lets EPINIO_API_TOKEN override the access token and clears refresh material", func() {
 			cfg, err := settings.LoadFrom(settingsFile)
 			Expect(err).ToNot(HaveOccurred())
+			cfg.Token.Expiry = time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+			Expect(cfg.Save()).To(Succeed())
+
+			GinkgoT().Setenv("EPINIO_API_TOKEN", "env-token")
+
+			cfg, err = settings.LoadFrom(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(cfg.Token.AccessToken).To(Equal("env-token"))
-			Expect(cfg.Token.RefreshToken).To(Equal("file-refresh"))
+			Expect(cfg.Token.RefreshToken).To(BeEmpty())
+			Expect(cfg.Token.Expiry.IsZero()).To(BeTrue())
+			Expect(cfg.AccessTokenFromEnv()).To(BeTrue())
 		})
 	})
 })
@@ -229,7 +238,9 @@ var _ = Describe("Settings without a file", func() {
 			cfg, err := settings.LoadFrom(missingFile)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(cfg.SaveUnlessEnvOnly()).To(MatchError(settings.ErrEnvOnly))
+			err = cfg.SaveUnlessEnvOnly("EPINIO_NAMESPACE")
+			Expect(err).To(MatchError(settings.ErrEnvOnly))
+			Expect(err.Error()).To(ContainSubstring("EPINIO_NAMESPACE"))
 			Expect(missingFile).ToNot(BeAnExistingFile())
 		})
 
@@ -240,7 +251,7 @@ var _ = Describe("Settings without a file", func() {
 			Expect(err).ToNot(HaveOccurred())
 			cfg.Namespace = "targeted"
 
-			Expect(cfg.SaveUnlessEnvOnly()).To(Succeed())
+			Expect(cfg.SaveUnlessEnvOnly("EPINIO_NAMESPACE")).To(Succeed())
 
 			content, err := os.ReadFile(settingsFile)
 			Expect(err).ToNot(HaveOccurred())
@@ -252,8 +263,128 @@ var _ = Describe("Settings without a file", func() {
 			Expect(err).ToNot(HaveOccurred())
 			cfg.Colors = false
 
-			Expect(cfg.SaveUnlessEnvOnly()).To(Succeed())
+			Expect(cfg.SaveUnlessEnvOnly("EPINIO_COLORS")).To(Succeed())
 			Expect(missingFile).To(BeAnExistingFile())
 		})
+
+		It("does not persist EPINIO_PASSWORD or EPINIO_API_TOKEN into an existing file", func() {
+			filePass := base64.StdEncoding.EncodeToString([]byte("file-secret"))
+			content := "user: admin\npass: " + filePass + "\ntoken:\n  accesstoken: file-token\n  refreshtoken: file-refresh\n"
+			Expect(os.WriteFile(settingsFile, []byte(content), 0600)).To(Succeed())
+
+			GinkgoT().Setenv("EPINIO_PASSWORD", "env-secret")
+			GinkgoT().Setenv("EPINIO_API_TOKEN", "env-token")
+
+			cfg, err := settings.LoadFrom(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(cfg.Password).To(Equal("env-secret"))
+			Expect(cfg.Token.AccessToken).To(Equal("env-token"))
+
+			cfg.Namespace = "targeted"
+			Expect(cfg.SaveUnlessEnvOnly("EPINIO_NAMESPACE")).To(Succeed())
+
+			saved, err := os.ReadFile(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(saved)).To(ContainSubstring("namespace: targeted"))
+			Expect(string(saved)).To(ContainSubstring("pass: "+filePass))
+			Expect(string(saved)).To(ContainSubstring("accesstoken: file-token"))
+			Expect(string(saved)).To(ContainSubstring("refreshtoken: file-refresh"))
+			Expect(string(saved)).ToNot(ContainSubstring("env-secret"))
+			Expect(string(saved)).ToNot(ContainSubstring("env-token"))
+		})
+	})
+})
+
+var _ = Describe("intentional credential changes with env overrides", func() {
+	var settingsFile string
+
+	BeforeEach(func() {
+		settingsFile = filepath.Join(GinkgoT().TempDir(), "settings.yaml")
+		for _, name := range []string{"EPINIO_PASSWORD", "EPINIO_PASSWORD_B64", "EPINIO_PASS", "EPINIO_API_TOKEN"} {
+			GinkgoT().Setenv(name, "")
+		}
+	})
+
+	It("persists a login password even when EPINIO_PASSWORD is set", func() {
+		oldPass := base64.StdEncoding.EncodeToString([]byte("oldpw"))
+		Expect(os.WriteFile(settingsFile, []byte("user: olduser\npass: "+oldPass+"\n"), 0600)).To(Succeed())
+
+		GinkgoT().Setenv("EPINIO_PASSWORD", "env-should-not-win")
+
+		cfg, err := settings.LoadFrom(settingsFile)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Mimic epinio login: replace credentials, then allow Save to persist them.
+		cfg.User = "newuser"
+		cfg.Password = "newpw"
+		cfg.Token = settings.TokenSetting{}
+		cfg.ClearEnvCredentialOverrides()
+		Expect(cfg.Save()).To(Succeed())
+
+		saved, err := os.ReadFile(settingsFile)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(saved)).To(ContainSubstring("user: newuser"))
+		Expect(string(saved)).To(ContainSubstring("pass: " + base64.StdEncoding.EncodeToString([]byte("newpw"))))
+		Expect(string(saved)).ToNot(ContainSubstring(oldPass))
+		Expect(string(saved)).ToNot(ContainSubstring("env-should-not-win"))
+	})
+
+	It("persists logout clearing tokens even when EPINIO_API_TOKEN is set", func() {
+		content := "api: https://epinio.example.com\nuser: admin\npass: " +
+			base64.StdEncoding.EncodeToString([]byte("password")) +
+			"\ntoken:\n  accesstoken: oldtok\n  refreshtoken: oldref\n"
+		Expect(os.WriteFile(settingsFile, []byte(content), 0600)).To(Succeed())
+
+		GinkgoT().Setenv("EPINIO_API_TOKEN", "env-token")
+
+		cfg, err := settings.LoadFrom(settingsFile)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(cfg.AccessTokenFromEnv()).To(BeTrue())
+
+		// Mimic epinio logout.
+		cfg.API = ""
+		cfg.WSS = ""
+		cfg.User = ""
+		cfg.Password = ""
+		cfg.Certs = ""
+		cfg.Token = settings.TokenSetting{}
+		cfg.ClearEnvCredentialOverrides()
+		Expect(cfg.Save()).To(Succeed())
+
+		saved, err := os.ReadFile(settingsFile)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(saved)).ToNot(ContainSubstring("oldtok"))
+		Expect(string(saved)).ToNot(ContainSubstring("oldref"))
+		Expect(string(saved)).ToNot(ContainSubstring("env-token"))
+		Expect(string(saved)).ToNot(ContainSubstring("admin"))
+	})
+
+	It("persists an OIDC token even when EPINIO_API_TOKEN is set", func() {
+		content := "token:\n  accesstoken: oldtok\n  refreshtoken: oldref\n"
+		Expect(os.WriteFile(settingsFile, []byte(content), 0600)).To(Succeed())
+
+		GinkgoT().Setenv("EPINIO_API_TOKEN", "env-token")
+
+		cfg, err := settings.LoadFrom(settingsFile)
+		Expect(err).ToNot(HaveOccurred())
+
+		cfg.User = ""
+		cfg.Password = ""
+		cfg.Token = settings.TokenSetting{
+			AccessToken:  "oidc-access",
+			RefreshToken: "oidc-refresh",
+			TokenType:    "Bearer",
+			Expiry:       time.Date(2031, 2, 3, 4, 5, 6, 0, time.UTC),
+		}
+		cfg.ClearEnvCredentialOverrides()
+		Expect(cfg.Save()).To(Succeed())
+
+		saved, err := os.ReadFile(settingsFile)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(saved)).To(ContainSubstring("accesstoken: oidc-access"))
+		Expect(string(saved)).To(ContainSubstring("refreshtoken: oidc-refresh"))
+		Expect(string(saved)).ToNot(ContainSubstring("oldtok"))
+		Expect(string(saved)).ToNot(ContainSubstring("oldref"))
+		Expect(string(saved)).ToNot(ContainSubstring("env-token"))
 	})
 })

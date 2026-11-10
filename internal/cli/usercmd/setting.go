@@ -30,7 +30,7 @@ func (c *EpinioClient) SettingsColors(ctx context.Context, colors bool) error {
 		Msg("Edit Colorization Flag")
 
 	c.Settings.Colors = colors
-	if err := c.Settings.SaveUnlessEnvOnly(); err != nil {
+	if err := c.Settings.SaveUnlessEnvOnly("EPINIO_COLORS"); err != nil {
 		return err
 	}
 

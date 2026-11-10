@@ -333,6 +333,10 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 	// Clear any previous oidc login settings
 	epinioSettings.Token = settings.TokenSetting{}
 
+	// Login intentionally replaces credentials; do not keep file-backed secrets
+	// just because EPINIO_PASSWORD / EPINIO_API_TOKEN are set in the environment.
+	epinioSettings.ClearEnvCredentialOverrides()
+
 	return epinioSettings, nil
 }
 

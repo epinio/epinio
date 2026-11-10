@@ -264,9 +264,30 @@ var _ = Describe("Client refreshed token", func() {
 		})
 	})
 
-	When("the settings came from a file", func() {
+	When("the settings came from a file and the token came from EPINIO_API_TOKEN", func() {
 		BeforeEach(func() {
-			Expect(os.WriteFile(settingsFile, []byte("api: "+srv.URL+"\n"), 0600)).To(Succeed())
+			Expect(os.WriteFile(settingsFile, []byte("api: "+srv.URL+"\ntoken:\n  accesstoken: file-token\n  refreshtoken: file-refresh\n"), 0600)).To(Succeed())
+		})
+
+		It("updates the in-memory token but does not write the env token to the file", func() {
+			_, err := client.Do(epinioClient, "any", http.MethodGet, nil, &models.Response{})
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(epinioClient.Settings.Token.AccessToken).To(Equal("new-token"))
+			Expect(epinioClient.Settings.Token.RefreshToken).To(BeEmpty())
+
+			content, err := os.ReadFile(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(content)).ToNot(ContainSubstring("new-token"))
+			Expect(string(content)).To(ContainSubstring("file-token"))
+			Expect(string(content)).To(ContainSubstring("file-refresh"))
+		})
+	})
+
+	When("the settings and token came from a file", func() {
+		BeforeEach(func() {
+			GinkgoT().Setenv("EPINIO_API_TOKEN", "")
+			Expect(os.WriteFile(settingsFile, []byte("api: "+srv.URL+"\ntoken:\n  accesstoken: old-token\n  refreshtoken: file-refresh\n"), 0600)).To(Succeed())
 		})
 
 		It("saves the refreshed token", func() {
