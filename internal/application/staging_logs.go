@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +40,8 @@ const (
 
 	// stagingLogsContentType is the content type of the stored log objects.
 	stagingLogsContentType = "application/x-ndjson"
+
+	stagingLogsTruncationNoticePrefix = "... "
 )
 
 // StagingLogsSettings are the stagingWorkloads helm values controlling the
@@ -86,37 +89,52 @@ func encodeStagingLogs(lines []tailer.ContainerLogLine, maxBytes int64, droppedE
 		encoded[i] = data
 	}
 
-	// Walk backwards so the most recent lines are the ones that are kept.
-	var size int64
-	start := len(encoded)
-	for i := len(encoded) - 1; i >= 0; i-- {
-		lineSize := int64(len(encoded[i]) + 1)
-		if maxBytes > 0 && size+lineSize > maxBytes {
-			break
+	// Drop oldest lines until the lines and the truncation notice fit together.
+	// The notice is part of the object and therefore part of MaxBytes.
+	var linesSize int64
+	for _, data := range encoded {
+		linesSize += int64(len(data) + 1)
+	}
+	for start := 0; start <= len(encoded); start++ {
+		dropped := droppedEarlier + start
+		var notice []byte
+		if dropped > 0 {
+			var err error
+			notice, err = json.Marshal(tailer.ContainerLogLine{
+				Message: fmt.Sprintf("%s%d earlier log lines dropped, the stored logs are limited to %d bytes ...",
+					stagingLogsTruncationNoticePrefix, dropped, maxBytes),
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "encoding the truncation notice")
+			}
 		}
-		size += lineSize
-		start = i
+
+		size := linesSize
+		if len(notice) > 0 {
+			size += int64(len(notice) + 1)
+		}
+		if maxBytes > 0 && size > maxBytes {
+			if start < len(encoded) {
+				linesSize -= int64(len(encoded[start]) + 1)
+			}
+			continue
+		}
+
+		var buf bytes.Buffer
+		if len(notice) > 0 {
+			buf.Write(notice)
+			buf.WriteByte('\n')
+		}
+		for _, data := range encoded[start:] {
+			buf.Write(data)
+			buf.WriteByte('\n')
+		}
+		return buf.Bytes(), nil
 	}
 
-	dropped := droppedEarlier + start
-	var buf bytes.Buffer
-	if dropped > 0 {
-		notice, err := json.Marshal(tailer.ContainerLogLine{
-			Message: fmt.Sprintf("... %d earlier log lines dropped, the stored logs are limited to %d bytes ...",
-				dropped, maxBytes),
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "encoding the truncation notice")
-		}
-		buf.Write(notice)
-		buf.WriteByte('\n')
-	}
-	for _, data := range encoded[start:] {
-		buf.Write(data)
-		buf.WriteByte('\n')
-	}
-
-	return buf.Bytes(), nil
+	// A cap smaller than the JSON-encoded notice cannot contain a valid NDJSON
+	// record. Keep the hard cap rather than writing an oversized object.
+	return nil, nil
 }
 
 // stagingLogBuffer keeps the newest log lines whose encoded size stays within maxBytes.
@@ -245,8 +263,13 @@ func FilterStoredStagingLogs(lines []tailer.ContainerLogLine, params *LogParamet
 		sinceCutoff = &t
 	}
 
+	notices := make([]tailer.ContainerLogLine, 0, 1)
 	filtered := make([]tailer.ContainerLogLine, 0, len(lines))
 	for _, line := range lines {
+		if isStagingLogsTruncationNotice(line) {
+			notices = append(notices, line)
+			continue
+		}
 		if includeRE != nil && !includeRE.MatchString(line.ContainerName) {
 			continue
 		}
@@ -267,7 +290,13 @@ func FilterStoredStagingLogs(lines []tailer.ContainerLogLine, params *LogParamet
 		filtered = filtered[int64(len(filtered))-*params.Tail:]
 	}
 
-	return filtered, nil
+	return append(notices, filtered...), nil
+}
+
+func isStagingLogsTruncationNotice(line tailer.ContainerLogLine) bool {
+	return line.ContainerName == "" &&
+		strings.HasPrefix(line.Message, stagingLogsTruncationNoticePrefix) &&
+		strings.Contains(line.Message, " earlier log lines dropped")
 }
 
 func parseStagingLogTimestamp(value string) (time.Time, bool) {

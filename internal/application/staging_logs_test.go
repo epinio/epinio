@@ -82,36 +82,28 @@ var _ = Describe("Staging logs persistence", func() {
 		It("keeps the most recent lines and prepends a notice when the cap is reached", func() {
 			var input []tailer.ContainerLogLine
 			for i := range 5 {
-				input = append(input, tailer.ContainerLogLine{Message: fmt.Sprintf("message-%d", i)})
+				input = append(input, tailer.ContainerLogLine{
+					Message: fmt.Sprintf("message-%d-%s", i, strings.Repeat("x", 256)),
+				})
 			}
 
-			// The cap fits exactly the two most recent lines.
-			lastTwo := 0
-			for _, line := range input[3:] {
-				data, err := json.Marshal(line)
-				Expect(err).ToNot(HaveOccurred())
-				lastTwo += len(data) + 1
-			}
-
-			data, err := encodeStagingLogs(input, int64(lastTwo), 0)
+			const maxBytes int64 = 700
+			data, err := encodeStagingLogs(input, maxBytes, 0)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(int64(len(data))).To(BeNumerically("<=", maxBytes))
 
 			stored := decodeStoredLines(data)
-			Expect(stored).To(HaveLen(3))
-			Expect(stored[0].Message).To(ContainSubstring("3 earlier log lines dropped"))
-			Expect(stored[1].Message).To(Equal("message-3"))
-			Expect(stored[2].Message).To(Equal("message-4"))
+			Expect(stored).To(HaveLen(2))
+			Expect(stored[0].Message).To(ContainSubstring("4 earlier log lines dropped"))
+			Expect(stored[1].Message).To(Equal(input[4].Message))
 		})
 
-		It("stores nothing but the notice when no line fits", func() {
+		It("does not exceed a cap too small for a valid notice", func() {
 			input := []tailer.ContainerLogLine{{Message: "a line that is too long for the cap"}}
 
 			data, err := encodeStagingLogs(input, 1, 0)
 			Expect(err).ToNot(HaveOccurred())
-
-			stored := decodeStoredLines(data)
-			Expect(stored).To(HaveLen(1))
-			Expect(stored[0].Message).To(ContainSubstring("1 earlier log lines dropped"))
+			Expect(data).To(BeEmpty())
 		})
 
 		It("stores an empty log without a notice", func() {
@@ -164,9 +156,9 @@ var _ = Describe("Staging logs persistence", func() {
 			// Collect already trimmed: encode must still emit the drop notice.
 			data, err := encodeStagingLogs(buf.lines, lastTwo, buf.dropped)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(int64(len(data))).To(BeNumerically("<=", lastTwo))
 			stored := decodeStoredLines(data)
-			Expect(stored[0].Message).To(ContainSubstring("3 earlier log lines dropped"))
-			Expect(stored).To(HaveLen(3))
+			Expect(stored[0].Message).To(ContainSubstring("5 earlier log lines dropped"))
 		})
 
 		It("drops a sole remaining line that alone exceeds the cap", func() {
@@ -177,9 +169,7 @@ var _ = Describe("Staging logs persistence", func() {
 
 			data, err := encodeStagingLogs(buf.lines, 1, buf.dropped)
 			Expect(err).ToNot(HaveOccurred())
-			stored := decodeStoredLines(data)
-			Expect(stored).To(HaveLen(1))
-			Expect(stored[0].Message).To(ContainSubstring("1 earlier log lines dropped"))
+			Expect(data).To(BeEmpty())
 		})
 	})
 
@@ -216,6 +206,22 @@ var _ = Describe("Staging logs persistence", func() {
 			filtered, err := FilterStoredStagingLogs(base, &LogParameters{Tail: &tail})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(filtered).To(HaveLen(len(base)))
+		})
+
+		It("preserves the truncation notice through include and tail filters", func() {
+			tail := int64(1)
+			lines := append([]tailer.ContainerLogLine{{
+				Message: "... 12 earlier log lines dropped, the stored logs are limited to 1024 bytes ...",
+			}}, base...)
+
+			filtered, err := FilterStoredStagingLogs(lines, &LogParameters{
+				Tail:              &tail,
+				IncludeContainers: []string{"buildpack"},
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(filtered).To(HaveLen(2))
+			Expect(filtered[0].Message).To(ContainSubstring("12 earlier log lines dropped"))
+			Expect(filtered[1].Message).To(Equal("new-build"))
 		})
 	})
 
