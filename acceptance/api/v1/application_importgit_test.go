@@ -121,7 +121,7 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 			Expect(importResponse.Revision).To(Equal("48c02bd5766061c0ea9875ca1fd9908e3a20aeb8"))
 		})
 
-		It("imports the git repo from a tag and has the right branch and commit", func() {
+		It("imports the git repo from a tag and keeps the tag as the origin name", func() {
 			exampleGoURL := "https://github.com/epinio/example-go"
 			revision := "v0.0.2"
 
@@ -131,9 +131,8 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 			importResponse := fromJSON[models.ImportGitResponse](bodyBytes)
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
-			Expect(importResponse.Branch).ToNot(BeEmpty())
-			// Tag checkout is detached HEAD; go-git may report "HEAD" or "main"
-			Expect(importResponse.Branch).To(BeElementOf("main", "HEAD"))
+			// Prefer the requested tag name over whichever ref happens to contain the commit first (usually HEAD).
+			Expect(importResponse.Branch).To(Equal("v0.0.2"))
 			Expect(importResponse.Revision).To(Equal("e84b2a73b2c1bb88d9cdc99ffca1a3d05b3d261b"))
 		})
 
@@ -148,7 +147,7 @@ var _ = Describe("AppImportGit Endpoint", LApplication, func() {
 			Expect(importResponse.BlobUID).ToNot(BeEmpty())
 			Expect(importResponse.BlobUID).To(BeUUID())
 			Expect(importResponse.Branch).ToNot(BeEmpty())
-			// Commit checkout may be detached HEAD; go-git may report "HEAD", branch name, or tag
+			// Raw commit SHAs are not tag names; resolution still walks refs that contain the commit.
 			Expect(importResponse.Branch).To(BeElementOf("test", "HEAD", "v0.0.1"))
 			Expect(importResponse.Revision).To(Equal("15e2b2690ac9b372963544384b9aa43955a2e611"))
 		})
