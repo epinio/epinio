@@ -23,16 +23,16 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/helmchart"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-
-	"github.com/gorilla/websocket"
 )
 
 var (
@@ -44,11 +44,29 @@ var (
 type LogParameterUpdate struct {
 	Type   string `json:"type"`
 	Params struct {
-		Since     string `json:"since"`
-		SinceTime string `json:"since_time"`
-		Tail      int    `json:"tail"`
-		Follow    bool   `json:"follow"`
+		Since             string `json:"since"`
+		SinceTime         string `json:"since_time"`
+		Tail              int    `json:"tail"`
+		Follow            bool   `json:"follow"`
+		IncludeContainers string `json:"include_containers"`
+		ExcludeContainers string `json:"exclude_containers"`
 	} `json:"params"`
+}
+
+// parseLogParameterUpdate turns a UI filter_params payload into LogParameters.
+func parseLogParameterUpdate(update LogParameterUpdate) (*application.LogParameters, error) {
+	params, err := ParseLogParameters(
+		strconv.Itoa(update.Params.Tail),
+		update.Params.Since,
+		update.Params.SinceTime,
+		update.Params.IncludeContainers,
+		update.Params.ExcludeContainers,
+	)
+	if err != nil {
+		return nil, err
+	}
+	params.Follow = update.Params.Follow
+	return params, nil
 }
 
 // ParseLogParameters parses and validates log query parameters
@@ -228,6 +246,28 @@ func ParseLogParametersForTest(tailStr, sinceStr, sinceTimeStr string, includeCo
 	return ParseLogParameters(tailStr, sinceStr, sinceTimeStr, includeContainersStr, excludeContainersStr)
 }
 
+// stagingLogsUnavailableMessage is returned when staging logs cannot be read
+// because no matching staging Job exists (TTL cleanup, unknown stage ID, etc.).
+const stagingLogsUnavailableMessage = "Staging logs are no longer available (staging job not found)"
+
+// stagingLogsJobError maps a staging Job ListJobs result to an API error.
+// Missing jobs are NotFound with a clear message; list failures are InternalError.
+// A present job returns nil.
+func stagingLogsJobError(jobCount int, listErr error) apierror.APIErrors {
+	if listErr != nil {
+		return apierror.InternalError(listErr)
+	}
+	if jobCount == 0 {
+		return apierror.NewAPIError(stagingLogsUnavailableMessage, http.StatusNotFound)
+	}
+	return nil
+}
+
+// StagingLogsJobErrorForTest exposes stagingLogsJobError for unit tests.
+func StagingLogsJobErrorForTest(jobCount int, listErr error) apierror.APIErrors {
+	return stagingLogsJobError(jobCount, listErr)
+}
+
 // Logs handles the API endpoints GET /namespaces/:namespace/applications/:app/logs
 // and	GET /namespaces/:namespace/staging/:stage_id/logs
 // It arranges for the logs of the specified application to be
@@ -289,7 +329,8 @@ func Logs(c *gin.Context) {
 
 	log.Debugw("process query")
 
-	// Extract query parameters
+	// Extract query parameters before choosing live vs stored staging logs so
+	// both paths honor the same UI filters.
 	followStr := c.Query("follow")
 	tailStr := c.Query("tail")
 	sinceStr := c.Query("since")
@@ -297,22 +338,41 @@ func Logs(c *gin.Context) {
 	includeContainersStr := c.Query("include_containers")
 	excludeContainersStr := c.Query("exclude_containers")
 
-	// Parse and validate log parameters
 	logParams, err := ParseLogParameters(tailStr, sinceStr, sinceTimeStr, includeContainersStr, excludeContainersStr)
 	if err != nil {
 		response.Error(c, apierror.NewBadRequestError(err.Error()))
 		return
 	}
 
-	// Set follow parameter
 	follow := followStr == "true"
 	logParams.Follow = follow
 
-	// Validate container filter regex patterns before upgrading to websocket
-	// This allows us to return HTTP errors instead of silently failing
 	if err := validateContainerFilterPatterns(logParams); err != nil {
 		response.Error(c, apierror.NewBadRequestError(err.Error()))
 		return
+	}
+
+	// Staging logs come from staging Job pods. Once the Job is gone (TTL cleanup,
+	// unknown stage ID, etc.) the persisted logs are served, if there are any.
+	// Otherwise return a clear error instead of an empty stream.
+	if stageID != "" {
+		selector := fmt.Sprintf(
+			"app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.io/stage-id=%s",
+			namespace, stageID,
+		)
+		jobList, err := cluster.ListJobs(ctx, helmchart.Namespace(), selector)
+		jobCount := 0
+		if jobList != nil {
+			jobCount = len(jobList.Items)
+		}
+		if err == nil && jobCount == 0 {
+			serveStoredStagingLogs(c, cluster, namespace, stageID, logParams)
+			return
+		}
+		if apiErr := stagingLogsJobError(jobCount, err); apiErr != nil {
+			response.Error(c, apiErr)
+			return
+		}
 	}
 
 	// Log the parsed parameters for debugging
@@ -422,6 +482,20 @@ func streamPodLogs(
 					"params", update.Params,
 				)
 
+				// Validate the replacement before clearing the UI or stopping the
+				// current stream. Invalid updates leave the active stream intact.
+				parsedParams, parsedParamsError := parseLogParameterUpdate(update)
+				if parsedParamsError != nil {
+					log.Errorw("failed to parse updated log parameters",
+						"error", parsedParamsError,
+					)
+					continue
+				}
+				if err := validateContainerFilterPatterns(parsedParams); err != nil {
+					log.Errorw("invalid updated log parameters", "error", err)
+					continue
+				}
+
 				// Send marker directly to WebSocket to tell frontend to clear logs
 				// We do this BEFORE cancelling to ensure it arrives before any buffered messages
 				startMarker := tailer.ContainerLogLine{
@@ -443,24 +517,6 @@ func streamPodLogs(
 
 				// Start new streaming with updated parameters
 				logCtx, logCancelFunc = context.WithCancel(ctx)
-
-				// Make sure we have valid parameters before continuing, if not, log
-				// the error and ignore the update
-				parsedParams, parsedParamsError := ParseLogParameters(
-					strconv.Itoa(update.Params.Tail),
-					update.Params.Since,
-					update.Params.SinceTime,
-				)
-
-				if parsedParamsError != nil {
-					log.Errorw("failed to parse updated log parameters",
-						"error", parsedParamsError,
-					)
-					continue
-				}
-
-				// Use the follow parameter from the client
-				parsedParams.Follow = update.Params.Follow
 
 				logWg.Add(1)
 				go startLogStreaming(
