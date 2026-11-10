@@ -25,11 +25,13 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // stagingLogsSettings reads the persistLogs helm values from the staging
@@ -58,6 +60,10 @@ func stagingLogsSettings(ctx context.Context, cluster *kubernetes.Cluster) appli
 // the staging logs when the jobs finish. It is independent of request handlers
 // and client connections, so multiple waiters do not trigger multiple saves and
 // a disconnect before complete does not skip persistence.
+//
+// The wait lives only in this server process. If the server restarts while
+// a job is still running, that run's logs are not persisted, and the logs
+// endpoint returns the not-available error once the job is cleaned up.
 func schedulePersistStagingLogsWhenDone(
 	cluster *kubernetes.Cluster,
 	namespace, stageID string,
@@ -72,14 +78,51 @@ func schedulePersistStagingLogsWhenDone(
 		ctx := context.Background()
 		log := requestctx.Logger(ctx)
 
-		if _, err := waitForStagingCompletion(ctx, cluster, jobsCopy); err != nil {
-			log.Errorw("staging log persistence wait failed",
-				"error", err, "namespace", namespace, "stageID", stageID)
+		if err := waitForStagingJobsDone(ctx, cluster, jobsCopy); err != nil {
+			log.Errorw(
+				"staging log persistence wait failed",
+				"error",
+				err,
+				"namespace",
+				namespace,
+				"stageID",
+				stageID,
+			)
 			return
 		}
 
 		persistFinishedStagingLogs(ctx, cluster, jobsCopy, namespace, stageID)
 	}()
+}
+
+// waitForStagingJobsDone waits until every job has finished, successfully
+// or not. Unlike waitForStagingCompletion it is not bounded by the build
+// timeout, because a slow build still deserves its logs. It keeps waiting
+// across timeouts and stops on any other error, such as a deleted job.
+func waitForStagingJobsDone(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	jobs []batchv1.Job,
+) error {
+	for _, job := range jobs {
+		for {
+			err := cluster.WaitForJobDone(
+				ctx,
+				helmchart.Namespace(),
+				job.Name,
+				duration.ToAppBuilt(),
+			)
+
+			if err == nil {
+				break
+			}
+
+			if !wait.Interrupted(err) {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // persistFinishedStagingLogs keeps the logs of the finished staging run stageID

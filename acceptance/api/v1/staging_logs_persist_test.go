@@ -82,6 +82,16 @@ var _ = Describe("Staging logs persistence", LApplication, Serial, func() {
 		Eventually(func() bool { return s3ObjectExists(objectKey) }, "2m", "2s").Should(BeTrue())
 		Eventually(func() bool { return s3ObjectExists(pointerKey) }, "2m", "2s").Should(BeTrue())
 
+		By("checking the server stored the real build output")
+		stored := readStoredStagingLogs(objectKey)
+		Expect(stored).ToNot(BeEmpty())
+		for _, raw := range strings.Split(strings.TrimSpace(stored), "\n") {
+			var line tailer.ContainerLogLine
+			Expect(json.Unmarshal([]byte(raw), &line)).To(Succeed(), raw)
+			Expect(line.PodName).ToNot(BeEmpty(), raw)
+			Expect(line.ContainerName).ToNot(BeEmpty(), raw)
+		}
+
 		By("removing the staging job so the stored-logs path is used")
 		out, err := proc.Kubectl("delete", "job",
 			"-n", testenv.Namespace,
@@ -203,6 +213,13 @@ func writeStoredStagingLogs(key string, lines []tailer.ContainerLogLine) {
 	out, err := proc.Kubectl("exec", "-n", testenv.Namespace, s3FilerPod, "--",
 		"curl", "-fsS", "-X", "PUT", "--data-binary", body.String(), s3FilerBucketURL+key)
 	Expect(err).ToNot(HaveOccurred(), out)
+}
+
+func readStoredStagingLogs(key string) string {
+	out, err := proc.Kubectl("exec", "-n", testenv.Namespace, s3FilerPod,
+		"--", "curl", "-fsS", s3FilerBucketURL+key)
+	Expect(err).ToNot(HaveOccurred(), out)
+	return out
 }
 
 func readStoredStagingLogLine(conn *websocket.Conn) tailer.ContainerLogLine {

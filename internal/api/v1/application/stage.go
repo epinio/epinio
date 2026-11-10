@@ -382,7 +382,7 @@ func executeStage(
 			fmt.Sprintf("failed to create job run: %#v", job),
 		)
 	}
-	schedulePersistStagingLogsWhenDone(cluster, params.AppRef.Namespace, params.Stage.ID, []batchv1.Job{*job})
+	schedulePersistStagingLogsWhenDone(cluster, params.Namespace, params.Stage.ID, []batchv1.Job{*job})
 
 	updateAppError := updateApp(ctx, cluster, app, params)
 	if updateAppError != nil {
