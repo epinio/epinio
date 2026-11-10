@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/epinio/epinio/internal/manifest"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -444,6 +445,8 @@ func NewAppListCmd(client ApplicationsService, rootCfg *RootConfig) *cobra.Comma
 type AppLogsConfig struct {
 	follow  bool
 	staging bool
+	tail    int64
+	since   string
 }
 
 // NewAppLogsCmd returns a new `epinio apps logs` command
@@ -466,7 +469,12 @@ func NewAppLogsCmd(client ApplicationsService) *cobra.Command {
 				stageID = stageIDHere
 			}
 
-			err := client.AppLogs(args[0], stageID, cfg.follow, nil)
+			options, err := cfg.logOptions(cmd)
+			if err != nil {
+				return err
+			}
+
+			err = client.AppLogs(args[0], stageID, cfg.follow, options)
 			// Note: errors.Wrap (nil, "...") == nil
 			return errors.Wrap(err, "error streaming application logs")
 		},
@@ -474,8 +482,39 @@ func NewAppLogsCmd(client ApplicationsService) *cobra.Command {
 
 	cmd.Flags().BoolVar(&cfg.follow, "follow", false, "follow the logs of the application")
 	cmd.Flags().BoolVar(&cfg.staging, "staging", false, "show the staging logs of the application")
+	cmd.Flags().Int64Var(&cfg.tail, "tail", 0, "number of lines from the end of the logs to show")
+	cmd.Flags().StringVar(&cfg.since, "since", "", "only return logs newer than a relative duration like 5s, 2m, or 3h")
 
 	return cmd
+}
+
+func (cfg *AppLogsConfig) logOptions(cmd *cobra.Command) (*client.LogOptions, error) {
+	tailSet := cmd.Flags().Changed("tail")
+	if !tailSet && cfg.since == "" {
+		return nil, nil
+	}
+
+	options := &client.LogOptions{}
+
+	if tailSet {
+		if cfg.tail < 0 {
+			return nil, errors.New("--tail must be non-negative")
+		}
+		options.Tail = &cfg.tail
+	}
+
+	if cfg.since != "" {
+		since, err := time.ParseDuration(cfg.since)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid --since duration")
+		}
+		if since < 0 {
+			return nil, errors.New("--since must be non-negative")
+		}
+		options.Since = &since
+	}
+
+	return options, nil
 }
 
 // NewAppManifestCmd returns a new `epinio apps manifest` command
@@ -719,7 +758,7 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 
 	// It scales the named app
 	var noRestart bool
-	
+
 	cmd := &cobra.Command{
 		Use:               "update NAME",
 		Short:             "Update the named application",
@@ -758,7 +797,7 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 				AppChart:       manifestConfig.AppChart,
 				Settings:       manifestConfig.Settings,
 			}
-			
+
 			// Set restart flag based on --no-restart option
 			restart := !noRestart
 			updateRequest.Restart = &restart
@@ -781,7 +820,7 @@ func NewAppUpdateCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().String("app-chart", "", "App chart to use for deployment")
 	bindFlag(cmd, "app-chart")
 	bindFlagCompletionFunc(cmd, "app-chart", NewAppChartMatcherValueFunc(client))
-	
+
 	cmd.Flags().BoolVar(&noRestart, "no-restart", false, "Prevent restarting the application after update")
 
 	return cmd
