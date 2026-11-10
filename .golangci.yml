@@ -10,7 +10,7 @@
 # limitations under the License.
 version: "2"
 run:
-  go: "1.23.0"
+  go: "1.27"
 
 linters:
   settings:
@@ -42,6 +42,9 @@ linters:
     govet: 
       disable: 
         - unusedresult
+        # False positive on stdlib generics (slices.Contains/SortFunc): analyzer
+        # cannot do type-parameter inference yet.
+        - inline
 
   exclusions:
     paths:
