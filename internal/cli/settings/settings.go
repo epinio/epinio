@@ -36,6 +36,13 @@ var (
 	defaultSettingsFilePath = "epinio/settings.yaml"
 )
 
+const (
+	envPassword       = "EPINIO_PASSWORD"
+	envPasswordB64    = "EPINIO_PASSWORD_B64"
+	envPasswordLegacy = "EPINIO_PASS"
+	envAPIToken       = "EPINIO_API_TOKEN" //nolint:gosec // G101: env var name, not a credential
+)
+
 // Settings represents a epinio settings
 type Settings struct {
 	Namespace string       `mapstructure:"namespace"` // Currently targeted namespace
@@ -49,6 +56,18 @@ type Settings struct {
 	AppChart  string       `mapstructure:"appchart"` // Current default app chart (name)
 
 	Location string // Origin of data, file which was loaded
+
+	// passwordFromEnv is set when Password came from EPINIO_PASSWORD / EPINIO_PASSWORD_B64 / EPINIO_PASS.
+	// filePassword is the decoded password from the settings file (if any), kept so Save does not
+	// persist an environment override.
+	passwordFromEnv bool
+	filePassword    string
+
+	// accessTokenFromEnv is set when the access token came from EPINIO_API_TOKEN.
+	// fileToken is the token from the settings file (if any), kept so Save does not persist an
+	// environment override.
+	accessTokenFromEnv bool
+	fileToken          TokenSetting
 
 	v   *viper.Viper
 	log logr.Logger
@@ -101,11 +120,23 @@ func LoadFrom(file string) (*Settings, error) {
 		return nil, errors.Wrapf(err, "filesystem error")
 	}
 
+	// Snapshot file-backed secrets before binding environment overrides. BindEnv/AutomaticEnv
+	// make later Gets return the env value, and Save must not persist those overrides.
+	var filePassEncoded string
 	if settingsExists {
 		cfg.Location = file
 		if err := v.ReadInConfig(); err != nil {
 			return nil, errors.Wrapf(err, "failed to read settings file '%s'", file)
 		}
+		filePassEncoded = v.GetString("pass")
+		if err := v.UnmarshalKey("token", &cfg.fileToken); err != nil {
+			return nil, errors.Wrap(err, "failed to read token from settings file")
+		}
+	}
+
+	// The token is a nested struct, so AutomaticEnv cannot resolve it. Bind it explicitly.
+	if err := v.BindEnv("token.accesstoken", envAPIToken); err != nil {
+		return nil, errors.Wrap(err, "failed to bind the API token")
 	}
 	v.AutomaticEnv()
 
@@ -115,6 +146,15 @@ func LoadFrom(file string) (*Settings, error) {
 	}
 
 	cfg.v = v
+	cfg.filePassword = decodeFilePassword(filePassEncoded)
+
+	if tokenFromEnv := os.Getenv(envAPIToken); tokenFromEnv != "" {
+		cfg.accessTokenFromEnv = true
+		// An explicitly supplied access token is not part of an OIDC refresh flow; drop the
+		// leftover refresh material so a later Save cannot mix secrets from two sources.
+		cfg.Token.RefreshToken = ""
+		cfg.Token.Expiry = time.Time{}
+	}
 
 	if cfg.Certs != "" {
 		auth.ExtendLocalTrust(cfg.Certs)
@@ -162,16 +202,119 @@ func LoadFrom(file string) (*Settings, error) {
 		color.NoColor = true
 	}
 
-	// Decode base64 password
-	decodedPassword, err := base64.StdEncoding.DecodeString(cfg.Password)
-	if err != nil {
+	if err := cfg.resolvePassword(); err != nil {
 		return cfg, err
 	}
-	cfg.Password = string(decodedPassword)
 
 	cfg.log = log
 	log.Info("Loaded", "value", cfg.String())
 	return cfg, nil
+}
+
+// resolvePassword sets the final plaintext password. The dedicated environment variables are
+// read here, after the unmarshal, so they stay out of viper's automatic binding and cannot
+// interfere with the `pass` key of the settings file.
+//
+// EPINIO_PASSWORD is plaintext, EPINIO_PASSWORD_B64 is base64 encoded. The legacy EPINIO_PASS
+// is the viper binding of the `pass` key, and thus base64 encoded as well. It stays as an
+// undocumented alias of EPINIO_PASSWORD_B64.
+func (c *Settings) resolvePassword() error {
+	plain := os.Getenv(envPassword)
+	encoded := os.Getenv(envPasswordB64)
+
+	if legacy := os.Getenv(envPasswordLegacy); encoded == "" && legacy != "" {
+		fmt.Fprintf(os.Stderr, "Warning: %s is deprecated, use %s (base64) or %s (plaintext)\n",
+			envPasswordLegacy, envPasswordB64, envPassword)
+		encoded = legacy
+	}
+
+	if plain != "" && encoded != "" {
+		return fmt.Errorf("%s and %s are both set, use only one", envPassword, envPasswordB64)
+	}
+
+	if plain != "" {
+		c.passwordFromEnv = true
+		c.Password = plain
+		return nil
+	}
+
+	if encoded != "" {
+		c.passwordFromEnv = true
+	} else {
+		// Neither variable is set, the password comes from the settings file.
+		encoded = c.Password
+	}
+
+	decodedPassword, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return err
+	}
+	c.Password = string(decodedPassword)
+
+	return nil
+}
+
+// decodeFilePassword decodes a settings-file password. An empty or invalid value yields "".
+// Invalid base64 from the file is ignored here; resolvePassword still reports decode errors
+// for the live Password field.
+func decodeFilePassword(encoded string) string {
+	if encoded == "" {
+		return ""
+	}
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return ""
+	}
+	return string(decoded)
+}
+
+// ErrEnvOnly is returned when settings which come from the environment alone are to be saved.
+// Callers wrap it with ErrEnvOnlyFor to name the variable the user should set instead.
+var ErrEnvOnly = errors.New("settings come from the environment only, there is no settings file to save to")
+
+// ErrEnvOnlyFor returns ErrEnvOnly naming the environment variable that should be set instead
+// of writing a settings file.
+func ErrEnvOnlyFor(envVar string) error {
+	return fmt.Errorf("%w; set %s instead", ErrEnvOnly, envVar)
+}
+
+// EnvOnly reports whether the settings come from the environment alone: there is no settings
+// file, but an API server is configured.
+func (c *Settings) EnvOnly() bool {
+	return c.Location == "" && c.API != ""
+}
+
+// AccessTokenFromEnv reports whether the access token came from EPINIO_API_TOKEN.
+func (c *Settings) AccessTokenFromEnv() bool {
+	return c.accessTokenFromEnv
+}
+
+// ClearEnvCredentialOverrides stops treating password/token as environment overrides so
+// Save writes the current in-memory values. Call this after intentional credential changes
+// (login, logout, OIDC login). Without it, Save would keep the previous file-backed secrets
+// and drop the change when EPINIO_PASSWORD / EPINIO_API_TOKEN are set in the environment.
+func (c *Settings) ClearEnvCredentialOverrides() {
+	c.passwordFromEnv = false
+	c.accessTokenFromEnv = false
+}
+
+// Origin describes where the settings come from, for display.
+func (c *Settings) Origin() string {
+	if c.EnvOnly() {
+		return "<environment>"
+	}
+	return helpers.AbsPath(c.Location)
+}
+
+// SaveUnlessEnvOnly is Save for commands which only adjust a setting, like the current
+// namespace. Writing a file for settings which come from the environment alone would persist
+// the environment's credentials to disk. envVar is the EPINIO_* variable the user should set
+// instead when the settings are environment-only.
+func (c *Settings) SaveUnlessEnvOnly(envVar string) error {
+	if c.EnvOnly() {
+		return ErrEnvOnlyFor(envVar)
+	}
+	return c.Save()
 }
 
 // String generates a string representation of the settings (for debugging)
@@ -186,8 +329,19 @@ func (c *Settings) Save() error {
 	c.v.Set("namespace", c.Namespace)
 	c.v.Set("appchart", c.AppChart)
 	c.v.Set("user", c.User)
-	c.v.Set("pass", base64.StdEncoding.EncodeToString([]byte(c.Password)))
-	c.v.Set("token", c.Token)
+	// Keep environment overrides out of settings.yaml for incidental saves (target,
+	// colors, …). Intentional credential updates must call ClearEnvCredentialOverrides
+	// first so login/logout/OIDC persist what the user set.
+	if c.passwordFromEnv {
+		c.v.Set("pass", base64.StdEncoding.EncodeToString([]byte(c.filePassword)))
+	} else {
+		c.v.Set("pass", base64.StdEncoding.EncodeToString([]byte(c.Password)))
+	}
+	if c.accessTokenFromEnv {
+		c.v.Set("token", c.fileToken)
+	} else {
+		c.v.Set("token", c.Token)
+	}
 	c.v.Set("api", c.API)
 	c.v.Set("wss", c.WSS)
 	c.v.Set("certs", c.Certs)

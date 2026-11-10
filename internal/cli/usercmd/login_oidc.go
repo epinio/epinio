@@ -82,6 +82,10 @@ func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, p
 	updatedSettings.User = ""
 	updatedSettings.Password = ""
 
+	// OIDC login intentionally replaces credentials; do not keep file-backed
+	// secrets just because EPINIO_PASSWORD / EPINIO_API_TOKEN are set.
+	updatedSettings.ClearEnvCredentialOverrides()
+
 	// get the custom headers of the original client
 	customHeaders := c.API.Headers()
 

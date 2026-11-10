@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers"
 	api "github.com/epinio/epinio/internal/api/v1"
@@ -111,7 +112,8 @@ func DoWithHandlers[T any](
 		return response, errors.New("missing response handler")
 	}
 
-	if c.Settings.Location == "" {
+	// Settings come from a file (Location) or, without one, from the environment (API).
+	if c.Settings.Location == "" && c.Settings.API == "" {
 		return response, errors.New("Client settings not found. Please ensure that the cluster is running, Epinio is installed, and the client is logged in.")
 	}
 	if c.Settings.API == "" {
@@ -483,13 +485,25 @@ func (c *Client) handleAuthorization(request *http.Request) error {
 				c.log.V(1).Info("Refreshed expired token")
 
 				c.Settings.Token.AccessToken = newToken.AccessToken
-				c.Settings.Token.RefreshToken = newToken.RefreshToken
-				c.Settings.Token.Expiry = newToken.Expiry
-				c.Settings.Token.TokenType = newToken.TokenType
 
-				err := c.Settings.Save()
-				if err != nil {
-					return errors.Wrap(err, "failed saving refreshed token")
+				// An EPINIO_API_TOKEN override is not part of the OIDC refresh/save cycle;
+				// keep refresh material cleared and never write the env token to disk.
+				if c.Settings.AccessTokenFromEnv() {
+					c.Settings.Token.RefreshToken = ""
+					c.Settings.Token.Expiry = time.Time{}
+				} else {
+					c.Settings.Token.RefreshToken = newToken.RefreshToken
+					c.Settings.Token.Expiry = newToken.Expiry
+					c.Settings.Token.TokenType = newToken.TokenType
+
+					// Settings which come from the environment alone have no file to write
+					// back to, and the filesystem may be read-only.
+					if !c.Settings.EnvOnly() {
+						err := c.Settings.Save()
+						if err != nil {
+							return errors.Wrap(err, "failed saving refreshed token")
+						}
+					}
 				}
 			}
 		}
