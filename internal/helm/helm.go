@@ -673,8 +673,14 @@ func GetHelmClient(
 			Namespace:        namespace,         // Match chart spec
 			RepositoryCache:  "/tmp/.helmcache", // Hopefully reduces chart downloads.
 			RepositoryConfig: "/tmp/.helmrepo",  // s.a.
-			Linting:          true,
-			Debug:            true,
+			// Helm v4 stores repo charts in ContentCache as ".chart" archive files.
+			// go-helm-client still passes that path to action.Lint, which only unpacks
+			// ".tgz"/".tar.gz" and otherwise expects a chart directory - so lint fails
+			// with "Chart.yaml: not a directory" before install can run. Install itself
+			// loads ".chart" via loader.Load fine; disable lint until go-helm-client
+			// (or Helm lint) understands the v4 content-cache layout.
+			Linting: false,
+			Debug:   true,
 			DebugLog: func(format string, v ...interface{}) {
 				helpers.Logger.Infow("helm", "report", fmt.Sprintf(format, v...))
 			},
@@ -738,7 +744,7 @@ func cleanupReleaseIfNeeded(c hc.Client, name string) error {
 	logger := helpers.Logger.With("component", "helm-cleanup")
 	r, err := c.GetRelease(name)
 	if err != nil {
-		if err == helmdriver.ErrReleaseNotFound {
+		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
 			return nil
 		}
 		return errors.Wrap(err, "getting the helm release")
@@ -758,7 +764,7 @@ func cleanupReleaseIfNeeded(c hc.Client, name string) error {
 		// Check again if the release exists.
 		r, errGet := c.GetRelease(name)
 		if errGet != nil {
-			if errGet == helmdriver.ErrReleaseNotFound {
+			if errors.Is(errGet, helmdriver.ErrReleaseNotFound) {
 				return nil
 			}
 			return errors.Wrap(errGet, "getting the helm release after uninstall")

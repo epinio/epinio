@@ -160,6 +160,13 @@ var _ = Describe("cleanupReleaseIfNeeded()", func() {
 		Expect(cleanupReleaseIfNeeded(mockClient, "my-release")).To(Succeed())
 	})
 
+	It("does nothing when ErrReleaseNotFound is wrapped", func() {
+		mockClient.EXPECT().GetRelease("my-release").
+			Return(nil, fmt.Errorf("get release: %w", helmdriver.ErrReleaseNotFound))
+
+		Expect(cleanupReleaseIfNeeded(mockClient, "my-release")).To(Succeed())
+	})
+
 	It("does nothing when the release is already deployed", func() {
 		mockClient.EXPECT().GetRelease("my-release").Return(&helmrelease.Release{
 			Info: &helmrelease.Info{Status: common.StatusDeployed},
