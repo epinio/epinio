@@ -88,6 +88,10 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 		manifest.Staging.Builder != "" {
 		msg = msg.WithStringValue("Builder", manifest.Staging.Builder)
 	}
+	if manifest.Origin.Kind != models.OriginContainer &&
+		manifest.Staging.SourcePath != "" {
+		msg = msg.WithStringValue("Source Path", manifest.Staging.SourcePath)
+	}
 
 	if manifest.Configuration.Instances != nil {
 		msg = msg.WithStringValue("Instances",
@@ -105,6 +109,9 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 	}
 
 	if err := validateLocalDockerfile(manifest); err != nil {
+		return err
+	}
+	if err := validateLocalSourcePath(manifest); err != nil {
 		return err
 	}
 
@@ -202,6 +209,7 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 		asyncReq.BuilderImage = manifest.Staging.Builder
 		asyncReq.BuildMode = manifest.Staging.BuildMode
 		asyncReq.DockerfilePath = manifest.Staging.DockerfilePath
+		asyncReq.SourcePath = manifest.Staging.SourcePath
 	}
 
 	c.ui.Normal().Msg("Building and deploying application on the server ...")
@@ -413,6 +421,39 @@ func validateLocalDockerfile(manifest models.ApplicationManifest) error {
 	}
 	if info.IsDir() {
 		return fmt.Errorf("dockerfile path %q is a directory, not a file", fullPath)
+	}
+	return nil
+}
+
+// validateLocalSourcePath checks that a buildpack source path exists under a
+// local path origin before upload/staging. Git/archive origins are skipped.
+// SourcePathRoot (".") means the sources root and needs no subdirectory check.
+func validateLocalSourcePath(manifest models.ApplicationManifest) error {
+	sourcePath, err := models.ValidateSourcePath(manifest.Staging.SourcePath)
+	if err != nil {
+		return err
+	}
+	if sourcePath == "" || sourcePath == models.SourcePathRoot {
+		return nil
+	}
+	if manifest.Origin.Kind != models.OriginPath || manifest.Origin.Path == "" {
+		return nil
+	}
+
+	if originInfo, err := os.Stat(manifest.Origin.Path); err != nil || !originInfo.IsDir() {
+		return nil
+	}
+
+	fullPath := filepath.Join(manifest.Origin.Path, filepath.FromSlash(sourcePath))
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("source path not found at %q (relative to application sources)", fullPath)
+		}
+		return errors.Wrap(err, "failed to access source path")
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("source path %q is not a directory", fullPath)
 	}
 	return nil
 }
