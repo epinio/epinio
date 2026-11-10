@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -53,6 +54,34 @@ func stagingLogsSettings(ctx context.Context, cluster *kubernetes.Cluster) appli
 	return application.NewStagingLogsSettings(cfg.PersistLogs, cfg.PersistLogsMaxSizeMB)
 }
 
+// schedulePersistStagingLogsWhenDone starts one server-owned wait that persists
+// the staging logs when the jobs finish. It is independent of request handlers
+// and client connections, so multiple waiters do not trigger multiple saves and
+// a disconnect before complete does not skip persistence.
+func schedulePersistStagingLogsWhenDone(
+	cluster *kubernetes.Cluster,
+	namespace, stageID string,
+	jobs []batchv1.Job,
+) {
+	if len(jobs) == 0 {
+		return
+	}
+
+	jobsCopy := append([]batchv1.Job(nil), jobs...)
+	go func() {
+		ctx := context.Background()
+		log := requestctx.Logger(ctx)
+
+		if _, err := waitForStagingCompletion(ctx, cluster, jobsCopy); err != nil {
+			log.Errorw("staging log persistence wait failed",
+				"error", err, "namespace", namespace, "stageID", stageID)
+			return
+		}
+
+		persistFinishedStagingLogs(ctx, cluster, jobsCopy, namespace, stageID)
+	}()
+}
+
 // persistFinishedStagingLogs keeps the logs of the finished staging run stageID
 // when persisting is enabled. It is best effort: a failure is logged and does not
 // change the outcome of the staging.
@@ -80,10 +109,16 @@ func persistFinishedStagingLogs(
 }
 
 // serveStoredStagingLogs streams the persisted logs of the staging run stageID
-// over a websocket, once the staging Job is gone. Each stored line is already the
-// JSON of one log line, so it is sent as it is. Without stored logs for the stage
-// the not-available error is returned.
-func serveStoredStagingLogs(c *gin.Context, cluster *kubernetes.Cluster, namespace, stageID string) {
+// over a websocket, once the staging Job is gone. Without stored logs for the
+// stage the not-available error is returned. Query filters (tail/since/container)
+// are applied before sending. When follow is true the socket stays open after
+// the replay and honors UI filter_params updates the same way streamLogs does.
+func serveStoredStagingLogs(
+	c *gin.Context,
+	cluster *kubernetes.Cluster,
+	namespace, stageID string,
+	logParams *application.LogParameters,
+) {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
 
@@ -100,6 +135,18 @@ func serveStoredStagingLogs(c *gin.Context, cluster *kubernetes.Cluster, namespa
 		_ = body.Close()
 	}()
 
+	allLines, err := readStoredStagingLogLines(body)
+	if err != nil {
+		response.Error(c, apierror.InternalError(err))
+		return
+	}
+
+	filtered, err := application.FilterStoredStagingLogs(allLines, logParams)
+	if err != nil {
+		response.Error(c, apierror.NewBadRequestError(err.Error()))
+		return
+	}
+
 	upgrader := newUpgrader()
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -111,22 +158,97 @@ func serveStoredStagingLogs(c *gin.Context, cluster *kubernetes.Cluster, namespa
 		_ = conn.Close()
 	}()
 
+	if err := writeStoredStagingLogLines(conn, filtered); err != nil {
+		log.Errorw("failed to write the stored staging logs to the websocket", "error", err)
+		return
+	}
+
+	follow := logParams != nil && logParams.Follow
+	if !follow {
+		return
+	}
+
+	// Keep the socket open after replay and apply mid-session filter updates
+	// from the UI (filter_params), matching the live logs websocket.
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+
+		var update LogParameterUpdate
+		if err := json.Unmarshal(message, &update); err != nil {
+			log.Errorw("failed to unmarshal stored staging log parameter update", "error", err)
+			continue
+		}
+		if update.Type != "filter_params" {
+			continue
+		}
+
+		if err := writeStoredStagingLogMarker(conn, "___FILTER_START___"); err != nil {
+			log.Errorw("failed to send filter start marker for stored staging logs", "error", err)
+			return
+		}
+
+		parsedParams, err := parseLogParameterUpdate(update)
+		if err != nil {
+			log.Errorw("failed to parse stored staging log parameter update", "error", err)
+			continue
+		}
+
+		filtered, err := application.FilterStoredStagingLogs(allLines, parsedParams)
+		if err != nil {
+			log.Errorw("failed to filter stored staging logs", "error", err)
+			continue
+		}
+		if err := writeStoredStagingLogLines(conn, filtered); err != nil {
+			log.Errorw("failed to write filtered stored staging logs", "error", err)
+			return
+		}
+
+		if !parsedParams.Follow {
+			if err := writeStoredStagingLogMarker(conn, "___FILTER_COMPLETE___"); err != nil {
+				log.Errorw("failed to send filter complete marker for stored staging logs", "error", err)
+				return
+			}
+		}
+	}
+}
+
+func writeStoredStagingLogMarker(conn *websocket.Conn, message string) error {
+	return writeStoredStagingLogLines(conn, []tailer.ContainerLogLine{{Message: message}})
+}
+
+func writeStoredStagingLogLines(conn *websocket.Conn, lines []tailer.ContainerLogLine) error {
+	for _, line := range lines {
+		msg, err := json.Marshal(line)
+		if err != nil {
+			return err
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func readStoredStagingLogLines(body io.Reader) ([]tailer.ContainerLogLine, error) {
+	var lines []tailer.ContainerLogLine
 	reader := bufio.NewReader(body)
 	for {
 		line, readErr := reader.ReadBytes('\n')
 		if data := bytes.TrimSuffix(line, []byte("\n")); len(data) > 0 {
-			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-				log.Errorw("failed to write the stored staging logs to the websocket", "error", err)
-				return
+			var entry tailer.ContainerLogLine
+			if err := json.Unmarshal(data, &entry); err != nil {
+				return nil, err
 			}
+			lines = append(lines, entry)
 		}
-
 		if readErr == io.EOF {
-			return
+			return lines, nil
 		}
 		if readErr != nil {
-			log.Errorw("failed to read the stored staging logs", "error", readErr)
-			return
+			return nil, readErr
 		}
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -71,7 +72,7 @@ var _ = Describe("Staging logs persistence", func() {
 				{Message: "second", ContainerName: "buildpack", PodName: "pod-a"},
 			}
 
-			data, err := encodeStagingLogs(input, 1024*1024)
+			data, err := encodeStagingLogs(input, 1024*1024, 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			stored := decodeStoredLines(data)
@@ -92,7 +93,7 @@ var _ = Describe("Staging logs persistence", func() {
 				lastTwo += len(data) + 1
 			}
 
-			data, err := encodeStagingLogs(input, int64(lastTwo))
+			data, err := encodeStagingLogs(input, int64(lastTwo), 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			stored := decodeStoredLines(data)
@@ -105,7 +106,7 @@ var _ = Describe("Staging logs persistence", func() {
 		It("stores nothing but the notice when no line fits", func() {
 			input := []tailer.ContainerLogLine{{Message: "a line that is too long for the cap"}}
 
-			data, err := encodeStagingLogs(input, 1)
+			data, err := encodeStagingLogs(input, 1, 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			stored := decodeStoredLines(data)
@@ -114,9 +115,121 @@ var _ = Describe("Staging logs persistence", func() {
 		})
 
 		It("stores an empty log without a notice", func() {
-			data, err := encodeStagingLogs(nil, 1024)
+			data, err := encodeStagingLogs(nil, 1024, 0)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(data).To(BeEmpty())
+		})
+
+		It("preserves the read-time drop count in the notice when remaining lines fit", func() {
+			kept := []tailer.ContainerLogLine{
+				{Message: "kept-1"},
+				{Message: "kept-2"},
+			}
+
+			data, err := encodeStagingLogs(kept, 1024*1024, 7)
+			Expect(err).ToNot(HaveOccurred())
+
+			stored := decodeStoredLines(data)
+			Expect(stored).To(HaveLen(3))
+			Expect(stored[0].Message).To(ContainSubstring("7 earlier log lines dropped"))
+			Expect(stored[1].Message).To(Equal("kept-1"))
+			Expect(stored[2].Message).To(Equal("kept-2"))
+		})
+	})
+
+	Describe("stagingLogBuffer", func() {
+		It("keeps only the newest lines that fit the max bytes while reading", func() {
+			var input []tailer.ContainerLogLine
+			for i := range 5 {
+				input = append(input, tailer.ContainerLogLine{Message: fmt.Sprintf("message-%d", i)})
+			}
+
+			lastTwo := int64(0)
+			for _, line := range input[3:] {
+				data, err := json.Marshal(line)
+				Expect(err).ToNot(HaveOccurred())
+				lastTwo += int64(len(data) + 1)
+			}
+
+			buf := stagingLogBuffer{max: lastTwo}
+			for _, line := range input {
+				Expect(buf.add(line)).To(Succeed())
+			}
+
+			Expect(buf.lines).To(HaveLen(2))
+			Expect(buf.dropped).To(Equal(3))
+			Expect(buf.lines[0].Message).To(Equal("message-3"))
+			Expect(buf.lines[1].Message).To(Equal("message-4"))
+
+			// Collect already trimmed: encode must still emit the drop notice.
+			data, err := encodeStagingLogs(buf.lines, lastTwo, buf.dropped)
+			Expect(err).ToNot(HaveOccurred())
+			stored := decodeStoredLines(data)
+			Expect(stored[0].Message).To(ContainSubstring("3 earlier log lines dropped"))
+			Expect(stored).To(HaveLen(3))
+		})
+
+		It("drops a sole remaining line that alone exceeds the cap", func() {
+			buf := stagingLogBuffer{max: 1}
+			Expect(buf.add(tailer.ContainerLogLine{Message: "too-large"})).To(Succeed())
+			Expect(buf.lines).To(BeEmpty())
+			Expect(buf.dropped).To(Equal(1))
+
+			data, err := encodeStagingLogs(buf.lines, 1, buf.dropped)
+			Expect(err).ToNot(HaveOccurred())
+			stored := decodeStoredLines(data)
+			Expect(stored).To(HaveLen(1))
+			Expect(stored[0].Message).To(ContainSubstring("1 earlier log lines dropped"))
+		})
+	})
+
+	Describe("FilterStoredStagingLogs", func() {
+		base := []tailer.ContainerLogLine{
+			{Message: "old", ContainerName: "buildpack", Timestamp: time.Now().Add(-2 * time.Hour).Format(time.RFC3339Nano)},
+			{Message: "new-build", ContainerName: "buildpack", Timestamp: time.Now().Format(time.RFC3339Nano)},
+			{Message: "new-download", ContainerName: "download-s3-blob", Timestamp: time.Now().Format(time.RFC3339Nano)},
+		}
+
+		It("filters by include_containers", func() {
+			filtered, err := FilterStoredStagingLogs(base, &LogParameters{
+				IncludeContainers: []string{"download-s3-blob"},
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(filtered).To(HaveLen(1))
+			Expect(filtered[0].Message).To(Equal("new-download"))
+		})
+
+		It("filters by since and tail", func() {
+			since := time.Hour
+			tail := int64(1)
+			filtered, err := FilterStoredStagingLogs(base, &LogParameters{
+				Since: &since,
+				Tail:  &tail,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(filtered).To(HaveLen(1))
+			Expect(filtered[0].Message).To(Equal("new-download"))
+		})
+
+		It("treats tail 0 as no limit", func() {
+			tail := int64(0)
+			filtered, err := FilterStoredStagingLogs(base, &LogParameters{Tail: &tail})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(filtered).To(HaveLen(len(base)))
+		})
+	})
+
+	Describe("encode decode round trip", func() {
+		It("round-trips encoded staging log lines", func() {
+			input := []tailer.ContainerLogLine{
+				{Message: "one", ContainerName: "buildpack"},
+				{Message: "two", ContainerName: "buildpack"},
+			}
+
+			data, err := encodeStagingLogs(input, 1024*1024, 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(data).ToNot(BeEmpty())
+			Expect(decodeStoredLines(data)).To(Equal(input))
 		})
 	})
 })

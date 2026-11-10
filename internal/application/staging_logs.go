@@ -19,6 +19,7 @@ import (
 	"io"
 	"regexp"
 	"sync"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -72,8 +73,10 @@ func stagingLogPointerKey(namespace, appName string) string {
 
 // encodeStagingLogs serializes the log lines as newline-delimited JSON, the same
 // format the logs endpoint sends over the websocket. When the lines do not fit
-// into maxBytes the oldest lines are dropped and a notice is prepended.
-func encodeStagingLogs(lines []tailer.ContainerLogLine, maxBytes int64) ([]byte, error) {
+// into maxBytes the oldest lines are dropped. droppedEarlier counts lines already
+// discarded while reading (stagingLogBuffer); both sources contribute to the
+// truncation notice so the notice is not lost when collect already trimmed.
+func encodeStagingLogs(lines []tailer.ContainerLogLine, maxBytes int64, droppedEarlier int) ([]byte, error) {
 	encoded := make([][]byte, len(lines))
 	for i, line := range lines {
 		data, err := json.Marshal(line)
@@ -88,18 +91,19 @@ func encodeStagingLogs(lines []tailer.ContainerLogLine, maxBytes int64) ([]byte,
 	start := len(encoded)
 	for i := len(encoded) - 1; i >= 0; i-- {
 		lineSize := int64(len(encoded[i]) + 1)
-		if size+lineSize > maxBytes {
+		if maxBytes > 0 && size+lineSize > maxBytes {
 			break
 		}
 		size += lineSize
 		start = i
 	}
 
+	dropped := droppedEarlier + start
 	var buf bytes.Buffer
-	if start > 0 {
+	if dropped > 0 {
 		notice, err := json.Marshal(tailer.ContainerLogLine{
 			Message: fmt.Sprintf("... %d earlier log lines dropped, the stored logs are limited to %d bytes ...",
-				start, maxBytes),
+				dropped, maxBytes),
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "encoding the truncation notice")
@@ -115,12 +119,58 @@ func encodeStagingLogs(lines []tailer.ContainerLogLine, maxBytes int64) ([]byte,
 	return buf.Bytes(), nil
 }
 
+// stagingLogBuffer keeps the newest log lines whose encoded size stays within maxBytes.
+type stagingLogBuffer struct {
+	lines   []tailer.ContainerLogLine
+	sizes   []int64
+	total   int64
+	max     int64
+	dropped int
+}
+
+func (b *stagingLogBuffer) add(line tailer.ContainerLogLine) error {
+	data, err := json.Marshal(line)
+	if err != nil {
+		return err
+	}
+	size := int64(len(data) + 1)
+
+	b.lines = append(b.lines, line)
+	b.sizes = append(b.sizes, size)
+	b.total += size
+
+	if b.max <= 0 {
+		return nil
+	}
+
+	// Drop oldest lines, including a sole remaining line that alone exceeds the cap.
+	for b.total > b.max && len(b.lines) > 0 {
+		b.total -= b.sizes[0]
+		b.lines = b.lines[1:]
+		b.sizes = b.sizes[1:]
+		b.dropped++
+	}
+
+	return nil
+}
+
+type stagingLogCollectResult struct {
+	lines   []tailer.ContainerLogLine
+	dropped int
+	err     error
+}
+
 // collectStagingLogs reads the logs of all containers of the staging run stageID.
+// When maxBytes is positive the buffer drops the oldest lines while reading so
+// memory stays bounded to the configured persistence cap. dropped is how many
+// lines were discarded while reading and must be passed to encodeStagingLogs so
+// the truncation notice is preserved.
 func collectStagingLogs(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	namespace, stageID string,
-) ([]tailer.ContainerLogLine, error) {
+	maxBytes int64,
+) ([]tailer.ContainerLogLine, int, error) {
 	selector := labels.Set{
 		"app.kubernetes.io/component": "staging",
 		"app.kubernetes.io/part-of":   namespace,
@@ -136,23 +186,101 @@ func collectStagingLogs(
 	}
 
 	logChan := make(chan tailer.ContainerLogLine)
-	collected := make(chan []tailer.ContainerLogLine, 1)
+	collected := make(chan stagingLogCollectResult, 1)
 	go func() {
-		var lines []tailer.ContainerLogLine
+		buf := stagingLogBuffer{max: maxBytes}
 		for line := range logChan {
-			lines = append(lines, line)
+			if err := buf.add(line); err != nil {
+				for range logChan {
+				}
+				collected <- stagingLogCollectResult{err: err}
+				return
+			}
 		}
-		collected <- lines
+		collected <- stagingLogCollectResult{lines: buf.lines, dropped: buf.dropped}
 	}()
 
 	err := tailer.FetchLogs(ctx, logChan, &sync.WaitGroup{}, config, cluster)
 	close(logChan)
-	lines := <-collected
+	result := <-collected
+	if result.err != nil {
+		return nil, 0, errors.Wrap(result.err, "encoding a staging log line")
+	}
 	if err != nil {
-		return nil, errors.Wrap(err, "reading the staging logs")
+		return nil, 0, errors.Wrap(err, "reading the staging logs")
 	}
 
-	return lines, nil
+	return result.lines, result.dropped, nil
+}
+
+// FilterStoredStagingLogs applies the same tail/since/container filters the live
+// logs path supports, so UI options keep working for persisted staging logs.
+func FilterStoredStagingLogs(lines []tailer.ContainerLogLine, params *LogParameters) ([]tailer.ContainerLogLine, error) {
+	if params == nil || len(lines) == 0 {
+		return lines, nil
+	}
+
+	includePattern, hasInclude, err := buildContainerIncludePattern(params)
+	if err != nil {
+		return nil, err
+	}
+	var includeRE *regexp.Regexp
+	if hasInclude {
+		includeRE, err = regexp.Compile(includePattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid include_containers pattern: %w", err)
+		}
+	}
+
+	excludeRE, err := buildContainerExcludePattern(params, hasInclude)
+	if err != nil {
+		return nil, err
+	}
+
+	var sinceCutoff *time.Time
+	if params.SinceTime != nil {
+		sinceCutoff = params.SinceTime
+	} else if params.Since != nil {
+		t := time.Now().Add(-*params.Since)
+		sinceCutoff = &t
+	}
+
+	filtered := make([]tailer.ContainerLogLine, 0, len(lines))
+	for _, line := range lines {
+		if includeRE != nil && !includeRE.MatchString(line.ContainerName) {
+			continue
+		}
+		if excludeRE != nil && excludeRE.MatchString(line.ContainerName) {
+			continue
+		}
+		if sinceCutoff != nil {
+			ts, ok := parseStagingLogTimestamp(line.Timestamp)
+			if ok && ts.Before(*sinceCutoff) {
+				continue
+			}
+		}
+		filtered = append(filtered, line)
+	}
+
+	// Tail <= 0 means "no limit", matching the live tailer which overrides 0 to max.
+	if params.Tail != nil && *params.Tail > 0 && int64(len(filtered)) > *params.Tail {
+		filtered = filtered[int64(len(filtered))-*params.Tail:]
+	}
+
+	return filtered, nil
+}
+
+func parseStagingLogTimestamp(value string) (time.Time, bool) {
+	if value == "" {
+		return time.Time{}, false
+	}
+	if ts, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return ts, true
+	}
+	if ts, err := time.Parse(time.RFC3339, value); err == nil {
+		return ts, true
+	}
+	return time.Time{}, false
 }
 
 // stagingLogsS3 connects to the S3 storage the blobs are kept in.
@@ -215,12 +343,12 @@ func PersistStagingLogs(
 		return nil
 	}
 
-	lines, err := collectStagingLogs(ctx, cluster, namespace, stageID)
+	lines, dropped, err := collectStagingLogs(ctx, cluster, namespace, stageID, settings.MaxBytes)
 	if err != nil {
 		return err
 	}
 
-	body, err := encodeStagingLogs(lines, settings.MaxBytes)
+	body, err := encodeStagingLogs(lines, settings.MaxBytes, dropped)
 	if err != nil {
 		return err
 	}

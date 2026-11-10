@@ -382,6 +382,7 @@ func executeStage(
 			fmt.Sprintf("failed to create job run: %#v", job),
 		)
 	}
+	schedulePersistStagingLogsWhenDone(cluster, params.AppRef.Namespace, params.Stage.ID, []batchv1.Job{*job})
 
 	updateAppError := updateApp(ctx, cluster, app, params)
 	if updateAppError != nil {
@@ -505,7 +506,6 @@ func Staged(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-	persistFinishedStagingLogs(ctx, cluster, jobs, namespace, id)
 	if !success {
 		return apierror.NewInternalError("Failed to stage",
 			fmt.Sprintf("stage-id = %s", id))
@@ -574,7 +574,6 @@ func StagedWebsocket(c *gin.Context) {
 
 	// If the job already completed before the websocket upgrade, send the final state immediately.
 	if done, success := jobDoneState(jobs); done {
-		persistFinishedStagingLogs(ctx, cluster, jobs, namespace, stageID)
 		if success {
 			_ = sendUpdate(models.StageStatusSucceeded, "", true)
 		} else {
@@ -616,7 +615,6 @@ func StagedWebsocket(c *gin.Context) {
 				_ = sendUpdate(models.StageStatusError, res.err.Error(), true)
 				return
 			}
-			persistFinishedStagingLogs(ctx, cluster, jobs, namespace, stageID)
 			if res.success {
 				_ = sendUpdate(models.StageStatusSucceeded, "", true)
 				return

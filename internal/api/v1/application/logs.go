@@ -44,11 +44,29 @@ var (
 type LogParameterUpdate struct {
 	Type   string `json:"type"`
 	Params struct {
-		Since     string `json:"since"`
-		SinceTime string `json:"since_time"`
-		Tail      int    `json:"tail"`
-		Follow    bool   `json:"follow"`
+		Since             string `json:"since"`
+		SinceTime         string `json:"since_time"`
+		Tail              int    `json:"tail"`
+		Follow            bool   `json:"follow"`
+		IncludeContainers string `json:"include_containers"`
+		ExcludeContainers string `json:"exclude_containers"`
 	} `json:"params"`
+}
+
+// parseLogParameterUpdate turns a UI filter_params payload into LogParameters.
+func parseLogParameterUpdate(update LogParameterUpdate) (*application.LogParameters, error) {
+	params, err := ParseLogParameters(
+		strconv.Itoa(update.Params.Tail),
+		update.Params.Since,
+		update.Params.SinceTime,
+		update.Params.IncludeContainers,
+		update.Params.ExcludeContainers,
+	)
+	if err != nil {
+		return nil, err
+	}
+	params.Follow = update.Params.Follow
+	return params, nil
 }
 
 // ParseLogParameters parses and validates log query parameters
@@ -309,6 +327,31 @@ func Logs(c *gin.Context) {
 		return
 	}
 
+	log.Debugw("process query")
+
+	// Extract query parameters before choosing live vs stored staging logs so
+	// both paths honor the same UI filters.
+	followStr := c.Query("follow")
+	tailStr := c.Query("tail")
+	sinceStr := c.Query("since")
+	sinceTimeStr := c.Query("since_time")
+	includeContainersStr := c.Query("include_containers")
+	excludeContainersStr := c.Query("exclude_containers")
+
+	logParams, err := ParseLogParameters(tailStr, sinceStr, sinceTimeStr, includeContainersStr, excludeContainersStr)
+	if err != nil {
+		response.Error(c, apierror.NewBadRequestError(err.Error()))
+		return
+	}
+
+	follow := followStr == "true"
+	logParams.Follow = follow
+
+	if err := validateContainerFilterPatterns(logParams); err != nil {
+		response.Error(c, apierror.NewBadRequestError(err.Error()))
+		return
+	}
+
 	// Staging logs come from staging Job pods. Once the Job is gone (TTL cleanup,
 	// unknown stage ID, etc.) the persisted logs are served, if there are any.
 	// Otherwise return a clear error instead of an empty stream.
@@ -323,41 +366,13 @@ func Logs(c *gin.Context) {
 			jobCount = len(jobList.Items)
 		}
 		if err == nil && jobCount == 0 {
-			serveStoredStagingLogs(c, cluster, namespace, stageID)
+			serveStoredStagingLogs(c, cluster, namespace, stageID, logParams)
 			return
 		}
 		if apiErr := stagingLogsJobError(jobCount, err); apiErr != nil {
 			response.Error(c, apiErr)
 			return
 		}
-	}
-
-	log.Debugw("process query")
-
-	// Extract query parameters
-	followStr := c.Query("follow")
-	tailStr := c.Query("tail")
-	sinceStr := c.Query("since")
-	sinceTimeStr := c.Query("since_time")
-	includeContainersStr := c.Query("include_containers")
-	excludeContainersStr := c.Query("exclude_containers")
-
-	// Parse and validate log parameters
-	logParams, err := ParseLogParameters(tailStr, sinceStr, sinceTimeStr, includeContainersStr, excludeContainersStr)
-	if err != nil {
-		response.Error(c, apierror.NewBadRequestError(err.Error()))
-		return
-	}
-
-	// Set follow parameter
-	follow := followStr == "true"
-	logParams.Follow = follow
-
-	// Validate container filter regex patterns before upgrading to websocket
-	// This allows us to return HTTP errors instead of silently failing
-	if err := validateContainerFilterPatterns(logParams); err != nil {
-		response.Error(c, apierror.NewBadRequestError(err.Error()))
-		return
 	}
 
 	// Log the parsed parameters for debugging
@@ -491,21 +506,13 @@ func streamPodLogs(
 
 				// Make sure we have valid parameters before continuing, if not, log
 				// the error and ignore the update
-				parsedParams, parsedParamsError := ParseLogParameters(
-					strconv.Itoa(update.Params.Tail),
-					update.Params.Since,
-					update.Params.SinceTime,
-				)
-
+				parsedParams, parsedParamsError := parseLogParameterUpdate(update)
 				if parsedParamsError != nil {
 					log.Errorw("failed to parse updated log parameters",
 						"error", parsedParamsError,
 					)
 					continue
 				}
-
-				// Use the follow parameter from the client
-				parsedParams.Follow = update.Params.Follow
 
 				logWg.Add(1)
 				go startLogStreaming(

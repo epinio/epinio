@@ -437,7 +437,6 @@ func asyncDeploy(
 		)
 		return
 	}
-	persistFinishedStagingLogs(bgCtx, cluster, jobs, namespace, params.Stage.ID)
 	if !success {
 		bgLog.Errorw("staging failed", "stageID", params.Stage.ID)
 		return
