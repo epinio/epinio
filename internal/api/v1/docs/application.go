@@ -30,6 +30,12 @@ type AllAppsParam struct {
 	// Case-insensitive substring match on the application name
 	// in: query
 	Search string `json:"search"`
+	// Sort field: name, createdAt, or namespace. Applied before pagination.
+	// in: query
+	Sort string `json:"sort"`
+	// Sort direction: asc (default) or desc
+	// in: query
+	SortDir string `json:"sortDir"`
 	// Page number, 1-based. Pagination is off unless page or pageSize is set.
 	// in: query
 	Page string `json:"page"`
@@ -76,6 +82,12 @@ type AppsParam struct {
 	// Case-insensitive substring match on the application name
 	// in: query
 	Search string `json:"search"`
+	// Sort field: name, createdAt, or namespace. Applied before pagination.
+	// in: query
+	Sort string `json:"sort"`
+	// Sort direction: asc (default) or desc
+	// in: query
+	SortDir string `json:"sortDir"`
 	// Page number, 1-based. Pagination is off unless page or pageSize is set.
 	// in: query
 	Page string `json:"page"`

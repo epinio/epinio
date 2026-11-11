@@ -13,6 +13,7 @@ package builderimage
 
 import (
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -72,6 +73,23 @@ func Index(c *gin.Context) apierror.APIErrors {
 		}
 
 		builderList = filtered
+	}
+
+	sortParams := response.GetSortParams(c)
+	switch sortParams.Field {
+	case "description":
+		response.SortByStringKey([]models.BuilderImage(builderList), sortParams.Descending, func(image models.BuilderImage) string {
+			return strings.ToLower(image.Description)
+		})
+	case "image":
+		response.SortByStringKey([]models.BuilderImage(builderList), sortParams.Descending, func(image models.BuilderImage) string {
+			return strings.ToLower(image.Image)
+		})
+	default:
+		response.ApplyMetaSort([]models.BuilderImage(builderList), sortParams, response.MetaKeys[models.BuilderImage]{
+			Name:      func(image models.BuilderImage) string { return image.Meta.Name },
+			CreatedAt: func(image models.BuilderImage) time.Time { return image.Meta.CreatedAt.Time },
+		})
 	}
 
 	page, pageSize, ok := response.GetPaginationParams(c, 1, 25)

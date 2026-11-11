@@ -73,6 +73,70 @@ func GetSearchParam(c *gin.Context) string {
 	return c.Query("search")
 }
 
+// SortParams holds optional list sorting from query parameters.
+// Field empty means sorting is off (backwards-compatible default).
+type SortParams struct {
+	Field      string
+	Descending bool
+}
+
+// GetSortParams parses optional "sort" and "sortDir" query parameters.
+// sort is the field name (e.g. "name", "createdAt", "namespace").
+// sortDir is "asc" (default) or "desc". Omitting sort leaves ordering unchanged.
+func GetSortParams(c *gin.Context) SortParams {
+	field := NormalizeSortField(c.Query("sort"))
+	dir := strings.ToLower(strings.TrimSpace(c.Query("sortDir")))
+	return SortParams{
+		Field:      field,
+		Descending: dir == "desc",
+	}
+}
+
+// NormalizeSortField maps common UI/API aliases to canonical sort field names.
+// Unknown fields are returned trimmed as-is so callers can accept or ignore them.
+func NormalizeSortField(field string) string {
+	switch strings.ToLower(strings.TrimSpace(field)) {
+	case "":
+		return ""
+	case "name", "namedisplay", "meta.name":
+		return "name"
+	case "createdat", "meta.createdat", "age":
+		return "createdAt"
+	case "namespace", "meta.namespace":
+		return "namespace"
+	case "buildstatus", "build.status":
+		return "buildStatus"
+	case "builtimageurl", "built_image_url", "builtimage":
+		return "builtImageUrl"
+	case "status", "statedisplay":
+		return "status"
+	case "deployment.status", "deploymentstatus":
+		return "deploymentStatus"
+	case "deployment.username", "username", "user", "configuration.user":
+		return "username"
+	case "configuration.variablecount", "variablecount":
+		return "variableCount"
+	case "catalogserviceversion", "catalog_service_version":
+		return "catalogServiceVersion"
+	case "appcount":
+		return "appCount"
+	case "configcount":
+		return "configCount"
+	case "description":
+		return "description"
+	case "image":
+		return "image"
+	case "helmchart":
+		return "helmChart"
+	case "provider":
+		return "provider"
+	case "url":
+		return "url"
+	default:
+		return strings.TrimSpace(field)
+	}
+}
+
 // GetNamespacesParam returns the optional "namespaces" query parameter, a
 // comma-separated list of names ("?namespaces=a,b"). Nil when absent or empty.
 func GetNamespacesParam(c *gin.Context) []string {

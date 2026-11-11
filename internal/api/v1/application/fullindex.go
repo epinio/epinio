@@ -52,8 +52,10 @@ func fullIndexWithFilter(c *gin.Context, filter application.ListFilter) apierror
 	}
 
 	search := response.GetSearchParam(c)
+	sortParams := response.GetSortParams(c)
 	matched := application.FilterAppCRs(allCRs, search, filter)
 	matched = filterAppCRsByAccess(user, matched, response.GetNamespacesParam(c))
+	application.SortAppCRs(matched, sortParams.Field, sortParams.Descending)
 
 	page, pageSize, paginated := response.GetPaginationParams(c, 1, 25)
 	if paginated {

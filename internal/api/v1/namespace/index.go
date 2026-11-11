@@ -14,6 +14,7 @@ package namespace
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -63,6 +64,39 @@ func Index(c *gin.Context) apierror.APIErrors {
 		namespaceList = filtered
 	}
 
+	sortParams := response.GetSortParams(c)
+
+	// appCount / configCount need full maps before pagination.
+	var appNamesMap map[string][]string
+	var configNamesMap map[string][]string
+	needCounts := sortParams.Field == "appCount" || sortParams.Field == "configCount"
+	if needCounts {
+		var countErr error
+		appNamesMap, countErr = getAppNamesByNamespaceMap(ctx, cluster)
+		if countErr != nil {
+			return apierror.InternalError(countErr)
+		}
+		configNamesMap, countErr = getConfigurationNamesByNamespaceMap(ctx, cluster)
+		if countErr != nil {
+			return apierror.InternalError(countErr)
+		}
+		switch sortParams.Field {
+		case "appCount":
+			response.SortByIntKey(namespaceList, sortParams.Descending, func(ns namespaces.Namespace) int {
+				return len(appNamesMap[ns.Name])
+			})
+		case "configCount":
+			response.SortByIntKey(namespaceList, sortParams.Descending, func(ns namespaces.Namespace) int {
+				return len(configNamesMap[ns.Name])
+			})
+		}
+	} else {
+		response.ApplyMetaSort(namespaceList, sortParams, response.MetaKeys[namespaces.Namespace]{
+			Name:      func(ns namespaces.Namespace) string { return ns.Name },
+			CreatedAt: func(ns namespaces.Namespace) time.Time { return ns.CreatedAt.Time },
+		})
+	}
+
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
 		total := len(namespaceList)
 		start := (page - 1) * pageSize
@@ -75,37 +109,38 @@ func Index(c *gin.Context) apierror.APIErrors {
 		}
 		pageNsList := namespaceList[start:end]
 
-		// Single cross-namespace API calls; filter in-memory to page namespaces.
-		pageNsSet := make(map[string]bool, len(pageNsList))
-		for _, ns := range pageNsList {
-			pageNsSet[ns.Name] = true
-		}
-
-		allAppRefs, err := application.ListAppRefs(ctx, cluster, "")
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-		appNamesMap := map[string][]string{}
-		for _, ref := range allAppRefs {
-			if pageNsSet[ref.Namespace] {
-				appNamesMap[ref.Namespace] = append(
-					appNamesMap[ref.Namespace],
-					ref.Name,
-				)
+		if !needCounts {
+			pageNsSet := make(map[string]bool, len(pageNsList))
+			for _, ns := range pageNsList {
+				pageNsSet[ns.Name] = true
 			}
-		}
 
-		allConfigs, err := configurations.List(ctx, cluster, "")
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-		configNamesMap := map[string][]string{}
-		for _, cfg := range allConfigs {
-			if pageNsSet[cfg.Namespace()] {
-				configNamesMap[cfg.Namespace()] = append(
-					configNamesMap[cfg.Namespace()],
-					cfg.Name,
-				)
+			allAppRefs, err := application.ListAppRefs(ctx, cluster, "")
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+			appNamesMap = map[string][]string{}
+			for _, ref := range allAppRefs {
+				if pageNsSet[ref.Namespace] {
+					appNamesMap[ref.Namespace] = append(
+						appNamesMap[ref.Namespace],
+						ref.Name,
+					)
+				}
+			}
+
+			allConfigs, err := configurations.List(ctx, cluster, "")
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+			configNamesMap = map[string][]string{}
+			for _, cfg := range allConfigs {
+				if pageNsSet[cfg.Namespace()] {
+					configNamesMap[cfg.Namespace()] = append(
+						configNamesMap[cfg.Namespace()],
+						cfg.Name,
+					)
+				}
 			}
 		}
 
@@ -127,14 +162,16 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return nil
 	}
 
-	appNamesMap, err := getAppNamesByNamespaceMap(ctx, cluster)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	configNamesMap, err := getConfigurationNamesByNamespaceMap(ctx, cluster)
-	if err != nil {
-		return apierror.InternalError(err)
+	if !needCounts {
+		var listErr error
+		appNamesMap, listErr = getAppNamesByNamespaceMap(ctx, cluster)
+		if listErr != nil {
+			return apierror.InternalError(listErr)
+		}
+		configNamesMap, listErr = getConfigurationNamesByNamespaceMap(ctx, cluster)
+		if listErr != nil {
+			return apierror.InternalError(listErr)
+		}
 	}
 
 	nsList := make(models.NamespaceList, 0, len(namespaceList))

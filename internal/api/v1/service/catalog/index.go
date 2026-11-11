@@ -13,6 +13,7 @@ package catalog
 
 import (
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -61,6 +62,12 @@ func Index(c *gin.Context) apierror.APIErrors {
 		}
 		serviceList = filtered
 	}
+
+	sortParams := response.GetSortParams(c)
+	response.ApplyMetaSort(serviceList, sortParams, response.MetaKeys[*models.CatalogService]{
+		Name:      func(svc *models.CatalogService) string { return svc.Meta.Name },
+		CreatedAt: func(svc *models.CatalogService) time.Time { return svc.Meta.CreatedAt.Time },
+	})
 
 	// Apply optional pagination when page parameters are provided.
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {

@@ -13,6 +13,8 @@ package service
 
 import (
 	"context"
+	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -57,6 +59,24 @@ func List(c *gin.Context) apierror.APIErrors {
 		response.GetSearchParam(c),
 		getCatalogServiceParam(c),
 	)
+
+	sortParams := response.GetSortParams(c)
+	switch sortParams.Field {
+	case "status":
+		response.SortByStringKey([]models.Service(servicesWithApps), sortParams.Descending, func(svc models.Service) string {
+			return strings.ToLower(string(svc.Status))
+		})
+	case "catalogServiceVersion":
+		response.SortByStringKey([]models.Service(servicesWithApps), sortParams.Descending, func(svc models.Service) string {
+			return strings.ToLower(svc.CatalogServiceVersion)
+		})
+	default:
+		response.ApplyMetaSort([]models.Service(servicesWithApps), sortParams, response.MetaKeys[models.Service]{
+			Name:      func(svc models.Service) string { return svc.Meta.Name },
+			Namespace: func(svc models.Service) string { return svc.Meta.Namespace },
+			CreatedAt: func(svc models.Service) time.Time { return svc.Meta.CreatedAt.Time },
+		})
+	}
 
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
 		paged := response.PaginateSlice(servicesWithApps, page, pageSize)
