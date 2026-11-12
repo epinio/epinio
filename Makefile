@@ -157,6 +157,11 @@ test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2
 	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all acceptance/install/.
 
+# EPINIO-823: Harbor-only install scenario for application charts.
+# Requires a prepared acceptance cluster and EPINIO_SYSTEM_DOMAIN (same as other install scenarios).
+test-acceptance-harbor: showfocus
+	ginkgo -v --nodes 1 --focus "ScenarioHarbor" --randomize-all acceptance/install/.
+
 test-acceptance-api-apps-critical-endpoints: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "application_exec_test.go" --label-filter "application" acceptance/api/v1/.
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "application_portforward_test.go" --label-filter "application" acceptance/api/v1/.

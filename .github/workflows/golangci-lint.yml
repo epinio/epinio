@@ -13,7 +13,8 @@ name: golangci-lint
 
 env:
   SETUP_GO_VERSION: '1.27'
-  GOLANGCI_LINT_VERSION: v2.9.0
+  # v2.13+ is built with go1.27; older binaries panic on go.mod go 1.27.
+  GOLANGCI_LINT_VERSION: v2.15.0
 
 on:
   workflow_dispatch:

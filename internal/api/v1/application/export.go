@@ -238,17 +238,16 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 
 	log.Infow("OCI export login", "host", destinationHost)
 
-	rOpts := []action.RegistryLoginOpt{}
 	if certFile != "" {
 		log.Infow("OCI export login", "+certs", certFile)
-		rOpts = append(rOpts, action.WithCAFile(certFile))
 	}
 
 	err = client.RegistryLogin(
 		destinationHost,
 		destination.Username,
 		destination.Password,
-		rOpts...,
+		false,
+		certFile,
 	)
 	if err != nil {
 		return apierror.InternalError(err)

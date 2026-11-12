@@ -2,8 +2,12 @@ package helm
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -17,6 +21,7 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	"oras.land/oras-go/v2/errdef"
+	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 var _ hc.Client = (*SynchronizedClient)(nil)
@@ -153,14 +158,114 @@ func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
 	return statusAction.Run(name)
 }
 
-func (c *SynchronizedClient) RegistryLogin(hostname, username, password string, opts ...action.RegistryLoginOpt) error {
+// RegistryLogin logs into an OCI registry.
+//
+// TLS is applied on our registry transport (insecure detach and optional CA
+// file) instead of Helm's LoginOptInsecure / LoginOptTLSClientConfig, which
+// mutate an in-use tls.Config (-race) and panic when the HTTP client uses a
+// bare retry.NewTransport wrap (Harbor chart-push 500). Login itself uses
+// RegistryClient.Login with BasicAuth only.
+//
+// caFile is optional; empty keeps the transport's existing RootCAs.
+func (c *SynchronizedClient) RegistryLogin(
+	hostname, username, password string,
+	insecure bool,
+	caFile string,
+) error {
 	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
 	if !ok {
 		return fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
 	}
 
-	registryLoginAction := action.NewRegistryLogin(concreteHelmClient.ActionConfig)
-	return registryLoginAction.Run(nil, hostname, username, password, opts...)
+	if insecure {
+		if err := c.ensureInsecureRegistryTLS(concreteHelmClient); err != nil {
+			return err
+		}
+	}
+	if caFile != "" {
+		if err := c.applyRegistryCAFile(caFile); err != nil {
+			return err
+		}
+	}
+
+	return concreteHelmClient.ActionConfig.RegistryClient.Login(
+		hostname,
+		registry.LoginOptBasicAuth(username, password),
+	)
+}
+
+// ensureInsecureRegistryTLS replaces TLSClientConfig once with an insecure config.
+// In-flight HTTP keeps the previous *tls.Config. The RegistryClient pointer is not
+// swapped on the hot path (only a one-time fallback if setupRegistryClient failed).
+func (c *SynchronizedClient) ensureInsecureRegistryTLS(helmClient *hc.HelmClient) error {
+	c.registryTLSMu.Lock()
+	defer c.registryTLSMu.Unlock()
+
+	if c.insecureTLSReady {
+		return nil
+	}
+
+	cfg := &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // in-cluster / test self-signed
+		MinVersion:         tls.VersionTLS12,
+	}
+
+	if c.registryTransport != nil {
+		c.registryTransport.TLSClientConfig = cfg
+		c.insecureTLSReady = true
+		return nil
+	}
+
+	// Fallback when setupRegistryClient did not capture a transport: create the
+	// registry client once with retry transport and credentials file preserved.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = cfg
+	registryClient, err := registry.NewClient(
+		registry.ClientOptCredentialsFile(helmClient.Settings.RegistryConfig),
+		registry.ClientOptHTTPClient(&http.Client{
+			Transport: retry.NewTransport(transport),
+		}),
+	)
+	if err != nil {
+		return err
+	}
+	helmClient.ActionConfig.RegistryClient = registryClient
+	c.registryTransport = transport
+	c.insecureTLSReady = true
+	return nil
+}
+
+// applyRegistryCAFile detaches TLSClientConfig and trusts caFile as RootCAs.
+func (c *SynchronizedClient) applyRegistryCAFile(caFile string) error {
+	c.registryTLSMu.Lock()
+	defer c.registryTLSMu.Unlock()
+
+	if c.registryTransport == nil {
+		return fmt.Errorf("registry transport is not initialized")
+	}
+
+	pem, err := os.ReadFile(caFile)
+	if err != nil {
+		return err
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		pool = x509.NewCertPool()
+	}
+	if !pool.AppendCertsFromPEM(pem) {
+		return fmt.Errorf("no certificate found in %s", caFile)
+	}
+
+	cfg := &tls.Config{
+		RootCAs:    pool,
+		MinVersion: tls.VersionTLS12,
+	}
+	if c.registryTransport.TLSClientConfig != nil {
+		cfg.InsecureSkipVerify = c.registryTransport.TLSClientConfig.InsecureSkipVerify
+		cfg.Certificates = c.registryTransport.TLSClientConfig.Certificates
+	}
+	c.registryTransport.TLSClientConfig = cfg
+	return nil
 }
 
 // Pull implements the 'helm pull' command. It downloads the chart with the given reference
