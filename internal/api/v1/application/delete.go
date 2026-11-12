@@ -173,13 +173,15 @@ func clearBuildFields(ctx context.Context, cluster *kubernetes.Cluster, appRef m
 		return err
 	}
 
-	// buildstatus is an enum (build|deployed); empty string is rejected by the
-	// CRD. JSON merge-patch null removes the field instead.
+	// Restore buildstatus to "create" so the app stays on undeployed/builds
+	// lists after the staged image is cleared. Clearing the field (null) made
+	// never-deployed apps match neither deployed nor undeployed filters.
+	// Empty string is rejected by the CRD enum (create|build|deployed).
 	specPatch := map[string]any{
 		"stageid":        "",
 		"blobuid":        "",
 		"builtimageurl":  "",
-		"buildstatus":    nil,
+		"buildstatus":    models.AppBuildStatusCreate,
 		"buildmode":      "",
 		"dockerfilepath": "",
 	}
