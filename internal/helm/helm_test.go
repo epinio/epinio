@@ -12,8 +12,11 @@
 package helm
 
 import (
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/spf13/viper"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	"gopkg.in/yaml.v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -276,5 +279,59 @@ var _ = Describe("releaseChartConfig()", func() {
 			"tuning": "speed",
 			"port":   "8080",
 		}))
+	})
+})
+
+var _ = Describe("getValuesYAML ingress-tls", func() {
+	var (
+		appChart   *models.AppChartFull
+		parameters ChartParameters
+	)
+
+	BeforeEach(func() {
+		appChart = &models.AppChartFull{}
+		parameters = ChartParameters{
+			AppRef:      models.NewAppRef("demo", "workspace"),
+			ImageURL:    "registry.example/apps/demo:1",
+			Username:    "admin",
+			Instances:   1,
+			StageID:     "stage-1",
+			Environment: models.EnvVariableMap{},
+			Domains:     domain.DomainMap{},
+			Routes:      []string{"demo.example.com"},
+		}
+	})
+
+	AfterEach(func() {
+		viper.Set("ingress-tls", nil)
+		viper.Set("tls-issuer", nil)
+		viper.Set("ingress-class-name", nil)
+		viper.Set("gateway-class-name", nil)
+	})
+
+	parseTLS := func(yamlString string) bool {
+		var params ChartParam
+		Expect(yaml.Unmarshal([]byte(yamlString), &params)).To(Succeed())
+		return params.Epinio.Tls
+	}
+
+	It("sets epinio.tls true when ingress-tls is true", func() {
+		viper.Set("ingress-tls", true)
+		viper.Set("tls-issuer", "epinio-ca")
+
+		yamlString, err := getValuesYAML(appChart, parameters)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(yamlString).To(ContainSubstring("tls: true"))
+		Expect(parseTLS(yamlString)).To(BeTrue())
+	})
+
+	It("sets epinio.tls false when ingress-tls is false", func() {
+		viper.Set("ingress-tls", false)
+		viper.Set("tls-issuer", "epinio-ca")
+
+		yamlString, err := getValuesYAML(appChart, parameters)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(yamlString).To(ContainSubstring("tls: false"))
+		Expect(parseTLS(yamlString)).To(BeFalse())
 	})
 })

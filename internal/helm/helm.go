@@ -341,6 +341,7 @@ type EpinioParam struct {
 	Routes         []RouteParam         `yaml:"routes"`
 	StageID        string               `yaml:"stageID"`
 	Start          string               `yaml:"start,omitempty"`
+	Tls            bool                 `yaml:"tls"`
 	TlsIssuer      string               `yaml:"tlsIssuer"`
 	Username       string               `yaml:"username"`
 }
@@ -1054,6 +1055,7 @@ func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (s
 			Configurations: configurationNames,
 			ConfigPaths:    parameters.Configurations,
 			StageID:        parameters.StageID,
+			Tls:            viper.GetBool("ingress-tls"),
 			TlsIssuer:      viper.GetString("tls-issuer"),
 			Username:       parameters.Username,
 			// Ingress, Gateway, Start, Routes: see below
