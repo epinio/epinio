@@ -90,6 +90,52 @@ var _ = Describe("ConnectionDetails", func() {
 				Expect(url).To(Equal("registry.hub.docker.com"))
 			})
 		})
+		When("the registry hostname embeds 127.0.0.1 as a dns label (sslip/nip)", func() {
+			BeforeEach(func() {
+				details = &registry.ConnectionDetails{
+					Namespace: "epinio",
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "harbor.127.0.0.1.sslip.io/epinio"},
+					},
+				}
+			})
+			It("treats it as a public registry URL", func() {
+				url, err := details.PublicRegistryURL()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(url).To(Equal("harbor.127.0.0.1.sslip.io/epinio"))
+			})
+		})
+		When("the default in-cluster registry has svc and nodeport URLs", func() {
+			BeforeEach(func() {
+				details = &registry.ConnectionDetails{
+					Namespace: "epinio",
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "http://127.0.0.1:30500"},
+						{URL: "registry.epinio.svc.cluster.local:5000"},
+					},
+				}
+			})
+			It("returns the cluster service URL as public", func() {
+				url, err := details.PublicRegistryURL()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(url).To(Equal("registry.epinio.svc.cluster.local:5000"))
+			})
+		})
+		When("the registry is on localhost by name (helmtest)", func() {
+			BeforeEach(func() {
+				details = &registry.ConnectionDetails{
+					Namespace: "apps",
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "https://localhost:5000"},
+					},
+				}
+			})
+			It("treats localhost as a public registry URL", func() {
+				url, err := details.PublicRegistryURL()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(url).To(Equal("https://localhost:5000"))
+			})
+		})
 	})
 
 	Describe("PrivateRegistryURL", func() {

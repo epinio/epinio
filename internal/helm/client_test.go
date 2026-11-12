@@ -62,10 +62,10 @@ var _ = Describe("SynchronizedClient", func() {
 		It("should return the same client for the same namespace", func() {
 			namespace := catalog.NewNamespaceName()
 
-			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
-			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			Expect(syncClient1).To(Equal(syncClient2))
@@ -75,10 +75,10 @@ var _ = Describe("SynchronizedClient", func() {
 			namespace1 := catalog.NewNamespaceName()
 			namespace2 := catalog.NewNamespaceName()
 
-			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient, nil)
 			Expect(err).To(BeNil())
 
-			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient)
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			Expect(syncClient1).To(Not(Equal(syncClient2)))
@@ -99,7 +99,7 @@ var _ = Describe("SynchronizedClient", func() {
 
 			// create a sync client
 			namespace := catalog.NewNamespaceName()
-			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			// Begin TEST!
@@ -150,7 +150,7 @@ var _ = Describe("SynchronizedClient", func() {
 
 			// create a sync client
 			namespace := catalog.NewNamespaceName()
-			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			// Begin TEST!
@@ -202,11 +202,11 @@ var _ = Describe("SynchronizedClient", func() {
 
 			// create two sync clients
 			namespace1 := catalog.NewNamespaceName()
-			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			namespace2 := catalog.NewNamespaceName()
-			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient)
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			// Begin TEST!
@@ -263,11 +263,11 @@ var _ = Describe("SynchronizedClient", func() {
 
 			// create two sync clients
 			namespace1 := catalog.NewNamespaceName()
-			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			namespace2 := catalog.NewNamespaceName()
-			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient)
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			// Begin TEST!

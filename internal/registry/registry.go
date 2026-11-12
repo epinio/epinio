@@ -24,7 +24,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
@@ -255,15 +254,20 @@ func (d *ConnectionDetails) RepositoryBase() (string, error) {
 // PublicRegistryURL returns the public registry URL from the connection details
 // object. Assumes to have only one non-local registry in the config. If there are more,
 // it will just return the first one found (no guaranteed order since there should only be
-// one)
+// one).
+//
+// Non-public hosts are only exact 127.0.0.1 / ::1 (see isNodePortRegistryHost), matching
+// the historical substring filter on "127.0.0.1" but not matching that string inside a
+// DNS label (harbor.127.0.0.1.sslip.io stays public). localhost is intentionally public
+// here: unit tests and helmtest registries use https://localhost:<port> so the URL is
+// not ignored (see helmtest.Registry.Host). *.svc.cluster.local is also public — the
+// default Epinio registry advertises it alongside the 127.0.0.1 NodePort.
+//
+// Do not use IsInClusterHost: it treats localhost and *.svc.cluster.local as in-cluster
+// and would empty PublicRegistryURL ("no public registry URL found").
 func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
-	r, err := regexp.Compile(`127\.0\.0\.1`)
-	if err != nil {
-		return "", err
-	}
-
 	for _, credentials := range d.RegistryCredentials {
-		if !r.MatchString(credentials.URL) {
+		if !isNodePortRegistryHost(registryCredentialHost(credentials.URL)) {
 			return credentials.URL, nil
 		}
 	}
@@ -276,17 +280,36 @@ func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 // NodePort. This method will return an empty string if no localhost URL exists in the
 // config.
 func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
-	r, err := regexp.Compile(`127\.0\.0\.1`)
-	if err != nil {
-		return "", err
-	}
 	for _, credentials := range d.RegistryCredentials {
-		if r.MatchString(credentials.URL) {
+		if isNodePortRegistryHost(registryCredentialHost(credentials.URL)) {
 			return credentials.URL, nil
 		}
 	}
 
 	return "", nil
+}
+
+// registryCredentialHost extracts host[:port] from a docker-config style registry URL
+// (optional scheme, optional path / namespace).
+func registryCredentialHost(raw string) string {
+	s := raw
+	if i := strings.Index(s, "://"); i >= 0 {
+		s = s[i+3:]
+	}
+	return strings.SplitN(s, "/", 2)[0]
+}
+
+// isNodePortRegistryHost is true for the exact IPv4/IPv6 loopback addresses used as the
+// NodePort side of Epinio's bundled registry. It does not match "localhost" (kept as the
+// public URL in tests) or *.svc.cluster.local.
+func isNodePortRegistryHost(hostname string) bool {
+	host := hostname
+	if h, _, err := net.SplitHostPort(hostname); err == nil {
+		host = h
+	}
+	host = strings.ToLower(strings.TrimSuffix(strings.Trim(host, "[]"), "."))
+
+	return host == "127.0.0.1" || host == "::1"
 }
 
 // ReplaceWithInternalRegistry replaces the registry part of the given container imageURL
