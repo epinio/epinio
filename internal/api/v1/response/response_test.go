@@ -130,6 +130,48 @@ func TestGetSearchParam(t *testing.T) {
 	}
 }
 
+func TestGetSortParams(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	makeCtx := func(query string) *gin.Context {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		req, _ := http.NewRequest("GET", "/test?"+query, nil)
+		c.Request = req
+		return c
+	}
+
+	tests := []struct {
+		name       string
+		query      string
+		wantField  string
+		wantDesc   bool
+	}{
+		{name: "no params", query: "", wantField: "", wantDesc: false},
+		{name: "name asc default", query: "sort=name", wantField: "name", wantDesc: false},
+		{name: "createdAt desc", query: "sort=meta.createdAt&sortDir=desc", wantField: "createdAt", wantDesc: true},
+		{name: "nameDisplay alias", query: "sort=nameDisplay&sortDir=asc", wantField: "name", wantDesc: false},
+		{name: "age alias", query: "sort=age&sortDir=DESC", wantField: "createdAt", wantDesc: true},
+		{name: "buildStatus alias", query: "sort=buildStatus", wantField: "buildStatus", wantDesc: false},
+		{name: "stateDisplay alias", query: "sort=stateDisplay&sortDir=desc", wantField: "status", wantDesc: true},
+		{name: "deployment.status alias", query: "sort=deployment.status", wantField: "deploymentStatus", wantDesc: false},
+		{name: "variableCount alias", query: "sort=configuration.variableCount", wantField: "variableCount", wantDesc: false},
+		{name: "appCount", query: "sort=appCount&sortDir=desc", wantField: "appCount", wantDesc: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := response.GetSortParams(makeCtx(tc.query))
+			if got.Field != tc.wantField {
+				t.Errorf("Field: got %q want %q", got.Field, tc.wantField)
+			}
+			if got.Descending != tc.wantDesc {
+				t.Errorf("Descending: got %v want %v", got.Descending, tc.wantDesc)
+			}
+		})
+	}
+}
+
 func TestGetPaginationParams(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

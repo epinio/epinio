@@ -47,13 +47,14 @@ type ConfigurationList []*Configuration
 
 // Configuration contains the information needed for Epinio to address a specific configuration.
 type Configuration struct {
-	Name       string
-	namespace  string
-	Username   string
-	Type       string
-	Origin     string
-	CreatedAt  metav1.Time
-	kubeClient *kubernetes.Cluster
+	Name          string
+	namespace     string
+	Username      string
+	Type          string
+	Origin        string
+	CreatedAt     metav1.Time
+	VariableCount int // len(secret.Data); available from List without Details()
+	kubeClient    *kubernetes.Cluster
 }
 
 // Lookup locates a Configuration by namespace and name.
@@ -109,13 +110,14 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 		origin := c.Labels["epinio.io/configuration-origin"]
 
 		result = append(result, &Configuration{
-			CreatedAt:  c.CreationTimestamp,
-			Name:       c.Name,
-			namespace:  c.Namespace,
-			Username:   username,
-			kubeClient: cluster,
-			Type:       ctype,
-			Origin:     origin,
+			CreatedAt:     c.CreationTimestamp,
+			Name:          c.Name,
+			namespace:     c.Namespace,
+			Username:      username,
+			kubeClient:    cluster,
+			Type:          ctype,
+			Origin:        origin,
+			VariableCount: len(c.Data),
 		})
 	}
 
