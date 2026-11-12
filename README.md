@@ -131,7 +131,7 @@ These ENV variables were configured directly by the Helm Chart in the deployment
 
 ```yaml
 serviceAccountName: "epinio-server"
-ttlSecondsAfterFinished: 300
+ttlSecondsAfterFinished: 3600
 resources:
   requests:
     cpu: "200m"
