@@ -44,7 +44,14 @@ func TestDeleteServiceBindingsAggregatesConfigNames(t *testing.T) {
 		{ObjectMeta: metav1.ObjectMeta{Name: "cfg-c"}},
 	}
 
-	errs := deleteServiceBindings(ctx, nil, "test-ns", "my-app", "alice", serviceConfigurations, stubDelete)
+	errs := deleteServiceBindings(
+		ctx,
+		nil,
+		"test-ns",
+		"my-app",
+		serviceConfigurations,
+		stubDelete,
+	)
 	if errs != nil {
 		t.Fatalf("expected no errors, got %v", errs)
 	}
@@ -74,7 +81,14 @@ func TestDeleteServiceBindingsSkipsEmptyConfigs(t *testing.T) {
 		return nil, nil
 	}
 
-	errs := deleteServiceBindings(ctx, nil, "test-ns", "my-app", "alice", nil, stubDelete)
+	errs := deleteServiceBindings(
+		ctx,
+		nil,
+		"test-ns",
+		"my-app",
+		nil,
+		stubDelete,
+	)
 	if errs != nil {
 		t.Fatalf("expected no errors, got %v", errs)
 	}

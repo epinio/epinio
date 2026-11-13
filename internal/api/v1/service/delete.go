@@ -34,7 +34,6 @@ import (
 func Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).With("component", "ServiceDelete")
-	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
 
@@ -158,8 +157,14 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			for serviceName, serviceConfigurations := range infoMap {
 				logger.Infow("unbinding of", "app", appName, "service", serviceName)
 
-				apiErr := UnbindService(ctx, cluster, namespace, serviceName,
-					appName, username, serviceConfigurations)
+				apiErr := UnbindService(
+					ctx,
+					cluster,
+					namespace,
+					serviceName,
+					appName,
+					serviceConfigurations,
+				)
 				if apiErr != nil {
 					return apiErr
 				}
