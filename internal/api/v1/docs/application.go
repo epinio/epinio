@@ -15,7 +15,7 @@ package docs
 
 import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
-// swagger:route GET /applications application AllApps
+// swagger:route GET /applications Applications AllApps
 // Return list of applications in all namespaces.
 // Never-deployed apps (buildstatus create|build) are omitted; use AllAppsUndeployed for those.
 // responses:
@@ -40,9 +40,11 @@ type AllAppsParam struct {
 
 // response: See Apps.
 
-// swagger:route GET /applications/undeployed application AllAppsUndeployed
-// Return list of applications with buildstatus create|build in all namespaces
-// (including rebuilds after deploy).
+// swagger:route GET /applications/undeployed Applications AllAppsUndeployed
+// Return the applications not deployed yet, in all namespaces.
+//
+// Lists apps with build status `create` or `build`, which includes apps
+// rebuilt after a deploy.
 // responses:
 //   200: AppsResponse
 
@@ -63,7 +65,7 @@ type AllAppsUndeployedParam struct {
 	PageSize string `json:"pageSize"`
 }
 
-// swagger:route GET /namespaces/{Namespace}/applications application Apps
+// swagger:route GET /namespaces/{Namespace}/applications Applications Apps
 // Return list of applications in the `Namespace`.
 // Never-deployed apps (buildstatus create|build) are omitted; use AppsUndeployed for those.
 // responses:
@@ -84,10 +86,11 @@ type AppsParam struct {
 	PageSize string `json:"pageSize"`
 }
 
-// swagger:route GET /namespaces/{Namespace}/applications/undeployed application AppsUndeployed
-// Return list of applications with buildstatus create|build in the `Namespace`
-// (including rebuilds after deploy).
-// Supports the same search and pagination query parameters as Apps.
+// swagger:route GET /namespaces/{Namespace}/applications/undeployed Applications AppsUndeployed
+// Return the applications not deployed yet, in the `Namespace`.
+//
+// Lists apps with build status `create` or `build`, which includes apps
+// rebuilt after a deploy.
 // responses:
 //   200: AppsResponse
 
@@ -112,7 +115,7 @@ type AppsResponse struct {
 	Body models.AppList
 }
 
-// swagger:route POST /namespaces/{Namespace}/applications application AppCreate
+// swagger:route POST /namespaces/{Namespace}/applications Applications AppCreate
 // Create the posted new application in the `Namespace`.
 // responses:
 //   200: AppCreateResponse
@@ -131,7 +134,7 @@ type AppCreateResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App} application AppShow
+// swagger:route GET /namespaces/{Namespace}/applications/{App} Applications AppShow
 // Return details of the named `App` in the `Namespace`.
 // Works for both deployed and never-deployed (create|build) apps.
 // The response includes `configuration.environment` (user-set variables only) and
@@ -153,7 +156,7 @@ type AppShowResponse struct {
 	Body models.App
 }
 
-// swagger:route GET /namespace/{Namespace}/appsmatches/{Pattern} application AppMatch
+// swagger:route GET /namespaces/{Namespace}/appsmatches/{Pattern} Applications AppMatch
 // Set includeUndeployed=true to also match never-deployed (undeployed) apps.
 // Return list of names for all applications whose name matches the prefix `Pattern`.
 // responses:
@@ -173,7 +176,7 @@ type AppMatchResponse struct {
 	Body models.AppMatchResponse
 }
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App}/part/{Part} application AppPart
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/part/{Part} Applications AppPart
 // Return parts of the named `App` in the `Namespace`.
 // responses:
 //   200: AppPartResponse
@@ -194,7 +197,7 @@ type AppPartResponse struct {
 	Body []byte
 }
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App}/logs application AppLogs
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/logs Applications AppLogs
 // Return logs of the named `App` in the `Namespace` streamed over a websocket.
 // responses:
 //   200: AppLogsResponse
@@ -228,7 +231,7 @@ type AppLogsParam struct {
 // swagger:response AppLogsResponse
 type AppLogsResponse struct{}
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App}/exec application AppExec
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/exec Applications AppExec
 // Get a shell to the `App` in the `Namespace`.
 // responses:
 //   200: AppExecResponse
@@ -246,7 +249,7 @@ type AppExecParam struct {
 // swagger:response AppExecResponse
 type AppExecResponse struct{}
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App}/portforward application AppPortForward
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/portforward Applications AppPortForward
 // Get a shell to the `App` in the `Namespace`.
 // responses:
 //   200: AppPortForwardResponse
@@ -264,7 +267,7 @@ type AppPortForwardParam struct {
 // swagger:response AppPortForwardResponse
 type AppPortForwardResponse struct{}
 
-// swagger:route GET /namespaces/{Namespace}/staging/{StageID}/logs application StagingLogs
+// swagger:route GET /namespaces/{Namespace}/staging/{StageID}/logs Applications StagingLogs
 // Return logs of the named `StageID` in the `Namespace` streamed over a websocket.
 // responses:
 //   200: StagingLogsResponse
@@ -298,47 +301,12 @@ type StagingLogsParam struct {
 // swagger:response StagingLogsResponse
 type StagingLogsResponse struct{}
 
-// swagger:route GET /namespaces/{Namespace}/staging/{StageID}/complete application StagingComplete
-// Waits for the completion of the staging process identified by `StageID` in the `Namespace`.
-// responses:
-//   200: StagingCompleteResponse
-
-// swagger:parameters StagingComplete
-type StagingCompleteParam struct {
-	// in: path
-	Namespace string
-	// in: path
-	StageID string
-}
-
-// swagger:response StagingCompleteResponse
-type StagingCompleteResponse struct {
-	// in: body
-	Body models.Response
-}
-
-// swagger:route GET /namespaces/{Namespace}/staging/{StageID}/complete websocket StagingCompleteWs
-// Stream staging completion status for the specified `StageID` in the `Namespace` over a websocket.
-// responses:
-//   200: StagingCompleteWsResponse
-
-// swagger:parameters StagingCompleteWs
-type StagingCompleteWsParam struct {
-	// in: path
-	Namespace string
-	// in: path
-	StageID string
-}
-
-// swagger:response StagingCompleteWsResponse
-type StagingCompleteWsResponse struct{}
-
-// swagger:route DELETE /namespaces/{Namespace}/applications AppBatchDelete
+// swagger:route DELETE /namespaces/{Namespace}/applications Applications AppBatchDelete
 // Delete the named `Applications` in the `Namespace`.
 // responses:
 //   200: AppDeleteResponse
 
-// swagger:route DELETE /namespaces/{Namespace}/applications/{App} application AppDelete
+// swagger:route DELETE /namespaces/{Namespace}/applications/{App} Applications AppDelete
 // Delete the named `App` in the `Namespace`.
 // responses:
 //   200: AppDeleteResponse
@@ -351,7 +319,7 @@ type AppDeleteParam struct {
 	App string
 }
 
-// swagger:route DELETE /namespaces/{Namespace}/applications/{App}/build application AppBuildDelete
+// swagger:route DELETE /namespaces/{Namespace}/applications/{App}/build Applications AppBuildDelete
 // Delete the current build of the named `App` in the `Namespace` without deleting the app.
 // responses:
 //   200: AppBuildDeleteResponse
@@ -384,7 +352,7 @@ type AppDeleteResponse struct {
 	Body models.ApplicationDeleteResponse
 }
 
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/store application AppUpload
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/store Applications AppUpload
 // Store the named `App` in the `Namespace`.
 // responses:
 //   200: AppUploadResponse
@@ -403,10 +371,16 @@ type AppUploadResponse struct {
 	Body models.UploadResponse
 }
 
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/restart application AppRestart
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/restart Applications AppRestart
 // Restart the named `App` in the `Namespace`.
+//
+// Restarts the deployed image; it never switches to a newer build. Deploy a
+// build with AppDeploy. Starts a restart operation and answers 202 with it.
+// Poll AppState until the operation is done.
 // responses:
-//   200: AppRestartResponse
+//   202: AppOperationResponse
+//   400: ErrorResponse
+//   409: ErrorResponse
 
 // swagger:parameters AppRestart
 type AppRestartParam struct {
@@ -416,37 +390,18 @@ type AppRestartParam struct {
 	App string
 }
 
-// swagger:response AppRestartResponse
-type AppRestartResponse struct {
-	// in: body
-	Body models.Response
-}
-
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/import-git application AppImportGit
-// Store the named `App` from a Git repo in the `Namespace`.
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/stage Applications AppStage
+// Build an image for the named `App` in the `Namespace`.
+//
+// Starts a build operation and answers 202 with it. The source is the
+// uploaded `blobuid`, else the stored blob, else the git origin, which the
+// server clones and stamps with the resolved branch and commit. Poll
+// AppState until the operation is done; its `stage_id` names the build
+// for the staging logs. The build does not deploy.
 // responses:
-//   200: AppImportGitResponse
-
-// swagger:parameters AppImportGit
-type AppImportGitParam struct {
-	// in: path
-	Namespace string
-	// in: path
-	App    string
-	GitUrl string
-	GitRev string
-}
-
-// swagger:response AppImportGitResponse
-type AppImportGitResponse struct {
-	// in: body
-	Body models.ImportGitResponse
-}
-
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/stage application AppStage
-// Create the resources needed to stage the named `App` in the `Namespace`.
-// responses:
-//   200: AppStageResponse
+//   202: AppOperationResponse
+//   400: ErrorResponse
+//   409: ErrorResponse
 
 // swagger:parameters AppStage
 type AppStageParam struct {
@@ -458,18 +413,52 @@ type AppStageParam struct {
 	Body models.StageRequest
 }
 
-// swagger:response AppStageResponse
-type AppStageResponse struct {
+// swagger:response AppOperationResponse
+type AppOperationResponse struct {
 	// in: body
-	Body models.StageResponse
+	Body models.AppOperation
 }
 
-// swagger:route PATCH /namespaces/{Namespace}/applications/{App}/source application AppSourcePatch
-// Replace the source of the named `App` in the `Namespace` and restage it.
-// The multipart body carries the source archive and an optional `process_cmd`
-// form field (supervisor fallback command for non-Paketo buildpacks).
+// swagger:response OperationsResponse
+type OperationsResponse struct {
+	// in: body
+	Body models.OperationsResponse
+}
+
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/state Applications AppState
+// Return the lifecycle state of the named `App` in the `Namespace`.
+//
+// One call for status, build status, current stage and the latest
+// operation. While an operation stages or deploys, `status` reports that
+// phase. `operation` is absent after a server restart or once the record
+// of a finished operation expired.
 // responses:
-//   200: AppStageResponse
+//   200: AppStateResponse
+
+// swagger:parameters AppState
+type AppStateParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:response AppStateResponse
+type AppStateResponse struct {
+	// in: body
+	Body models.AppState
+}
+
+// swagger:route PATCH /namespaces/{Namespace}/applications/{App}/source Applications AppSourcePatch
+// Replace the source of the named `App` in the `Namespace` and rebuild it.
+//
+// The multipart body carries the source archive and an optional
+// `process_cmd` form field (supervisor fallback command for non-Paketo
+// buildpacks). Answers 202 with an operation that already carries the
+// `stage_id`; it builds and swaps the new image into the running pod.
+// responses:
+//   202: AppOperationResponse
+//   409: ErrorResponse
 
 // swagger:parameters AppSourcePatch
 type AppSourcePatchParam struct {
@@ -479,11 +468,11 @@ type AppSourcePatchParam struct {
 	App string
 }
 
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/sync application AppSync
-// Sync changed files or a compiled binary into the running pod of the named
-// `App` in the `Namespace`. The multipart body carries the tar archive plus
-// `mode` ("files" or "binary"), and optional `dest` and `binary_name` form
-// fields.
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/sync Applications AppSync
+// Sync files or a binary into the running pod of the `App`.
+//
+// The multipart body carries the tar archive plus `mode` ("files" or
+// "binary"), and optional `dest` and `binary_name` form fields.
 // responses:
 //   200: AppSyncResponse
 
@@ -501,10 +490,17 @@ type AppSyncResponse struct {
 	Body models.Response
 }
 
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/deploy application AppDeploy
-// Create the deployment, configuration and ingress resources for the named `App` in the `Namespace`.
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/deploy Applications AppDeploy
+// Deploy the named `App` in the `Namespace`.
+//
+// Starts a deploy operation and answers 202 with it. With `image` set it
+// deploys that image (`stage` names the build that produced it). Without
+// it, it builds first, from the same sources AppStage accepts, then
+// deploys the result. Poll AppState until the operation is done.
 // responses:
-//   200: AppDeployResponse
+//   202: AppOperationResponse
+//   400: ErrorResponse
+//   409: ErrorResponse
 
 // swagger:parameters AppDeploy
 type AppDeployParam struct {
@@ -516,16 +512,16 @@ type AppDeployParam struct {
 	Body models.DeployRequest
 }
 
-// swagger:response AppDeployResponse
-type AppDeployResponse struct {
-	// in: body
-	Body models.DeployResponse
-}
-
-// swagger:route PATCH /namespaces/{Namespace}/applications/{App} application AppUpdate
-// Patch the named `App` in the `Namespace`.
+// swagger:route PATCH /namespaces/{Namespace}/applications/{App} Applications AppUpdate
+// Update the named `App` in the `Namespace`.
+//
+// Saves the changes, then answers 200 when nothing has to be redeployed,
+// or 202 with the redeploy operation when it does (instances, chart, or a
+// restart of a running app).
 // responses:
 //   200: AppUpdateResponse
+//   202: AppOperationResponse
+//   409: ErrorResponse
 
 // swagger:parameters AppUpdate
 type AppUpdateParam struct {
@@ -543,28 +539,8 @@ type AppUpdateResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /namespaces/{Namespace}/applications/{App}/running application AppRunning
-// Wait for the named `App` in the `Namespace` to be running.
-// responses:
-//   200: AppRunningResponse
-
-// swagger:parameters AppRunning
-type AppRunningParam struct {
-	// in: path
-	Namespace string
-	// in: path
-	App string
-}
-
-// swagger:response AppRunningResponse
-type AppRunningResponse struct {
-	// in: body
-	Body models.Response
-}
-
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/validate-cv application AppValidateCV
-// Validate the chart values configured for the named `App` in the given `Namespace` against the
-// configured app chart.
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/validate-cv Applications AppValidateCV
+// Validate the chart values of the `App` against its app chart.
 // responses:
 //   200: AppValidateCVResponse
 
@@ -582,7 +558,7 @@ type AppValidateCVResponse struct {
 	Body models.Response
 }
 
-// swagger:route POST /namespaces/{Namespace}/applications/{App}/export application AppExport
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/export Applications AppExport
 // Export the named `App` in the `Namespace`.
 // responses:
 //   200: AppExportResponse
@@ -601,4 +577,76 @@ type AppExportParam struct {
 type AppExportResponse struct {
 	// in: body
 	Body models.Response
+}
+
+// swagger:route GET /applications/grouped Applications AllAppsGrouped
+// Return the applications of every visible namespace, grouped by namespace name.
+// Each namespace is paginated independently, replacing one call per namespace.
+// Namespaces the user cannot access are omitted entirely.
+// responses:
+//   200: AllAppsGroupedResponse
+
+// swagger:parameters AllAppsGrouped
+type AllAppsGroupedParam struct {
+	// Case-insensitive substring match on the application name
+	// in: query
+	Search string `json:"search"`
+	// Page number, 1-based (default 1)
+	// in: query
+	Page string `json:"page"`
+	// Items per page (default 10)
+	// in: query
+	PageSize string `json:"pageSize"`
+}
+
+// swagger:response AllAppsGroupedResponse
+type AllAppsGroupedResponse struct {
+	// Keyed by namespace name
+	// in: body
+	Body map[string]AppsPage
+}
+
+// AppsPage is one namespace's page of applications.
+//
+// swagger:model AppsPage
+type AppsPage struct {
+	Items      []models.App `json:"items"`
+	Page       int          `json:"page"`
+	PageSize   int          `json:"pageSize"`
+	TotalItems int          `json:"totalItems"`
+	TotalPages int          `json:"totalPages"`
+}
+
+// swagger:route GET /namespaces/{Namespace}/appsmatches Applications AppMatch0
+// Return list of names for all applications in the `Namespace`.
+// (No prefix == empty prefix == match everything)
+// responses:
+//   200: AppMatchResponse
+
+// swagger:parameters AppMatch0
+type AppMatch0Param struct {
+	// in: path
+	Namespace string
+}
+
+// response: See AppMatch.
+
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/source Applications AppSource
+// Return the stored source blob of the named `App` in the `Namespace` as a tar archive.
+// Fails with 400 when the application has no stored source.
+// responses:
+//   200: AppSourceResponse
+
+// swagger:parameters AppSource
+type AppSourceParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:response AppSourceResponse
+type AppSourceResponse struct {
+	// in: body
+	Body []byte
 }

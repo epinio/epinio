@@ -20,7 +20,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -152,7 +151,7 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 		return err
 	}
 
-	// AppUpload / AppImportGit
+	// AppUpload (git sources are cloned by the server)
 	var blobUID string
 	switch manifest.Origin.Kind {
 	case models.OriginNone:
@@ -164,114 +163,59 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 		}
 		blobUID = uploadedSourceBlobID
 	case models.OriginGit:
-		c.ui.Normal().Msg("Importing the application sources from Git ...")
-
-		gitOrigin := manifest.Origin.Git
-		if gitOrigin == nil {
+		// The server clones the repository while it builds, and stamps the
+		// resolved branch and commit onto the app's origin.
+		if manifest.Origin.Git == nil {
 			return errors.New("git origin is nil")
 		}
-
-		response, err := c.API.AppImportGit(appRef.Namespace, appRef.Name, *gitOrigin)
-		if err != nil {
-			return errors.Wrap(err, "importing git remote")
-		}
-
-		blobUID = response.BlobUID
-		// if the server resolved the branch use that in the Git Origin
-		if response.Branch != "" {
-			manifest.Origin.Git.Branch = response.Branch
-		}
-		// update the revision with the one updated by the server
-		manifest.Origin.Git.Revision = response.Revision
 
 	case models.OriginContainer:
 		// Nothing to upload (nor stage)
 	}
 
-	// Async stage/build/deploy (same endpoint as the UI) — avoids long blocking POST timeouts.
-	asyncReq := models.AsyncDeployRequest{
+	// One asynchronous build-and-deploy; the CLI polls the app state.
+	deployReq := models.DeployRequest{
 		App:    appRef,
 		Origin: manifest.Origin,
 	}
 	if manifest.Origin.Kind == models.OriginContainer {
-		asyncReq.ImageURL = manifest.Origin.Container
+		deployReq.ImageURL = manifest.Origin.Container
 	} else {
-		asyncReq.BlobUID = blobUID
-		asyncReq.BuilderImage = manifest.Staging.Builder
-		asyncReq.BuildMode = manifest.Staging.BuildMode
-		asyncReq.DockerfilePath = manifest.Staging.DockerfilePath
+		deployReq.BlobUID = blobUID
+		deployReq.BuilderImage = manifest.Staging.Builder
+		deployReq.BuildMode = manifest.Staging.BuildMode
+		deployReq.DockerfilePath = manifest.Staging.DockerfilePath
 	}
 
 	c.ui.Normal().Msg("Building and deploying application on the server ...")
 	c.ui.ProgressNote().Msg("Build and deploy")
 
-	details.Info("async deploy start", "app", appRef)
-	startStatus, err := c.API.AppDeploymentsStart(asyncReq)
+	details.Info("deploy start", "app", appRef)
+	op, err := c.API.AppDeploy(deployReq)
 	if err != nil {
-		return errors.Wrap(err, "starting async deployment")
-	}
-	if startStatus == nil || startStatus.ID == "" {
-		return errors.New("async deployment did not return a deployment id")
+		return errors.Wrap(err, "starting the deployment")
 	}
 
 	s := c.ui.Progress("Waiting for deployment")
 	defer s.Stop()
 
-	finalStatus, err := c.waitAsyncDeployment(ctx, appRef, startStatus.ID, details)
+	deployed, err := c.waitOperation(ctx, appRef, op, true, details)
 	if err != nil {
 		c.ui.Note().Msgf(
 			"You can access the staging logs at any time, either in the UI or with the CLI using this command:\n\nepinio app logs --staging %s",
 			appRef.Name)
-		return errors.Wrap(err, "async deployment failed")
+		return errors.Wrap(err, "deployment failed")
 	}
 
-	details.Info("deployment finished", "status", finalStatus.Status)
+	details.Info("deployment finished", "phase", deployed.Phase)
 
 	routes := []string{}
-	for _, d := range finalStatus.Routes {
+	for _, d := range deployed.Routes {
 		routes = append(routes, fmt.Sprintf("https://%s", d))
 	}
 
 	c.reportOK(appRef, manifest.Staging.Builder, routes)
 	return nil
-}
-
-func (c *EpinioClient) waitAsyncDeployment(ctx context.Context, appRef models.AppRef, deploymentID string, details logr.Logger) (*models.AsyncDeployStatus, error) {
-	deadline := time.Now().Add(duration.ToAppBuilt())
-	stagingLogsStarted := false
-
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		status, err := c.API.AppDeploymentStatus(appRef.Namespace, appRef.Name, deploymentID)
-		if err != nil {
-			return nil, err
-		}
-
-		if status.StageID != "" && !stagingLogsStarted {
-			stagingLogsStarted = true
-			details.Info("start tailing logs", "StageID", status.StageID)
-			c.stageLogs(appRef, status.StageID)
-		}
-
-		switch status.Status {
-		case "succeeded":
-			return &status, nil
-		case "failed":
-			if status.Error != "" {
-				return nil, errors.New(status.Error)
-			}
-			return nil, errors.New("async deployment failed")
-		}
-
-		time.Sleep(2 * time.Second)
-	}
-
-	return nil, errors.New("timed out waiting for async deployment")
 }
 
 func (c *EpinioClient) uploadSources(log logr.Logger, appRef models.AppRef, source string, manifest models.ApplicationManifest) (string, error) {

@@ -45,14 +45,17 @@ func DescribeAppRestart() {
 	When("app restart successfully", func() {
 
 		BeforeEach(func() {
-			statusCode = 200
-			responseBody = `{ "status": "ok" }`
+			statusCode = 202
+			responseBody = `{"id": "op1", "kind": "restart",` +
+				` "phase": "pending"}`
 		})
 
-		It("returns no error", func() {
-			res, err := epinioClient.AppRestart("namespace-foo", "appname")
+		It("returns the operation", func() {
+			op, err := epinioClient.AppRestart("namespace-foo", "appname")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(res).To(Equal(models.ResponseOK))
+			Expect(op.ID).To(Equal("op1"))
+			Expect(op.Kind).To(Equal(models.OperationRestart))
+			Expect(op.Phase).To(Equal(models.OperationPending))
 		})
 	})
 

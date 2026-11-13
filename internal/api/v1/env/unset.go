@@ -13,8 +13,7 @@ package env
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/api/v1/deploy"
-	"github.com/epinio/epinio/internal/api/v1/response"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
@@ -28,7 +27,6 @@ import (
 // variable from the application's environment.
 func Unset(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	username := requestctx.User(ctx).Username
 
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
@@ -55,15 +53,11 @@ func Unset(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	if app.Workload != nil && app.Status == models.ApplicationRunning {
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
-		if apierr != nil {
-			return apierr
-		}
-	} else if app.Workload != nil {
-		requestctx.Logger(ctx).Infow("environment variable was removed, but restart was skipped because application is not running", "status", app.Status)
-	}
-
-	response.OK(c)
+	apiapp.RespondRedeploys(c, apiapp.RedeployIfRunning(
+		ctx,
+		cluster,
+		[]models.App{*app},
+		false,
+	))
 	return nil
 }

@@ -17,8 +17,8 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Info
 
-// swagger:route GET /info info Info
-// Return server system information
+// swagger:route GET /info Info Info
+// Return information about the Epinio server.
 // responses:
 //   200: InfoResponse
 

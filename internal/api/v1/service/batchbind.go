@@ -13,9 +13,9 @@ package service
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/gin-gonic/gin"
@@ -96,7 +96,7 @@ func BatchBind(c *gin.Context) apierror.APIErrors {
 	// Now bind all configurations at once - this triggers a SINGLE deployment
 	logger.Infow("binding all service configurations", "count", len(allConfigurationNames))
 
-	_, errors := configurationbinding.CreateConfigurationBinding(
+	_, changed, errors := configurationbinding.CreateConfigurationBinding(
 		ctx, cluster, namespace, *app, allConfigurationNames,
 	)
 
@@ -115,6 +115,16 @@ func BatchBind(c *gin.Context) apierror.APIErrors {
 
 	logger.Infow("successfully bound services", "count", len(servicesToBind), "services", servicesToBind)
 
-	response.OK(c)
+	redeploys := models.OperationsResponse{}
+	if changed {
+		redeploys = apiapp.RedeployIfRunning(
+			ctx,
+			cluster,
+			[]models.App{*app},
+			false,
+		)
+	}
+
+	apiapp.RespondRedeploys(c, redeploys)
 	return nil
 }

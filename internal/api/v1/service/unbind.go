@@ -15,8 +15,8 @@ import (
 	"context"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
@@ -32,7 +32,6 @@ import (
 func Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).With("component", "ServiceUnbind")
-	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
@@ -81,41 +80,48 @@ func Unbind(c *gin.Context) apierror.APIErrors {
 
 	logger.Infow("configurations", "service", service.Meta.Name, "count", len(serviceConfigurations))
 
-	apiErr = UnbindService(ctx, cluster, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
+	apiErr = UnbindService(
+		ctx,
+		cluster,
+		namespace,
+		serviceName,
+		app.AppRef().Name,
+		serviceConfigurations,
+	)
 	if apiErr != nil {
 		return apiErr
 	}
 
-	response.OK(c)
+	apiapp.RespondRedeploys(c, apiapp.RedeployIfRunning(
+		ctx,
+		cluster,
+		[]models.App{*app},
+		false,
+	))
 	return nil
 }
 
+// UnbindService unbinds the service's configurations from the app and
+// drops the service from the app's bound services. It does not redeploy;
+// the caller redeploys every affected app once.
 func UnbindService(
 	ctx context.Context, cluster *kubernetes.Cluster,
-	namespace, serviceName, appName, userName string,
+	namespace, serviceName, appName string,
 	serviceConfigurations []v1.Secret,
 ) apierror.APIErrors {
 	logger := requestctx.Logger(ctx).With("component", "ServiceUnbind")
 	logger.Infow("unbinding service configurations", "service", serviceName, "app", appName, "count", len(serviceConfigurations))
 
-	// Collect all configuration names to unbind them in a single operation
-	// This triggers only ONE Helm deployment instead of N deployments (one per configuration)
-	configurationNames := []string{}
-	for _, secret := range serviceConfigurations {
-		configurationNames = append(configurationNames, secret.Name)
-	}
-
-	logger.Infow("unbinding configurations in batch", "configurations", configurationNames)
-
-	// Call DeleteBinding ONCE with all configuration names
-	// This is the key optimization: 1 helm upgrade instead of N
-	if len(configurationNames) > 0 {
-		errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, appName, userName, configurationNames,
-		)
-		if errors != nil {
-			return apierror.NewMultiError(errors.Errors())
-		}
+	apiErr := deleteServiceBindings(
+		ctx,
+		cluster,
+		namespace,
+		appName,
+		serviceConfigurations,
+		configurationbinding.DeleteBinding,
+	)
+	if apiErr != nil {
+		return apierror.NewMultiError(apiErr.Errors())
 	}
 
 	logger.Infow("unbound service configurations")
@@ -131,22 +137,39 @@ func UnbindService(
 	return nil
 }
 
+// deleteServiceBindings unbinds all of a service's configurations from the
+// app in one DeleteBinding call, so the app sees one helm upgrade instead of
+// one per configuration. deleteBinding is a parameter so tests can count the
+// calls.
 func deleteServiceBindings(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
-	namespace, appName, userName string,
+	namespace string,
+	appName string,
 	serviceConfigurations []v1.Secret,
-	deleteBinding func(context.Context, *kubernetes.Cluster, string, string, string, []string) apierror.APIErrors,
+	deleteBinding func(
+		context.Context,
+		*kubernetes.Cluster,
+		string,
+		string,
+		[]string,
+	) (*models.App, apierror.APIErrors),
 ) apierror.APIErrors {
 	configNames := make([]string, 0, len(serviceConfigurations))
 	for _, secret := range serviceConfigurations {
 		configNames = append(configNames, secret.Name)
 	}
 
-	// TODO: Don't `helm upgrade` after each removal. Do it once.
 	if len(configNames) == 0 {
 		return nil
 	}
 
-	return deleteBinding(ctx, cluster, namespace, appName, userName, configNames)
+	requestctx.Logger(ctx).Infow(
+		"unbinding configurations in batch",
+		"configurations",
+		configNames,
+	)
+
+	_, apiErr := deleteBinding(ctx, cluster, namespace, appName, configNames)
+	return apiErr
 }

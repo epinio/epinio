@@ -15,36 +15,38 @@ import (
 	"context"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, username string, configurationNames []string) apierror.APIErrors {
-
+// DeleteBinding unbinds the named configurations from the app. It does
+// not redeploy: it returns the app, and the caller redeploys every
+// affected app once (apiapp.RedeployIfRunning).
+func DeleteBinding(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+	appName string,
+	configurationNames []string,
+) (*models.App, apierror.APIErrors) {
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return nil, apierror.InternalError(err)
 	}
 	if app == nil {
-		return apierror.AppIsNotKnown(appName)
+		return nil, apierror.AppIsNotKnown(appName)
 	}
 
-	err = application.BoundConfigurationsUnset(ctx, cluster, app.Meta, configurationNames)
+	err = application.BoundConfigurationsUnset(
+		ctx,
+		cluster,
+		app.Meta,
+		configurationNames,
+	)
 	if err != nil {
-		return apierror.InternalError(err)
+		return nil, apierror.InternalError(err)
 	}
 
-	if app.Workload != nil && app.Status == models.ApplicationRunning {
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "")
-		if apierr != nil {
-			return apierr
-		}
-	} else if app.Workload != nil {
-		requestctx.Logger(ctx).Infow("configuration binding was removed, but restart was skipped because application is not running", "status", app.Status)
-	}
-
-	return nil
+	return app, nil
 }

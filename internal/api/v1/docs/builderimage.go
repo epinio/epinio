@@ -15,7 +15,7 @@ package docs
 
 import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
-// swagger:route GET /builderimages builderimages BuilderImageList
+// swagger:route GET /builderimages BuilderImages BuilderImageList
 // Return list of builderimages.
 // responses:
 //   200: BuilderImagesResponse
@@ -29,7 +29,7 @@ type BuilderImagesResponse struct {
 	Body models.BuilderImageList
 }
 
-// swagger:route POST /builderimages builderimages BuilderImageCreate
+// swagger:route POST /builderimages BuilderImages BuilderImageCreate
 // Create a new builderimage.
 // responses:
 //   201: BuilderImageCreateResponse
@@ -43,7 +43,7 @@ type BuilderImageCreateParam struct {
 // swagger:response BuilderImageCreateResponse
 type BuilderImageCreateResponse struct{}
 
-// swagger:route GET /builderimages/{BuilderImage} builderimages BuilderImageShow
+// swagger:route GET /builderimages/{BuilderImage} BuilderImages BuilderImageShow
 // Return details of the named `BuilderImage`.
 // responses:
 //   200: BuilderImageShowResponse
@@ -60,7 +60,7 @@ type BuilderImageShowResponse struct {
 	Body models.BuilderImage
 }
 
-// swagger:route PATCH /builderimages/{BuilderImage} builderimages BuilderImageUpdate
+// swagger:route PATCH /builderimages/{BuilderImage} BuilderImages BuilderImageUpdate
 // Update fields on the named `BuilderImage`.
 // responses:
 //   200: BuilderImageUpdateResponse
@@ -76,7 +76,7 @@ type BuilderImageUpdateParam struct {
 // swagger:response BuilderImageUpdateResponse
 type BuilderImageUpdateResponse struct{}
 
-// swagger:route DELETE /builderimages/{BuilderImage} builderimages BuilderImageDelete
+// swagger:route DELETE /builderimages/{BuilderImage} BuilderImages BuilderImageDelete
 // Delete the named `BuilderImage`.
 // responses:
 //   200: BuilderImageDeleteResponse
@@ -90,7 +90,7 @@ type BuilderImageDeleteParam struct {
 // swagger:response BuilderImageDeleteResponse
 type BuilderImageDeleteResponse struct{}
 
-// swagger:route GET /builderimagesmatch/{Pattern} builderimages BuilderImageMatch
+// swagger:route GET /builderimagesmatch/{Pattern} BuilderImages BuilderImageMatch
 // Return the builderimage names with prefix `Pattern`.
 // responses:
 //   200: BuilderImageMatchResponse
@@ -107,8 +107,8 @@ type BuilderImageMatchResponse struct {
 	Body models.BuilderImageMatchResponse
 }
 
-// swagger:route GET /builderimagesmatch builderimages BuilderImageMatch0
-// Return all builderimage names. (Empty prefix == all match)
+// swagger:route GET /builderimagesmatch BuilderImages BuilderImageMatch0
+// Return all builder image names.
 // responses:
 //   200: BuilderImageMatchResponse
 

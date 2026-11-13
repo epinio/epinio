@@ -418,7 +418,14 @@ func Deploy(parameters ChartParameters) error {
 		ReuseValues: reuseValues,
 	}
 
-	_, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil)
+	// Honor the caller's context so canceling an operation (app delete,
+	// timeout) stops the install. Every app deploy runs inside an
+	// operation, never directly on a request context.
+	_, err = client.InstallOrUpgradeChart(
+		parameters.Context,
+		&chartSpec,
+		nil,
+	)
 
 	return err
 }

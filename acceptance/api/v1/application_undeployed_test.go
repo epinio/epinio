@@ -17,9 +17,11 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -200,5 +202,94 @@ var _ = Describe("Apps Undeployed Endpoints", LApplication, func() {
 
 		Expect(matchNames("")).NotTo(ContainElement(name))
 		Expect(matchNames("?includeUndeployed=true")).To(ContainElement(name))
+	})
+
+	Describe("a rebuild", func() {
+		var name string
+
+		pathOrigin := models.ApplicationOrigin{
+			Kind: models.OriginPath,
+			Path: testenv.TestAssetPath("sample-app.tar"),
+		}
+
+		BeforeEach(func() {
+			name = catalog.NewAppName()
+			createApp(name)
+			DeferCleanup(func() { env.DeleteApp(name) })
+		})
+
+		It("keeps a redeploying app off the undeployed list", func() {
+			request := models.DeployRequest{
+				App:    models.NewAppRef(name, namespace),
+				Origin: pathOrigin,
+			}
+			deployApplication(namespace, name, request)
+
+			op := startedOperation(appDeploy(namespace, name, toJSON(request)))
+			undeployed := v1.Routes.Path("AppsUndeployed", namespace)
+
+			// The window is the whole build, so sample it until the
+			// operation finishes rather than checking once.
+			deadline := time.Now().Add(15 * time.Minute)
+			for {
+				Expect(namesOf(getApps(undeployed))).
+					ToNot(ContainElement(name))
+
+				state := appState(namespace, name)
+				if state.Operation != nil &&
+					state.Operation.ID == op.ID &&
+					state.Operation.Done() {
+					Expect(state.Operation.Phase).
+						To(Equal(models.OperationSucceeded),
+							state.Operation.Error)
+					break
+				}
+				Expect(time.Now()).To(BeTemporally("<", deadline))
+				time.Sleep(2 * time.Second)
+			}
+
+			shown := appShow(namespace, name)
+			Expect(shown.BuildStatus).To(Equal(models.AppBuildStatusDeployed))
+			Expect(shown.BuiltImageURL).To(Equal(shown.ImageURL))
+		})
+
+		It("does not report a failed build-only stage as built", func() {
+			// The sample app has no Dockerfile, so the build Job fails.
+			bodyBytes, statusCode := curl(
+				http.MethodPost,
+				makeEndpoint(v1.Routes.Path("AppStage", namespace, name)),
+				toJSON(models.StageRequest{
+					App:            models.NewAppRef(name, namespace),
+					BlobUID:        uploadApplication(name, namespace).BlobUID,
+					BuildMode:      models.BuildModeDockerfile,
+					DockerfilePath: "Dockerfile",
+				}),
+			)
+			op := startedOperation(bodyBytes, statusCode)
+			done := waitForOperation(namespace, name, op.ID)
+			Expect(done.Phase).To(Equal(models.OperationFailed))
+
+			shown := appShow(namespace, name)
+			Expect(shown.BuildStatus).To(Equal(models.AppBuildStatusCreate))
+			Expect(shown.BuiltImageURL).To(BeEmpty())
+			Expect(shown.Status).
+				ToNot(Equal(models.ApplicationStatus(models.ApplicationBuilt)))
+		})
+
+		It("marks a successful build-only stage as built", func() {
+			stageApplication(name, namespace, models.StageRequest{
+				App:     models.NewAppRef(name, namespace),
+				BlobUID: uploadApplication(name, namespace).BlobUID,
+			})
+
+			shown := appShow(namespace, name)
+			Expect(shown.BuildStatus).To(Equal(models.AppBuildStatusBuild))
+			Expect(shown.BuiltImageURL).ToNot(BeEmpty())
+			Expect(shown.Status).
+				To(Equal(models.ApplicationStatus(models.ApplicationBuilt)))
+			Expect(namesOf(getApps(
+				v1.Routes.Path("AppsUndeployed", namespace),
+			))).To(ContainElement(name))
+		})
 	})
 })

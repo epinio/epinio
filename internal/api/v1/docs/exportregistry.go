@@ -15,8 +15,8 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 //go:generate swagger generate spec
 
-// swagger:route GET /exportregistries exportregistry Exportregistries
-// Return list of all export registries
+// swagger:route GET /exportregistries ExportRegistries Exportregistries
+// Return all export registries.
 // responses:
 //   200: ExportregistriesResponse
 
@@ -26,12 +26,12 @@ type ExportregistriesResponse struct {
 	Body models.ExportregistriesListResponse
 }
 
-// swagger:route GET /exportregistrymatches/{Pattern} exportregistry ExportregistryMatch
+// swagger:route GET /exportregistrymatches/{Pattern} ExportRegistries ExportregistriesMatch
 // Return list of names for all controlled exportregistries whose name matches the prefix `Pattern`.
 // responses:
 //   200: ExportregistryMatchResponse
 
-// swagger:parameters ExportregistryMatch
+// swagger:parameters ExportregistriesMatch
 type ExportregistryMatchParam struct {
 	// in: path
 	Pattern string
@@ -43,12 +43,12 @@ type ExportregistryMatchResponse struct {
 	Body models.ExportregistriesMatchResponse
 }
 
-// swagger:route GET /exportregistrymatches exportregistry ExportregistryMatch0
-// Return list of names for all controlled exportregistries (No prefix = empty prefix = match everything)
+// swagger:route GET /exportregistrymatches ExportRegistries ExportregistriesMatch0
+// Return all export registry names.
 // responses:
 //   200: ExportregistryMatchResponse
 
-// swagger:parameters ExportregistryMatch0
+// swagger:parameters ExportregistriesMatch0
 type ExportregistryMatch0Param struct{}
 
 // response: See ExportregistryMatch.

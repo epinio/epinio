@@ -12,12 +12,11 @@
 package application
 
 import (
+	"context"
 	"net/http"
-	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -50,47 +49,37 @@ func Restart(c *gin.Context) apierror.APIErrors {
 		return apierror.NewAPIError("No restart possible for an application with no instances", http.StatusBadRequest)
 	}
 
-	// A pending build (buildstatus "build") is either a build-only or a failed
-	// stage. It must go live only through an explicit deploy, so a restart keeps
-	// the currently deployed image.
-	restaged := app.BuildStatus != models.AppBuildStatusBuild && !strings.Contains(app.ImageURL, app.StageID)
-	if restaged {
-		// The stage id should be contained in the image url (as image tag).  As it is not
-		// found we conclude that the app was restaged, and restart now has to bring this
-		// version up.
+	return startOperation(
+		c,
+		app.Meta,
+		models.OperationRestart,
+		func(ctx context.Context, rep operationReporter) error {
+			rep.Phase(models.OperationDeploying)
+			return restartApp(ctx, cluster, app, username)
+		},
+	)
+}
 
-		// Recompute the image url, by replacing the old image tag (= old stage id) with the
-		// new stage id.
-
-		pieces := strings.Split(app.ImageURL, ":")
-		pieces[len(pieces)-1] = app.StageID
-		newImageURL := strings.Join(pieces, ":")
-
-		// .. and save it for `DeployApp` to find.
-
-		appRef := models.NewAppRef(appName, namespace)
-		applicationCR, err := application.Get(ctx, cluster, appRef)
-		if err != nil {
-			return apierror.InternalError(err, "getting the application resource")
-		}
-		err = deploy.UpdateImageURL(ctx, cluster, applicationCR, newImageURL)
-		if err != nil {
-			return apierror.InternalError(err, "updating application's image url")
-		}
+// restartApp is the restart operation. It restarts the deployed image.
+// A newer build goes live only through a deploy (POST /deploy or a source
+// patch), never through a restart: once the staging Job is gone, restart
+// cannot tell a finished build from a failed one.
+func restartApp(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app *models.App,
+	username string,
+) error {
+	_, apiErr := deploy.DeployAppWithRestart(
+		ctx,
+		cluster,
+		app.Meta,
+		username,
+		"",
+	)
+	if apiErr != nil {
+		return apiErrorAsError(apiErr)
 	}
 
-	_, apierr := deploy.DeployAppWithRestart(ctx, cluster, app.Meta, username, "")
-	if apierr != nil {
-		return apierr
-	}
-
-	if restaged {
-		err = application.SetBuildStatus(ctx, cluster, app.Meta, models.AppBuildStatusDeployed)
-		if err != nil {
-			return apierror.InternalError(err, "saving the app build status")
-		}
-	}
-
-	response.OK(c)
 	return nil
 }

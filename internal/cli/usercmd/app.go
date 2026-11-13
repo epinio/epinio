@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/schollz/progressbar/v3"
@@ -466,7 +465,22 @@ func (c *EpinioClient) AppRestart(appName string) error {
 
 	log.V(1).Info("restarting application")
 
-	_, err := c.API.AppRestart(c.Settings.Namespace, appName)
+	op, err := c.API.AppRestart(c.Settings.Namespace, appName)
+	if err != nil {
+		return err
+	}
+
+	s := c.ui.Progress("Restarting")
+	defer s.Stop()
+
+	appRef := models.NewAppRef(appName, c.Settings.Namespace)
+	_, err = c.waitOperation(
+		context.Background(),
+		appRef,
+		op,
+		false,
+		log.V(1),
+	)
 	return err
 }
 
@@ -592,20 +606,11 @@ func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.Application
 		}
 		blobUID = uploadedSourceBlobID
 	case models.OriginGit:
-		c.ui.Normal().Msg("Importing the application sources from Git ...")
-		gitOrigin := manifest.Origin.Git
-		if gitOrigin == nil {
+		// The server clones the repository while it builds, and stamps the
+		// resolved branch and commit onto the app's origin.
+		if manifest.Origin.Git == nil {
 			return errors.New("git origin is nil")
 		}
-		response, err := c.API.AppImportGit(appRef.Namespace, appRef.Name, *gitOrigin)
-		if err != nil {
-			return errors.Wrap(err, "importing git remote")
-		}
-		blobUID = response.BlobUID
-		if response.Branch != "" {
-			manifest.Origin.Git.Branch = response.Branch
-		}
-		manifest.Origin.Git.Revision = response.Revision
 	default:
 		return fmt.Errorf("unsupported origin for build: %s", source)
 	}
@@ -623,22 +628,16 @@ func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.Application
 	}
 
 	details.Info("stage start", "app", appRef)
-	stageResponse, err := c.API.AppStage(stageReq)
+	op, err := c.API.AppStage(stageReq)
 	if err != nil {
 		return errors.Wrap(err, "staging application")
 	}
-	if stageResponse == nil || stageResponse.Stage.ID == "" {
-		return errors.New("staging did not return a stage id")
-	}
-
-	stageID := stageResponse.Stage.ID
-	details.Info("start tailing logs", "StageID", stageID)
-	c.stageLogs(appRef, stageID)
 
 	s := c.ui.Progress("Waiting for build")
 	defer s.Stop()
 
-	if err := stagingWait(details, c.API, appRef.Namespace, stageID); err != nil {
+	built, err := c.waitOperation(ctx, appRef, op, true, details)
+	if err != nil {
 		c.ui.Note().Msgf(
 			"You can access the staging logs at any time, either in the UI or with the CLI using this command:\n\nepinio app logs --staging %s",
 			appRef.Name)
@@ -648,8 +647,8 @@ func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.Application
 	c.ui.Success().
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Namespace", appRef.Namespace).
-		WithStringValue("Image", stageResponse.ImageURL).
-		WithStringValue("Stage ID", stageID).
+		WithStringValue("Image", built.ImageURL).
+		WithStringValue("Stage ID", built.StageID).
 		WithStringValue("Builder Image", manifest.Staging.Builder).
 		Msg("App build stored. Deploy later with: epinio app deploy " + appRef.Name)
 
@@ -770,7 +769,7 @@ func (c *EpinioClient) AppDeploy(appName string) error {
 		WithStringValue("Build Status", app.BuildStatus).
 		Msg("Deploying application")
 
-	deployResponse, err := c.API.AppDeploy(models.DeployRequest{
+	op, err := c.API.AppDeploy(models.DeployRequest{
 		App:      app.Meta,
 		Stage:    models.NewStage(app.StageID),
 		ImageURL: app.BuiltImageURL,
@@ -780,7 +779,21 @@ func (c *EpinioClient) AppDeploy(appName string) error {
 		return err
 	}
 
-	c.reportOK(app.Meta, app.Staging.Builder, deployResponse.Routes)
+	s := c.ui.Progress("Deploying")
+	defer s.Stop()
+
+	deployed, err := c.waitOperation(
+		context.Background(),
+		app.Meta,
+		op,
+		false,
+		log.V(1),
+	)
+	if err != nil {
+		return err
+	}
+
+	c.reportOK(app.Meta, app.Staging.Builder, deployed.Routes)
 
 	return nil
 }
@@ -816,9 +829,26 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 
 	details.Info("update application")
 
-	_, err := c.API.AppUpdate(appConfig, c.Settings.Namespace, appName)
+	op, err := c.API.AppUpdate(appConfig, c.Settings.Namespace, appName)
 	if err != nil {
 		return err
+	}
+
+	// The update redeploys only when it changes what runs.
+	if op != nil {
+		s := c.ui.Progress("Redeploying")
+		appRef := models.NewAppRef(appName, c.Settings.Namespace)
+		_, err = c.waitOperation(
+			context.Background(),
+			appRef,
+			op,
+			false,
+			details,
+		)
+		s.Stop()
+		if err != nil {
+			return err
+		}
 	}
 
 	c.ui.Success().Msg("Successfully updated application")
@@ -1162,10 +1192,9 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 			c.ui.Exclamation().Msg("Attention: Application is already staging")
 			return nil
 		}
-		if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
-			// Scaled to zero, no workload desired -> prevent (re)start.
-			restart = false
-		}
+		// Not running: rebuild only. Deploying here would put a build-only
+		// or scaled-to-zero app live, which restage must not do.
+		restart = false
 	}
 
 	m := c.ui.Note().
@@ -1188,104 +1217,175 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 		return nil
 	}
 
+	if restart {
+		// One build-and-deploy, as `epinio push` and the UI restage do. A
+		// stage followed by a restart would keep the old image: restart
+		// never switches images (see restartApp on the server).
+		req := models.DeployRequest{App: app.Meta}
+		op, err := c.API.AppDeploy(req)
+		if err != nil {
+			return err
+		}
+
+		log.V(1).Info("wait for the build and deploy", "operation", op.ID)
+		_, err = c.waitOperation(
+			context.Background(),
+			app.Meta,
+			op,
+			true,
+			log.V(1),
+		)
+		return err
+	}
+
 	req := models.StageRequest{App: app.Meta}
-	stageResponse, err := c.API.AppStage(req)
+	op, err := c.API.AppStage(req)
 	if err != nil {
 		return err
 	}
 
-	log.V(3).Info("stage response", "response", stageResponse)
-	stageID := stageResponse.Stage.ID
-
-	log.V(1).Info("start tailing logs", "StageID", stageID)
-	c.stageLogs(app.Meta, stageID)
-
-	log.V(1).Info("wait for job", "StageID", stageID)
-
-	// Prefer websocket streaming for completion, fallback to HTTP poll if unavailable.
-	if err := stagingWait(log.V(1), c.API, app.Meta.Namespace, stageID); err != nil {
-		return err
-	}
-
-	if restart {
-		c.ui.Note().Msg("Restarting application")
-		log.V(1).Info("restarting application")
-
-		_, err := c.API.AppRestart(c.Settings.Namespace, appName)
+	log.V(1).Info("wait for the build", "operation", op.ID)
+	_, err = c.waitOperation(
+		context.Background(),
+		app.Meta,
+		op,
+		true,
+		log.V(1),
+	)
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func stagingWithRetry(logger logr.Logger, apiClient APIClient, namespace, stageID string) error {
-	retryCondition := func(err error) bool {
-		epinioAPIError := &client.APIError{}
-		// something bad happened
-		if !errors.As(err, &epinioAPIError) {
-			return false
-		}
-
-		// do not retry for staging failures
-		errMsg := strings.ToLower(epinioAPIError.Error())
-		if strings.Contains(errMsg, "failed to stage") {
-			return true
-		}
-
-		// retry for any other Epinio error (StatusCode >= 400)
-		logger.Info("retry because of error", "error", epinioAPIError.Error())
-		return true
+// waitRedeploys reports the apps a request skipped, then waits for every
+// redeploy it started. It waits for all of them before it returns, and
+// names each app whose redeploy failed.
+func (c *EpinioClient) waitRedeploys(ops models.OperationsResponse) error {
+	for _, skipped := range ops.Skipped {
+		c.ui.Exclamation().
+			WithStringValue("Application", skipped.App.Name).
+			WithStringValue("Reason", skipped.Reason).
+			Msg("Not redeployed; the change applies on its next deploy")
 	}
 
-	retryLogger := func(n uint, err error) {
-		logger.Info("Retrying StagingComplete",
-			"tries", fmt.Sprintf("%d/%d", n, duration.RetryMax),
-			"error", err.Error(),
-		)
-	}
-
-	return retry.Do(
-		func() error {
-			_, err := apiClient.StagingComplete(namespace, stageID)
-			return err
-		},
-		retry.RetryIf(retryCondition),
-		retry.OnRetry(retryLogger),
-		retry.Delay(time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
-}
-
-func stagingWait(logger logr.Logger, apiClient APIClient, namespace, stageID string) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	wsErr := apiClient.StagingCompleteStream(ctx, namespace, stageID, func(event models.StageCompleteEvent) error {
-		logger.Info("staging status", "stageID", stageID, "status", event.Status, "message", event.Message)
-
-		if !event.Completed {
-			return nil
-		}
-
-		switch event.Status {
-		case models.StageStatusSucceeded:
-			return nil
-		case models.StageStatusFailed, models.StageStatusError:
-			if event.Message != "" {
-				return errors.New(event.Message)
-			}
-			return errors.New("staging failed")
-		default:
-			return nil
-		}
-	})
-
-	if wsErr == nil {
+	if len(ops.Operations) == 0 {
 		return nil
 	}
 
-	logger.Info("staging websocket unavailable, falling back to HTTP poll", "error", wsErr.Error())
-	return stagingWithRetry(logger, apiClient, namespace, stageID)
+	s := c.ui.Progress("Redeploying affected applications")
+	defer s.Stop()
+
+	failed := []string{}
+	for i := range ops.Operations {
+		op := ops.Operations[i]
+		_, err := c.waitOperation(
+			context.Background(),
+			op.App,
+			&op,
+			false,
+			c.Log.V(1),
+		)
+		if err != nil {
+			failed = append(
+				failed,
+				fmt.Sprintf("%s: %s", op.App.Name, err.Error()),
+			)
+		}
+	}
+
+	if len(failed) > 0 {
+		return errors.New(
+			"redeploy failed for " + strings.Join(failed, "; "),
+		)
+	}
+
+	return nil
+}
+
+// operationPollInterval is how often waitOperation polls the app state.
+var operationPollInterval = 2 * time.Second
+
+// waitOperation polls the app's state until op finishes, and returns the
+// finished operation. With streamLogs it tails the staging logs as soon
+// as the operation reports its stage. The server bounds every operation
+// with its own timeout; the deadline here only guards against a server
+// that stops answering for the operation altogether.
+func (c *EpinioClient) waitOperation(
+	ctx context.Context,
+	appRef models.AppRef,
+	op *models.AppOperation,
+	streamLogs bool,
+	logger logr.Logger,
+) (models.AppOperation, error) {
+	if op == nil || op.ID == "" {
+		return models.AppOperation{},
+			errors.New("the server did not return an operation")
+	}
+
+	stageID := op.StageID
+	if streamLogs && stageID != "" {
+		c.stageLogs(appRef, stageID)
+	}
+
+	deadline := time.Now().Add(
+		duration.ToAppBuilt() + duration.ToDeployment() + time.Minute,
+	)
+	for time.Now().Before(deadline) {
+		state, err := c.API.AppState(appRef.Namespace, appRef.Name)
+		if err != nil {
+			return models.AppOperation{}, err
+		}
+
+		current := state.Operation
+		switch {
+		case current == nil:
+			return models.AppOperation{}, errors.New(
+				"the server no longer tracks the operation (restarted?); " +
+					"check the app with: epinio app show " + appRef.Name,
+			)
+		case current.ID != op.ID:
+			return models.AppOperation{}, errors.New(
+				"another operation replaced this one; " +
+					"check the app with: epinio app show " + appRef.Name,
+			)
+		}
+
+		logger.Info(
+			"operation",
+			"phase",
+			current.Phase,
+			"stageID",
+			current.StageID,
+		)
+
+		if streamLogs && stageID == "" && current.StageID != "" {
+			stageID = current.StageID
+			c.stageLogs(appRef, stageID)
+		}
+
+		switch current.Phase {
+		case models.OperationSucceeded:
+			return *current, nil
+		case models.OperationFailed:
+			if current.Error != "" {
+				return *current, errors.New(current.Error)
+			}
+			return *current, errors.New("operation failed")
+		}
+
+		select {
+		case <-ctx.Done():
+			return models.AppOperation{}, ctx.Err()
+		case <-time.After(operationPollInterval):
+		}
+	}
+
+	return models.AppOperation{}, errors.New(
+		"timed out waiting for the operation; " +
+			"check the app with: epinio app show " + appRef.Name,
+	)
 }
 
 func formatRoutes(routes []string) string {

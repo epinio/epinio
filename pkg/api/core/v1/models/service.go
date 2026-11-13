@@ -93,6 +93,7 @@ type ServiceDeleteRequest struct {
 // ServiceDeleteResponse represents the server's response to a successful service deletion
 type ServiceDeleteResponse struct {
 	BoundApps []string `json:"boundapps"`
+	OperationsResponse
 }
 
 type ServiceBindRequest struct {

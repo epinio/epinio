@@ -9,13 +9,13 @@ import (
 	"io"
 	"log"
 	"mime/multipart"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -67,6 +67,13 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 	}
 
 	appRef := models.NewAppRef(name, namespace)
+
+	// Reject a busy app before uploading and staging, so a 409 never
+	// leaves an orphaned staging Job behind.
+	if application.Operations.Busy(appRef) {
+		return operationInProgress(appRef)
+	}
+
 	newBlobUID, app, connectionDetails, apiError := sourceInfo(
 		ctx,
 		cluster,
@@ -94,20 +101,41 @@ func SourcePatch(c *gin.Context) apierror.APIErrors {
 		return apiError
 	}
 
-	// We can't use the request ctx here, it is cancelled when this handler
-	// returns.
-	go asyncDeploy(
-		cluster,
+	// The upload, merge and staging Job creation above stay in the
+	// request: they need the uploaded file and are bounded by its size.
+	// Waiting for the build and swapping the pod image run as an
+	// operation, so their failures show up in GET .../state.
+	op, err := launchOperation(
+		operationParent(ctx),
 		appRef,
-		&stageResponse,
-		params,
-		processCmd,
-		name,
-		namespace,
-		log,
+		models.OperationSource,
+		func(ctx context.Context, rep operationReporter) error {
+			rep.Staged(stageResponse.Stage.ID, stageResponse.ImageURL)
+			return watchDeploy(
+				ctx,
+				cluster,
+				appRef,
+				stageResponse,
+				params,
+				processCmd,
+				rep,
+			)
+		},
 	)
+	if errors.Is(err, application.ErrOperationInProgress) {
+		return operationInProgress(appRef)
+	}
+	if err != nil {
+		return apierror.InternalError(err, "starting the operation")
+	}
 
-	response.OKReturn(c, stageResponse)
+	// The staging Job already exists, so the response carries its ID and
+	// image: watch streams the staging logs from it straight away.
+	op.StageID = stageResponse.Stage.ID
+	op.ImageURL = stageResponse.ImageURL
+	c.Header("Location", appStatePath(appRef))
+	c.JSON(http.StatusAccepted, op)
+
 	return nil
 }
 
@@ -400,94 +428,91 @@ func buildAndPatch(
 	return stageResponse, params, nil
 }
 
-func asyncDeploy(
+// watchDeploy is the source patch operation: it waits for the staging
+// Job, then swaps the new image into the running pod, bypassing Helm.
+func watchDeploy(
+	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	appRef models.AppRef,
-	stageResponse *models.StageResponse,
+	stageResponse models.StageResponse,
 	params stageParam,
-	processCmd, name, namespace string,
-	log *zap.SugaredLogger,
-) {
-	bgCtx := context.Background()
-	bgLog := log.With(
+	processCmd string,
+	rep operationReporter,
+) error {
+	log := requestctx.Logger(ctx).With(
 		"stageID",
 		params.Stage.ID,
 		"app",
-		name,
+		appRef.Name,
 		"namespace",
-		namespace,
+		appRef.Namespace,
 	)
 	totalStart := time.Now()
 
-	t := time.Now()
-	jobs, jobsError := stageJobs(bgCtx, cluster, namespace, params.Stage.ID)
-	if jobsError != nil {
-		bgLog.Errorw("failed to list staging jobs", "error", jobsError)
-		return
-	}
-	bgLog.Infow("step:stageJobs", "ms", time.Since(t).Milliseconds())
+	rep.Phase(models.OperationStaging)
 
-	t = time.Now()
-	success, waitStagingError := waitForStagingCompletion(bgCtx, cluster, jobs)
-	if waitStagingError != nil {
-		bgLog.Errorw(
-			"error waiting for staging completion",
-			"error",
-			waitStagingError,
-		)
-		return
+	t := time.Now()
+	jobs, apiErr := stageJobs(ctx, cluster, appRef.Namespace, params.Stage.ID)
+	if apiErr != nil {
+		return apiErrorAsError(apiErr)
+	}
+
+	success, err := waitForStagingCompletion(ctx, cluster, jobs)
+	if err != nil {
+		return fmt.Errorf("waiting for the build: %w", err)
 	}
 	if !success {
-		bgLog.Errorw("staging failed", "stageID", params.Stage.ID)
-		return
+		return fmt.Errorf(
+			"build %s failed; see the staging logs",
+			params.Stage.ID,
+		)
 	}
-	bgLog.Infow("step:staging", "ms", time.Since(t).Milliseconds())
+	log.Infow("step:staging", "ms", time.Since(t).Milliseconds())
 
-	t = time.Now()
-	freshApp, getAppError := application.Get(bgCtx, cluster, appRef)
-	if getAppError != nil {
-		bgLog.Errorw("failed to re-fetch app CR for deploy", "error", getAppError)
-		return
-	}
-	bgLog.Infow("step:fetchApp", "ms", time.Since(t).Milliseconds())
-
-	t = time.Now()
-	updateImageError := deploy.UpdateImageURL(
-		bgCtx,
+	err = application.SetBuiltImageURL(
+		ctx,
 		cluster,
-		freshApp,
+		appRef,
 		stageResponse.ImageURL,
 	)
-	if updateImageError != nil {
-		bgLog.Errorw("failed to update image URL", "error", updateImageError)
-		return
+	if err != nil {
+		return fmt.Errorf("saving the built image: %w", err)
 	}
-	bgLog.Infow("step:updateImageURL", "ms", time.Since(t).Milliseconds())
 
-	// Transform public registry URL (cluster-internal DNS) to the NodePort URL
-	// that the kubelet can resolve when pulling the image.
-	registryDetails, rdError := registry.GetConnectionDetails(
-		bgCtx,
+	rep.Phase(models.OperationDeploying)
+
+	freshApp, err := application.Get(ctx, cluster, appRef)
+	if err != nil {
+		return fmt.Errorf("re-fetching the app for deploy: %w", err)
+	}
+
+	err = deploy.UpdateImageURL(ctx, cluster, freshApp, stageResponse.ImageURL)
+	if err != nil {
+		return fmt.Errorf("updating the image url: %w", err)
+	}
+
+	// Transform public registry URL (cluster-internal DNS) to the NodePort
+	// URL that the kubelet can resolve when pulling the image.
+	registryDetails, err := registry.GetConnectionDetails(
+		ctx,
 		cluster,
 		helmchart.Namespace(),
 		registry.CredentialsSecretName,
 	)
-	if rdError != nil {
-		bgLog.Errorw("failed to get registry connection details", "error", rdError)
-		return
+	if err != nil {
+		return fmt.Errorf("getting registry connection details: %w", err)
 	}
 
-	deployImageURL, rdError := registryDetails.ReplaceWithInternalRegistry(
+	deployImageURL, err := registryDetails.ReplaceWithInternalRegistry(
 		stageResponse.ImageURL,
 	)
-	if rdError != nil {
-		bgLog.Errorw("failed to replace registry URL", "error", rdError)
-		return
+	if err != nil {
+		return fmt.Errorf("replacing the registry url: %w", err)
 	}
 
 	t = time.Now()
-	swapImageError := swapPodImage(
-		bgCtx,
+	err = swapPodImage(
+		ctx,
 		cluster,
 		appRef,
 		deployImageURL,
@@ -495,25 +520,30 @@ func asyncDeploy(
 		params.GroupID,
 		processCmd,
 	)
-	if swapImageError != nil {
-		bgLog.Errorw("pod image swap failed", "error", swapImageError)
-		return
+	if err != nil {
+		return fmt.Errorf("swapping the pod image: %w", err)
 	}
-	bgLog.Infow("step:swapPodImage", "ms", time.Since(t).Milliseconds())
+	log.Infow("step:swapPodImage", "ms", time.Since(t).Milliseconds())
 
-	buildStatusError := application.SetBuildStatus(bgCtx, cluster, appRef, models.AppBuildStatusDeployed)
-	if buildStatusError != nil {
-		bgLog.Errorw("failed to update build status", "error", buildStatusError)
-		return
+	err = application.SetBuildStatus(
+		ctx,
+		cluster,
+		appRef,
+		models.AppBuildStatusDeployed,
+	)
+	if err != nil {
+		return fmt.Errorf("updating the build status: %w", err)
 	}
 
-	bgLog.Infow(
+	log.Infow(
 		"watch-deploy complete",
 		"image",
 		stageResponse.ImageURL,
 		"total_ms",
 		time.Since(totalStart).Milliseconds(),
 	)
+
+	return nil
 }
 
 // swapPodImage bypasses Helm: patches the deployment image and securityContext

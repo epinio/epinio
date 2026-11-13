@@ -831,6 +831,10 @@ func Delete(
 ) (*DeleteResult, error) {
 	result := &DeleteResult{}
 
+	// Stop any running operation first, so its runner does not stage or
+	// deploy into the resources being removed (or a recreated app).
+	Operations.Delete(appRef)
+
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return nil, err
@@ -1249,7 +1253,7 @@ func BlobUID(app *unstructured.Unstructured) (string, error) {
 // Job is gone, use StageID and ImageURL to distinguish staging vs deploy failure.
 //
 // Exception: BuildStatus == "build" means the last completed action was an
-// intentional build-only (no deploy). That must stay "created"/built, not
+// intentional build-only (no deploy). That reports "built", not "created",
 // "deploying" or "deployment failed".
 func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 	if app.StagingStatus == models.ApplicationStagingActive {
@@ -1268,10 +1272,7 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 		case models.ApplicationStagingDone:
 			// Build-only: staged image stored, deploy not requested.
 			if app.BuildStatus == models.AppBuildStatusBuild {
-				app.Status = models.ApplicationCreated
-				if app.StatusMessage == "" {
-					app.StatusMessage = "built"
-				}
+				app.Status = models.ApplicationBuilt
 				return
 			}
 			// Staging succeeded; workload not visible yet while instances are
@@ -1296,10 +1297,7 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 			// unless this was an intentional build-only that never asked to deploy.
 			if app.StageID != "" && wantsInstances(app) {
 				if app.BuildStatus == models.AppBuildStatusBuild {
-					app.Status = models.ApplicationCreated
-					if app.StatusMessage == "" {
-						app.StatusMessage = "built"
-					}
+					app.Status = models.ApplicationBuilt
 					return
 				}
 				app.Status = models.ApplicationError

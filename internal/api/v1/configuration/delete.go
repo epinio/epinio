@@ -15,10 +15,9 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -41,8 +40,6 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	if !found {
 		configurationNames = append(configurationNames, configurationName)
 	}
-
-	username := requestctx.User(ctx).Username
 
 	var deleteRequest models.ConfigurationDeleteRequest
 	err := c.BindJSON(&deleteRequest)
@@ -83,6 +80,7 @@ func Delete(c *gin.Context) apierror.APIErrors {
 
 	appConfigurationsMap := make(map[string][]string)
 	allBoundApps := []string{}
+	unboundApps := []models.App{}
 	for _, cName := range configurationNames {
 		boundAppNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, cName)
 		if err != nil {
@@ -105,10 +103,17 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			// Note that we reach this location only when the [SERVICE] check above
 			// failed, i.e. the configuration is standalone.
 
-			apiErr := configurationbinding.DeleteBinding(ctx, cluster, namespace, appName, username, cNames)
+			app, apiErr := configurationbinding.DeleteBinding(
+				ctx,
+				cluster,
+				namespace,
+				appName,
+				cNames,
+			)
 			if apiErr != nil {
 				return apiErr
 			}
+			unboundApps = append(unboundApps, *app)
 		}
 	}
 
@@ -120,8 +125,17 @@ func Delete(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	response.OKReturn(c, models.ConfigurationDeleteResponse{
+	// Redeploy after the delete, so the apps stop mounting what is gone.
+	resp := models.ConfigurationDeleteResponse{
 		BoundApps: allBoundApps,
-	})
+		OperationsResponse: apiapp.RedeployIfRunning(
+			ctx,
+			cluster,
+			unboundApps,
+			false,
+		),
+	}
+
+	c.JSON(apiapp.RedeployStatus(resp.OperationsResponse), resp)
 	return nil
 }

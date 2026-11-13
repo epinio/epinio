@@ -89,16 +89,24 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 					return *models.NewApp(appName, namespace), nil
 				}
 
-				fake.AppStageStub = func(req models.StageRequest) (*models.StageResponse, error) {
-					return &models.StageResponse{Stage: models.NewStage("ID")}, nil
+				fake.AppStageStub = func(
+					req models.StageRequest,
+				) (*models.AppOperation, error) {
+					return &models.AppOperation{ID: "op1", StageID: "ID"}, nil
 				}
 
 				fake.AppLogsStub = func(namespace, appName, stageID string, follow bool, options *client.LogOptions, callback func(tailer.ContainerLogLine)) error {
 					return nil
 				}
 
-				fake.StagingCompleteStub = func(namespace, id string) (models.Response, error) {
-					return models.Response{Status: "ok"}, nil
+				fake.AppStateStub = func(
+					namespace string,
+					appName string,
+				) (models.AppState, error) {
+					return models.AppState{Operation: &models.AppOperation{
+						ID:    "op1",
+						Phase: models.OperationSucceeded,
+					}}, nil
 				}
 			})
 
@@ -125,7 +133,9 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 					return *newApp, nil
 				}
 
-				fake.AppStageStub = func(req models.StageRequest) (*models.StageResponse, error) {
+				fake.AppStageStub = func(
+					req models.StageRequest,
+				) (*models.AppOperation, error) {
 					panic("called AppStage!")
 				}
 			})
@@ -140,6 +150,222 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 				err = epinioClient.AppRestage("appname", false)
 				Expect(err).ToNot(HaveOccurred())
 			})
+		})
+
+		When("restaging", func() {
+			var running bool
+
+			BeforeEach(func() {
+				running = true
+				fake = &usercmdfakes.FakeAPIClient{}
+
+				fake.AppShowStub = func(
+					namespace string,
+					appName string,
+				) (models.App, error) {
+					app := models.NewApp(appName, namespace)
+					if running {
+						app.Workload = &models.AppDeployment{Active: true}
+					}
+					return *app, nil
+				}
+				op := &models.AppOperation{ID: "op1", StageID: "ID"}
+				fake.AppDeployStub = func(
+					models.DeployRequest,
+				) (*models.AppOperation, error) {
+					return op, nil
+				}
+				fake.AppStageStub = func(
+					models.StageRequest,
+				) (*models.AppOperation, error) {
+					return op, nil
+				}
+				fake.AppLogsStub = func(
+					namespace, appName, stageID string,
+					follow bool,
+					options *client.LogOptions,
+					callback func(tailer.ContainerLogLine),
+				) error {
+					return nil
+				}
+				fake.AppStateStub = func(
+					namespace string,
+					appName string,
+				) (models.AppState, error) {
+					return models.AppState{Operation: &models.AppOperation{
+						ID:    "op1",
+						Phase: models.OperationSucceeded,
+					}}, nil
+				}
+			})
+
+			restage := func(restart bool) {
+				epinioClient, err := usercmd.New()
+				Expect(err).ToNot(HaveOccurred())
+
+				epinioClient.Settings = &settings.Settings{
+					Namespace: "workspace",
+				}
+				epinioClient.API = fake
+
+				Expect(epinioClient.AppRestage("appname", restart)).
+					To(Succeed())
+			}
+
+			It("builds and deploys a running app in one operation", func() {
+				restage(true)
+
+				Expect(fake.AppDeployCallCount()).To(Equal(1))
+				Expect(fake.AppDeployArgsForCall(0).App.Name).
+					To(Equal("appname"))
+				Expect(fake.AppDeployArgsForCall(0).Builds()).To(BeTrue())
+				Expect(fake.AppStageCallCount()).To(BeZero())
+				Expect(fake.AppRestartCallCount()).To(BeZero())
+			})
+
+			It("only builds a running app with no-restart", func() {
+				restage(false)
+
+				Expect(fake.AppStageCallCount()).To(Equal(1))
+				Expect(fake.AppDeployCallCount()).To(BeZero())
+				Expect(fake.AppRestartCallCount()).To(BeZero())
+			})
+
+			It("only builds an app that is not running", func() {
+				running = false
+				restage(true)
+
+				Expect(fake.AppStageCallCount()).To(Equal(1))
+				Expect(fake.AppDeployCallCount()).To(BeZero())
+				Expect(fake.AppRestartCallCount()).To(BeZero())
+			})
+		})
+	})
+
+	Describe("AppRestart waits for the operation", func() {
+		var state models.AppState
+
+		BeforeEach(func() {
+			fake = &usercmdfakes.FakeAPIClient{}
+			fake.AppRestartStub = func(
+				namespace string,
+				appName string,
+			) (*models.AppOperation, error) {
+				return &models.AppOperation{ID: "op1"}, nil
+			}
+			fake.AppStateStub = func(
+				namespace string,
+				appName string,
+			) (models.AppState, error) {
+				return state, nil
+			}
+		})
+
+		restart := func() error {
+			epinioClient, err := usercmd.New()
+			Expect(err).ToNot(HaveOccurred())
+
+			epinioClient.Settings = &settings.Settings{Namespace: "workspace"}
+			epinioClient.API = fake
+
+			return epinioClient.AppRestart("appname")
+		}
+
+		It("succeeds when the operation succeeds", func() {
+			state = models.AppState{Operation: &models.AppOperation{
+				ID:    "op1",
+				Phase: models.OperationSucceeded,
+			}}
+
+			Expect(restart()).To(Succeed())
+		})
+
+		It("returns the server's error when the operation fails", func() {
+			state = models.AppState{Operation: &models.AppOperation{
+				ID:    "op1",
+				Phase: models.OperationFailed,
+				Error: "helm upgrade failed",
+			}}
+
+			Expect(restart()).To(MatchError("helm upgrade failed"))
+		})
+
+		It("fails when the server no longer tracks the operation", func() {
+			state = models.AppState{}
+
+			Expect(restart()).To(MatchError(
+				ContainSubstring("no longer tracks the operation"),
+			))
+		})
+
+		It("fails when another operation replaced it", func() {
+			state = models.AppState{Operation: &models.AppOperation{
+				ID:    "op2",
+				Phase: models.OperationStaging,
+			}}
+
+			Expect(restart()).To(MatchError(
+				ContainSubstring("another operation replaced this one"),
+			))
+		})
+	})
+
+	Describe("EnvSet waits for the redeploy it started", func() {
+		var phase models.OperationPhase
+
+		BeforeEach(func() {
+			fake = &usercmdfakes.FakeAPIClient{}
+			app := models.NewAppRef("appname", "workspace")
+			fake.EnvSetReturns(
+				models.OperationsResponse{
+					Operations: []models.AppOperation{{ID: "op1", App: app}},
+					Skipped: []models.SkippedApp{{
+						App:    models.NewAppRef("busy", "workspace"),
+						Reason: "busy",
+					}},
+				},
+				nil,
+			)
+			fake.AppStateStub = func(
+				namespace string,
+				appName string,
+			) (models.AppState, error) {
+				return models.AppState{Operation: &models.AppOperation{
+					ID:    "op1",
+					Phase: phase,
+					Error: "helm failed",
+				}}, nil
+			}
+		})
+
+		envSet := func() error {
+			epinioClient, err := usercmd.New()
+			Expect(err).ToNot(HaveOccurred())
+
+			epinioClient.Settings = &settings.Settings{Namespace: "workspace"}
+			epinioClient.API = fake
+
+			return epinioClient.EnvSet(
+				context.Background(),
+				"appname",
+				"KEY",
+				"value",
+			)
+		}
+
+		It("succeeds once the redeploy succeeds", func() {
+			phase = models.OperationSucceeded
+
+			Expect(envSet()).To(Succeed())
+			Expect(fake.AppStateCallCount()).To(Equal(1))
+		})
+
+		It("names the app whose redeploy failed", func() {
+			phase = models.OperationFailed
+
+			Expect(envSet()).To(MatchError(
+				"redeploy failed for appname: helm failed",
+			))
 		})
 	})
 })

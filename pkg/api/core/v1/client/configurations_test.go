@@ -147,7 +147,7 @@ var _ = Describe("Client Configurations", func() {
 							},
 						},
 					}))
-					Expect(resp).To(Equal(models.Response{}))
+					Expect(resp).To(Equal(models.OperationsResponse{}))
 				})
 			})
 		})

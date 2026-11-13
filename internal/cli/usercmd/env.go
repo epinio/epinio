@@ -84,8 +84,11 @@ func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue st
 	request := models.EnvVariableMap{}
 	request[envName] = envValue
 
-	_, err := c.API.EnvSet(request, c.Settings.Namespace, appName)
+	ops, err := c.API.EnvSet(request, c.Settings.Namespace, appName)
 	if err != nil {
+		return err
+	}
+	if err := c.waitRedeploys(ops); err != nil {
 		return err
 	}
 
@@ -139,8 +142,11 @@ func (c *EpinioClient) EnvUnset(ctx context.Context, appName, envName string) er
 		return err
 	}
 
-	_, err := c.API.EnvUnset(c.Settings.Namespace, appName, envName)
+	ops, err := c.API.EnvUnset(c.Settings.Namespace, appName, envName)
 	if err != nil {
+		return err
+	}
+	if err := c.waitRedeploys(ops); err != nil {
 		return err
 	}
 
