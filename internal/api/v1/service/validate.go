@@ -101,7 +101,9 @@ func ValidateService(
 	}
 
 	if srv.Info.Status != helmrelease.StatusDeployed {
-		return apierror.InternalError(err)
+		// err is nil here: GetRelease succeeded. Do not call InternalError(nil) (panics on err.Error()).
+		return apierror.NewInternalError("service release is not deployed").
+			WithDetailsf("release status: %s", srv.Info.Status)
 	}
 
 	return nil

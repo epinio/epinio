@@ -110,6 +110,8 @@ type HelmValuesMap struct {
 	Affinity                corev1.Affinity             `json:"affinity,omitempty"`
 	Resources               corev1.ResourceRequirements `json:"resources,omitempty"`
 	TTLSecondsAfterFinished int32                       `json:"ttlSecondsAfterFinished,omitempty"`
+	PersistLogs             bool                        `json:"persistLogs,omitempty"`
+	PersistLogsMaxSizeMB    int                         `json:"persistLogsMaxSizeMB,omitempty"`
 	Storage                 struct {
 		SourceBlobs StagingStorageValues `json:"sourceBlobs,omitempty"`
 		Cache       StagingStorageValues `json:"cache,omitempty"`
@@ -391,6 +393,7 @@ func executeStage(
 			fmt.Sprintf("failed to create job run: %#v", job),
 		)
 	}
+	schedulePersistStagingLogsWhenDone(cluster, params.Namespace, params.Stage.ID, []batchv1.Job{*job})
 
 	updateAppError := updateApp(ctx, cluster, app, params)
 	if updateAppError != nil {

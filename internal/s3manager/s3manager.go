@@ -14,6 +14,7 @@
 package s3manager
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -392,4 +393,35 @@ func (m *Manager) DeleteObject(ctx context.Context, objectID string) error {
 		Key:    aws.String(objectID),
 	})
 	return err
+}
+
+// PutObject writes body under the given key, replacing an existing object.
+// Unlike UploadStream the key is chosen by the caller.
+func (m *Manager) PutObject(ctx context.Context, key string, body []byte, contentType string) error {
+	if err := m.EnsureBucket(ctx); err != nil {
+		return errors.Wrap(err, "ensuring bucket")
+	}
+
+	_, err := m.s3Client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:        aws.String(m.connectionDetails.Bucket),
+		Key:           aws.String(key),
+		Body:          bytes.NewReader(body),
+		ContentLength: aws.Int64(int64(len(body))),
+		ContentType:   aws.String(contentType),
+	})
+	if err != nil {
+		if IsQuotaExceededError(err) {
+			return errors.Wrap(err, "storage quota exceeded while writing the object")
+		}
+		return errors.Wrap(err, "writing the object")
+	}
+
+	return nil
+}
+
+// IsNotFound reports whether err means the requested object does not exist.
+func IsNotFound(err error) bool {
+	var noSuchKey *types.NoSuchKey
+	var notFound *types.NotFound
+	return errors.As(err, &noSuchKey) || errors.As(err, &notFound)
 }

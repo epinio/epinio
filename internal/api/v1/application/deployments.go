@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	batchv1 "k8s.io/api/batch/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -484,6 +485,7 @@ func stageForAsyncDeploy(
 	if err := cluster.CreateJob(ctx, helmchart.Namespace(), job); err != nil {
 		return nil, apierror.InternalError(errors.Wrap(err, "failed to create staging job"))
 	}
+	schedulePersistStagingLogsWhenDone(cluster, appRef.Namespace, params.Stage.ID, []batchv1.Job{*job})
 	if err := updateApp(ctx, cluster, app, params); err != nil {
 		return nil, apierror.InternalError(err, "updating application CR with staging information")
 	}
