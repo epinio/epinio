@@ -137,6 +137,10 @@ func UpdateBuilder(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 		manifest.Staging.SourcePath = validated
 	}
 
+	if err := models.ValidateSourcePathForBuildMode(manifest.Staging.BuildMode, manifest.Staging.SourcePath); err != nil {
+		return manifest, errors.Wrap(err, "invalid --source-path")
+	}
+
 	return manifest, nil
 }
 
@@ -459,6 +463,10 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 			return empty, errors.Wrap(err, "invalid staging.sourcePath")
 		}
 		manifest.Staging.SourcePath = validated
+	}
+
+	if err := models.ValidateSourcePathForBuildMode(manifest.Staging.BuildMode, manifest.Staging.SourcePath); err != nil {
+		return empty, errors.Wrap(err, "invalid staging.sourcePath")
 	}
 
 	// Verify that origin information is one-of only.

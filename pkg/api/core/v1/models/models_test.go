@@ -248,3 +248,18 @@ var _ = Describe("NormalizeSourcePathForStaging", func() {
 		Expect(models.NormalizeSourcePathForStaging("apps/web")).To(Equal("apps/web"))
 	})
 })
+
+var _ = Describe("ValidateSourcePathForBuildMode", func() {
+	It("allows source path with buildpack or empty build mode", func() {
+		Expect(models.ValidateSourcePathForBuildMode("", "apps/web")).To(Succeed())
+		Expect(models.ValidateSourcePathForBuildMode(models.BuildModeBuildpack, "apps/web")).To(Succeed())
+		Expect(models.ValidateSourcePathForBuildMode(models.BuildModeDockerfile, "")).To(Succeed())
+	})
+
+	It("rejects source path with dockerfile build mode", func() {
+		err := models.ValidateSourcePathForBuildMode(models.BuildModeDockerfile, "apps/web")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("buildpack staging"))
+		Expect(err.Error()).To(ContainSubstring(models.BuildModeDockerfile))
+	})
+})

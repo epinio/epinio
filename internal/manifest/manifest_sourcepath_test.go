@@ -47,6 +47,13 @@ var _ = Describe("Manifest source path", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid staging.sourcePath"))
 		})
+
+		It("rejects sourcePath combined with dockerfile build mode", func() {
+			_, err := manifest.Get(write("name: foo\nstaging:\n  buildMode: dockerfile\n  sourcePath: apps/web\n"))
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("invalid staging.sourcePath"))
+			Expect(err.Error()).To(ContainSubstring("buildpack staging"))
+		})
 	})
 
 	Describe("UpdateBuilder --source-path", func() {
@@ -96,6 +103,17 @@ var _ = Describe("Manifest source path", func() {
 			_, err := manifest.UpdateBuilder(withStored(), c)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid --source-path"))
+		})
+
+		It("rejects --source-path with --build-mode dockerfile", func() {
+			c := newCmd()
+			Expect(c.Flags().Set("build-mode", models.BuildModeDockerfile)).To(Succeed())
+			Expect(c.Flags().Set("source-path", "apps/web")).To(Succeed())
+
+			_, err := manifest.UpdateBuilder(models.ApplicationManifest{}, c)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("invalid --source-path"))
+			Expect(err.Error()).To(ContainSubstring("buildpack staging"))
 		})
 	})
 })

@@ -144,6 +144,9 @@ func DeploymentsStart(c *gin.Context) apierror.APIErrors {
 			return apierror.NewBadRequestError(err.Error())
 		}
 	}
+	if err := models.ValidateSourcePathForBuildMode(req.BuildMode, req.SourcePath); err != nil {
+		return apierror.NewBadRequestError(err.Error())
+	}
 
 	id, err := asyncDeployJobID()
 	if err != nil {

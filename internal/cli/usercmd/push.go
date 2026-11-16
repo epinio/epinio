@@ -88,6 +88,11 @@ func (c *EpinioClient) AppPush(ctx context.Context, manifest models.ApplicationM
 		manifest.Staging.Builder != "" {
 		msg = msg.WithStringValue("Builder", manifest.Staging.Builder)
 	}
+	// Source path is buildpack-only; reject dockerfile mode early to avoid
+	// confusing users about what --source-path means.
+	if err := models.ValidateSourcePathForBuildMode(manifest.Staging.BuildMode, manifest.Staging.SourcePath); err != nil {
+		return err
+	}
 	if manifest.Origin.Kind != models.OriginContainer &&
 		manifest.Staging.SourcePath != "" {
 		msg = msg.WithStringValue("Source Path", manifest.Staging.SourcePath)

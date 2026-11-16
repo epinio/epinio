@@ -22,11 +22,16 @@ import (
 	"io"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// relativeAppPathPattern allows only simple relative path characters so values
+// stay safe for staging scripts (no spaces, globs, shell metacharacters, etc.).
+var relativeAppPathPattern = regexp.MustCompile(`^[a-zA-Z0-9._/-]+$`)
 
 // Note: Meta is an extension of `ConfigurationRef` later in the file. Users of
 // `ConfigurationRef` should be incrementally switched over to `Meta`.
@@ -167,6 +172,39 @@ func NormalizeBuildMode(mode string) string {
 	return normalized
 }
 
+// validateRelativeAppPath returns a cleaned relative path under application
+// sources. Absolute paths, ".." segments, and unexpected characters are
+// rejected so the value cannot escape /workspace/source/app or break staging
+// scripts. kind is used only in error messages (e.g. "dockerfile path").
+func validateRelativeAppPath(raw, kind string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+
+	// Staging runs on Linux; keep the check host-agnostic for CLI callers.
+	if path.IsAbs(trimmed) || filepath.IsAbs(trimmed) ||
+		(len(trimmed) >= 2 && trimmed[1] == ':') ||
+		strings.HasPrefix(trimmed, `\\`) {
+		return "", fmt.Errorf("invalid %s %q: absolute paths are not allowed", kind, raw)
+	}
+
+	normalized := filepath.ToSlash(trimmed)
+	for _, part := range strings.Split(normalized, "/") {
+		if part == ".." {
+			return "", fmt.Errorf("invalid %s %q: paths must not contain '..'", kind, raw)
+		}
+	}
+
+	cleaned := path.Clean(normalized)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || path.IsAbs(cleaned) {
+		return "", fmt.Errorf("invalid %s %q: path must stay within application sources", kind, raw)
+	}
+
+	if !relativeAppPathPattern.MatchString(cleaned) {
+		return "", fmt.Errorf("invalid %s %q: only letters, digits, '.', '_', '-', and '/' are allowed", kind, raw)
+	}
+
+	return cleaned, nil
+}
+
 // ValidateDockerfilePath returns a safe Dockerfile path relative to app sources.
 // Empty defaults to "Dockerfile". Absolute paths, ".." segments, and unexpected
 // characters are rejected so the value cannot escape /workspace/source/app or
@@ -176,36 +214,7 @@ func ValidateDockerfilePath(dockerfilePath string) (string, error) {
 	if trimmed == "" {
 		return "Dockerfile", nil
 	}
-
-	// Staging runs on Linux; keep the check host-agnostic for CLI callers.
-	if path.IsAbs(trimmed) || filepath.IsAbs(trimmed) ||
-		(len(trimmed) >= 2 && trimmed[1] == ':') ||
-		strings.HasPrefix(trimmed, `\\`) {
-		return "", fmt.Errorf("invalid dockerfile path %q: absolute paths are not allowed", dockerfilePath)
-	}
-
-	normalized := filepath.ToSlash(trimmed)
-	for _, part := range strings.Split(normalized, "/") {
-		if part == ".." {
-			return "", fmt.Errorf("invalid dockerfile path %q: paths must not contain '..'", dockerfilePath)
-		}
-	}
-
-	cleaned := path.Clean(normalized)
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || path.IsAbs(cleaned) {
-		return "", fmt.Errorf("invalid dockerfile path %q: path must stay within application sources", dockerfilePath)
-	}
-
-	// Keep paths simple for shell/Kaniko usage (no spaces, globs, etc.).
-	for _, r := range cleaned {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
-			r == '.' || r == '_' || r == '-' || r == '/' {
-			continue
-		}
-		return "", fmt.Errorf("invalid dockerfile path %q: only letters, digits, '.', '_', '-', and '/' are allowed", dockerfilePath)
-	}
-
-	return cleaned, nil
+	return validateRelativeAppPath(dockerfilePath, "dockerfile path")
 }
 
 // SourcePathRoot is the sentinel value meaning "use the sources archive/repo
@@ -227,36 +236,26 @@ func ValidateSourcePath(sourcePath string) (string, error) {
 		return "", nil
 	}
 
-	if path.IsAbs(trimmed) || filepath.IsAbs(trimmed) ||
-		(len(trimmed) >= 2 && trimmed[1] == ':') ||
-		strings.HasPrefix(trimmed, `\\`) {
-		return "", fmt.Errorf("invalid source path %q: absolute paths are not allowed", sourcePath)
+	cleaned, err := validateRelativeAppPath(sourcePath, "source path")
+	if err != nil {
+		return "", err
 	}
-
-	normalized := filepath.ToSlash(trimmed)
-	for _, part := range strings.Split(normalized, "/") {
-		if part == ".." {
-			return "", fmt.Errorf("invalid source path %q: paths must not contain '..'", sourcePath)
-		}
-	}
-
-	cleaned := path.Clean(normalized)
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || path.IsAbs(cleaned) {
-		return "", fmt.Errorf("invalid source path %q: path must stay within application sources", sourcePath)
-	}
-
-	for _, r := range cleaned {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
-			r == '.' || r == '_' || r == '-' || r == '/' {
-			continue
-		}
-		return "", fmt.Errorf("invalid source path %q: only letters, digits, '.', '_', '-', and '/' are allowed", sourcePath)
-	}
-
 	if cleaned == "." {
 		return SourcePathRoot, nil
 	}
 	return cleaned, nil
+}
+
+// ValidateSourcePathForBuildMode rejects a source path when staging uses
+// dockerfile mode. Source path only affects buildpack staging (SOURCE_PATH).
+func ValidateSourcePathForBuildMode(buildMode, sourcePath string) error {
+	if sourcePath == "" {
+		return nil
+	}
+	if NormalizeBuildMode(buildMode) != BuildModeDockerfile {
+		return nil
+	}
+	return fmt.Errorf("source path is only supported with buildpack staging, not with build mode %q", BuildModeDockerfile)
 }
 
 // NormalizeSourcePathForStaging maps a validated source path to the value

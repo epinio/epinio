@@ -1570,6 +1570,9 @@ func validateStageRequestBuildSettings(req models.StageRequest) apierror.APIErro
 			return apierror.NewBadRequestError(err.Error())
 		}
 	}
+	if err := models.ValidateSourcePathForBuildMode(req.BuildMode, req.SourcePath); err != nil {
+		return apierror.NewBadRequestError(err.Error())
+	}
 	return nil
 }
 
