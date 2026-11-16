@@ -5,19 +5,19 @@
   ],
   "swagger": "2.0",
   "info": {
-    "description": "This is the API specification of the Epinio API",
+    "description": "The Epinio server API, used by the CLI, the dashboard and the MCP server.\n\nRequests authenticate with Basic Auth. Lifecycle\nrequests (stage, deploy, restart, update, source patch, and changes that\nredeploy bound apps) answer 202 with an operation; poll AppState until\nthe operation is done.",
     "title": "Epinio API",
-    "version": "1.0.0"
+    "version": "v1"
   },
   "basePath": "/api/v1",
   "paths": {
     "/appcharts": {
       "get": {
         "tags": [
-          "appcharts"
+          "AppCharts"
         ],
         "summary": "Return list of app charts.",
-        "operationId": "AllCharts",
+        "operationId": "ChartList",
         "responses": {
           "200": {
             "$ref": "#/responses/AppChartsResponse"
@@ -26,7 +26,7 @@
       },
       "post": {
         "tags": [
-          "appcharts"
+          "AppCharts"
         ],
         "summary": "Create a new appchart.",
         "operationId": "ChartCreate",
@@ -48,13 +48,11 @@
     },
     "/appcharts/push": {
       "post": {
-        "description": "Upload a helm chart archive. It is pushed to Epinio's registry, and a new appchart\nreferencing it is created. For the name of an appchart pushed before, which no application uses, its chart is replaced.",
-        "consumes": [
-          "multipart/form-data"
-        ],
+        "description": "The chart is pushed to Epinio's registry, and an app chart is created\nthat references it.",
         "tags": [
-          "appcharts"
+          "AppCharts"
         ],
+        "summary": "Upload a Helm chart archive as a new app chart.",
         "operationId": "ChartPush",
         "parameters": [
           {
@@ -96,7 +94,7 @@
     "/appcharts/{Chart}": {
       "get": {
         "tags": [
-          "appcharts"
+          "AppCharts"
         ],
         "summary": "Return details of the named `Chart`.",
         "operationId": "ChartShow",
@@ -114,29 +112,9 @@
           }
         }
       },
-      "delete": {
-        "tags": [
-          "appcharts"
-        ],
-        "summary": "Delete the named `Chart`. A chart pushed to Epinio's registry is removed from it as well.",
-        "operationId": "ChartDelete",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Chart",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ChartDeleteResponse"
-          }
-        }
-      },
       "patch": {
         "tags": [
-          "appcharts"
+          "AppCharts"
         ],
         "summary": "Update fields on the named `Chart`. The chart and repository cannot be changed while applications use the `Chart`, nor for a chart pushed to Epinio's registry.",
         "operationId": "ChartUpdate",
@@ -160,14 +138,34 @@
             "$ref": "#/responses/ChartUpdateResponse"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "AppCharts"
+        ],
+        "summary": "Delete the named `Chart`. A chart pushed to Epinio's registry is removed from it as well.",
+        "operationId": "ChartDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Chart",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ChartDeleteResponse"
+          }
+        }
       }
     },
     "/appchartsmatch": {
       "get": {
-        "description": "Return the chart names. (No prefix == Empty prefix == All match)",
         "tags": [
-          "appcharts"
+          "AppCharts"
         ],
+        "summary": "Return all app chart names.",
         "operationId": "ChartMatch0",
         "responses": {
           "200": {
@@ -179,7 +177,7 @@
     "/appchartsmatch/{Pattern}": {
       "get": {
         "tags": [
-          "appcharts"
+          "AppCharts"
         ],
         "summary": "Return the chart names with prefix `Pattern`.",
         "operationId": "ChartMatch",
@@ -202,7 +200,7 @@
       "get": {
         "description": "Never-deployed apps (buildstatus create|build) are omitted; use AllAppsUndeployed for those.",
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Return list of applications in all namespaces.",
         "operationId": "AllApps",
@@ -243,12 +241,51 @@
         }
       }
     },
+    "/applications/grouped": {
+      "get": {
+        "description": "Each namespace is paginated independently, replacing one call per namespace.\nNamespaces the user cannot access are omitted entirely.",
+        "tags": [
+          "Applications"
+        ],
+        "summary": "Return the applications of every visible namespace, grouped by namespace name.",
+        "operationId": "AllAppsGrouped",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Search",
+            "description": "Case-insensitive substring match on the application name",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Page",
+            "description": "Page number, 1-based (default 1)",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "PageSize",
+            "description": "Items per page (default 10)",
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AllAppsGroupedResponse"
+          }
+        }
+      }
+    },
     "/applications/undeployed": {
       "get": {
+        "description": "Lists apps with build status `create` or `build`, which includes apps\nrebuilt after a deploy.",
         "tags": [
-          "application"
+          "Applications"
         ],
-        "summary": "Return list of never-deployed applications (buildstatus create|build) in all namespaces.",
+        "summary": "Return the applications not deployed yet, in all namespaces.",
         "operationId": "AllAppsUndeployed",
         "parameters": [
           {
@@ -287,10 +324,24 @@
         }
       }
     },
+    "/authtoken": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Return a JWT token for the authenticated user, for use by subsequent logins.",
+        "operationId": "AuthToken",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AuthTokenResponse"
+          }
+        }
+      }
+    },
     "/builderimages": {
       "get": {
         "tags": [
-          "builderimages"
+          "BuilderImages"
         ],
         "summary": "Return list of builderimages.",
         "operationId": "BuilderImageList",
@@ -302,7 +353,7 @@
       },
       "post": {
         "tags": [
-          "builderimages"
+          "BuilderImages"
         ],
         "summary": "Create a new builderimage.",
         "operationId": "BuilderImageCreate",
@@ -325,7 +376,7 @@
     "/builderimages/{BuilderImage}": {
       "get": {
         "tags": [
-          "builderimages"
+          "BuilderImages"
         ],
         "summary": "Return details of the named `BuilderImage`.",
         "operationId": "BuilderImageShow",
@@ -343,29 +394,9 @@
           }
         }
       },
-      "delete": {
-        "tags": [
-          "builderimages"
-        ],
-        "summary": "Delete the named `BuilderImage`.",
-        "operationId": "BuilderImageDelete",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "BuilderImage",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/BuilderImageDeleteResponse"
-          }
-        }
-      },
       "patch": {
         "tags": [
-          "builderimages"
+          "BuilderImages"
         ],
         "summary": "Update fields on the named `BuilderImage`.",
         "operationId": "BuilderImageUpdate",
@@ -389,14 +420,34 @@
             "$ref": "#/responses/BuilderImageUpdateResponse"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "BuilderImages"
+        ],
+        "summary": "Delete the named `BuilderImage`.",
+        "operationId": "BuilderImageDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "BuilderImage",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/BuilderImageDeleteResponse"
+          }
+        }
       }
     },
     "/builderimagesmatch": {
       "get": {
-        "description": "Return all builderimage names. (Empty prefix == all match)",
         "tags": [
-          "builderimages"
+          "BuilderImages"
         ],
+        "summary": "Return all builder image names.",
         "operationId": "BuilderImageMatch0",
         "responses": {
           "200": {
@@ -408,7 +459,7 @@
     "/builderimagesmatch/{Pattern}": {
       "get": {
         "tags": [
-          "builderimages"
+          "BuilderImages"
         ],
         "summary": "Return the builderimage names with prefix `Pattern`.",
         "operationId": "BuilderImageMatch",
@@ -430,7 +481,7 @@
     "/catalogservices": {
       "get": {
         "tags": [
-          "service"
+          "CatalogServices"
         ],
         "summary": "Return all available Epinio Catalog services.",
         "operationId": "ServiceCatalog",
@@ -442,7 +493,7 @@
       },
       "post": {
         "tags": [
-          "service"
+          "CatalogServices"
         ],
         "summary": "Create a new catalog service.",
         "operationId": "ServiceCatalogCreate",
@@ -465,7 +516,7 @@
     "/catalogservices/{CatalogService}": {
       "get": {
         "tags": [
-          "service"
+          "CatalogServices"
         ],
         "summary": "Return details of the named Epinio `CatalogService`.",
         "operationId": "ServiceCatalogShow",
@@ -483,29 +534,9 @@
           }
         }
       },
-      "delete": {
-        "tags": [
-          "service"
-        ],
-        "summary": "Delete the named `CatalogService`.",
-        "operationId": "ServiceCatalogDelete",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "CatalogService",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ServiceCatalogDeleteResponse"
-          }
-        }
-      },
       "patch": {
         "tags": [
-          "service"
+          "CatalogServices"
         ],
         "summary": "Update fields on the named `CatalogService`.",
         "operationId": "ServiceCatalogUpdate",
@@ -529,15 +560,50 @@
             "$ref": "#/responses/ServiceCatalogUpdateResponse"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "CatalogServices"
+        ],
+        "summary": "Delete the named `CatalogService`.",
+        "operationId": "ServiceCatalogDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "CatalogService",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceCatalogDeleteResponse"
+          }
+        }
+      }
+    },
+    "/catalogservicesmatches": {
+      "get": {
+        "description": "(No prefix == empty prefix == match everything)",
+        "tags": [
+          "CatalogServices"
+        ],
+        "summary": "Return list of names for all catalog services.",
+        "operationId": "ServiceCatalogMatch0",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/CatalogMatchResponse"
+          }
+        }
       }
     },
     "/catalogservicesmatches/{Pattern}": {
       "get": {
         "tags": [
-          "catalogservice"
+          "CatalogServices"
         ],
         "summary": "Return list of names for all catalog entries whose name matches the prefix `Pattern`.",
-        "operationId": "CatalogServiceMatch",
+        "operationId": "ServiceCatalogMatch",
         "parameters": [
           {
             "type": "string",
@@ -556,7 +622,7 @@
     "/configurations": {
       "get": {
         "tags": [
-          "configuration"
+          "Configurations"
         ],
         "summary": "Return list of configurations in all namespaces.",
         "operationId": "AllConfigurations",
@@ -599,10 +665,10 @@
     },
     "/exportregistries": {
       "get": {
-        "description": "Return list of all export registries",
         "tags": [
-          "exportregistry"
+          "ExportRegistries"
         ],
+        "summary": "Return all export registries.",
         "operationId": "Exportregistries",
         "responses": {
           "200": {
@@ -613,11 +679,11 @@
     },
     "/exportregistrymatches": {
       "get": {
-        "description": "Return list of names for all controlled exportregistries (No prefix = empty prefix = match everything)",
         "tags": [
-          "exportregistry"
+          "ExportRegistries"
         ],
-        "operationId": "ExportregistryMatch0",
+        "summary": "Return all export registry names.",
+        "operationId": "ExportregistriesMatch0",
         "responses": {
           "200": {
             "$ref": "#/responses/ExportregistryMatchResponse"
@@ -628,10 +694,10 @@
     "/exportregistrymatches/{Pattern}": {
       "get": {
         "tags": [
-          "exportregistry"
+          "ExportRegistries"
         ],
         "summary": "Return list of names for all controlled exportregistries whose name matches the prefix `Pattern`.",
-        "operationId": "ExportregistryMatch",
+        "operationId": "ExportregistriesMatch",
         "parameters": [
           {
             "type": "string",
@@ -647,46 +713,10 @@
         }
       }
     },
-    "/gitconfigmatches": {
-      "get": {
-        "description": "Return list of names for all controlled gitconfigs (No prefix = empty prefix = match everything)",
-        "tags": [
-          "gitconfig"
-        ],
-        "operationId": "GitconfigMatch0",
-        "responses": {
-          "200": {
-            "$ref": "#/responses/GitconfigMatchResponse"
-          }
-        }
-      }
-    },
-    "/gitconfigmatches/{Pattern}": {
-      "get": {
-        "tags": [
-          "gitconfig"
-        ],
-        "summary": "Return list of names for all controlled gitconfigs whose name matches the prefix `Pattern`.",
-        "operationId": "GitconfigMatch",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Pattern",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/GitconfigMatchResponse"
-          }
-        }
-      }
-    },
     "/gitconfigs": {
       "get": {
         "tags": [
-          "gitconfig"
+          "GitConfigs"
         ],
         "summary": "Return list of all controlled gitconfigs.",
         "operationId": "Gitconfigs",
@@ -698,7 +728,7 @@
       },
       "post": {
         "tags": [
-          "gitconfig"
+          "GitConfigs"
         ],
         "summary": "Create the posted new gitconfig.",
         "operationId": "GitconfigCreate",
@@ -718,6 +748,9 @@
         }
       },
       "delete": {
+        "tags": [
+          "GitConfigs"
+        ],
         "summary": "Delete the named gitconfigs.",
         "operationId": "GitconfigBatchDelete",
         "parameters": [
@@ -741,10 +774,10 @@
     "/gitconfigs/{Gitconfig}": {
       "get": {
         "tags": [
-          "gitconfig"
+          "GitConfigs"
         ],
         "summary": "Return details of the named `Gitconfig`.",
-        "operationId": "Gitconfigshow",
+        "operationId": "GitconfigShow",
         "parameters": [
           {
             "type": "string",
@@ -761,7 +794,7 @@
       },
       "delete": {
         "tags": [
-          "gitconfig"
+          "GitConfigs"
         ],
         "summary": "Delete the named `Gitconfig`.",
         "operationId": "GitconfigDelete",
@@ -780,12 +813,72 @@
         }
       }
     },
+    "/gitconfigsmatch": {
+      "get": {
+        "tags": [
+          "GitConfigs"
+        ],
+        "summary": "Return all git configuration names.",
+        "operationId": "GitconfigsMatch0",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigMatchResponse"
+          }
+        }
+      }
+    },
+    "/gitconfigsmatch/{Pattern}": {
+      "get": {
+        "tags": [
+          "GitConfigs"
+        ],
+        "summary": "Return list of names for all controlled gitconfigs whose name matches the prefix `Pattern`.",
+        "operationId": "GitconfigsMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitconfigMatchResponse"
+          }
+        }
+      }
+    },
+    "/gitproxy": {
+      "post": {
+        "description": "The dashboard uses it to browse repositories, branches and commits with\nthe credentials of a git configuration.",
+        "tags": [
+          "GitProxy"
+        ],
+        "summary": "Proxy a request to the GitHub or GitLab API.",
+        "operationId": "GitProxy",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/GitProxyRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GitProxyResponse"
+          }
+        }
+      }
+    },
     "/info": {
       "get": {
-        "description": "Return server system information",
         "tags": [
-          "info"
+          "Info"
         ],
+        "summary": "Return information about the Epinio server.",
         "operationId": "Info",
         "responses": {
           "200": {
@@ -794,98 +887,27 @@
         }
       }
     },
-    "/namespace/{Namespace}/appsmatches/{Pattern}": {
-      "get": {
-        "description": "Return list of names for all applications whose name matches the prefix `Pattern`.",
-        "tags": [
-          "application"
-        ],
-        "summary": "Set includeUndeployed=true to also match never-deployed (undeployed) apps.",
-        "operationId": "AppMatch",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "Pattern",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/AppMatchResponse"
-          }
-        }
-      }
-    },
-    "/namespace/{Namespace}/configurationsmatches/{Pattern}": {
+    "/me": {
       "get": {
         "tags": [
-          "configuration"
+          "Auth"
         ],
-        "summary": "Return list of names for all configurations whose name matches the prefix `Pattern`.",
-        "operationId": "ConfigurationMatch",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "Pattern",
-            "in": "path",
-            "required": true
-          }
-        ],
+        "summary": "Return the authenticated user.",
+        "operationId": "Me",
         "responses": {
           "200": {
-            "$ref": "#/responses/ConfigurationMatchResponse"
-          }
-        }
-      }
-    },
-    "/namespace/{Namespace}/servicesmatches/{Pattern}": {
-      "get": {
-        "tags": [
-          "service"
-        ],
-        "summary": "Return list of names for all services whose name matches the prefix `Pattern`.",
-        "operationId": "ServiceMatch",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "Pattern",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ServiceMatchResponse"
+            "$ref": "#/responses/MeResponse"
           }
         }
       }
     },
     "/namespacematches": {
       "get": {
-        "description": "Return list of names for all controlled namespaces (No prefix = empty prefix = match everything)",
         "tags": [
-          "namespace"
+          "Namespaces"
         ],
-        "operationId": "NamespaceMatch0",
+        "summary": "Return all namespace names.",
+        "operationId": "NamespacesMatch0",
         "responses": {
           "200": {
             "$ref": "#/responses/NamespaceMatchResponse"
@@ -896,10 +918,10 @@
     "/namespacematches/{Pattern}": {
       "get": {
         "tags": [
-          "namespace"
+          "Namespaces"
         ],
         "summary": "Return list of names for all controlled namespaces whose name matches the prefix `Pattern`.",
-        "operationId": "NamespaceMatch",
+        "operationId": "NamespacesMatch",
         "parameters": [
           {
             "type": "string",
@@ -918,7 +940,7 @@
     "/namespaces": {
       "get": {
         "tags": [
-          "namespace"
+          "Namespaces"
         ],
         "summary": "Return list of all controlled namespaces.",
         "operationId": "Namespaces",
@@ -960,7 +982,7 @@
       },
       "post": {
         "tags": [
-          "namespace"
+          "Namespaces"
         ],
         "summary": "Create the posted new namespace.",
         "operationId": "NamespaceCreate",
@@ -980,6 +1002,9 @@
         }
       },
       "delete": {
+        "tags": [
+          "Namespaces"
+        ],
         "summary": "Delete the named namespaces.",
         "operationId": "NamespaceBatchDelete",
         "parameters": [
@@ -1003,7 +1028,7 @@
     "/namespaces/{Namespace}": {
       "get": {
         "tags": [
-          "namespace"
+          "Namespaces"
         ],
         "summary": "Return details of the named `Namespace`.",
         "operationId": "NamespaceShow",
@@ -1023,7 +1048,7 @@
       },
       "delete": {
         "tags": [
-          "namespace"
+          "Namespaces"
         ],
         "summary": "Delete the named `Namespace`.",
         "operationId": "NamespaceDelete",
@@ -1046,7 +1071,7 @@
       "get": {
         "description": "Never-deployed apps (buildstatus create|build) are omitted; use AppsUndeployed for those.",
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Return list of applications in the `Namespace`.",
         "operationId": "Apps",
@@ -1087,7 +1112,7 @@
       },
       "post": {
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Create the posted new application in the `Namespace`.",
         "operationId": "AppCreate",
@@ -1113,6 +1138,9 @@
         }
       },
       "delete": {
+        "tags": [
+          "Applications"
+        ],
         "summary": "Delete the named `Applications` in the `Namespace`.",
         "operationId": "AppBatchDelete",
         "parameters": [
@@ -1141,11 +1169,11 @@
     },
     "/namespaces/{Namespace}/applications/undeployed": {
       "get": {
-        "description": "Supports the same search and pagination query parameters as Apps.",
+        "description": "Lists apps with build status `create` or `build`, which includes apps\nrebuilt after a deploy.",
         "tags": [
-          "application"
+          "Applications"
         ],
-        "summary": "Return list of never-deployed applications (buildstatus create|build) in the `Namespace`.",
+        "summary": "Return the applications not deployed yet, in the `Namespace`.",
         "operationId": "AppsUndeployed",
         "parameters": [
           {
@@ -1187,7 +1215,7 @@
       "get": {
         "description": "Works for both deployed and never-deployed (create|build) apps.\nThe response includes `configuration.environment` (user-set variables only) and\n`configuration.environment_grouped` (user and service-provided variables, same structure as GET .../environment?grouped=true).",
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Return details of the named `App` in the `Namespace`.",
         "operationId": "AppShow",
@@ -1211,37 +1239,12 @@
           }
         }
       },
-      "delete": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Delete the named `App` in the `Namespace`.",
-        "operationId": "AppDelete",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "App",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/AppDeleteResponse"
-          }
-        }
-      },
       "patch": {
+        "description": "Saves the changes, then answers 200 when nothing has to be redeployed,\nor 202 with the redeploy operation when it does (instances, chart, or a\nrestart of a running app).",
         "tags": [
-          "application"
+          "Applications"
         ],
-        "summary": "Patch the named `App` in the `Namespace`.",
+        "summary": "Update the named `App` in the `Namespace`.",
         "operationId": "AppUpdate",
         "parameters": [
           {
@@ -1267,6 +1270,38 @@
         "responses": {
           "200": {
             "$ref": "#/responses/AppUpdateResponse"
+          },
+          "202": {
+            "$ref": "#/responses/AppOperationResponse"
+          },
+          "409": {
+            "$ref": "#/responses/ErrorResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Applications"
+        ],
+        "summary": "Delete the named `App` in the `Namespace`.",
+        "operationId": "AppDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppDeleteResponse"
           }
         }
       }
@@ -1274,7 +1309,7 @@
     "/namespaces/{Namespace}/applications/{App}/build": {
       "delete": {
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Delete the current build of the named `App` in the `Namespace` without deleting the app.",
         "operationId": "AppBuildDelete",
@@ -1302,7 +1337,7 @@
     "/namespaces/{Namespace}/applications/{App}/configurationbindings": {
       "post": {
         "tags": [
-          "svc-binding"
+          "ConfigurationBindings"
         ],
         "summary": "Create configuration binding between `App` in `Namespace`, and the posted configurations, also in `Namespace`.",
         "operationId": "ConfigurationBindingCreate",
@@ -1330,6 +1365,9 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ConfigurationBindResponse"
+          },
+          "202": {
+            "$ref": "#/responses/ConfigurationBindResponse"
           }
         }
       }
@@ -1337,7 +1375,7 @@
     "/namespaces/{Namespace}/applications/{App}/configurationbindings/{Configuration}": {
       "delete": {
         "tags": [
-          "svc-binding"
+          "ConfigurationBindings"
         ],
         "summary": "Remove configuration binding between `App` and `Configuration` in `Namespace`.",
         "operationId": "ConfigurationBindingDelete",
@@ -1363,17 +1401,21 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ConfigurationUnbindReponse"
+            "$ref": "#/responses/ConfigurationUnbindResponse"
+          },
+          "202": {
+            "$ref": "#/responses/OperationsResponse"
           }
         }
       }
     },
     "/namespaces/{Namespace}/applications/{App}/deploy": {
       "post": {
+        "description": "Starts a deploy operation and answers 202 with it. With `image` set it\ndeploys that image (`stage` names the build that produced it). Without\nit, it builds first, from the same sources AppStage accepts, then\ndeploys the result. Poll AppState until the operation is done.",
         "tags": [
-          "application"
+          "Applications"
         ],
-        "summary": "Create the deployment, configuration and ingress resources for the named `App` in the `Namespace`.",
+        "summary": "Deploy the named `App` in the `Namespace`.",
         "operationId": "AppDeploy",
         "parameters": [
           {
@@ -1397,8 +1439,14 @@
           }
         ],
         "responses": {
-          "200": {
-            "$ref": "#/responses/AppDeployResponse"
+          "202": {
+            "$ref": "#/responses/AppOperationResponse"
+          },
+          "400": {
+            "$ref": "#/responses/ErrorResponse"
+          },
+          "409": {
+            "$ref": "#/responses/ErrorResponse"
           }
         }
       }
@@ -1406,7 +1454,7 @@
     "/namespaces/{Namespace}/applications/{App}/environment": {
       "get": {
         "tags": [
-          "app-env"
+          "Environment"
         ],
         "summary": "Return the environment variable assignments for the `App` in the namespace`.",
         "operationId": "EnvList",
@@ -1432,7 +1480,7 @@
       },
       "post": {
         "tags": [
-          "app-env"
+          "Environment"
         ],
         "summary": "Create/modify the posted environment variable assignments for the `App` in the `Namespace`.",
         "operationId": "EnvSet",
@@ -1460,6 +1508,9 @@
         "responses": {
           "200": {
             "$ref": "#/responses/EnvSetResponse"
+          },
+          "202": {
+            "$ref": "#/responses/OperationsResponse"
           }
         }
       }
@@ -1467,7 +1518,7 @@
     "/namespaces/{Namespace}/applications/{App}/environment/{Env}": {
       "get": {
         "tags": [
-          "app-env"
+          "Environment"
         ],
         "summary": "Return the named `Env` variable assignment for the `App` in the `Namespace`.",
         "operationId": "EnvShow",
@@ -1499,7 +1550,7 @@
       },
       "delete": {
         "tags": [
-          "app-env"
+          "Environment"
         ],
         "summary": "Remove the named `Env` variable from the `App` in the `Namespace`.",
         "operationId": "EnvUnset",
@@ -1526,16 +1577,19 @@
         "responses": {
           "200": {
             "$ref": "#/responses/EnvUnsetResponse"
+          },
+          "202": {
+            "$ref": "#/responses/OperationsResponse"
           }
         }
       }
     },
     "/namespaces/{Namespace}/applications/{App}/environmentmatch": {
       "get": {
-        "description": "Return the environment variable names of the `App` in the `Namespace`. (No prefix == Empty prefix == All match)",
         "tags": [
-          "app-env"
+          "Environment"
         ],
+        "summary": "Return all environment variable names of the `App`.",
         "operationId": "EnvMatch0",
         "parameters": [
           {
@@ -1561,7 +1615,7 @@
     "/namespaces/{Namespace}/applications/{App}/environmentmatch/{Pattern}": {
       "get": {
         "tags": [
-          "app-env"
+          "Environment"
         ],
         "summary": "Return the environment variable names of the `App` in the `Namespace` with prefix `Pattern`.",
         "operationId": "EnvMatch",
@@ -1595,7 +1649,7 @@
     "/namespaces/{Namespace}/applications/{App}/exec": {
       "get": {
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Get a shell to the `App` in the `Namespace`.",
         "operationId": "AppExec",
@@ -1628,7 +1682,7 @@
     "/namespaces/{Namespace}/applications/{App}/export": {
       "post": {
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Export the named `App` in the `Namespace`.",
         "operationId": "AppExport",
@@ -1660,48 +1714,10 @@
         }
       }
     },
-    "/namespaces/{Namespace}/applications/{App}/import-git": {
-      "post": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Store the named `App` from a Git repo in the `Namespace`.",
-        "operationId": "AppImportGit",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "App",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "GitUrl",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "GitRev",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/AppImportGitResponse"
-          }
-        }
-      }
-    },
     "/namespaces/{Namespace}/applications/{App}/logs": {
       "get": {
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Return logs of the named `App` in the `Namespace` streamed over a websocket.",
         "operationId": "AppLogs",
@@ -1771,7 +1787,7 @@
     "/namespaces/{Namespace}/applications/{App}/part/{Part}": {
       "get": {
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Return parts of the named `App` in the `Namespace`.",
         "operationId": "AppPart",
@@ -1805,7 +1821,7 @@
     "/namespaces/{Namespace}/applications/{App}/portforward": {
       "get": {
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Get a shell to the `App` in the `Namespace`.",
         "operationId": "AppPortForward",
@@ -1837,8 +1853,9 @@
     },
     "/namespaces/{Namespace}/applications/{App}/restart": {
       "post": {
+        "description": "Restarts the deployed image; it never switches to a newer build. Deploy a\nbuild with AppDeploy. Starts a restart operation and answers 202 with it.\nPoll AppState until the operation is done.",
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Restart the named `App` in the `Namespace`.",
         "operationId": "AppRestart",
@@ -1857,19 +1874,65 @@
           }
         ],
         "responses": {
-          "200": {
-            "$ref": "#/responses/AppRestartResponse"
+          "202": {
+            "$ref": "#/responses/AppOperationResponse"
+          },
+          "400": {
+            "$ref": "#/responses/ErrorResponse"
+          },
+          "409": {
+            "$ref": "#/responses/ErrorResponse"
           }
         }
       }
     },
-    "/namespaces/{Namespace}/applications/{App}/running": {
-      "get": {
+    "/namespaces/{Namespace}/applications/{App}/servicebindings": {
+      "post": {
+        "description": "All services are validated before any binding is applied.",
         "tags": [
-          "application"
+          "Services"
         ],
-        "summary": "Wait for the named `App` in the `Namespace` to be running.",
-        "operationId": "AppRunning",
+        "summary": "Bind several services to the named `App` in the `Namespace` in one call.",
+        "operationId": "ServiceBatchBind",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceBatchBindRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceBatchBindResponse"
+          },
+          "202": {
+            "$ref": "#/responses/OperationsResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/applications/{App}/source": {
+      "get": {
+        "description": "Fails with 400 when the application has no stored source.",
+        "tags": [
+          "Applications"
+        ],
+        "summary": "Return the stored source blob of the named `App` in the `Namespace` as a tar archive.",
+        "operationId": "AppSource",
         "parameters": [
           {
             "type": "string",
@@ -1886,18 +1949,16 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/AppRunningResponse"
+            "$ref": "#/responses/AppSourceResponse"
           }
         }
-      }
-    },
-    "/namespaces/{Namespace}/applications/{App}/source": {
+      },
       "patch": {
-        "description": "The multipart body carries the source archive and an optional `process_cmd`\nform field (supervisor fallback command for non-Paketo buildpacks).",
+        "description": "The multipart body carries the source archive and an optional\n`process_cmd` form field (supervisor fallback command for non-Paketo\nbuildpacks). Answers 202 with an operation that already carries the\n`stage_id`; it builds and swaps the new image into the running pod.",
         "tags": [
-          "application"
+          "Applications"
         ],
-        "summary": "Replace the source of the named `App` in the `Namespace` and restage it.",
+        "summary": "Replace the source of the named `App` in the `Namespace` and rebuild it.",
         "operationId": "AppSourcePatch",
         "parameters": [
           {
@@ -1914,18 +1975,22 @@
           }
         ],
         "responses": {
-          "200": {
-            "$ref": "#/responses/AppStageResponse"
+          "202": {
+            "$ref": "#/responses/AppOperationResponse"
+          },
+          "409": {
+            "$ref": "#/responses/ErrorResponse"
           }
         }
       }
     },
     "/namespaces/{Namespace}/applications/{App}/stage": {
       "post": {
+        "description": "Starts a build operation and answers 202 with it. The source is the\nuploaded `blobuid`, else the stored blob, else the git origin, which the\nserver clones and stamps with the resolved branch and commit. Poll\nAppState until the operation is done; its `stage_id` names the build\nfor the staging logs. The build does not deploy.",
         "tags": [
-          "application"
+          "Applications"
         ],
-        "summary": "Create the resources needed to stage the named `App` in the `Namespace`.",
+        "summary": "Build an image for the named `App` in the `Namespace`.",
         "operationId": "AppStage",
         "parameters": [
           {
@@ -1949,8 +2014,43 @@
           }
         ],
         "responses": {
+          "202": {
+            "$ref": "#/responses/AppOperationResponse"
+          },
+          "400": {
+            "$ref": "#/responses/ErrorResponse"
+          },
+          "409": {
+            "$ref": "#/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/applications/{App}/state": {
+      "get": {
+        "description": "One call for status, build status, current stage and the latest\noperation. While an operation stages or deploys, `status` reports that\nphase. `operation` is absent after a server restart or once the record\nof a finished operation expired.",
+        "tags": [
+          "Applications"
+        ],
+        "summary": "Return the lifecycle state of the named `App` in the `Namespace`.",
+        "operationId": "AppState",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
           "200": {
-            "$ref": "#/responses/AppStageResponse"
+            "$ref": "#/responses/AppStateResponse"
           }
         }
       }
@@ -1958,7 +2058,7 @@
     "/namespaces/{Namespace}/applications/{App}/store": {
       "post": {
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Store the named `App` in the `Namespace`.",
         "operationId": "AppUpload",
@@ -1985,10 +2085,11 @@
     },
     "/namespaces/{Namespace}/applications/{App}/sync": {
       "post": {
-        "description": "Sync changed files or a compiled binary into the running pod of the named\n`App` in the `Namespace`. The multipart body carries the tar archive plus\n`mode` (\"files\" or \"binary\"), and optional `dest` and `binary_name` form\nfields.",
+        "description": "The multipart body carries the tar archive plus `mode` (\"files\" or\n\"binary\"), and optional `dest` and `binary_name` form fields.",
         "tags": [
-          "application"
+          "Applications"
         ],
+        "summary": "Sync files or a binary into the running pod of the `App`.",
         "operationId": "AppSync",
         "parameters": [
           {
@@ -2012,11 +2113,11 @@
       }
     },
     "/namespaces/{Namespace}/applications/{App}/validate-cv": {
-      "post": {
-        "description": "Validate the chart values configured for the named `App` in the given `Namespace` against the\nconfigured app chart.",
+      "get": {
         "tags": [
-          "application"
+          "Applications"
         ],
+        "summary": "Validate the chart values of the `App` against its app chart.",
         "operationId": "AppValidateCV",
         "parameters": [
           {
@@ -2039,10 +2140,62 @@
         }
       }
     },
+    "/namespaces/{Namespace}/appsmatches": {
+      "get": {
+        "description": "(No prefix == empty prefix == match everything)",
+        "tags": [
+          "Applications"
+        ],
+        "summary": "Return list of names for all applications in the `Namespace`.",
+        "operationId": "AppMatch0",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/appsmatches/{Pattern}": {
+      "get": {
+        "description": "Return list of names for all applications whose name matches the prefix `Pattern`.",
+        "tags": [
+          "Applications"
+        ],
+        "summary": "Set includeUndeployed=true to also match never-deployed (undeployed) apps.",
+        "operationId": "AppMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppMatchResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/configurationapps": {
       "get": {
         "tags": [
-          "configuration"
+          "Configurations"
         ],
         "summary": "Return map from configurations in the `Namespace`, to the apps in the same.",
         "operationId": "ConfigurationApps",
@@ -2064,7 +2217,7 @@
     "/namespaces/{Namespace}/configurations": {
       "get": {
         "tags": [
-          "configuration"
+          "Configurations"
         ],
         "summary": "Return list of configurations in the `Namespace`.",
         "operationId": "Configurations",
@@ -2084,7 +2237,7 @@
       },
       "post": {
         "tags": [
-          "configuration"
+          "Configurations"
         ],
         "summary": "Create the posted new configuration in the `Namespace`.",
         "operationId": "ConfigurationCreate",
@@ -2110,6 +2263,9 @@
         }
       },
       "delete": {
+        "tags": [
+          "Configurations"
+        ],
         "summary": "Delete the named `Configurations` in the `Namespace`.",
         "operationId": "ConfigurationBatchDelete",
         "parameters": [
@@ -2139,6 +2295,9 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ConfigurationDeleteResponse"
+          },
+          "202": {
+            "$ref": "#/responses/ConfigurationDeleteResponse"
           }
         }
       }
@@ -2146,7 +2305,7 @@
     "/namespaces/{Namespace}/configurations/{Configuration}": {
       "get": {
         "tags": [
-          "configuration"
+          "Configurations"
         ],
         "summary": "Return details of the named `Configuration` in the `Namespace`.",
         "operationId": "ConfigurationShow",
@@ -2171,10 +2330,11 @@
         }
       },
       "put": {
-        "description": "Replace the named `Configuration` in the `Namespace` as per the instructions in the body",
+        "description": "Answers 202 with the redeploys of the running apps bound to it, when the\ndata changed.",
         "tags": [
-          "configuration"
+          "Configurations"
         ],
+        "summary": "Replace the data of the named `Configuration` in the `Namespace`.",
         "operationId": "ConfigurationReplace",
         "parameters": [
           {
@@ -2200,12 +2360,52 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ConfigurationReplaceResponse"
+          },
+          "202": {
+            "$ref": "#/responses/OperationsResponse"
+          }
+        }
+      },
+      "patch": {
+        "description": "Answers 202 with the redeploys of the running apps bound to it, unless\nthe request turns restarts off.",
+        "tags": [
+          "Configurations"
+        ],
+        "summary": "Update the named `Configuration` in the `Namespace`.",
+        "operationId": "ConfigurationUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Configuration",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ConfigurationUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ConfigurationUpdateResponse"
+          },
+          "202": {
+            "$ref": "#/responses/OperationsResponse"
           }
         }
       },
       "delete": {
         "tags": [
-          "configuration"
+          "Configurations"
         ],
         "summary": "Delete the named `Configuration` in the `Namespace`.",
         "operationId": "ConfigurationDelete",
@@ -2233,15 +2433,43 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ConfigurationDeleteResponse"
+          },
+          "202": {
+            "$ref": "#/responses/ConfigurationDeleteResponse"
           }
         }
-      },
-      "patch": {
-        "description": "Update the named `Configuration` in the `Namespace` as per the instructions in the body",
+      }
+    },
+    "/namespaces/{Namespace}/configurationsmatches": {
+      "get": {
+        "description": "(No prefix == empty prefix == match everything)",
         "tags": [
-          "configuration"
+          "Configurations"
         ],
-        "operationId": "ConfigurationUpdate",
+        "summary": "Return list of names for all configurations in the `Namespace`.",
+        "operationId": "ConfigurationMatch0",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ConfigurationMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/configurationsmatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "Configurations"
+        ],
+        "summary": "Return list of names for all configurations whose name matches the prefix `Pattern`.",
+        "operationId": "ConfigurationMatch",
         "parameters": [
           {
             "type": "string",
@@ -2251,21 +2479,14 @@
           },
           {
             "type": "string",
-            "name": "Configuration",
+            "name": "Pattern",
             "in": "path",
             "required": true
-          },
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/ConfigurationUpdateRequest"
-            }
           }
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ConfigurationUpdateResponse"
+            "$ref": "#/responses/ConfigurationMatchResponse"
           }
         }
       }
@@ -2273,7 +2494,7 @@
     "/namespaces/{Namespace}/serviceapps": {
       "get": {
         "tags": [
-          "service"
+          "Services"
         ],
         "summary": "Return map from services in the `Namespace`, to the apps in the same.",
         "operationId": "ServiceApps",
@@ -2295,7 +2516,7 @@
     "/namespaces/{Namespace}/services": {
       "get": {
         "tags": [
-          "service"
+          "Services"
         ],
         "summary": "Return list of services in the `Namespace`.",
         "operationId": "ServiceList",
@@ -2315,7 +2536,7 @@
       },
       "post": {
         "tags": [
-          "service"
+          "Services"
         ],
         "summary": "Create a named service of an Epinio catalog service in the `Namespace`.",
         "operationId": "ServiceCreate",
@@ -2341,6 +2562,9 @@
         }
       },
       "delete": {
+        "tags": [
+          "Services"
+        ],
         "summary": "Delete the named `Services` in the `Namespace`.",
         "operationId": "ServiceBatchDelete",
         "parameters": [
@@ -2370,6 +2594,9 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceDeleteResponse"
+          },
+          "202": {
+            "$ref": "#/responses/ServiceDeleteResponse"
           }
         }
       }
@@ -2377,7 +2604,7 @@
     "/namespaces/{Namespace}/services/{Service}": {
       "get": {
         "tags": [
-          "service"
+          "Services"
         ],
         "summary": "Return details of the named `Service` in the `Namespace`.",
         "operationId": "ServiceShow",
@@ -2402,10 +2629,11 @@
         }
       },
       "put": {
-        "description": "Replace the named `Service` in the `Namespace` as per the instructions in the body",
+        "description": "Bound apps are redeployed after the service deploys, which can be after\nthis response; poll AppState for each app.",
         "tags": [
-          "service"
+          "Services"
         ],
+        "summary": "Replace the settings of the named `Service` in the `Namespace`.",
         "operationId": "ServiceReplace",
         "parameters": [
           {
@@ -2434,44 +2662,12 @@
           }
         }
       },
-      "delete": {
-        "tags": [
-          "service"
-        ],
-        "summary": "Delete the named `Service` in the `Namespace`.",
-        "operationId": "ServiceDelete",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "Service",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/ServiceDeleteRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ServiceDeleteResponse"
-          }
-        }
-      },
       "patch": {
-        "description": "Update the named `Service` in the `Namespace` as per the instructions in the body",
+        "description": "Bound apps are redeployed after the service deploys, which can be after\nthis response; poll AppState for each app.",
         "tags": [
-          "service"
+          "Services"
         ],
+        "summary": "Update the settings of the named `Service` in the `Namespace`.",
         "operationId": "ServiceUpdate",
         "parameters": [
           {
@@ -2499,12 +2695,48 @@
             "$ref": "#/responses/ServiceUpdateResponse"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Delete the named `Service` in the `Namespace`.",
+        "operationId": "ServiceDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceDeleteRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceDeleteResponse"
+          },
+          "202": {
+            "$ref": "#/responses/ServiceDeleteResponse"
+          }
+        }
       }
     },
     "/namespaces/{Namespace}/services/{Service}/bind": {
       "post": {
         "tags": [
-          "service"
+          "Services"
         ],
         "summary": "Bind the named `Service` in the `Namespace` to an App.",
         "operationId": "ServiceBind",
@@ -2532,6 +2764,37 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceBindResponse"
+          },
+          "202": {
+            "$ref": "#/responses/OperationsResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/services/{Service}/portforward": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Forward a local port to the named `Service` in the `Namespace` over a websocket.",
+        "operationId": "ServicePortForward",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServicePortForwardResponse"
           }
         }
       }
@@ -2539,7 +2802,7 @@
     "/namespaces/{Namespace}/services/{Service}/unbind": {
       "post": {
         "tags": [
-          "service"
+          "Services"
         ],
         "summary": "Unbind the named `Service` in the `Namespace` from an App.",
         "operationId": "ServiceUnbind",
@@ -2567,17 +2830,43 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceUnbindResponse"
+          },
+          "202": {
+            "$ref": "#/responses/OperationsResponse"
           }
         }
       }
     },
-    "/namespaces/{Namespace}/staging/{StageID}/complete": {
+    "/namespaces/{Namespace}/servicesmatches": {
+      "get": {
+        "description": "(No prefix == empty prefix == match everything)",
+        "tags": [
+          "Services"
+        ],
+        "summary": "Return list of names for all services in the `Namespace`.",
+        "operationId": "ServiceMatch0",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/servicesmatches/{Pattern}": {
       "get": {
         "tags": [
-          "websocket"
+          "Services"
         ],
-        "summary": "Stream staging completion status for the specified `StageID` in the `Namespace` over a websocket.",
-        "operationId": "StagingCompleteWs",
+        "summary": "Return list of names for all services whose name matches the prefix `Pattern`.",
+        "operationId": "ServiceMatch",
         "parameters": [
           {
             "type": "string",
@@ -2587,14 +2876,14 @@
           },
           {
             "type": "string",
-            "name": "StageID",
+            "name": "Pattern",
             "in": "path",
             "required": true
           }
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/StagingCompleteWsResponse"
+            "$ref": "#/responses/ServiceMatchResponse"
           }
         }
       }
@@ -2602,7 +2891,7 @@
     "/namespaces/{Namespace}/staging/{StageID}/logs": {
       "get": {
         "tags": [
-          "application"
+          "Applications"
         ],
         "summary": "Return logs of the named `StageID` in the `Namespace` streamed over a websocket.",
         "operationId": "StagingLogs",
@@ -2671,10 +2960,10 @@
     },
     "/report/nodes": {
       "get": {
-        "description": "Return a rancher-like node report",
         "tags": [
-          "report"
+          "Reports"
         ],
+        "summary": "Return a report on the cluster nodes.",
         "operationId": "NodeReport",
         "responses": {
           "200": {
@@ -2686,7 +2975,7 @@
     "/services": {
       "get": {
         "tags": [
-          "service"
+          "Services"
         ],
         "summary": "Return all the `Services` where the User has authorization.",
         "operationId": "AllServices",
@@ -2726,9 +3015,59 @@
           }
         }
       }
+    },
+    "/support-bundle": {
+      "get": {
+        "tags": [
+          "Support"
+        ],
+        "summary": "Download a tar archive of the logs of all Epinio components.",
+        "operationId": "SupportBundle",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "IncludeApps",
+            "description": "Include application logs as well (true/false, default false).\nAlso accepted as \"include_app_logs\".",
+            "name": "include_apps",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Tail",
+            "description": "Lines to tail from each component (default 1000, maximum 10000)",
+            "name": "tail",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/SupportBundleResponse"
+          }
+        }
+      }
     }
   },
   "definitions": {
+    "APIError": {
+      "type": "object",
+      "title": "APIError fulfills the error and APIErrors interfaces. It contains a single error.",
+      "properties": {
+        "details": {
+          "type": "string",
+          "x-go-name": "Details"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Status"
+        },
+        "title": {
+          "type": "string",
+          "x-go-name": "Title"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/errors"
+    },
     "App": {
       "description": "The main structure has identifying information.\nIt is used in the CLI and API responses.",
       "type": "object",
@@ -2764,6 +3103,9 @@
         },
         "meta": {
           "$ref": "#/definitions/AppRef"
+        },
+        "operation": {
+          "$ref": "#/definitions/AppOperation"
         },
         "origin": {
           "$ref": "#/definitions/ApplicationOrigin"
@@ -3072,6 +3414,61 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "AppOperation": {
+      "description": "Every lifecycle write (stage, deploy, restart, update, source patch)\nreturns one with 202, and GET .../state reports the latest.",
+      "type": "object",
+      "title": "AppOperation is one asynchronous lifecycle action on an application.",
+      "properties": {
+        "app": {
+          "$ref": "#/definitions/AppRef"
+        },
+        "error": {
+          "type": "string",
+          "x-go-name": "Error"
+        },
+        "finishedAt": {
+          "type": "string",
+          "x-go-name": "FinishedAt"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "ID"
+        },
+        "image": {
+          "type": "string",
+          "x-go-name": "ImageURL"
+        },
+        "kind": {
+          "$ref": "#/definitions/OperationKind"
+        },
+        "phase": {
+          "$ref": "#/definitions/OperationPhase"
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Routes"
+        },
+        "stage_id": {
+          "type": "string",
+          "x-go-name": "StageID"
+        },
+        "startedAt": {
+          "type": "string",
+          "x-go-name": "StartedAt"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Warnings"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "AppRef": {
       "description": "AppRef references an App by name and namespace",
       "type": "object",
@@ -3134,6 +3531,37 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "AppState": {
+      "description": "AppState is the response of GET .../applications/:app/state: the\napplication's lifecycle state in one call. Status is the one field to\nread: while an operation is staging or deploying it reports that phase,\notherwise it is the status derived from the App CR and the workload.\nOperation is nil when this server holds no record of a recent operation\n(after a restart, after the record expired, or on another replica).",
+      "type": "object",
+      "properties": {
+        "app": {
+          "$ref": "#/definitions/AppRef"
+        },
+        "buildstatus": {
+          "type": "string",
+          "x-go-name": "BuildStatus"
+        },
+        "operation": {
+          "$ref": "#/definitions/AppOperation"
+        },
+        "stage_id": {
+          "type": "string",
+          "x-go-name": "StageID"
+        },
+        "stagingstatus": {
+          "$ref": "#/definitions/ApplicationStagingStatus"
+        },
+        "status": {
+          "$ref": "#/definitions/ApplicationStatus"
+        },
+        "statusmessage": {
+          "type": "string",
+          "x-go-name": "StatusMessage"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ApplicationConfiguration": {
       "description": "ApplicationConfiguration is the part of the manifest describing the configuration of the application",
       "type": "object",
@@ -3143,7 +3571,7 @@
           "x-go-name": "AppChart"
         },
         "bound_configurations": {
-          "description": "BoundConfigurations is read-only. It mirrors Configurations, adding the type\nof each. Not part of the manifest.",
+          "description": "BoundConfigurations is read-only. It mirrors Configurations, adding the type\nof each. It is exported into the manifest for information only: `epinio push`\nbinds from Configurations, and editing this list in a manifest has no effect.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/BoundConfiguration"
@@ -3332,6 +3760,51 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "AppsPage": {
+      "type": "object",
+      "title": "AppsPage is one namespace's page of applications.",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/App"
+          },
+          "x-go-name": "Items"
+        },
+        "page": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Page"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "PageSize"
+        },
+        "totalItems": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TotalItems"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TotalPages"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/internal/api/v1/docs"
+    },
+    "AuthTokenResponse": {
+      "description": "AuthTokenResponse contains an auth token",
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string",
+          "x-go-name": "Token"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "BindRequest": {
       "type": "object",
       "title": "BindRequest represents and contains the data needed to bind configurations to an application.",
@@ -3350,6 +3823,20 @@
       "description": "BindResponse represents the server's response to the successful binding of configurations to\nan application.",
       "type": "object",
       "properties": {
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AppOperation"
+          },
+          "x-go-name": "Operations"
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SkippedApp"
+          },
+          "x-go-name": "Skipped"
+        },
         "wasbound": {
           "type": "array",
           "items": {
@@ -3791,6 +4278,20 @@
             "type": "string"
           },
           "x-go-name": "BoundApps"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AppOperation"
+          },
+          "x-go-name": "Operations"
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SkippedApp"
+          },
+          "x-go-name": "Skipped"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -3934,11 +4435,28 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "DeployRequest": {
-      "description": "DeployRequest represents and contains the data needed to deploy an application\nNote that the overall application configuration (instances, configurations, EVs) is\nalready known server side, through AppCreate/AppUpdate requests.\nThis request not only comes with the image to deploy, but also the\ninformation where the sources of that image came from.",
+      "description": "POST .../deploy is asynchronous and answers 202 with an AppOperation.\nIt deploys ImageURL when set (Stage names the build that produced it).\nOtherwise it builds first: from BlobUID, from the stored blob, or by\ncloning a git Origin, then deploys the result.",
       "type": "object",
+      "title": "DeployRequest represents and contains the data needed to deploy an application\nNote that the overall application configuration (instances, configurations, EVs) is\nalready known server side, through AppCreate/AppUpdate requests.\nThis request not only comes with the image to deploy, but also the\ninformation where the sources of that image came from.",
       "properties": {
         "app": {
           "$ref": "#/definitions/AppRef"
+        },
+        "blobuid": {
+          "type": "string",
+          "x-go-name": "BlobUID"
+        },
+        "builderimage": {
+          "type": "string",
+          "x-go-name": "BuilderImage"
+        },
+        "buildmode": {
+          "type": "string",
+          "x-go-name": "BuildMode"
+        },
+        "dockerfilepath": {
+          "type": "string",
+          "x-go-name": "DockerfilePath"
         },
         "image": {
           "type": "string",
@@ -3949,27 +4467,6 @@
         },
         "stage": {
           "$ref": "#/definitions/StageRef"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "DeployResponse": {
-      "description": "DeployResponse represents the server's response to a successful app deployment",
-      "type": "object",
-      "properties": {
-        "routes": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "Routes"
-        },
-        "warnings": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "Warnings"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4032,6 +4529,20 @@
       "type": "string",
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "ErrorResponse": {
+      "description": "ErrorResponse is the response's JSON, that is send in case of an error",
+      "type": "object",
+      "properties": {
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/APIError"
+          },
+          "x-go-name": "Errors"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/errors"
+    },
     "ExportregistriesListResponse": {
       "description": "ExportregistriesListResponse contains the list of all known export registries",
       "type": "array",
@@ -4071,6 +4582,20 @@
     },
     "GitProvider": {
       "type": "string",
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "GitProxyRequest": {
+      "type": "object",
+      "properties": {
+        "gitconfig": {
+          "type": "string",
+          "x-go-name": "Gitconfig"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        }
+      },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "GitRef": {
@@ -4245,24 +4770,6 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ImportGitResponse": {
-      "type": "object",
-      "properties": {
-        "blobuid": {
-          "type": "string",
-          "x-go-name": "BlobUID"
-        },
-        "branch": {
-          "type": "string",
-          "x-go-name": "Branch"
-        },
-        "revision": {
-          "type": "string",
-          "x-go-name": "Revision"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
     "InfoResponse": {
       "description": "InfoResponse contains information about Epinio and its components",
       "type": "object",
@@ -4286,6 +4793,38 @@
         "version": {
           "type": "string",
           "x-go-name": "Version"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "MeResponse": {
+      "description": "MeResponse contains information about the current authenticated user",
+      "type": "object",
+      "properties": {
+        "gitconfigs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Gitconfigs"
+        },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Namespaces"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Role"
+          },
+          "x-go-name": "Roles"
+        },
+        "user": {
+          "type": "string",
+          "x-go-name": "User"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4435,6 +4974,37 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "OperationKind": {
+      "type": "string",
+      "title": "OperationKind names the lifecycle action an AppOperation runs.",
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "OperationPhase": {
+      "description": "OperationPhase is the progress of an AppOperation. The values match the\nstatus of the removed /deployments endpoint, so the UI keeps its labels.",
+      "type": "string",
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "OperationsResponse": {
+      "description": "OperationsResponse reports the operations a request started, one per\napplication it redeployed, and the applications it skipped.",
+      "type": "object",
+      "properties": {
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AppOperation"
+          },
+          "x-go-name": "Operations"
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SkippedApp"
+          },
+          "x-go-name": "Skipped"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "PodInfo": {
       "type": "object",
       "properties": {
@@ -4540,6 +5110,35 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "Role": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Actions"
+        },
+        "default": {
+          "type": "boolean",
+          "x-go-name": "Default"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "ID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "namespace": {
+          "type": "string",
+          "x-go-name": "Namespace"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "Service": {
       "type": "object",
       "properties": {
@@ -4587,6 +5186,24 @@
         },
         "status": {
           "$ref": "#/definitions/ServiceStatus"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceBatchBindRequest": {
+      "description": "ServiceBatchBindRequest represents a request to bind multiple services to an application at once",
+      "type": "object",
+      "properties": {
+        "app_name": {
+          "type": "string",
+          "x-go-name": "AppName"
+        },
+        "service_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "ServiceNames"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4643,6 +5260,20 @@
             "type": "string"
           },
           "x-go-name": "BoundApps"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AppOperation"
+          },
+          "x-go-name": "Operations"
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SkippedApp"
+          },
+          "x-go-name": "Skipped"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4726,6 +5357,20 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "SkippedApp": {
+      "description": "SkippedApp names an application a request could not start an operation\nfor, and why (usually: another operation is already running).",
+      "type": "object",
+      "properties": {
+        "app": {
+          "$ref": "#/definitions/AppRef"
+        },
+        "reason": {
+          "type": "string",
+          "x-go-name": "Reason"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "StageRef": {
       "description": "StageRef references a staging run by ID, currently randomly generated\nfor each POST to the staging endpoint",
       "type": "object",
@@ -4762,20 +5407,6 @@
         },
         "origin": {
           "$ref": "#/definitions/ApplicationOrigin"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "StageResponse": {
-      "description": "StageResponse represents the server's response to a successful app staging",
-      "type": "object",
-      "properties": {
-        "image": {
-          "type": "string",
-          "x-go-name": "ImageURL"
-        },
-        "stage": {
-          "$ref": "#/definitions/StageRef"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4821,6 +5452,15 @@
     }
   },
   "responses": {
+    "AllAppsGroupedResponse": {
+      "description": "",
+      "schema": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/definitions/AppsPage"
+        }
+      }
+    },
     "AppBuildDeleteResponse": {
       "description": "",
       "schema": {
@@ -4845,12 +5485,6 @@
         "$ref": "#/definitions/ApplicationDeleteResponse"
       }
     },
-    "AppDeployResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/DeployResponse"
-      }
-    },
     "AppExecResponse": {
       "description": ""
     },
@@ -4860,12 +5494,6 @@
         "$ref": "#/definitions/Response"
       }
     },
-    "AppImportGitResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/ImportGitResponse"
-      }
-    },
     "AppLogsResponse": {
       "description": ""
     },
@@ -4873,6 +5501,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/AppMatchResponse"
+      }
+    },
+    "AppOperationResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AppOperation"
       }
     },
     "AppPartResponse": {
@@ -4888,28 +5522,26 @@
     "AppPortForwardResponse": {
       "description": ""
     },
-    "AppRestartResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/Response"
-      }
-    },
-    "AppRunningResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/Response"
-      }
-    },
     "AppShowResponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/App"
       }
     },
-    "AppStageResponse": {
+    "AppSourceResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/StageResponse"
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "format": "uint8"
+        }
+      }
+    },
+    "AppStateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AppState"
       }
     },
     "AppSyncResponse": {
@@ -4940,6 +5572,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/AppList"
+      }
+    },
+    "AuthTokenResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AuthTokenResponse"
       }
     },
     "BuilderImageCreateResponse": {
@@ -5047,7 +5685,7 @@
         "$ref": "#/definitions/ConfigurationResponse"
       }
     },
-    "ConfigurationUnbindReponse": {
+    "ConfigurationUnbindResponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/Response"
@@ -5095,6 +5733,12 @@
         "$ref": "#/definitions/Response"
       }
     },
+    "ErrorResponse": {
+      "description": "The error body every failed request returns.",
+      "schema": {
+        "$ref": "#/definitions/ErrorResponse"
+      }
+    },
     "ExportregistriesResponse": {
       "description": "",
       "schema": {
@@ -5105,6 +5749,16 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/ExportregistriesMatchResponse"
+      }
+    },
+    "GitProxyResponse": {
+      "description": "",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "format": "uint8"
+        }
       }
     },
     "GitconfigCreateResponse": {
@@ -5143,6 +5797,12 @@
         "$ref": "#/definitions/InfoResponse"
       }
     },
+    "MeResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/MeResponse"
+      }
+    },
     "NamespaceCreateResponse": {
       "description": "",
       "schema": {
@@ -5179,6 +5839,12 @@
         "$ref": "#/definitions/ReportResponse"
       }
     },
+    "OperationsResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/OperationsResponse"
+      }
+    },
     "ServiceAppsResponse": {
       "description": "",
       "schema": {
@@ -5186,6 +5852,12 @@
         "additionalProperties": {
           "$ref": "#/definitions/AppList"
         }
+      }
+    },
+    "ServiceBatchBindResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
       }
     },
     "ServiceBindResponse": {
@@ -5266,17 +5938,18 @@
         "$ref": "#/definitions/Response"
       }
     },
-    "StagingCompleteResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/Response"
-      }
-    },
-    "StagingCompleteWsResponse": {
-      "description": ""
-    },
     "StagingLogsResponse": {
       "description": ""
+    },
+    "SupportBundleResponse": {
+      "description": "",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "format": "uint8"
+        }
+      }
     }
   },
   "securityDefinitions": {
@@ -5289,6 +5962,88 @@
       "basicAuth": [
         "[]"
       ]
+    }
+  ],
+  "tags": [
+    {
+      "name": "Applications",
+      "x-displayName": "Applications",
+      "description": "Create, build, deploy and inspect applications. Lifecycle requests answer 202 with an operation; poll AppState until it is done."
+    },
+    {
+      "name": "Environment",
+      "x-displayName": "Application Environment",
+      "description": "Environment variables of an application. Changing them redeploys a running application."
+    },
+    {
+      "name": "Configurations",
+      "x-displayName": "Configurations",
+      "description": "Configurations hold key/value data that applications mount."
+    },
+    {
+      "name": "ConfigurationBindings",
+      "x-displayName": "Configuration Bindings",
+      "description": "Bind configurations to applications and unbind them."
+    },
+    {
+      "name": "Services",
+      "x-displayName": "Services",
+      "description": "Service instances created from the catalog, and their bindings to applications."
+    },
+    {
+      "name": "CatalogServices",
+      "x-displayName": "Catalog Services",
+      "description": "The catalog of services that can be instantiated."
+    },
+    {
+      "name": "AppCharts",
+      "x-displayName": "App Charts",
+      "description": "Helm charts used to deploy applications."
+    },
+    {
+      "name": "BuilderImages",
+      "x-displayName": "Builder Images",
+      "description": "Builder images used to build applications."
+    },
+    {
+      "name": "GitConfigs",
+      "x-displayName": "Git Configurations",
+      "description": "Credentials and settings for cloning private git repositories."
+    },
+    {
+      "name": "GitProxy",
+      "x-displayName": "Git Proxy",
+      "description": "Proxy to the GitHub and GitLab APIs."
+    },
+    {
+      "name": "ExportRegistries",
+      "x-displayName": "Export Registries",
+      "description": "Registries that application images and charts can be exported to."
+    },
+    {
+      "name": "Namespaces",
+      "x-displayName": "Namespaces",
+      "description": "Namespaces that hold applications, configurations and services."
+    },
+    {
+      "name": "Auth",
+      "x-displayName": "Authentication",
+      "description": "Tokens and the authenticated user."
+    },
+    {
+      "name": "Info",
+      "x-displayName": "Server Info",
+      "description": "Information about the Epinio server."
+    },
+    {
+      "name": "Reports",
+      "x-displayName": "Reports",
+      "description": "Reports about the cluster."
+    },
+    {
+      "name": "Support",
+      "x-displayName": "Support",
+      "description": "Support bundles for troubleshooting."
     }
   ]
 }

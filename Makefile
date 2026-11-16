@@ -1,4 +1,4 @@
-# Copyright © 2021 - 2023 SUSE LLC
+# Copyright © 2021 - 2026 KRUMWARE LLC
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -157,6 +157,11 @@ test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2
 	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all acceptance/install/.
 
+# EPINIO-823: Harbor-only install scenario for application charts.
+# Requires a prepared acceptance cluster and EPINIO_SYSTEM_DOMAIN (same as other install scenarios).
+test-acceptance-harbor: showfocus
+	ginkgo -v --nodes 1 --focus "ScenarioHarbor" --randomize-all acceptance/install/.
+
 test-acceptance-api-apps-critical-endpoints: showfocus
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "application_exec_test.go" --label-filter "application" acceptance/api/v1/.
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus-file "application_portforward_test.go" --label-filter "application" acceptance/api/v1/.
@@ -201,6 +206,7 @@ getswagger:
 
 swagger: getswagger
 	swagger generate spec > docs/references/api/swagger.json
+	./scripts/swagger-postprocess.sh docs/references/api/swagger.json
 	swagger validate        docs/references/api/swagger.json
 
 swagger-serve:

@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -63,10 +63,10 @@ var _ = Describe("SynchronizedClient", func() {
 			// why this is a fixed string, not catalog.NewNamespaceName().
 			namespace := "same-client-same-namespace-test-ns"
 
-			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
-			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			Expect(syncClient1).To(Equal(syncClient2))
@@ -81,10 +81,10 @@ var _ = Describe("SynchronizedClient", func() {
 			namespace1 := "distinct-namespace-one"
 			namespace2 := "distinct-namespace-two"
 
-			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient, nil)
 			Expect(err).To(BeNil())
 
-			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient)
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			Expect(syncClient1).To(Not(Equal(syncClient2)))
@@ -105,7 +105,7 @@ var _ = Describe("SynchronizedClient", func() {
 			// SynchronizedClient/mock from the shared syncNamespaceClientMap instead of
 			// this one's, which previously caused the concurrency specs below to hang
 			// (an unexpected mock call aborts its goroutine without reaching wg.Done()).
-			syncClient, err := helm.GetNamespaceSynchronizedHelmClient("status-type-guard-test-namespace", mockClient)
+			syncClient, err := helm.GetNamespaceSynchronizedHelmClient("status-type-guard-test-namespace", mockClient, nil)
 			Expect(err).To(BeNil())
 
 			_, err = syncClient.Status("my-release")
@@ -130,7 +130,7 @@ var _ = Describe("SynchronizedClient", func() {
 			// Fixed string, not catalog.NewNamespaceName(): see "should return a
 			// different client for different namespaces" above.
 			namespace := "wait-same-release-same-namespace-test-ns"
-			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			// Begin TEST!
@@ -183,7 +183,7 @@ var _ = Describe("SynchronizedClient", func() {
 			// Fixed string, not catalog.NewNamespaceName(): see "should return a
 			// different client for different namespaces" above.
 			namespace := "no-wait-different-releases-same-namespace-test-ns"
-			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient)
+			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			// Begin TEST!
@@ -237,11 +237,11 @@ var _ = Describe("SynchronizedClient", func() {
 			// Fixed strings, not catalog.NewNamespaceName(): see "should return a
 			// different client for different namespaces" above.
 			namespace1 := "concurrent-different-ns-test-ns-one"
-			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			namespace2 := "concurrent-different-ns-test-ns-two"
-			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient)
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			// Begin TEST!
@@ -300,11 +300,11 @@ var _ = Describe("SynchronizedClient", func() {
 			// Fixed strings, not catalog.NewNamespaceName(): see "should return a
 			// different client for different namespaces" above.
 			namespace1 := "concurrent-mixed-wait-test-ns-one"
-			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient)
+			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			namespace2 := "concurrent-mixed-wait-test-ns-two"
-			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient)
+			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient, nil)
 			Expect(err).To(BeNil())
 
 			// Begin TEST!

@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -44,8 +44,12 @@ func (c *Client) ConfigurationBindingCreate(request models.BindRequest, namespac
 }
 
 // ConfigurationBindingDelete deletes a binding from an app to a configurationclass
-func (c *Client) ConfigurationBindingDelete(namespace string, appName string, configurationName string) (models.Response, error) {
-	response := models.Response{}
+func (c *Client) ConfigurationBindingDelete(
+	namespace string,
+	appName string,
+	configurationName string,
+) (models.OperationsResponse, error) {
+	response := models.OperationsResponse{}
 	endpoint := api.Routes.Path("ConfigurationBindingDelete", namespace, appName, configurationName)
 
 	return Delete(c, endpoint, nil, response)
@@ -78,8 +82,12 @@ func (c *Client) ConfigurationCreate(request models.ConfigurationCreateRequest, 
 }
 
 // ConfigurationUpdate updates a configuration by invoking the associated API endpoint
-func (c *Client) ConfigurationUpdate(request models.ConfigurationUpdateRequest, namespace, name string) (models.Response, error) {
-	response := models.Response{}
+func (c *Client) ConfigurationUpdate(
+	request models.ConfigurationUpdateRequest,
+	namespace string,
+	name string,
+) (models.OperationsResponse, error) {
+	response := models.OperationsResponse{}
 	endpoint := api.Routes.Path("ConfigurationUpdate", namespace, name)
 
 	return Patch(c, endpoint, request, response)

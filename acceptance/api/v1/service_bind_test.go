@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -156,7 +156,11 @@ var _ = Describe("ServiceBind Endpoint", LService, func() {
 			defer response.Body.Close()
 			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+			// 202 when the bind redeployed a running app, else 200.
+			Expect(response.StatusCode).To(
+				BeElementOf(http.StatusOK, http.StatusAccepted),
+				string(bodyBytes),
+			)
 
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
@@ -209,7 +213,11 @@ var _ = Describe("ServiceBind Endpoint", LService, func() {
 				defer response.Body.Close()
 				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+				// 202 when the bind redeployed a running app, else 200.
+				Expect(response.StatusCode).To(
+					BeElementOf(http.StatusOK, http.StatusAccepted),
+					string(bodyBytes),
+				)
 
 				appShowOut, err := env.Epinio("", "app", "show", app)
 				Expect(err).ToNot(HaveOccurred())
@@ -260,7 +268,11 @@ var _ = Describe("ServiceBind Endpoint", LService, func() {
 				defer response.Body.Close()
 				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+				// 202 when the bind redeployed a running app, else 200.
+				Expect(response.StatusCode).To(
+					BeElementOf(http.StatusOK, http.StatusAccepted),
+					string(bodyBytes),
+				)
 
 				appShowOut, err := env.Epinio("", "app", "show", app)
 				Expect(err).ToNot(HaveOccurred())

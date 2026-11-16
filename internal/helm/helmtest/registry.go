@@ -104,8 +104,9 @@ func (r *Registry) Close() {
 }
 
 // Host returns the `host:port` of the registry. The loopback address is called by name, as
-// Epinio's registry URL detection ignores `127.0.0.1`. The certificate of the registry cannot be
-// verified, so code using it has to treat it as an in-cluster registry, which `localhost` is.
+// Epinio's PublicRegistryURL ignores only `127.0.0.1` / `::1` (not `localhost`). The certificate
+// of the registry cannot be verified, so code using it has to treat it as an in-cluster registry,
+// which `localhost` is (IsInClusterHost).
 func (r *Registry) Host() string {
 	_, port, err := net.SplitHostPort(r.server.Listener.Addr().String())
 	if err != nil {

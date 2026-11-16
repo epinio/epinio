@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -239,17 +239,16 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 
 	log.Infow("OCI export login", "host", destinationHost)
 
-	rOpts := []action.RegistryLoginOpt{}
 	if certFile != "" {
 		log.Infow("OCI export login", "+certs", certFile)
-		rOpts = append(rOpts, action.WithCAFile(certFile))
 	}
 
 	err = client.RegistryLogin(
 		destinationHost,
 		destination.Username,
 		destination.Password,
-		rOpts...,
+		false,
+		certFile,
 	)
 	if err != nil {
 		return apierror.InternalError(err)

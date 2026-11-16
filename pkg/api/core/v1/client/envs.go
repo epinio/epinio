@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -33,8 +33,12 @@ func (c *Client) EnvListGrouped(namespace string, appName string) (models.EnvVar
 }
 
 // EnvSet set env vars for an app
-func (c *Client) EnvSet(request models.EnvVariableMap, namespace string, appName string) (models.Response, error) {
-	response := models.Response{}
+func (c *Client) EnvSet(
+	request models.EnvVariableMap,
+	namespace string,
+	appName string,
+) (models.OperationsResponse, error) {
+	response := models.OperationsResponse{}
 	endpoint := api.Routes.Path("EnvSet", namespace, appName)
 
 	return Post(c, endpoint, request, response)
@@ -49,8 +53,12 @@ func (c *Client) EnvShow(namespace string, appName string, envName string) (mode
 }
 
 // EnvUnset removes an env var
-func (c *Client) EnvUnset(namespace string, appName string, envName string) (models.Response, error) {
-	response := models.Response{}
+func (c *Client) EnvUnset(
+	namespace string,
+	appName string,
+	envName string,
+) (models.OperationsResponse, error) {
+	response := models.OperationsResponse{}
 	endpoint := api.Routes.Path("EnvUnset", namespace, appName, envName)
 
 	return Delete(c, endpoint, nil, response)

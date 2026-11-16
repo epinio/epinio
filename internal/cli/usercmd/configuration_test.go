@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -30,7 +30,7 @@ var _ = Describe("Client Configurations unit tests", func() {
 	BeforeEach(func() {
 		fake = &usercmdfakes.FakeAPIClient{}
 		fake.ConfigurationCreateReturns(models.Response{}, nil)
-		fake.ConfigurationUpdateReturns(models.Response{}, nil)
+		fake.ConfigurationUpdateReturns(models.OperationsResponse{}, nil)
 
 		var err error
 		epinioClient, err = usercmd.New()
