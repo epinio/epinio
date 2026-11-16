@@ -303,10 +303,11 @@ var _ = Describe("getValuesYAML ingress-tls", func() {
 	})
 
 	AfterEach(func() {
-		viper.Set("ingress-tls", nil)
-		viper.Set("tls-issuer", nil)
-		viper.Set("ingress-class-name", nil)
-		viper.Set("gateway-class-name", nil)
+		// Restore production-compatible defaults for other specs (not nil).
+		viper.Set("ingress-tls", true)
+		viper.Set("tls-issuer", "")
+		viper.Set("ingress-class-name", "")
+		viper.Set("gateway-class-name", "")
 	})
 
 	parseTLS := func(yamlString string) bool {
@@ -314,6 +315,18 @@ var _ = Describe("getValuesYAML ingress-tls", func() {
 		Expect(yaml.Unmarshal([]byte(yamlString), &params)).To(Succeed())
 		return params.Epinio.Tls
 	}
+
+	It("defaults epinio.tls to true via SetDefault", func() {
+		// Production path calls SetDefault before GetBool so an unset key
+		// does not silently disable app TLS (GetBool's zero value is false).
+		viper.SetDefault("ingress-tls", true)
+		Expect(ingressTLSEnabled()).To(BeTrue())
+
+		yamlString, err := getValuesYAML(appChart, parameters)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(yamlString).To(ContainSubstring("tls: true"))
+		Expect(parseTLS(yamlString)).To(BeTrue())
+	})
 
 	It("sets epinio.tls true when ingress-tls is true", func() {
 		viper.Set("ingress-tls", true)

@@ -85,6 +85,7 @@ func init() {
 	checkErr(err)
 	err = viper.BindEnv("ingress-tls", "INGRESS_TLS")
 	checkErr(err)
+	viper.SetDefault("ingress-tls", true)
 
 	flags.String("gateway-class-name", "", "(GATEWAY_CLASS_NAME) Name of the gateway class to use for apps. Leave empty to add no gatewayClassName to the gateway.")
 	err = viper.BindPFlag("gateway-class-name", flags.Lookup("gateway-class-name"))
