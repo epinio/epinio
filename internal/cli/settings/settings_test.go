@@ -184,7 +184,9 @@ var _ = Describe("Settings without a file", func() {
 		missingFile = filepath.Join(dir, "missing.yaml")
 		settingsFile = filepath.Join(dir, "settings.yaml")
 
-		GinkgoT().Setenv("EPINIO_API", "")
+		for _, name := range []string{"EPINIO_API", "EPINIO_USER", "EPINIO_WSS"} {
+			GinkgoT().Setenv(name, "")
+		}
 	})
 
 	Describe("EnvOnly", func() {
@@ -292,6 +294,38 @@ var _ = Describe("Settings without a file", func() {
 			Expect(string(saved)).ToNot(ContainSubstring("env-secret"))
 			Expect(string(saved)).ToNot(ContainSubstring("env-token"))
 		})
+
+		It("does not persist EPINIO_USER, EPINIO_API, or EPINIO_WSS into an existing file", func() {
+			content := "" +
+				"api: https://file.example.com\n" +
+				"wss: wss://file.example.com\n" +
+				"user: admin\n" +
+				"pass: " + base64.StdEncoding.EncodeToString([]byte("file-secret")) + "\n"
+			Expect(os.WriteFile(settingsFile, []byte(content), 0600)).To(Succeed())
+
+			GinkgoT().Setenv("EPINIO_USER", "env-user-should-not-persist")
+			GinkgoT().Setenv("EPINIO_API", "https://env-api-should-not-persist.example.com")
+			GinkgoT().Setenv("EPINIO_WSS", "wss://env-wss-should-not-persist.example.com")
+
+			cfg, err := settings.LoadFrom(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(cfg.User).To(Equal("env-user-should-not-persist"))
+			Expect(cfg.API).To(Equal("https://env-api-should-not-persist.example.com"))
+			Expect(cfg.WSS).To(Equal("wss://env-wss-should-not-persist.example.com"))
+
+			cfg.Colors = false
+			Expect(cfg.SaveUnlessEnvOnly("EPINIO_COLORS")).To(Succeed())
+
+			saved, err := os.ReadFile(settingsFile)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(saved)).To(ContainSubstring("colors: false"))
+			Expect(string(saved)).To(ContainSubstring("user: admin"))
+			Expect(string(saved)).To(ContainSubstring("api: https://file.example.com"))
+			Expect(string(saved)).To(ContainSubstring("wss: wss://file.example.com"))
+			Expect(string(saved)).ToNot(ContainSubstring("env-user-should-not-persist"))
+			Expect(string(saved)).ToNot(ContainSubstring("env-api-should-not-persist.example.com"))
+			Expect(string(saved)).ToNot(ContainSubstring("env-wss-should-not-persist.example.com"))
+		})
 	})
 })
 
@@ -300,7 +334,10 @@ var _ = Describe("intentional credential changes with env overrides", func() {
 
 	BeforeEach(func() {
 		settingsFile = filepath.Join(GinkgoT().TempDir(), "settings.yaml")
-		for _, name := range []string{"EPINIO_PASSWORD", "EPINIO_PASSWORD_B64", "EPINIO_PASS", "EPINIO_API_TOKEN"} {
+		for _, name := range []string{
+			"EPINIO_PASSWORD", "EPINIO_PASSWORD_B64", "EPINIO_PASS", "EPINIO_API_TOKEN",
+			"EPINIO_USER", "EPINIO_API", "EPINIO_WSS",
+		} {
 			GinkgoT().Setenv(name, "")
 		}
 	})
@@ -327,6 +364,39 @@ var _ = Describe("intentional credential changes with env overrides", func() {
 		Expect(string(saved)).To(ContainSubstring("pass: " + base64.StdEncoding.EncodeToString([]byte("newpw"))))
 		Expect(string(saved)).ToNot(ContainSubstring(oldPass))
 		Expect(string(saved)).ToNot(ContainSubstring("env-should-not-win"))
+	})
+
+	It("persists login user/api/wss even when EPINIO_USER/API/WSS are set", func() {
+		content := "" +
+			"api: https://old.example.com\n" +
+			"wss: wss://old.example.com\n" +
+			"user: olduser\n" +
+			"pass: " + base64.StdEncoding.EncodeToString([]byte("oldpw")) + "\n"
+		Expect(os.WriteFile(settingsFile, []byte(content), 0600)).To(Succeed())
+
+		GinkgoT().Setenv("EPINIO_USER", "env-user")
+		GinkgoT().Setenv("EPINIO_API", "https://env.example.com")
+		GinkgoT().Setenv("EPINIO_WSS", "wss://env.example.com")
+
+		cfg, err := settings.LoadFrom(settingsFile)
+		Expect(err).ToNot(HaveOccurred())
+
+		cfg.API = "https://new.example.com"
+		cfg.WSS = "wss://new.example.com"
+		cfg.User = "newuser"
+		cfg.Password = "newpw"
+		cfg.Token = settings.TokenSetting{}
+		cfg.ClearEnvCredentialOverrides()
+		Expect(cfg.Save()).To(Succeed())
+
+		saved, err := os.ReadFile(settingsFile)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(string(saved)).To(ContainSubstring("user: newuser"))
+		Expect(string(saved)).To(ContainSubstring("api: https://new.example.com"))
+		Expect(string(saved)).To(ContainSubstring("wss: wss://new.example.com"))
+		Expect(string(saved)).ToNot(ContainSubstring("env-user"))
+		Expect(string(saved)).ToNot(ContainSubstring("env.example.com"))
+		Expect(string(saved)).ToNot(ContainSubstring("old.example.com"))
 	})
 
 	It("persists logout clearing tokens even when EPINIO_API_TOKEN is set", func() {
