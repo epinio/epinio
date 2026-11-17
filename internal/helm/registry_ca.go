@@ -10,7 +10,7 @@ import (
 
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/pkg/errors"
-	"helm.sh/helm/v3/pkg/registry"
+	"helm.sh/helm/v4/pkg/registry"
 	"oras.land/oras-go/v2/registry/remote/retry"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

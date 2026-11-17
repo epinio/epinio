@@ -29,9 +29,10 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/retry"
 
-	"helm.sh/helm/v3/pkg/chartutil"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
-	"helm.sh/helm/v3/pkg/strvals"
+	chartutil "helm.sh/helm/v4/pkg/chart/common"
+	commonutil "helm.sh/helm/v4/pkg/chart/common/util"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
+	"helm.sh/helm/v4/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -668,7 +669,7 @@ func (s *ServiceClient) DeployOrUpdate(
 	// ATTENTION: This priority order is reversed from what is said in the application CRD PR.
 	// FIX:       application CRD PR to match here.
 
-	values, err := chartutil.Values(chartutil.CoalesceTables(classValues, userValues)).YAML()
+	values, err := chartutil.Values(commonutil.CoalesceTables(classValues, userValues)).YAML()
 	if err != nil {
 		return errors.Wrap(err, "failed to merge class and user values")
 	}

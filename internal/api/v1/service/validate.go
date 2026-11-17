@@ -25,8 +25,8 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmrelease "helm.sh/helm/v4/pkg/release/common"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 )
 
 // GetService will find the service with the provided namespace and name
@@ -101,7 +101,9 @@ func ValidateService(
 	}
 
 	if srv.Info.Status != helmrelease.StatusDeployed {
-		return apierror.InternalError(err)
+		// err is nil here: GetRelease succeeded. Do not call InternalError(nil) (panics on err.Error()).
+		return apierror.NewInternalError("service release is not deployed").
+			WithDetailsf("release status: %s", srv.Info.Status)
 	}
 
 	return nil
