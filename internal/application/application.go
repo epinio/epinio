@@ -1266,7 +1266,7 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 		case models.ApplicationStagingFailed:
 			app.Status = models.ApplicationError
 			if app.StatusMessage == "" {
-				app.StatusMessage = "staging failed"
+				app.StatusMessage = stagingFailedStatusMessage(app)
 			}
 			return
 		case models.ApplicationStagingDone:
@@ -1305,7 +1305,7 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 					if app.ImageURL != "" {
 						app.StatusMessage = "deployment failed"
 					} else {
-						app.StatusMessage = "staging failed"
+						app.StatusMessage = stagingFailedStatusMessage(app)
 					}
 				}
 				return
@@ -2050,6 +2050,7 @@ func aggregate(
 	app.ImageURL = imageURL
 	app.BuiltImageURL = builtImageURL
 	app.BuildStatus = buildStatus
+	app.StagingFailureReason = StagingFailureReason(&appCR)
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath
@@ -2256,6 +2257,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.ImageURL = imageURL
 	app.BuiltImageURL = builtImageURL
 	app.BuildStatus = buildStatus
+	app.StagingFailureReason = StagingFailureReason(applicationCR)
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath

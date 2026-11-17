@@ -457,7 +457,7 @@ func watchDeploy(
 		return apiErrorAsError(apiErr)
 	}
 
-	success, err := waitForStagingCompletion(ctx, cluster, jobs)
+	success, err := waitForStagingCompletion(ctx, cluster, appRef, jobs)
 	if err != nil {
 		return fmt.Errorf("waiting for the build: %w", err)
 	}

@@ -35,7 +35,12 @@ func TestJobDoneStateFailure(t *testing.T) {
 	job := batchv1.Job{
 		Status: batchv1.JobStatus{
 			Conditions: []batchv1.JobCondition{
-				{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
+				{
+					Type:    batchv1.JobFailed,
+					Status:  corev1.ConditionTrue,
+					Reason:  "BackoffLimitExceeded",
+					Message: "Job has reached the specified backoff limit",
+				},
 			},
 		},
 	}
@@ -52,6 +57,65 @@ func TestJobDoneStatePending(t *testing.T) {
 	done, success := jobDoneState([]batchv1.Job{job})
 	if done || success {
 		t.Fatalf("expected done=false, success=false got done=%v success=%v", done, success)
+	}
+}
+
+func TestJobFailedCondition(t *testing.T) {
+	job := &batchv1.Job{
+		Status: batchv1.JobStatus{
+			Conditions: []batchv1.JobCondition{
+				{
+					Type:    batchv1.JobFailed,
+					Status:  corev1.ConditionTrue,
+					Reason:  "DeadlineExceeded",
+					Message: "Job was active longer than specified deadline",
+				},
+			},
+		},
+	}
+
+	reason, message := jobFailedCondition(job)
+	if reason != "DeadlineExceeded" {
+		t.Fatalf("expected DeadlineExceeded, got %q", reason)
+	}
+	if message != "Job was active longer than specified deadline" {
+		t.Fatalf("unexpected message %q", message)
+	}
+	if isGenericJobFailureMessage(message) {
+		t.Fatal("expected specific deadline message not to be generic")
+	}
+}
+
+func TestPodStagingFailureDetail(t *testing.T) {
+	pod := &corev1.Pod{
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name: "build",
+					State: corev1.ContainerState{
+						Terminated: &corev1.ContainerStateTerminated{
+							ExitCode: 1,
+							Reason:   "Error",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	got := podStagingFailureDetail(pod)
+	want := "Error (exit code 1)"
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestIsGenericJobFailureMessage(t *testing.T) {
+	if !isGenericJobFailureMessage("Job has reached the specified backoff limit") {
+		t.Fatal("expected backoff limit message to be generic")
+	}
+	if isGenericJobFailureMessage("buildpack detection failed") {
+		t.Fatal("expected specific message not to be generic")
 	}
 }
 
