@@ -382,7 +382,11 @@ func stageForAsyncDeploy(
 	if setupErr != nil {
 		return nil, setupErr
 	}
-	resolvedSourcePath, sourceErr := resolveSourcePath(stageReq, app)
+	resolvedSourcePath, sourceErr := resolveSourcePath(
+		stageReq,
+		app,
+		resolvedBuildMode,
+	)
 	if sourceErr != nil {
 		return nil, sourceErr
 	}

@@ -268,7 +268,7 @@ func buildAndPatch(
 	if pathErr != nil {
 		return models.StageResponse{}, stageParam{}, pathErr
 	}
-	sourcePath, sourceErr := resolveSourcePath(req, app)
+	sourcePath, sourceErr := resolveSourcePath(req, app, buildMode)
 	if sourceErr != nil {
 		return models.StageResponse{}, stageParam{}, sourceErr
 	}

@@ -11,7 +11,11 @@ import (
 func TestResolveSourcePathRequestWins(t *testing.T) {
 	app := appWithSourcePath("apps/web")
 
-	path, apiErr := resolveSourcePath(models.StageRequest{SourcePath: "apps/api"}, app)
+	path, apiErr := resolveSourcePath(
+		models.StageRequest{SourcePath: "apps/api"},
+		app,
+		models.BuildModeBuildpack,
+	)
 	if apiErr != nil {
 		t.Fatalf("unexpected error: %v", apiErr)
 	}
@@ -23,7 +27,11 @@ func TestResolveSourcePathRequestWins(t *testing.T) {
 func TestResolveSourcePathKeepsStoredWhenRequestEmpty(t *testing.T) {
 	app := appWithSourcePath("apps/web")
 
-	path, apiErr := resolveSourcePath(models.StageRequest{}, app)
+	path, apiErr := resolveSourcePath(
+		models.StageRequest{},
+		app,
+		models.BuildModeBuildpack,
+	)
 	if apiErr != nil {
 		t.Fatalf("unexpected error: %v", apiErr)
 	}
@@ -35,7 +43,11 @@ func TestResolveSourcePathKeepsStoredWhenRequestEmpty(t *testing.T) {
 func TestResolveSourcePathExplicitRootClearsStored(t *testing.T) {
 	app := appWithSourcePath("apps/web")
 
-	path, apiErr := resolveSourcePath(models.StageRequest{SourcePath: models.SourcePathRoot}, app)
+	path, apiErr := resolveSourcePath(
+		models.StageRequest{SourcePath: models.SourcePathRoot},
+		app,
+		models.BuildModeBuildpack,
+	)
 	if apiErr != nil {
 		t.Fatalf("unexpected error: %v", apiErr)
 	}
@@ -47,7 +59,11 @@ func TestResolveSourcePathExplicitRootClearsStored(t *testing.T) {
 func TestResolveSourcePathEmptyWhenNothingStored(t *testing.T) {
 	app := &unstructured.Unstructured{Object: map[string]any{}}
 
-	path, apiErr := resolveSourcePath(models.StageRequest{}, app)
+	path, apiErr := resolveSourcePath(
+		models.StageRequest{},
+		app,
+		models.BuildModeBuildpack,
+	)
 	if apiErr != nil {
 		t.Fatalf("unexpected error: %v", apiErr)
 	}
@@ -59,9 +75,43 @@ func TestResolveSourcePathEmptyWhenNothingStored(t *testing.T) {
 func TestResolveSourcePathRejectsInvalidStored(t *testing.T) {
 	app := appWithSourcePath("../escape")
 
-	_, apiErr := resolveSourcePath(models.StageRequest{}, app)
+	_, apiErr := resolveSourcePath(
+		models.StageRequest{},
+		app,
+		models.BuildModeBuildpack,
+	)
 	if apiErr == nil {
 		t.Fatal("expected error for invalid stored source path")
+	}
+}
+
+func TestResolveSourcePathRejectsRequestInDockerfileMode(t *testing.T) {
+	app := &unstructured.Unstructured{Object: map[string]any{}}
+
+	// The request leaves BuildMode empty; the resolved mode is dockerfile.
+	_, apiErr := resolveSourcePath(
+		models.StageRequest{SourcePath: "apps/web"},
+		app,
+		models.BuildModeDockerfile,
+	)
+	if apiErr == nil {
+		t.Fatal("expected error for source path in dockerfile mode")
+	}
+}
+
+func TestResolveSourcePathKeepsStoredInDockerfileMode(t *testing.T) {
+	app := appWithSourcePath("apps/web")
+
+	path, apiErr := resolveSourcePath(
+		models.StageRequest{},
+		app,
+		models.BuildModeDockerfile,
+	)
+	if apiErr != nil {
+		t.Fatalf("unexpected error: %v", apiErr)
+	}
+	if path != "apps/web" {
+		t.Fatalf("expected stored apps/web, got %q", path)
 	}
 }
 

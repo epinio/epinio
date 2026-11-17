@@ -239,7 +239,7 @@ func Stage(c *gin.Context) apierror.APIErrors {
 	if setupErr != nil {
 		return setupErr
 	}
-	sourcePath, sourceErr := resolveSourcePath(req, app)
+	sourcePath, sourceErr := resolveSourcePath(req, app, buildMode)
 	if sourceErr != nil {
 		return sourceErr
 	}
@@ -936,10 +936,10 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					InitContainers:     initContainers,
 					Containers:         []corev1.Container{buildContainer},
 					RestartPolicy:      corev1.RestartPolicyNever,
-					Volumes:       volumes,
-					Tolerations:   app.HelmValues.Tolerations,
-					NodeSelector:  app.HelmValues.NodeSelector,
-					Affinity:      &app.HelmValues.Affinity,
+					Volumes:            volumes,
+					Tolerations:        app.HelmValues.Tolerations,
+					NodeSelector:       app.HelmValues.NodeSelector,
+					Affinity:           &app.HelmValues.Affinity,
 				},
 			},
 		},
@@ -1672,8 +1672,20 @@ func resolveDockerfilePath(req models.StageRequest, app *unstructured.Unstructur
 // A non-empty request value wins (including "." to clear back to the sources
 // root). An empty request keeps the value already stored on the app CR.
 // The returned value is always the staging/CR form: "" for the sources root.
-func resolveSourcePath(req models.StageRequest, app *unstructured.Unstructured) (string, apierror.APIErrors) {
+//
+// A request path is rejected when the resolved build mode is dockerfile.
+// The stored value is not checked, since dockerfile staging ignores it.
+func resolveSourcePath(
+	req models.StageRequest,
+	app *unstructured.Unstructured,
+	buildMode string,
+) (string, apierror.APIErrors) {
 	if req.SourcePath != "" {
+		err := models.ValidateSourcePathForBuildMode(buildMode, req.SourcePath)
+		if err != nil {
+			return "", apierror.NewBadRequestError(err.Error())
+		}
+
 		path, err := models.ValidateSourcePath(req.SourcePath)
 		if err != nil {
 			return "", apierror.NewBadRequestError(err.Error())
@@ -1714,4 +1726,3 @@ func loadDockerfileStagingConfig(ctx context.Context,
 
 	return config, nil
 }
-
