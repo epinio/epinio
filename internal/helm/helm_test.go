@@ -12,8 +12,11 @@
 package helm
 
 import (
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/spf13/viper"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	"gopkg.in/yaml.v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -276,5 +279,72 @@ var _ = Describe("releaseChartConfig()", func() {
 			"tuning": "speed",
 			"port":   "8080",
 		}))
+	})
+})
+
+var _ = Describe("getValuesYAML ingress-tls", func() {
+	var (
+		appChart   *models.AppChartFull
+		parameters ChartParameters
+	)
+
+	BeforeEach(func() {
+		appChart = &models.AppChartFull{}
+		parameters = ChartParameters{
+			AppRef:      models.NewAppRef("demo", "workspace"),
+			ImageURL:    "registry.example/apps/demo:1",
+			Username:    "admin",
+			Instances:   1,
+			StageID:     "stage-1",
+			Environment: models.EnvVariableMap{},
+			Domains:     domain.DomainMap{},
+			Routes:      []string{"demo.example.com"},
+		}
+	})
+
+	AfterEach(func() {
+		// Restore production-compatible defaults for other specs (not nil).
+		viper.Set("ingress-tls", true)
+		viper.Set("tls-issuer", "")
+		viper.Set("ingress-class-name", "")
+		viper.Set("gateway-class-name", "")
+	})
+
+	parseTLS := func(yamlString string) bool {
+		var params ChartParam
+		Expect(yaml.Unmarshal([]byte(yamlString), &params)).To(Succeed())
+		return params.Epinio.Tls
+	}
+
+	It("defaults epinio.tls to true via SetDefault", func() {
+		// Production path calls SetDefault before GetBool so an unset key
+		// does not silently disable app TLS (GetBool's zero value is false).
+		viper.SetDefault("ingress-tls", true)
+		Expect(ingressTLSEnabled()).To(BeTrue())
+
+		yamlString, err := getValuesYAML(appChart, parameters)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(yamlString).To(ContainSubstring("tls: true"))
+		Expect(parseTLS(yamlString)).To(BeTrue())
+	})
+
+	It("sets epinio.tls true when ingress-tls is true", func() {
+		viper.Set("ingress-tls", true)
+		viper.Set("tls-issuer", "epinio-ca")
+
+		yamlString, err := getValuesYAML(appChart, parameters)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(yamlString).To(ContainSubstring("tls: true"))
+		Expect(parseTLS(yamlString)).To(BeTrue())
+	})
+
+	It("sets epinio.tls false when ingress-tls is false", func() {
+		viper.Set("ingress-tls", false)
+		viper.Set("tls-issuer", "epinio-ca")
+
+		yamlString, err := getValuesYAML(appChart, parameters)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(yamlString).To(ContainSubstring("tls: false"))
+		Expect(parseTLS(yamlString)).To(BeFalse())
 	})
 })
