@@ -267,6 +267,56 @@ func (s *ServiceClient) ListAll(ctx context.Context) (models.ServiceList, error)
 	return s.list(ctx, "", nil)
 }
 
+// NamesByNamespace returns service instance names keyed by namespace. It only
+// lists labeled instance secrets (no helm status), so it stays cheap enough for
+// namespace index enrichment and serviceInstanceCount sorting.
+func (s *ServiceClient) NamesByNamespace(ctx context.Context) (map[string][]string, error) {
+	return s.namesByNamespace(ctx, "")
+}
+
+// NamesInNamespace returns service instance names in one namespace (secret list
+// only, no helm status).
+func (s *ServiceClient) NamesInNamespace(ctx context.Context, namespace string) ([]string, error) {
+	byNS, err := s.namesByNamespace(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+	names := byNS[namespace]
+	if names == nil {
+		return []string{}, nil
+	}
+	return names, nil
+}
+
+func (s *ServiceClient) namesByNamespace(ctx context.Context, namespace string) (map[string][]string, error) {
+	listOpts := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf(
+			"%s,%s",
+			ServiceNameLabelKey,
+			CatalogServiceLabelKey,
+		),
+	}
+
+	secrets, err := s.kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOpts)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return map[string][]string{}, nil
+		}
+		return nil, errors.Wrap(err, "listing service instances")
+	}
+
+	result := make(map[string][]string)
+	for _, secret := range secrets.Items {
+		name := secret.GetLabels()[ServiceNameLabelKey]
+		if name == "" {
+			continue
+		}
+		ns := secret.Namespace
+		result[ns] = append(result[ns], name)
+	}
+	return result, nil
+}
+
 // CatalogServicesInUse returns the set of catalog service names that have at
 // least one provisioned service instance across all namespaces. The map value
 // is always true; absence means no instance derives from that catalog service.

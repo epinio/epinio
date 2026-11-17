@@ -157,6 +157,8 @@ func TestGetSortParams(t *testing.T) {
 		{name: "deployment.status alias", query: "sort=deployment.status", wantField: "deploymentStatus", wantDesc: false},
 		{name: "variableCount alias", query: "sort=configuration.variableCount", wantField: "variableCount", wantDesc: false},
 		{name: "appCount", query: "sort=appCount&sortDir=desc", wantField: "appCount", wantDesc: true},
+		{name: "serviceInstanceCount", query: "sort=serviceInstanceCount&sortDir=asc", wantField: "serviceInstanceCount", wantDesc: false},
+		{name: "serviceCount alias", query: "sort=serviceCount&sortDir=desc", wantField: "serviceInstanceCount", wantDesc: true},
 	}
 
 	for _, tc := range tests {

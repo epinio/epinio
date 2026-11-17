@@ -11,12 +11,13 @@
 
 package models
 
-// Namespace has all the namespace properties, i.e. name, app names, and configuration names
-// It is used in the CLI and API responses.
+// Namespace has all the namespace properties, i.e. name, app names, configuration
+// names, and service instance names. It is used in the CLI and API responses.
 type Namespace struct {
 	Meta           MetaLite `json:"meta,omitempty"`
 	Apps           []string `json:"apps,omitempty"`
 	Configurations []string `json:"configurations,omitempty"`
+	Services       []string `json:"services,omitempty"`
 }
 
 // NamespaceList is a collection of namespaces

@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
+	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -66,10 +67,13 @@ func Index(c *gin.Context) apierror.APIErrors {
 
 	sortParams := response.GetSortParams(c)
 
-	// appCount / configCount need full maps before pagination.
+	// Count sorts need full maps before pagination.
 	var appNamesMap map[string][]string
 	var configNamesMap map[string][]string
-	needCounts := sortParams.Field == "appCount" || sortParams.Field == "configCount"
+	var serviceNamesMap map[string][]string
+	needCounts := sortParams.Field == "appCount" ||
+		sortParams.Field == "configCount" ||
+		sortParams.Field == "serviceInstanceCount"
 	if needCounts {
 		var countErr error
 		appNamesMap, countErr = getAppNamesByNamespaceMap(ctx, cluster)
@@ -77,6 +81,10 @@ func Index(c *gin.Context) apierror.APIErrors {
 			return apierror.InternalError(countErr)
 		}
 		configNamesMap, countErr = getConfigurationNamesByNamespaceMap(ctx, cluster)
+		if countErr != nil {
+			return apierror.InternalError(countErr)
+		}
+		serviceNamesMap, countErr = getServiceNamesByNamespaceMap(ctx, cluster)
 		if countErr != nil {
 			return apierror.InternalError(countErr)
 		}
@@ -88,6 +96,10 @@ func Index(c *gin.Context) apierror.APIErrors {
 		case "configCount":
 			response.SortByIntKey(namespaceList, sortParams.Descending, func(ns namespaces.Namespace) int {
 				return len(configNamesMap[ns.Name])
+			})
+		case "serviceInstanceCount":
+			response.SortByIntKey(namespaceList, sortParams.Descending, func(ns namespaces.Namespace) int {
+				return len(serviceNamesMap[ns.Name])
 			})
 		}
 	} else {
@@ -142,6 +154,17 @@ func Index(c *gin.Context) apierror.APIErrors {
 					)
 				}
 			}
+
+			allServices, err := getServiceNamesByNamespaceMap(ctx, cluster)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+			serviceNamesMap = map[string][]string{}
+			for ns, names := range allServices {
+				if pageNsSet[ns] {
+					serviceNamesMap[ns] = names
+				}
+			}
 		}
 
 		nsModels := make(models.NamespaceList, 0, len(pageNsList))
@@ -150,6 +173,7 @@ func Index(c *gin.Context) apierror.APIErrors {
 				Meta:           models.MetaLite{Name: ns.Name, CreatedAt: ns.CreatedAt},
 				Apps:           appNamesMap[ns.Name],
 				Configurations: configNamesMap[ns.Name],
+				Services:       serviceNamesMap[ns.Name],
 			})
 		}
 
@@ -172,6 +196,10 @@ func Index(c *gin.Context) apierror.APIErrors {
 		if listErr != nil {
 			return apierror.InternalError(listErr)
 		}
+		serviceNamesMap, listErr = getServiceNamesByNamespaceMap(ctx, cluster)
+		if listErr != nil {
+			return apierror.InternalError(listErr)
+		}
 	}
 
 	nsList := make(models.NamespaceList, 0, len(namespaceList))
@@ -183,6 +211,7 @@ func Index(c *gin.Context) apierror.APIErrors {
 			},
 			Apps:           appNamesMap[namespace.Name],
 			Configurations: configNamesMap[namespace.Name],
+			Services:       serviceNamesMap[namespace.Name],
 		})
 	}
 
@@ -238,4 +267,15 @@ func getConfigurationNamesByNamespaceMap(
 	}
 
 	return configurationNamesMap, nil
+}
+
+func getServiceNamesByNamespaceMap(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+) (map[string][]string, error) {
+	serviceClient, err := services.NewKubernetesServiceClient(cluster)
+	if err != nil {
+		return nil, err
+	}
+	return serviceClient.NamesByNamespace(ctx)
 }

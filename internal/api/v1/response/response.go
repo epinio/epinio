@@ -122,6 +122,8 @@ func NormalizeSortField(field string) string {
 		return "appCount"
 	case "configcount":
 		return "configCount"
+	case "serviceinstancecount", "servicecount":
+		return "serviceInstanceCount"
 	case "description":
 		return "description"
 	case "image":

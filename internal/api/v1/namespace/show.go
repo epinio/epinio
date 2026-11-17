@@ -19,6 +19,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
+	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -46,6 +47,11 @@ func Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	serviceNames, err := namespaceServices(ctx, cluster, namespace)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
 	space, err := namespaces.Get(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -58,6 +64,7 @@ func Show(c *gin.Context) apierror.APIErrors {
 		},
 		Apps:           appNames,
 		Configurations: configurationNames,
+		Services:       serviceNames,
 	})
 	return nil
 }
@@ -88,4 +95,12 @@ func namespaceConfigurations(ctx context.Context, cluster *kubernetes.Cluster, n
 	}
 
 	return configurationNames, nil
+}
+
+func namespaceServices(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
+	serviceClient, err := services.NewKubernetesServiceClient(cluster)
+	if err != nil {
+		return nil, err
+	}
+	return serviceClient.NamesInNamespace(ctx, namespace)
 }
