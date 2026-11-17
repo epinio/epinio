@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -29,7 +29,6 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/registry"
-	"github.com/epinio/epinio/internal/urlcache"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -239,17 +238,16 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 
 	log.Infow("OCI export login", "host", destinationHost)
 
-	rOpts := []action.RegistryLoginOpt{}
 	if certFile != "" {
 		log.Infow("OCI export login", "+certs", certFile)
-		rOpts = append(rOpts, action.WithCAFile(certFile))
 	}
 
 	err = client.RegistryLogin(
 		destinationHost,
 		destination.Username,
 		destination.Password,
-		rOpts...,
+		false,
+		certFile,
 	)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -465,17 +463,11 @@ func fetchAppChartFile(
 		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
 	}
 
-	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig)
+	chartArchive, cleanup, err := chartArchiveFile(ctx, cluster, appChart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-
-	log.Infow("input", "chart-url", chartArchive)
-
-	chartArchive, err = urlcache.Get(ctx, chartArchive)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
+	defer cleanup()
 
 	log.Infow("input", "chart-file", chartArchive)
 

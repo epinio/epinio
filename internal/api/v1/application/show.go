@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -20,7 +20,8 @@ import (
 )
 
 // Show handles the API endpoint GET /namespaces/:namespace/applications/:app
-// It returns the details of the specified application.
+// It returns the details of the specified application, including never-deployed
+// (create|build) apps that have no running workload.
 func Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
@@ -40,6 +41,35 @@ func Show(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
+	application.AttachOperation(app)
+
 	response.OKReturn(c, app)
+	return nil
+}
+
+// State handles the API endpoint
+// GET /namespaces/:namespace/applications/:app/state. It returns the
+// application's lifecycle state in one call: its status, build status,
+// current stage, and latest operation. Clients poll it after any
+// lifecycle request that answered 202.
+func State(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	namespace := c.Param("namespace")
+	appName := c.Param("app")
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	app, err := application.Lookup(ctx, cluster, namespace, appName)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if app == nil {
+		return apierror.AppIsNotKnown(appName)
+	}
+
+	response.OKReturn(c, application.StateOf(app))
 	return nil
 }

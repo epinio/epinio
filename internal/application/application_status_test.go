@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2026 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -45,6 +45,43 @@ var _ = Describe("assignApplicationStatus", func() {
 		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationDeploying)))
 		Expect(app.StatusMessage).To(Equal("deploying"))
+	})
+
+	It("marks built when staging done for an intentional build-only", func() {
+		app := &models.App{
+			StagingStatus: models.ApplicationStagingDone,
+			BuildStatus:   models.AppBuildStatusBuild,
+			ImageURL:      "registry.example/apps/ns-app:deadbeef",
+			StageID:       "deadbeef",
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationBuilt)))
+		Expect(app.StatusMessage).To(BeEmpty())
+	})
+
+	It("marks built when a build-only staging job is gone", func() {
+		app := &models.App{
+			StageID:       "abc123",
+			ImageURL:      "registry.example/apps/ns-app:abc123",
+			BuildStatus:   models.AppBuildStatusBuild,
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationBuilt)))
+		Expect(app.StatusMessage).To(BeEmpty())
+	})
+
+	It("marks error when a build-only staging job fails", func() {
+		app := &models.App{
+			StagingStatus: models.ApplicationStagingFailed,
+			BuildStatus:   models.AppBuildStatusBuild,
+			StageID:       "abc123",
+			Configuration: models.ApplicationConfiguration{Instances: &one},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.StatusMessage).To(Equal("staging failed"))
 	})
 
 	It("marks staging done without workload as deploying when instances nil", func() {
@@ -170,7 +207,9 @@ var _ = Describe("assignApplicationStatus", func() {
 	})
 
 	It("marks deployment failed when staging done long ago without workload", func() {
-		completedAt := time.Now().Add(-3 * time.Minute)
+		// Must be strictly greater than deployGracePeriod (180s); exactly 3m
+		// can still be "deploying" because stagingDeployTimedOut uses > not >=.
+		completedAt := time.Now().Add(-4 * time.Minute)
 		app := &models.App{
 			StagingStatus: models.ApplicationStagingDone,
 			ImageURL:      "registry.example/apps/ns-app:deadbeef",

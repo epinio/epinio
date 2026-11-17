@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -17,8 +17,8 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Info
 
-// swagger:route GET /info info Info
-// Return server system information
+// swagger:route GET /info Info Info
+// Return information about the Epinio server.
 // responses:
 //   200: InfoResponse
 

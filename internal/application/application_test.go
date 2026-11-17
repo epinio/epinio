@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -428,7 +428,7 @@ var _ = Describe("ListPaginatedByNamespace", func() {
 				Kubectl: k8sfake.NewSimpleClientset(),
 			}
 
-			result, err := application.ListPaginatedByNamespace(ctx, cluster, 1, 10, "")
+			result, err := application.ListPaginatedByNamespace(ctx, cluster, 1, 10, "", application.ListFilterDeployed)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(BeEmpty())
 		})
@@ -449,7 +449,7 @@ var _ = Describe("ListPaginatedByNamespace", func() {
 				Kubectl: k8sfake.NewSimpleClientset(ns),
 			}
 
-			_, err := application.ListPaginatedByNamespace(ctx, cluster, 1, 10, "")
+			_, err := application.ListPaginatedByNamespace(ctx, cluster, 1, 10, "", application.ListFilterDeployed)
 			Expect(err).To(HaveOccurred())
 		})
 	})

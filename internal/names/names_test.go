@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -92,6 +92,14 @@ var _ = Describe("Names", func() {
 			Expect(Truncate(originalName, 10)).To(Equal("this-is-47"))
 			Expect(Truncate(originalName, 9)).To(Equal("this-is-4"))
 			Expect(Truncate(originalName, 8)).To(Equal("this-is-"))
+		})
+	})
+
+	Describe("IsReservedAppName", func() {
+		It("rejects undeployed because it shadows the builds list route", func() {
+			Expect(IsReservedAppName("undeployed")).To(BeTrue())
+			Expect(IsReservedAppName("Undeployed")).To(BeTrue())
+			Expect(IsReservedAppName("my-app")).To(BeFalse())
 		})
 	})
 })

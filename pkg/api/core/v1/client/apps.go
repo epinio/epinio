@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -110,7 +110,8 @@ func (c *Client) AppCreate(request models.ApplicationCreateRequest, namespace st
 	return Post(c, endpoint, request, response)
 }
 
-// Apps returns a list of all apps in an namespace
+// Apps returns apps in a namespace that have a deployed instance (excludes
+// never-deployed create|build apps with no deployed image).
 func (c *Client) Apps(namespace string) (models.AppList, error) {
 	response := models.AppList{}
 	endpoint := api.Routes.Path("Apps", namespace)
@@ -118,10 +119,28 @@ func (c *Client) Apps(namespace string) (models.AppList, error) {
 	return Get(c, endpoint, response)
 }
 
-// AllApps returns a list of all apps
+// UndeployedApps returns apps with buildstatus create|build in a namespace
+// (including rebuilds that still have a deployed image).
+func (c *Client) UndeployedApps(namespace string) (models.AppList, error) {
+	response := models.AppList{}
+	endpoint := api.Routes.Path("AppsUndeployed", namespace)
+
+	return Get(c, endpoint, response)
+}
+
+// AllApps returns apps across namespaces that have a deployed instance.
 func (c *Client) AllApps() (models.AppList, error) {
 	response := models.AppList{}
 	endpoint := api.Routes.Path("AllApps")
+
+	return Get(c, endpoint, response)
+}
+
+// AllUndeployedApps returns apps with buildstatus create|build across namespaces
+// (including rebuilds that still have a deployed image).
+func (c *Client) AllUndeployedApps() (models.AppList, error) {
+	response := models.AppList{}
+	endpoint := api.Routes.Path("AllAppsUndeployed")
 
 	return Get(c, endpoint, response)
 }
@@ -174,18 +193,42 @@ func (c *Client) AppExport(namespace, appName string, request models.AppExportRe
 	return Post(c, endpoint, request, response)
 }
 
-// AppUpdate updates an app
-func (c *Client) AppUpdate(request models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error) {
-	response := models.Response{}
+// AppUpdate updates an app. When the update redeploys, the server answers
+// 202 with the operation and this returns it; otherwise it returns nil.
+func (c *Client) AppUpdate(
+	request models.ApplicationUpdateRequest,
+	namespace string,
+	appName string,
+) (*models.AppOperation, error) {
+	response := &models.AppOperation{}
 	endpoint := api.Routes.Path("AppUpdate", namespace, appName)
 
-	return Patch(c, endpoint, request, response)
+	op, err := Patch(c, endpoint, request, response)
+	if err != nil || op.ID == "" {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // AppMatch returns all matching namespaces for the prefix
 func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, error) {
 	response := models.AppMatchResponse{}
 	endpoint := api.Routes.Path("AppMatch", namespace, prefix)
+
+	return Get(c, endpoint, response)
+}
+
+// AppMatchAll is like AppMatch but also returns never-deployed (undeployed) apps.
+func (c *Client) AppMatchAll(namespace, prefix string) (models.AppMatchResponse, error) {
+	response := models.AppMatchResponse{}
+	queryParams := url.Values{}
+	queryParams.Set("includeUndeployed", "true")
+	endpoint := fmt.Sprintf(
+		"%s?%s",
+		api.Routes.Path("AppMatch", namespace, prefix),
+		queryParams.Encode(),
+	)
 
 	return Get(c, endpoint, response)
 }
@@ -213,6 +256,15 @@ func (c *Client) AppDelete(namespace string, names []string, deleteImage, delete
 	return Delete(c, endpoint, request, response)
 }
 
+// AppBuildDelete clears the app's current build (staged image, blob, and
+// staging leftovers) without deleting the application itself.
+func (c *Client) AppBuildDelete(namespace string, name string) (models.Response, error) {
+	response := models.Response{}
+	endpoint := api.Routes.Path("AppBuildDelete", namespace, name)
+
+	return Delete(c, endpoint, nil, response)
+}
+
 // AppUpload uploads a tarball for the named app, which is later used in staging
 func (c *Client) AppUpload(namespace string, name string, file FormFile) (models.UploadResponse, error) {
 	response := models.UploadResponse{}
@@ -227,14 +279,15 @@ func (c *Client) AppUpload(namespace string, name string, file FormFile) (models
 // AppSourcePatch uploads a source patch tar and triggers a buildpack stage +
 // swapPodImage. processCmd overrides the supervisor fallback binary
 // (default: /cnb/process/web). Used by the watch feature startup mode.
-// Returns the stage response for polling.
+// Returns the operation, which already carries the stage ID; poll
+// AppState until it is done.
 func (c *Client) AppSourcePatch(
-	namespace,
+	namespace string,
 	name string,
 	file FormFile,
 	processCmd string,
-) (*models.StageResponse, error) {
-	response := &models.StageResponse{}
+) (*models.AppOperation, error) {
+	response := &models.AppOperation{}
 	endpoint := api.Routes.Path("AppSourcePatch", namespace, name)
 
 	var requestHandler RequestHandler
@@ -299,51 +352,37 @@ func (c *Client) AppValidateCV(namespace string, name string) (models.Response, 
 	return Get(c, endpoint, response)
 }
 
-// AppImportGit asks the server to import a git repo and put in into the blob store
-func (c *Client) AppImportGit(namespace string, name string, gitRef models.GitRef) (models.ImportGitResponse, error) {
-	response := models.ImportGitResponse{}
-	endpoint := api.Routes.Path("AppImportGit", namespace, name)
-
-	data := url.Values{}
-	data.Set("giturl", gitRef.URL)
-	data.Set("gitrev", gitRef.Revision)
-	data.Set("gitconfig", gitRef.Gitconfig)
-
-	requestHandler := NewFormURLEncodedRequestHandler(data)
-	responseHandler := NewJSONResponseHandler(c.log, response)
-
-	return DoWithHandlers(c, endpoint, http.MethodPost, requestHandler, responseHandler)
-}
-
-// AppStage stages an app
-func (c *Client) AppStage(request models.StageRequest) (*models.StageResponse, error) {
-	response := &models.StageResponse{}
+// AppStage starts building an app. The server answers 202 with the
+// operation; poll AppState until it is done.
+func (c *Client) AppStage(
+	request models.StageRequest,
+) (*models.AppOperation, error) {
+	response := &models.AppOperation{}
 	endpoint := api.Routes.Path("AppStage", request.App.Namespace, request.App.Name)
 
 	return Post(c, endpoint, request, response)
 }
 
-// AppDeploy deploys a staged app
-func (c *Client) AppDeploy(request models.DeployRequest) (*models.DeployResponse, error) {
-	response := &models.DeployResponse{}
+// AppDeploy starts deploying an app: the image the request names, or a
+// fresh build of its source. The server answers 202 with the operation;
+// poll AppState until it is done.
+func (c *Client) AppDeploy(
+	request models.DeployRequest,
+) (*models.AppOperation, error) {
+	response := &models.AppOperation{}
 	endpoint := api.Routes.Path("AppDeploy", request.App.Namespace, request.App.Name)
 
 	return Post(c, endpoint, request, response)
 }
 
-// AppDeploymentsStart starts an asynchronous stage/build/deploy (or image-only deploy).
-// The server returns 202 Accepted with an AsyncDeployStatus containing the deployment id.
-func (c *Client) AppDeploymentsStart(request models.AsyncDeployRequest) (*models.AsyncDeployStatus, error) {
-	response := &models.AsyncDeployStatus{}
-	endpoint := api.Routes.Path("AppDeployments", request.App.Namespace, request.App.Name)
-
-	return Post(c, endpoint, request, response)
-}
-
-// AppDeploymentStatus returns the current status of an asynchronous deployment.
-func (c *Client) AppDeploymentStatus(namespace, appName, deploymentID string) (models.AsyncDeployStatus, error) {
-	response := models.AsyncDeployStatus{}
-	endpoint := api.Routes.Path("AppDeployment", namespace, appName, deploymentID)
+// AppState returns an app's lifecycle state: its status and its latest
+// operation. Clients poll it after any request that answered 202.
+func (c *Client) AppState(
+	namespace string,
+	appName string,
+) (models.AppState, error) {
+	response := models.AppState{}
+	endpoint := api.Routes.Path("AppState", namespace, appName)
 
 	return Get(c, endpoint, response)
 }
@@ -440,71 +479,6 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, option
 
 		printCallback(logLine)
 	}
-}
-
-// StagingComplete checks if the staging process is complete
-func (c *Client) StagingComplete(namespace string, id string) (models.Response, error) {
-	response := models.Response{}
-	endpoint := api.Routes.Path("StagingComplete", namespace, id)
-
-	return Get(c, endpoint, response)
-}
-
-// StagingCompleteStream opens a websocket that emits a single completion event
-// for the given staging run and closes once the job finishes.
-func (c *Client) StagingCompleteStream(ctx context.Context, namespace, id string, callback func(models.StageCompleteEvent) error) error {
-	tokenResponse, err := c.AuthToken()
-	if err != nil {
-		return err
-	}
-
-	endpoint := api.WsRoutes.Path("StagingCompleteWs", namespace, id)
-	queryParams := url.Values{}
-	queryParams.Add("authtoken", tokenResponse.Token)
-	websocketURL := fmt.Sprintf("%s%s/%s?%s", c.Settings.WSS, api.WsRoot, endpoint, queryParams.Encode())
-
-	webSocketConn, resp, err := websocket.DefaultDialer.DialContext(ctx, websocketURL, c.Headers())
-	if err != nil {
-		if resp != nil && resp.StatusCode != http.StatusOK {
-			return handleError(c.log, resp)
-		}
-		return errors.Wrap(err, "failed to connect to staging completion websocket")
-	}
-	defer func() { _ = webSocketConn.Close() }()
-
-	for {
-		_, message, readErr := webSocketConn.ReadMessage()
-		if readErr != nil {
-			// Normal close means the server is done sending updates.
-			if websocket.IsCloseError(readErr, websocket.CloseNormalClosure) {
-				return nil
-			}
-			return errors.Wrap(readErr, "reading staging completion websocket message")
-		}
-
-		var event models.StageCompleteEvent
-		if unmarshalErr := json.Unmarshal(message, &event); unmarshalErr != nil {
-			return errors.Wrap(unmarshalErr, "decoding staging completion event")
-		}
-
-		if callback != nil {
-			if cbErr := callback(event); cbErr != nil {
-				return cbErr
-			}
-		}
-
-		if event.Completed {
-			return nil
-		}
-	}
-}
-
-// AppRunning checks if the app is running
-func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
-	response := models.Response{}
-	endpoint := api.Routes.Path("AppRunning", app.Namespace, app.Name)
-
-	return Get(c, endpoint, response)
 }
 
 func (c *Client) AppExec(ctx context.Context, namespace string, appName, instance string, tty kubectlterm.TTY) error {
@@ -981,9 +955,13 @@ func (c *Client) addAuthTokenToURL(url *url.URL) error {
 	return nil
 }
 
-// AppRestart restarts an app
-func (c *Client) AppRestart(namespace string, appName string) (models.Response, error) {
-	response := models.Response{}
+// AppRestart starts restarting an app. The server answers 202 with the
+// operation; poll AppState until it is done.
+func (c *Client) AppRestart(
+	namespace string,
+	appName string,
+) (*models.AppOperation, error) {
+	response := &models.AppOperation{}
 	endpoint := api.Routes.Path("AppRestart", namespace, appName)
 
 	return Post(c, endpoint, nil, response)

@@ -1,4 +1,4 @@
-// Copyright © 2026 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -15,8 +15,8 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Node Report
 
-// swagger:route GET /report/nodes report NodeReport
-// Return a rancher-like node report
+// swagger:route GET /report/nodes Reports NodeReport
+// Return a report on the cluster nodes.
 // responses:
 //   200: NodeReportResponse
 

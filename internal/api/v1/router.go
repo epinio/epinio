@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -110,29 +110,34 @@ var Routes = routes.NamedRoutes{
 
 	// app controller files see application/*.go
 
-	"AllApps":         get("/applications", errorHandler(application.FullIndex)),
-	"AllAppsGrouped":  get("/applications/grouped", errorHandler(application.GroupedIndex)),
-	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Index)),
-	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Create)),
-	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),
-	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Staged)), // See stage.go
-	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Delete)),
-	"AppBatchDelete":  delete("/namespaces/:namespace/applications", errorHandler(application.Delete)),
-	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Deploy)),
-	"AppDeployments":  post("/namespaces/:namespace/applications/:app/deployments", errorHandler(application.DeploymentsStart)),
-	"AppDeployment":   get("/namespaces/:namespace/applications/:app/deployments/:deployment_id", errorHandler(application.DeploymentsStatus)),
-	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.ImportGit)),
-	"AppPart":         get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.GetPart)),
-	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),
-	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Running)),
-	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)),         // See stage.go
-	"AppSourcePatch":  patch("/namespaces/:namespace/applications/:app/source", errorHandler(application.SourcePatch)), // See sourcepatch.go
-	"AppSync":         post("/namespaces/:namespace/applications/:app/sync", errorHandler(application.Sync)),           // See sync.go
-	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
-	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
-	"AppSource":       get("/namespaces/:namespace/applications/:app/source", errorHandler(application.GetSource)),
-	"AppValidateCV":   get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
-	"AppExport":       post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
+	"AllApps":        get("/applications", errorHandler(application.FullIndex)),
+	"AllAppsGrouped": get("/applications/grouped", errorHandler(application.GroupedIndex)),
+	// "undeployed" is a reserved app name (names.IsReservedAppName); the static path would shadow AppShow.
+	"AllAppsUndeployed": get("/applications/undeployed", errorHandler(application.UndeployedFullIndex)),
+	"Apps":              get("/namespaces/:namespace/applications", errorHandler(application.Index)),
+	"AppsUndeployed":    get("/namespaces/:namespace/applications/undeployed", errorHandler(application.UndeployedIndex)),
+	"AppCreate":         post("/namespaces/:namespace/applications", errorHandler(application.Create)),
+	"AppShow":           get("/namespaces/:namespace/applications/:app", errorHandler(application.Show)),
+	"AppDelete":         delete("/namespaces/:namespace/applications/:app", errorHandler(application.Delete)),
+	"AppBatchDelete":    delete("/namespaces/:namespace/applications", errorHandler(application.Delete)),
+	"AppBuildDelete":    delete("/namespaces/:namespace/applications/:app/build", errorHandler(application.DeleteBuild)), // See delete.go
+	"AppDeploy":         post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Deploy)),
+	"AppPart":           get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.GetPart)),
+	"AppRestart":        post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Restart)),
+	"AppStage":          post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Stage)),         // See stage.go
+	"AppSourcePatch":    patch("/namespaces/:namespace/applications/:app/source", errorHandler(application.SourcePatch)), // See sourcepatch.go
+	"AppSync":           post("/namespaces/:namespace/applications/:app/sync", errorHandler(application.Sync)),           // See sync.go
+	"AppUpdate":         patch("/namespaces/:namespace/applications/:app", errorHandler(application.Update)),
+	"AppUpload":         post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Upload)), // See upload.go
+	"AppSource":         get("/namespaces/:namespace/applications/:app/source", errorHandler(application.GetSource)),
+	"AppValidateCV":     get("/namespaces/:namespace/applications/:app/validate-cv", errorHandler(application.ValidateChartValues)),
+	"AppExport":         post("/namespaces/:namespace/applications/:app/export", errorHandler(application.ExportToRegistry)),
+
+	// One call for an app's lifecycle state; clients poll it after a 202.
+	"AppState": get(
+		"/namespaces/:namespace/applications/:app/state",
+		errorHandler(application.State),
+	),
 
 	"AppMatch":  get("/namespaces/:namespace/appsmatches/:pattern", errorHandler(application.Match)),
 	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Match)),
@@ -223,6 +228,7 @@ var Routes = routes.NamedRoutes{
 
 	// App charts
 	"ChartCreate": post("/appcharts", errorHandler(appchart.Create)),
+	"ChartPush":   post("/appcharts/push", errorHandler(appchart.Push)),
 	"ChartList":   get("/appcharts", errorHandler(appchart.Index)),
 	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Match)),
 	"ChartMatch0": get("/appchartsmatch", errorHandler(appchart.Match)),
@@ -266,7 +272,6 @@ var WsRoutes = routes.NamedRoutes{
 	"AppLogs":            get("/namespaces/:namespace/applications/:app/logs", application.Logs),
 	"ServicePortForward": get("/namespaces/:namespace/services/:service/portforward", errorHandler(service.PortForward)),
 	"StagingLogs":        get("/namespaces/:namespace/staging/:stage_id/logs", application.Logs),
-	"StagingCompleteWs":  get("/namespaces/:namespace/staging/:stage_id/complete", application.StagedWebsocket),
 }
 
 // Lemon extends the specified router with the methods and urls

@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 package application_test
 
 import (
+	"errors"
 	"math"
 	"net/http"
 	"time"
@@ -737,6 +738,35 @@ var _ = Describe("Application Log API Endpoint unit tests", func() {
 				Expect(params.IncludeContainers).To(HaveLen(1))
 				Expect(params.ExcludeContainers).To(HaveLen(1))
 			})
+		})
+	})
+
+	Describe("stagingLogsJobError", func() {
+		It("returns NotFound with a generic message when no staging job exists", func() {
+			apiErr := application.StagingLogsJobErrorForTest(0, nil)
+			Expect(apiErr).ToNot(BeNil())
+			Expect(apiErr.FirstStatus()).To(Equal(http.StatusNotFound))
+			Expect(apiErr.Errors()[0].Title).To(Equal(
+				"Staging logs are no longer available (staging job not found)",
+			))
+		})
+
+		It("returns nil when a staging job is present", func() {
+			Expect(application.StagingLogsJobErrorForTest(1, nil)).To(BeNil())
+			Expect(application.StagingLogsJobErrorForTest(3, nil)).To(BeNil())
+		})
+
+		It("returns InternalError when listing jobs fails", func() {
+			apiErr := application.StagingLogsJobErrorForTest(0, errors.New("list failed"))
+			Expect(apiErr).ToNot(BeNil())
+			Expect(apiErr.FirstStatus()).To(Equal(http.StatusInternalServerError))
+			Expect(apiErr.Errors()[0].Title).To(ContainSubstring("list failed"))
+		})
+
+		It("prefers list errors over a zero job count", func() {
+			apiErr := application.StagingLogsJobErrorForTest(0, errors.New("api timeout"))
+			Expect(apiErr).ToNot(BeNil())
+			Expect(apiErr.FirstStatus()).To(Equal(http.StatusInternalServerError))
 		})
 	})
 })

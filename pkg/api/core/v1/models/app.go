@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -26,6 +26,7 @@ const (
 
 	EpinioCreatedByAnnotation = "epinio.io/created-by"
 
+	ApplicationBuilt     = "built"
 	ApplicationCreated   = "created"
 	ApplicationStaging   = "staging"
 	ApplicationDeploying = "deploying"
@@ -35,6 +36,18 @@ const (
 	ApplicationStagingActive = "active"
 	ApplicationStagingDone   = "done"
 	ApplicationStagingFailed = "failed"
+
+	// AppBuildStatusCreate marks that the application resource was created
+	// but has not been staged or deployed yet (epinio app create / empty app).
+	AppBuildStatusCreate = "create"
+	// AppBuildStatusBuild marks that the latest completed action on the
+	// application was a build: an image was staged, but it is not (yet,
+	// or not currently) running as a deployed workload.
+	AppBuildStatusBuild = "build"
+	// AppBuildStatusDeployed marks that the latest completed action on
+	// the application was a deploy: the staged image was deployed as a
+	// running workload.
+	AppBuildStatusDeployed = "deployed"
 )
 
 type GitProvider string
@@ -110,7 +123,17 @@ type App struct {
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
 	BlobUID       string                   `json:"blobuid,omitempty"`  // last staged source blob in S3/seaweedfs
 	ImageURL      string                   `json:"image_url"`
-	FailureReason string                   `json:"failure_reason,omitempty"`
+	// BuiltImageURL is the image produced by the last build (stage). It is
+	// kept apart from ImageURL, which is the image currently deployed.
+	BuiltImageURL string `json:"built_image_url,omitempty"`
+	// BuildStatus is "create", "build", or "deployed", reflecting the last
+	// completed lifecycle step: create (empty app), build (stage), or deploy.
+	// See AppBuildStatusCreate / AppBuildStatusBuild / AppBuildStatusDeployed.
+	BuildStatus   string `json:"buildstatus,omitempty"`
+	FailureReason string `json:"failure_reason,omitempty"`
+	// Operation is the app's latest lifecycle operation, when this server
+	// still holds a record of it. See AppState.
+	Operation *AppOperation `json:"operation,omitempty"`
 }
 
 type PodInfo struct {

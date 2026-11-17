@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -53,6 +54,12 @@ func Create(c *gin.Context) apierror.APIErrors {
 	errorMsgs := validation.IsDNS1123Subdomain(createRequest.Name)
 	if len(errorMsgs) > 0 {
 		return apierror.NewBadRequestErrorf("Application's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc').")
+	}
+	if names.IsReservedAppName(createRequest.Name) {
+		return apierror.NewBadRequestErrorf(
+			"application name %q is reserved for the undeployed apps list API",
+			createRequest.Name,
+		)
 	}
 
 	appRef := models.NewAppRef(createRequest.Name, namespace)

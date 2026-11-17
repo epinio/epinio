@@ -1,4 +1,4 @@
-# Copyright © 2021 - 2023 SUSE LLC
+# Copyright © 2021 - 2026 KRUMWARE LLC
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,11 +23,11 @@ permissions:
   packages: write
 
 env:
-  SETUP_GO_VERSION: '1.26.0'
+  SETUP_GO_VERSION: '1.27'
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write   # This is the key for OIDC!
       contents: write
@@ -76,7 +76,7 @@ jobs:
           else
             LATEST_TAG=${{ github.ref_name }}
           fi
-          
+
           echo event_name: ${{ github.event_name }}
           echo ref_name: ${{ github.ref_name }}
           echo LATEST_TAG: $LATEST_TAG
@@ -92,14 +92,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.get_latest_tag.outputs.LATEST_TAG }}
-      
-      # Goreleaser will cleanup the draft, so we need to populate it again
-      - name: Run Releaser Drafter
-        uses: release-drafter/release-drafter@v7
-        with:
-          config-name: release-drafter.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify signatures on the generated docker images and manifests
         id: verify_signatures
@@ -108,7 +100,7 @@ jobs:
             --certificate-identity-regexp "https://github.com/epinio/epinio" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             ghcr.io/epinio/epinio-server:${{ steps.get_latest_tag.outputs.LATEST_TAG }}
-          
+
           cosign verify \
             --certificate-identity-regexp "https://github.com/epinio/epinio" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \

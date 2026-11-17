@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -115,6 +115,7 @@ type ConfigurationDeleteRequest struct {
 // ConfigurationDeleteResponse represents the server's response to a successful configuration deletion
 type ConfigurationDeleteResponse struct {
 	BoundApps []string `json:"boundapps"`
+	OperationsResponse
 }
 
 // BindRequest represents and contains the data needed to bind configurations to an application.
@@ -126,6 +127,7 @@ type BindRequest struct {
 // an application.
 type BindResponse struct {
 	WasBound []string `json:"wasbound"`
+	OperationsResponse
 }
 
 // ApplicationManifest represents and contains the data of an application's manifest file,
@@ -291,6 +293,18 @@ type ApplicationConfiguration struct {
 	AppChart           string                      `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 	Settings           ChartValueSettings          `json:"settings,omitempty" yaml:"settings,omitempty"`
 	Ignore             []string                    `json:"ignore,omitempty"   yaml:"ignore,omitempty"`
+	// BoundConfigurations is read-only. It mirrors Configurations, adding the type
+	// of each. It is exported into the manifest for information only: `epinio push`
+	// binds from Configurations, and editing this list in a manifest has no effect.
+	BoundConfigurations []BoundConfiguration `json:"bound_configurations,omitempty" yaml:"bound_configurations,omitempty"`
+}
+
+// BoundConfiguration names a configuration bound to an application, together with
+// its type ("custom" or "service"), so clients can tell configurations a user made
+// from ones a service created.
+type BoundConfiguration struct {
+	Name string `json:"name"           yaml:"name"`
+	Type string `json:"type,omitempty" yaml:"type,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
@@ -403,6 +417,9 @@ type StageRequest struct {
 	BuildMode      string `json:"buildmode,omitempty"`
 	DockerfilePath string `json:"dockerfilepath,omitempty"`
 	SourcePath     string `json:"sourcepath,omitempty"`
+	// Origin is optional. When set (e.g. by `epinio app build`), the server
+	// persists it so a later deploy-only step still knows where the sources came from.
+	Origin ApplicationOrigin `json:"origin,omitempty"`
 }
 
 // StageResponse represents the server's response to a successful app staging
@@ -411,34 +428,44 @@ type StageResponse struct {
 	ImageURL string   `json:"image,omitempty"`
 }
 
-// StageCompleteEvent is sent over the staging completion websocket endpoint
-// to signal the status of a staging job.
-type StageCompleteEvent struct {
-	StageID   string `json:"stage_id"`
-	Namespace string `json:"namespace"`
-	Status    string `json:"status"`
-	Message   string `json:"message,omitempty"`
-	Completed bool   `json:"completed"`
-}
-
-// StageComplete statuses used in websocket payloads.
-const (
-	StageStatusWaiting   = "waiting"
-	StageStatusSucceeded = "succeeded"
-	StageStatusFailed    = "failed"
-	StageStatusError     = "error"
-)
-
 // DeployRequest represents and contains the data needed to deploy an application
 // Note that the overall application configuration (instances, configurations, EVs) is
 // already known server side, through AppCreate/AppUpdate requests.
 // This request not only comes with the image to deploy, but also the
 // information where the sources of that image came from.
+//
+// POST .../deploy is asynchronous and answers 202 with an AppOperation.
+// It deploys ImageURL when set (Stage names the build that produced it).
+// Otherwise it builds first: from BlobUID, from the stored blob, or by
+// cloning a git Origin, then deploys the result.
 type DeployRequest struct {
-	App      AppRef            `json:"app,omitempty"`
-	Stage    StageRef          `json:"stage,omitempty"`
-	ImageURL string            `json:"image,omitempty"`
-	Origin   ApplicationOrigin `json:"origin,omitempty"`
+	App            AppRef            `json:"app,omitempty"`
+	Stage          StageRef          `json:"stage,omitempty"`
+	ImageURL       string            `json:"image,omitempty"`
+	Origin         ApplicationOrigin `json:"origin,omitempty"`
+	BlobUID        string            `json:"blobuid,omitempty"`
+	BuilderImage   string            `json:"builderimage,omitempty"`
+	BuildMode      string            `json:"buildmode,omitempty"`
+	DockerfilePath string            `json:"dockerfilepath,omitempty"`
+	SourcePath     string            `json:"sourcepath,omitempty"`
+}
+
+// Builds reports whether the deploy has to build an image first.
+func (r DeployRequest) Builds() bool {
+	return r.ImageURL == ""
+}
+
+// StageRequest returns the build half of the request.
+func (r DeployRequest) StageRequest() StageRequest {
+	return StageRequest{
+		App:            r.App,
+		BlobUID:        r.BlobUID,
+		BuilderImage:   r.BuilderImage,
+		BuildMode:      r.BuildMode,
+		DockerfilePath: r.DockerfilePath,
+		SourcePath:     r.SourcePath,
+		Origin:         r.Origin,
+	}
 }
 
 // DeployResponse represents the server's response to a successful app deployment
@@ -447,35 +474,84 @@ type DeployResponse struct {
 	Warnings []string `json:"warnings,omitempty"`
 }
 
-// AsyncDeployRequest represents and contains the data needed to stage/build and deploy an application asynchronously.
-//
-// For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
-// `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
-// Both may be omitted to retry a failed build: staging then resolves the stored blobuid from the app CR,
-// or re-clones from git origin when the blob is missing.
-type AsyncDeployRequest struct {
-	App            AppRef            `json:"app,omitempty"`
-	BlobUID        string            `json:"blobuid,omitempty"`
-	BuilderImage   string            `json:"builderimage,omitempty"`
-	BuildMode      string            `json:"buildmode,omitempty"`
-	DockerfilePath string            `json:"dockerfilepath,omitempty"`
-	SourcePath     string            `json:"sourcepath,omitempty"`
-	ImageURL       string            `json:"image,omitempty"`
-	Origin         ApplicationOrigin `json:"origin,omitempty"`
+// OperationKind names the lifecycle action an AppOperation runs.
+type OperationKind string
+
+const (
+	OperationBuild   OperationKind = "build"
+	OperationDeploy  OperationKind = "deploy"
+	OperationRestart OperationKind = "restart"
+	OperationUpdate  OperationKind = "update"
+	OperationSource  OperationKind = "source"
+)
+
+// OperationPhase is the progress of an AppOperation. The values match the
+// status of the removed /deployments endpoint, so the UI keeps its labels.
+type OperationPhase string
+
+const (
+	OperationPending   OperationPhase = "pending"
+	OperationStaging   OperationPhase = "staging"
+	OperationDeploying OperationPhase = "deploying"
+	OperationSucceeded OperationPhase = "succeeded"
+	OperationFailed    OperationPhase = "failed"
+)
+
+// AppOperation is one asynchronous lifecycle action on an application.
+// Every lifecycle write (stage, deploy, restart, update, source patch)
+// returns one with 202, and GET .../state reports the latest.
+type AppOperation struct {
+	ID         string         `json:"id"`
+	App        AppRef         `json:"app"`
+	Kind       OperationKind  `json:"kind"`
+	Phase      OperationPhase `json:"phase"`
+	StageID    string         `json:"stage_id,omitempty"`
+	ImageURL   string         `json:"image,omitempty"`
+	Error      string         `json:"error,omitempty"`
+	Routes     []string       `json:"routes,omitempty"`
+	Warnings   []string       `json:"warnings,omitempty"`
+	StartedAt  string         `json:"startedAt,omitempty"`
+	FinishedAt string         `json:"finishedAt,omitempty"`
 }
 
-// AsyncDeployStatus represents the status of an asynchronous deploy operation.
-type AsyncDeployStatus struct {
-	ID         string   `json:"id"`
-	App        AppRef   `json:"app"`
-	Status     string   `json:"status"` // pending, staging, deploying, succeeded, failed
-	StageID    string   `json:"stage_id,omitempty"`
-	ImageURL   string   `json:"image,omitempty"`
-	Error      string   `json:"error,omitempty"`
-	Routes     []string `json:"routes,omitempty"`
-	Warnings   []string `json:"warnings,omitempty"`
-	StartedAt  string   `json:"startedAt,omitempty"`
-	FinishedAt string   `json:"finishedAt,omitempty"`
+// Done reports whether the operation reached a terminal phase.
+func (o AppOperation) Done() bool {
+	return o.Phase == OperationSucceeded || o.Phase == OperationFailed
+}
+
+// SkippedApp names an application a request could not start an operation
+// for, and why (usually: another operation is already running).
+type SkippedApp struct {
+	App    AppRef `json:"app"`
+	Reason string `json:"reason"`
+}
+
+// OperationsResponse reports the operations a request started, one per
+// application it redeployed, and the applications it skipped.
+type OperationsResponse struct {
+	Operations []AppOperation `json:"operations,omitempty"`
+	Skipped    []SkippedApp   `json:"skipped,omitempty"`
+}
+
+// Started reports whether the request started any operation.
+func (r OperationsResponse) Started() bool {
+	return len(r.Operations) > 0
+}
+
+// AppState is the response of GET .../applications/:app/state: the
+// application's lifecycle state in one call. Status is the one field to
+// read: while an operation is staging or deploying it reports that phase,
+// otherwise it is the status derived from the App CR and the workload.
+// Operation is nil when this server holds no record of a recent operation
+// (after a restart, after the record expired, or on another replica).
+type AppState struct {
+	App           AppRef                   `json:"app"`
+	Status        ApplicationStatus        `json:"status"`
+	StatusMessage string                   `json:"statusmessage,omitempty"`
+	StagingStatus ApplicationStagingStatus `json:"stagingstatus,omitempty"`
+	BuildStatus   string                   `json:"buildstatus,omitempty"`
+	StageID       string                   `json:"stage_id,omitempty"`
+	Operation     *AppOperation            `json:"operation,omitempty"`
 }
 
 // ApplicationDeleteRequest represents and contains the data needed to delete an application
@@ -582,6 +658,14 @@ type AppChartCreateRequest struct {
 	HelmRepo         string                  `json:"helm_repo,omitempty"`
 	Settings         map[string]ChartSetting `json:"settings,omitempty"`
 	Values           map[string]string       `json:"values,omitempty"`
+}
+
+// AppChartPushResponse is the server's response to a successful push of a chart archive. It
+// names the application chart created for the pushed chart, and where the chart was stored.
+type AppChartPushResponse struct {
+	Name      string `json:"name,omitempty"`
+	HelmChart string `json:"helm_chart,omitempty"`
+	HelmRepo  string `json:"helm_repo,omitempty"`
 }
 
 type AppChartUpdateRequest struct {

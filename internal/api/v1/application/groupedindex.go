@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -38,7 +38,11 @@ func GroupedIndex(c *gin.Context) apierror.APIErrors {
 	page, pageSize, _ := response.GetPaginationParams(c, 1, 10)
 	search := response.GetSearchParam(c)
 
-	grouped, err := application.ListPaginatedByNamespace(ctx, cluster, page, pageSize, search)
+	// List apps with a deployed instance; never-deployed create|build apps are
+	// listed via the undeployed endpoints. Rebuilds with imageurl still appear here.
+	grouped, err := application.ListPaginatedByNamespace(
+		ctx, cluster, page, pageSize, search, application.ListFilterDeployed,
+	)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

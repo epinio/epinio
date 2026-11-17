@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,9 +13,9 @@ package service
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
-	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/gin-gonic/gin"
@@ -96,7 +96,7 @@ func BatchBind(c *gin.Context) apierror.APIErrors {
 	// Now bind all configurations at once - this triggers a SINGLE deployment
 	logger.Infow("binding all service configurations", "count", len(allConfigurationNames))
 
-	_, errors := configurationbinding.CreateConfigurationBinding(
+	_, changed, errors := configurationbinding.CreateConfigurationBinding(
 		ctx, cluster, namespace, *app, allConfigurationNames,
 	)
 
@@ -115,6 +115,16 @@ func BatchBind(c *gin.Context) apierror.APIErrors {
 
 	logger.Infow("successfully bound services", "count", len(servicesToBind), "services", servicesToBind)
 
-	response.OK(c)
+	redeploys := models.OperationsResponse{}
+	if changed {
+		redeploys = apiapp.RedeployIfRunning(
+			ctx,
+			cluster,
+			[]models.App{*app},
+			false,
+		)
+	}
+
+	apiapp.RespondRedeploys(c, redeploys)
 	return nil
 }

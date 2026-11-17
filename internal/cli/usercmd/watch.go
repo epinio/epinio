@@ -209,7 +209,7 @@ func (c *EpinioClient) watchStartup(
 
 	c.ui.Normal().Msg("Uploading source...")
 	unixTime := time.Now()
-	stageResp, uploadError := c.API.AppSourcePatch(
+	op, uploadError := c.API.AppSourcePatch(
 		appRef.Namespace,
 		appRef.Name,
 		file,
@@ -219,17 +219,18 @@ func (c *EpinioClient) watchStartup(
 		return errors.Wrap(uploadError, "uploading source patch")
 	}
 	c.ui.Normal().Msgf(
-		"Uploaded in %dms, waiting for build...",
+		"Uploaded in %dms, waiting for build and pod...",
 		time.Since(unixTime).Milliseconds(),
 	)
 
+	// The operation ends once the new image is swapped into the pod.
 	unixTime = time.Now()
-	stagingError := stagingWait(log, c.API, appRef.Namespace, stageResp.Stage.ID)
-	if stagingError != nil {
-		return errors.Wrap(stagingError, "staging failed")
+	_, waitError := c.waitOperation(ctx, appRef, op, false, log)
+	if waitError != nil {
+		return errors.Wrap(waitError, "building and swapping the image")
 	}
 	c.ui.Normal().Msgf(
-		"Build done in %dms, waiting for pod...",
+		"Built and swapped in %dms, waiting for pod...",
 		time.Since(unixTime).Milliseconds(),
 	)
 
@@ -359,23 +360,23 @@ func (c *EpinioClient) watchSync(
 	return saveHashes(stateFile, current)
 }
 
-// waitAppRunning polls the /running endpoint until the app is up or ctx is
+// waitAppRunning polls the app state until it reports running, or ctx is
 // cancelled.
 func (c *EpinioClient) waitAppRunning(
 	ctx context.Context,
 	appRef models.AppRef,
 ) error {
 	for {
+		state, err := c.API.AppState(appRef.Namespace, appRef.Name)
+		if err == nil && state.Status == models.ApplicationRunning {
+			return nil
+		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		default:
+		case <-time.After(500 * time.Millisecond):
 		}
-		_, runningError := c.API.AppRunning(appRef)
-		if runningError == nil {
-			return nil
-		}
-		time.Sleep(500 * time.Millisecond)
 	}
 }
 

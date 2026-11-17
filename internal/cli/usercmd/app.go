@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -22,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/schollz/progressbar/v3"
@@ -31,6 +31,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"golang.org/x/term"
@@ -97,6 +98,18 @@ func appShowStatusLine(app models.App) string {
 	}
 }
 
+// validateAppName checks DNS-1123 rules and rejects names that collide with
+// static API path segments under /applications/ (e.g. "undeployed").
+func validateAppName(appName string) error {
+	if errorMsgs := validation.IsDNS1123Subdomain(appName); len(errorMsgs) > 0 {
+		return fmt.Errorf("application's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc')")
+	}
+	if names.IsReservedAppName(appName) {
+		return fmt.Errorf("application name %q is reserved for the undeployed apps list API", appName)
+	}
+	return nil
+}
+
 // AppCreate creates an app without a workload
 func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpdateRequest) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
@@ -116,9 +129,8 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 
 	details.Info("create application")
 
-	errorMsgs := validation.IsDNS1123Subdomain(appName)
-	if len(errorMsgs) > 0 {
-		return fmt.Errorf("application's name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name', or '123-abc')")
+	if err := validateAppName(appName); err != nil {
+		return err
 	}
 
 	request := models.ApplicationCreateRequest{
@@ -150,7 +162,7 @@ func (c *EpinioClient) AppsMatching(prefix string) []string {
 
 	result := []string{}
 
-	resp, err := c.API.AppMatch(c.Settings.Namespace, prefix)
+	resp, err := c.API.AppMatchAll(c.Settings.Namespace, prefix)
 	if err != nil {
 		return result
 	}
@@ -453,7 +465,22 @@ func (c *EpinioClient) AppRestart(appName string) error {
 
 	log.V(1).Info("restarting application")
 
-	_, err := c.API.AppRestart(c.Settings.Namespace, appName)
+	op, err := c.API.AppRestart(c.Settings.Namespace, appName)
+	if err != nil {
+		return err
+	}
+
+	s := c.ui.Progress("Restarting")
+	defer s.Stop()
+
+	appRef := models.NewAppRef(appName, c.Settings.Namespace)
+	_, err = c.waitOperation(
+		context.Background(),
+		appRef,
+		op,
+		false,
+		log.V(1),
+	)
 	return err
 }
 
@@ -469,6 +496,314 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 	}
 
 	return app.StageID, nil
+}
+
+// AppBuild builds and stores an application image without deploying it.
+// Flow: validate → create/update app → upload/import → stage → wait.
+func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.ApplicationManifest) error {
+	if manifest.Configuration.AppChart == "" {
+		manifest.Configuration.AppChart = c.Settings.AppChart
+	}
+
+	source := manifest.Origin.String()
+	appRef := models.AppRef{
+		Meta: models.Meta{
+			Name:      manifest.Name,
+			Namespace: c.Settings.Namespace,
+		},
+	}
+	log := c.Log.
+		WithName("AppBuild").
+		WithValues("Name", appRef.Name,
+			"Namespace", appRef.Namespace,
+			"Sources", source)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1)
+
+	if manifest.Origin.Kind == models.OriginContainer {
+		return errors.New("container-image origins have nothing to build; use `epinio app push` or `epinio app deploy` instead")
+	}
+	if manifest.Origin.Kind == models.OriginNone {
+		return errors.New("no application origin")
+	}
+
+	msg := c.ui.Note().
+		WithStringValue("Manifest", manifest.Self).
+		WithStringValue("Name", appRef.Name).
+		WithStringValue("Source Origin", source).
+		WithStringValue("AppChart", manifest.Configuration.AppChart).
+		WithStringValue("Target Namespace", appRef.Namespace)
+	for _, ev := range manifest.Configuration.Environment.List() {
+		msg = msg.WithStringValue(fmt.Sprintf("Environment '%s'", ev.Name), ev.Value)
+	}
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	if manifest.Origin.Kind != models.OriginContainer &&
+		manifest.Staging.Builder != "" {
+		msg = msg.WithStringValue("Builder", manifest.Staging.Builder)
+	}
+	if manifest.Staging.SourcePath != "" {
+		msg = msg.WithStringValue("Source Path", manifest.Staging.SourcePath)
+	}
+	if manifest.Configuration.Instances != nil {
+		msg = msg.WithStringValue("Instances",
+			strconv.Itoa(int(*manifest.Configuration.Instances)))
+	}
+
+	details.Info("validate app name")
+	if err := validateAppName(appRef.Name); err != nil {
+		return fmt.Errorf("app name incorrect: %w", err)
+	}
+
+	if err := validateLocalDockerfile(manifest); err != nil {
+		return err
+	}
+	if err := validateLocalSourcePath(manifest); err != nil {
+		return err
+	}
+
+	msg = routeMessage(msg, manifest.Configuration.Routes)
+	msg.Msg("About to build an application (no deploy)")
+
+	c.ui.Exclamation().
+		Timeout(duration.UserAbort()).
+		Msg("Hit Enter to continue or Ctrl+C to abort (build will continue automatically in 5 seconds)")
+
+	c.ui.Normal().Msg("Create the application resource ...")
+
+	updateRequest := models.NewApplicationUpdateRequest(manifest)
+	_, err := c.API.AppCreate(models.ApplicationCreateRequest{
+		Name:          appRef.Name,
+		Configuration: updateRequest,
+	}, appRef.Namespace)
+	if err != nil {
+		epinioAPIError := &client.APIError{}
+		if !errors.As(err, &epinioAPIError) {
+			return err
+		}
+		if epinioAPIError.StatusCode != http.StatusConflict {
+			return err
+		}
+
+		c.ui.Normal().Msg("Application exists, updating ...")
+		restart := false
+		updateRequest.Restart = &restart
+		_, err := c.API.AppUpdate(updateRequest, appRef.Namespace, appRef.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = c.API.AppValidateCV(appRef.Namespace, appRef.Name)
+	if err != nil {
+		return err
+	}
+
+	var blobUID string
+	switch manifest.Origin.Kind {
+	case models.OriginPath:
+		uploadedSourceBlobID, err := c.uploadSources(log, appRef, source, manifest)
+		if err != nil {
+			return err
+		}
+		blobUID = uploadedSourceBlobID
+	case models.OriginGit:
+		// The server clones the repository while it builds, and stamps the
+		// resolved branch and commit onto the app's origin.
+		if manifest.Origin.Git == nil {
+			return errors.New("git origin is nil")
+		}
+	default:
+		return fmt.Errorf("unsupported origin for build: %s", source)
+	}
+
+	c.ui.Normal().Msg("Building application on the server ...")
+	c.ui.ProgressNote().Msg("Build")
+
+	stageReq := models.StageRequest{
+		App:            appRef,
+		BlobUID:        blobUID,
+		BuilderImage:   manifest.Staging.Builder,
+		BuildMode:      manifest.Staging.BuildMode,
+		DockerfilePath: manifest.Staging.DockerfilePath,
+		SourcePath:     manifest.Staging.SourcePath,
+		Origin:         manifest.Origin,
+	}
+
+	details.Info("stage start", "app", appRef)
+	op, err := c.API.AppStage(stageReq)
+	if err != nil {
+		return errors.Wrap(err, "staging application")
+	}
+
+	s := c.ui.Progress("Waiting for build")
+	defer s.Stop()
+
+	built, err := c.waitOperation(ctx, appRef, op, true, details)
+	if err != nil {
+		c.ui.Note().Msgf(
+			"You can access the staging logs at any time, either in the UI or with the CLI using this command:\n\nepinio app logs --staging %s",
+			appRef.Name)
+		return errors.Wrap(err, "build failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", appRef.Name).
+		WithStringValue("Namespace", appRef.Namespace).
+		WithStringValue("Image", built.ImageURL).
+		WithStringValue("Stage ID", built.StageID).
+		WithStringValue("Builder Image", manifest.Staging.Builder).
+		Msg("App build stored. Deploy later with: epinio app deploy " + appRef.Name)
+
+	return nil
+}
+
+// BuildList shows build-only (undeployed) applications in the targeted
+// namespace together with their current build image and build status.
+func (c *EpinioClient) BuildList(ctx context.Context) error {
+	log := c.Log.WithName("BuildList").WithValues("Namespace", c.Settings.Namespace)
+	log.Info("start")
+	defer log.Info("return")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		Msg("Listing undeployed application builds")
+
+	apps, err := c.API.UndeployedApps(c.Settings.Namespace)
+	if err != nil {
+		return err
+	}
+
+	sort.Sort(apps)
+
+	msg := c.ui.Success().WithTable("Name", "Build Status", "Image")
+	for _, app := range apps {
+		msg = msg.WithTableRow(app.Meta.Name, app.BuildStatus, app.BuiltImageURL)
+	}
+	msg.Msg("Ok")
+
+	return nil
+}
+
+// BuildShow shows the named application's current build details.
+func (c *EpinioClient) BuildShow(ctx context.Context, appName string) error {
+	log := c.Log.WithName("BuildShow").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		WithStringValue("Application", appName).
+		Msg("Show application build details")
+
+	app, err := c.API.AppShow(c.Settings.Namespace, appName)
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().WithTable("Key", "Value").
+		WithTableRow("Name", app.Meta.Name).
+		WithTableRow("Build Status", app.BuildStatus).
+		WithTableRow("Image", app.BuiltImageURL).
+		WithTableRow("Stage ID", app.StageID).
+		WithTableRow("Blob UID", app.BlobUID).
+		WithTableRow("Builder Image", app.Staging.Builder).
+		WithTableRow("Build Mode", app.Staging.BuildMode).
+		WithTableRow("Dockerfile Path", app.Staging.DockerfilePath).
+		WithTableRow("Source Path", app.Staging.SourcePath).
+		WithTableRow("Origin", app.Origin.String()).
+		Msg("Ok")
+
+	return nil
+}
+
+// BuildDelete clears the named application's current build (staged image and
+// staging leftovers) without deleting the application itself.
+func (c *EpinioClient) BuildDelete(ctx context.Context, appName string) error {
+	log := c.Log.WithName("BuildDelete").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		WithStringValue("Application", appName).
+		Msg("Deleting application build...")
+
+	_, err := c.API.AppBuildDelete(c.Settings.Namespace, appName)
+	if err != nil {
+		return errors.Wrap(err, "build delete failed")
+	}
+
+	c.ui.Success().
+		WithStringValue("Application", appName).
+		Msg("Application Build Removed.")
+
+	return nil
+}
+
+// AppDeploy deploys the app's current build (its last staged image) without
+// building anything new. It fails with a friendly error if the app has never
+// been built.
+func (c *EpinioClient) AppDeploy(appName string) error {
+	log := c.Log.WithName("AppDeploy").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	app, err := c.API.AppShow(c.Settings.Namespace, appName)
+	if err != nil {
+		return err
+	}
+	if app.BuiltImageURL == "" {
+		return errors.New("application has not been built yet - run `epinio app build` first")
+	}
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		WithStringValue("Application", appName).
+		WithStringValue("Image", app.BuiltImageURL).
+		WithStringValue("Stage ID", app.StageID).
+		WithStringValue("Build Status", app.BuildStatus).
+		Msg("Deploying application")
+
+	op, err := c.API.AppDeploy(models.DeployRequest{
+		App:      app.Meta,
+		Stage:    models.NewStage(app.StageID),
+		ImageURL: app.BuiltImageURL,
+		Origin:   app.Origin,
+	})
+	if err != nil {
+		return err
+	}
+
+	s := c.ui.Progress("Deploying")
+	defer s.Stop()
+
+	deployed, err := c.waitOperation(
+		context.Background(),
+		app.Meta,
+		op,
+		false,
+		log.V(1),
+	)
+	if err != nil {
+		return err
+	}
+
+	c.reportOK(app.Meta, app.Staging.Builder, deployed.Routes)
+
+	return nil
 }
 
 // AppUpdate updates the specified running application's attributes (e.g. instances)
@@ -502,9 +837,26 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 
 	details.Info("update application")
 
-	_, err := c.API.AppUpdate(appConfig, c.Settings.Namespace, appName)
+	op, err := c.API.AppUpdate(appConfig, c.Settings.Namespace, appName)
 	if err != nil {
 		return err
+	}
+
+	// The update redeploys only when it changes what runs.
+	if op != nil {
+		s := c.ui.Progress("Redeploying")
+		appRef := models.NewAppRef(appName, c.Settings.Namespace)
+		_, err = c.waitOperation(
+			context.Background(),
+			appRef,
+			op,
+			false,
+			details,
+		)
+		s.Stop()
+		if err != nil {
+			return err
+		}
 	}
 
 	c.ui.Success().Msg("Successfully updated application")
@@ -571,9 +923,9 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) er
 	}
 
 	tty := kubectlterm.TTY{
-		In:     os.Stdin,
-		Out:    os.Stdout,
-		Raw:    term.IsTerminal(int(os.Stdin.Fd())),
+		In:  os.Stdin,
+		Out: os.Stdout,
+		Raw: term.IsTerminal(int(os.Stdin.Fd())),
 		// Avoid trying /dev/tty for non-interactive runs (e.g. CI pipes), which can
 		// cause exec sessions to hang before streaming starts.
 		TryDev: false,
@@ -618,7 +970,7 @@ func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, de
 
 		// Using the match API with a query matching everything. Avoids transmission
 		// of full configuration data and having to filter client-side.
-		match, err := c.API.AppMatch(c.Settings.Namespace, "")
+		match, err := c.API.AppMatchAll(c.Settings.Namespace, "")
 		if err != nil {
 			return err
 		}
@@ -668,7 +1020,7 @@ func (c *EpinioClient) AppDelete(ctx context.Context, appNames []string, all, de
 	defer s.Stop()
 
 	go c.trackDeletion(appNames, func() []string {
-		match, err := c.API.AppMatch(c.Settings.Namespace, "")
+		match, err := c.API.AppMatchAll(c.Settings.Namespace, "")
 		if err != nil {
 			return []string{}
 		}
@@ -848,10 +1200,9 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 			c.ui.Exclamation().Msg("Attention: Application is already staging")
 			return nil
 		}
-		if app.Configuration.Instances != nil && *app.Configuration.Instances == 0 {
-			// Scaled to zero, no workload desired -> prevent (re)start.
-			restart = false
-		}
+		// Not running: rebuild only. Deploying here would put a build-only
+		// or scaled-to-zero app live, which restage must not do.
+		restart = false
 	}
 
 	m := c.ui.Note().
@@ -874,104 +1225,175 @@ func (c *EpinioClient) AppRestage(appName string, restart bool) error {
 		return nil
 	}
 
+	if restart {
+		// One build-and-deploy, as `epinio push` and the UI restage do. A
+		// stage followed by a restart would keep the old image: restart
+		// never switches images (see restartApp on the server).
+		req := models.DeployRequest{App: app.Meta}
+		op, err := c.API.AppDeploy(req)
+		if err != nil {
+			return err
+		}
+
+		log.V(1).Info("wait for the build and deploy", "operation", op.ID)
+		_, err = c.waitOperation(
+			context.Background(),
+			app.Meta,
+			op,
+			true,
+			log.V(1),
+		)
+		return err
+	}
+
 	req := models.StageRequest{App: app.Meta}
-	stageResponse, err := c.API.AppStage(req)
+	op, err := c.API.AppStage(req)
 	if err != nil {
 		return err
 	}
 
-	log.V(3).Info("stage response", "response", stageResponse)
-	stageID := stageResponse.Stage.ID
-
-	log.V(1).Info("start tailing logs", "StageID", stageID)
-	c.stageLogs(app.Meta, stageID)
-
-	log.V(1).Info("wait for job", "StageID", stageID)
-
-	// Prefer websocket streaming for completion, fallback to HTTP poll if unavailable.
-	if err := stagingWait(log.V(1), c.API, app.Meta.Namespace, stageID); err != nil {
-		return err
-	}
-
-	if restart {
-		c.ui.Note().Msg("Restarting application")
-		log.V(1).Info("restarting application")
-
-		_, err := c.API.AppRestart(c.Settings.Namespace, appName)
+	log.V(1).Info("wait for the build", "operation", op.ID)
+	_, err = c.waitOperation(
+		context.Background(),
+		app.Meta,
+		op,
+		true,
+		log.V(1),
+	)
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func stagingWithRetry(logger logr.Logger, apiClient APIClient, namespace, stageID string) error {
-	retryCondition := func(err error) bool {
-		epinioAPIError := &client.APIError{}
-		// something bad happened
-		if !errors.As(err, &epinioAPIError) {
-			return false
-		}
-
-		// do not retry for staging failures
-		errMsg := strings.ToLower(epinioAPIError.Error())
-		if strings.Contains(errMsg, "failed to stage") {
-			return true
-		}
-
-		// retry for any other Epinio error (StatusCode >= 400)
-		logger.Info("retry because of error", "error", epinioAPIError.Error())
-		return true
+// waitRedeploys reports the apps a request skipped, then waits for every
+// redeploy it started. It waits for all of them before it returns, and
+// names each app whose redeploy failed.
+func (c *EpinioClient) waitRedeploys(ops models.OperationsResponse) error {
+	for _, skipped := range ops.Skipped {
+		c.ui.Exclamation().
+			WithStringValue("Application", skipped.App.Name).
+			WithStringValue("Reason", skipped.Reason).
+			Msg("Not redeployed; the change applies on its next deploy")
 	}
 
-	retryLogger := func(n uint, err error) {
-		logger.Info("Retrying StagingComplete",
-			"tries", fmt.Sprintf("%d/%d", n, duration.RetryMax),
-			"error", err.Error(),
-		)
-	}
-
-	return retry.Do(
-		func() error {
-			_, err := apiClient.StagingComplete(namespace, stageID)
-			return err
-		},
-		retry.RetryIf(retryCondition),
-		retry.OnRetry(retryLogger),
-		retry.Delay(time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
-}
-
-func stagingWait(logger logr.Logger, apiClient APIClient, namespace, stageID string) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	wsErr := apiClient.StagingCompleteStream(ctx, namespace, stageID, func(event models.StageCompleteEvent) error {
-		logger.Info("staging status", "stageID", stageID, "status", event.Status, "message", event.Message)
-
-		if !event.Completed {
-			return nil
-		}
-
-		switch event.Status {
-		case models.StageStatusSucceeded:
-			return nil
-		case models.StageStatusFailed, models.StageStatusError:
-			if event.Message != "" {
-				return errors.New(event.Message)
-			}
-			return errors.New("staging failed")
-		default:
-			return nil
-		}
-	})
-
-	if wsErr == nil {
+	if len(ops.Operations) == 0 {
 		return nil
 	}
 
-	logger.Info("staging websocket unavailable, falling back to HTTP poll", "error", wsErr.Error())
-	return stagingWithRetry(logger, apiClient, namespace, stageID)
+	s := c.ui.Progress("Redeploying affected applications")
+	defer s.Stop()
+
+	failed := []string{}
+	for i := range ops.Operations {
+		op := ops.Operations[i]
+		_, err := c.waitOperation(
+			context.Background(),
+			op.App,
+			&op,
+			false,
+			c.Log.V(1),
+		)
+		if err != nil {
+			failed = append(
+				failed,
+				fmt.Sprintf("%s: %s", op.App.Name, err.Error()),
+			)
+		}
+	}
+
+	if len(failed) > 0 {
+		return errors.New(
+			"redeploy failed for " + strings.Join(failed, "; "),
+		)
+	}
+
+	return nil
+}
+
+// operationPollInterval is how often waitOperation polls the app state.
+var operationPollInterval = 2 * time.Second
+
+// waitOperation polls the app's state until op finishes, and returns the
+// finished operation. With streamLogs it tails the staging logs as soon
+// as the operation reports its stage. The server bounds every operation
+// with its own timeout; the deadline here only guards against a server
+// that stops answering for the operation altogether.
+func (c *EpinioClient) waitOperation(
+	ctx context.Context,
+	appRef models.AppRef,
+	op *models.AppOperation,
+	streamLogs bool,
+	logger logr.Logger,
+) (models.AppOperation, error) {
+	if op == nil || op.ID == "" {
+		return models.AppOperation{},
+			errors.New("the server did not return an operation")
+	}
+
+	stageID := op.StageID
+	if streamLogs && stageID != "" {
+		c.stageLogs(appRef, stageID)
+	}
+
+	deadline := time.Now().Add(
+		duration.ToAppBuilt() + duration.ToDeployment() + time.Minute,
+	)
+	for time.Now().Before(deadline) {
+		state, err := c.API.AppState(appRef.Namespace, appRef.Name)
+		if err != nil {
+			return models.AppOperation{}, err
+		}
+
+		current := state.Operation
+		switch {
+		case current == nil:
+			return models.AppOperation{}, errors.New(
+				"the server no longer tracks the operation (restarted?); " +
+					"check the app with: epinio app show " + appRef.Name,
+			)
+		case current.ID != op.ID:
+			return models.AppOperation{}, errors.New(
+				"another operation replaced this one; " +
+					"check the app with: epinio app show " + appRef.Name,
+			)
+		}
+
+		logger.Info(
+			"operation",
+			"phase",
+			current.Phase,
+			"stageID",
+			current.StageID,
+		)
+
+		if streamLogs && stageID == "" && current.StageID != "" {
+			stageID = current.StageID
+			c.stageLogs(appRef, stageID)
+		}
+
+		switch current.Phase {
+		case models.OperationSucceeded:
+			return *current, nil
+		case models.OperationFailed:
+			if current.Error != "" {
+				return *current, errors.New(current.Error)
+			}
+			return *current, errors.New("operation failed")
+		}
+
+		select {
+		case <-ctx.Done():
+			return models.AppOperation{}, ctx.Err()
+		case <-time.After(operationPollInterval):
+		}
+	}
+
+	return models.AppOperation{}, errors.New(
+		"timed out waiting for the operation; " +
+			"check the app with: epinio app show " + appRef.Name,
+	)
 }
 
 func formatRoutes(routes []string) string {

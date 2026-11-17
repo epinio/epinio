@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -32,8 +32,6 @@ import (
 
 var _ = Describe("AppStage Endpoint", LApplication, func() {
 	var (
-		url       string
-		body      string
 		appName   string
 		request   models.DeployRequest
 		namespace string
@@ -365,34 +363,9 @@ spec:
 				},
 			}
 
-			bodyBytes, err := json.Marshal(request)
-			Expect(err).ToNot(HaveOccurred())
-			body = string(bodyBytes)
-
-			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
-
-			response, err := env.Curl("POST", url, strings.NewReader(body))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
-			defer response.Body.Close()
-
-			bodyBytes, err = io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-			deploy := &models.DeployResponse{}
-			err = json.Unmarshal(bodyBytes, deploy)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.(?:sslip\.io|nip\.io)`))
-
-			By("waiting for the deployment to complete")
-
-			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppRunning", namespace, appName)
-
-			response, err = env.Curl("GET", url, strings.NewReader(body))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
-			defer response.Body.Close()
+			By("deploying and waiting for the deploy to finish")
+			deployed := deployApplication(namespace, appName, request)
+			Expect(deployed.Routes[0]).To(MatchRegexp(appName + `.*\.(?:sslip\.io|nip\.io)`))
 
 			By("confirming at highlevel")
 			// Highlevel check and confirmation
@@ -437,34 +410,9 @@ spec:
 				},
 			}
 
-			bodyBytes, err := json.Marshal(request)
-			Expect(err).ToNot(HaveOccurred())
-			body = string(bodyBytes)
-
-			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
-
-			response, err := env.Curl("POST", url, strings.NewReader(body))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
-			defer response.Body.Close()
-
-			bodyBytes, err = io.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-			deploy := &models.DeployResponse{}
-			err = json.Unmarshal(bodyBytes, deploy)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.(?:sslip\.io|nip\.io)`))
-
-			By("waiting for the deployment to complete")
-
-			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppRunning", namespace, appName)
-
-			response, err = env.Curl("GET", url, strings.NewReader(body))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(response).ToNot(BeNil())
-			defer response.Body.Close()
+			By("deploying and waiting for the deploy to finish")
+			deployed := deployApplication(namespace, appName, request)
+			Expect(deployed.Routes[0]).To(MatchRegexp(appName + `.*\.(?:sslip\.io|nip\.io)`))
 
 			By("confirming at highlevel")
 			// Highlevel check and confirmation

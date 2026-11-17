@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -31,10 +31,17 @@ var _ = Describe("Auth actions", func() {
 			_, err := auth.InitActions()
 			Expect(err).ToNot(HaveOccurred())
 
+			appRead, found := auth.ActionsMap["app_read"]
+			Expect(found).To(BeTrue())
+			Expect(appRead.Routes).To(ContainElement("Apps"))
+			Expect(appRead.Routes).To(ContainElement("AppsUndeployed"))
+			Expect(appRead.Routes).To(ContainElement("AllApps"))
+			Expect(appRead.Routes).To(ContainElement("AllAppsUndeployed"))
+			Expect(appRead.Routes).To(ContainElement("AppShow"))
+
 			appCreate, found := auth.ActionsMap["app_create"]
 			Expect(found).To(BeTrue())
 			Expect(appCreate.Routes).To(ContainElement("AppCreate"))
-			Expect(appCreate.Routes).To(ContainElement("AppImportGit"))
 			Expect(appCreate.Routes).To(ContainElement("AppUpload"))
 
 			appUpdateEnv, found := auth.ActionsMap["app_update_env"]

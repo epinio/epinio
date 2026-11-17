@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -24,6 +24,12 @@ import (
 // service.
 func getCatalogServiceParam(c *gin.Context) string {
 	return c.Query("catalog_service")
+}
+
+// getAppParam returns the optional `app` query parameter, narrowing a service
+// list to the instances bound to a single application.
+func getAppParam(c *gin.Context) string {
+	return c.Query("app")
 }
 
 // filterServices narrows a service list by the optional `search` and

@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -107,6 +107,36 @@ namespace: %s
 		By(string(bodyBytes))
 		By(expecting)
 		Expect(string(bodyBytes)).To(Equal(expecting), string(bodyBytes))
+	})
+
+	It("reports bound configurations, with their type, in the manifest", func() {
+		configuration := catalog.NewConfigurationName()
+		env.MakeConfiguration(configuration)
+		defer env.CleanupConfiguration(configuration)
+
+		env.BindAppConfiguration(app, configuration, namespace)
+
+		response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications/%s/part/manifest",
+			serverURL, v1.Root, namespace, app), strings.NewReader(""))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+		defer response.Body.Close()
+
+		bodyBytes, err := io.ReadAll(response.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+		By(string(bodyBytes))
+
+		// The plain name list stays, it is what `epinio push` binds from. The typed
+		// list is the addition, and is informational only.
+		Expect(string(bodyBytes)).To(ContainSubstring(fmt.Sprintf(`  configurations:
+  - %s
+`, configuration)))
+		Expect(string(bodyBytes)).To(ContainSubstring(fmt.Sprintf(`  bound_configurations:
+  - name: %s
+    type: custom
+`, configuration)))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

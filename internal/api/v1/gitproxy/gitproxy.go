@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -362,6 +362,12 @@ func doRequest(client *http.Client, req *http.Request, writer http.ResponseWrite
 	writer.WriteHeader(resp.StatusCode)
 
 	for k, values := range resp.Header {
+		// Need to set Epinios CORS headers, but not the ones from the
+		// proxied response
+		if strings.HasPrefix(k, "Access-Control-") {
+			continue
+		}
+
 		for _, v := range values {
 			writer.Header().Add(k, v)
 		}

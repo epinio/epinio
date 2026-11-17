@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -115,6 +115,27 @@ var _ = Describe("Gitproxy Endpoint", func() {
 			b, err := io.ReadAll(w.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(b)).To(Equal(`{"foo":"bar"}`))
+		})
+
+		It("does not relay the upstream CORS headers", func() {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("X-Upstream", "kept")
+				w.WriteHeader(200)
+			}))
+			defer srv.Close()
+
+			// what the server's CORS middleware sets before the handler runs
+			c.Header("Access-Control-Allow-Origin", "https://rancher.example.com")
+
+			setupRequestBody(fmt.Sprintf(`{"url":"%s/api/v3/repos/epinio/epinio"}`, srv.URL))
+
+			gitManager := &gitbridge.Manager{Configurations: []gitbridge.Configuration{}}
+
+			errs := gitproxy.Proxy(c, gitManager)
+			Expect(errs).ToNot(HaveOccurred())
+			Expect(w.Header().Values("Access-Control-Allow-Origin")).To(Equal([]string{"https://rancher.example.com"}))
+			Expect(w.Header().Get("X-Upstream")).To(Equal("kept"))
 		})
 
 		It("fails for unkwnown URLs", func() {

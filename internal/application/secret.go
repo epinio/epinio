@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -31,6 +31,24 @@ func loadOrCreateSecret(ctx context.Context, cluster *kubernetes.Cluster, appRef
 		// If error is `Not Found`. Create the secret.
 		if apierrors.IsNotFound(err) {
 			return createSecret(ctx, cluster, appRef, secretName, areaLabel)
+		}
+		return nil, errors.Wrapf(err, "error getting secret %s", secretName)
+	}
+	return secret, nil
+}
+
+// loadSecret locates and returns the kube secret storing the referenced
+// application's resource. Unlike loadOrCreateSecret it never writes: a missing
+// secret reads as an empty one. Read-only callers (GET handlers) must use this,
+// so that reading an application's bindings does not create cluster state as a
+// side effect.
+func loadSecret(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, secretName, areaLabel string) (*v1.Secret, error) {
+	secret, err := cluster.GetSecret(ctx, appRef.Namespace, secretName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			empty := makeSecret(appRef, areaLabel)
+			empty.Name = secretName
+			return &empty, nil
 		}
 		return nil, errors.Wrapf(err, "error getting secret %s", secretName)
 	}
