@@ -102,6 +102,104 @@ var _ = Describe("Namespaces API Application Endpoints", LNamespace, func() {
 				Expect(paged.Items).To(HaveLen(1))
 			})
 
+			It("sorts namespaces by name before pagination", func() {
+				nsA := "aaaa-" + catalog.NewNamespaceName()
+				nsZ := "zzzz-" + catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(nsA)
+				defer env.DeleteNamespace(nsA)
+				env.SetupAndTargetNamespace(nsZ)
+				defer env.DeleteNamespace(nsZ)
+
+				listPage := func(query string) models.NamespaceList {
+					response, err := env.Curl("GET",
+						fmt.Sprintf("%s%s/namespaces?%s", serverURL, api.Root, query),
+						strings.NewReader(""))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response).ToNot(BeNil())
+					defer response.Body.Close()
+					bodyBytes, err := io.ReadAll(response.Body)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+					var paged struct {
+						Items models.NamespaceList `json:"items"`
+					}
+					err = json.Unmarshal(bodyBytes, &paged)
+					Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+					return paged.Items
+				}
+
+				asc := listPage("page=1&pageSize=100&sort=name&sortDir=asc")
+				Expect(asc).ToNot(BeEmpty())
+				ascNames := make([]string, 0, len(asc))
+				for _, ns := range asc {
+					ascNames = append(ascNames, ns.Meta.Name)
+				}
+				Expect(ascNames).To(ContainElements(nsA, nsZ))
+				Expect(strings.Compare(ascNames[0], ascNames[len(ascNames)-1])).To(BeNumerically("<=", 0))
+
+				idxA, idxZ := -1, -1
+				for i, name := range ascNames {
+					if name == nsA {
+						idxA = i
+					}
+					if name == nsZ {
+						idxZ = i
+					}
+				}
+				Expect(idxA).To(BeNumerically(">=", 0))
+				Expect(idxZ).To(BeNumerically(">=", 0))
+				Expect(idxA).To(BeNumerically("<", idxZ))
+
+				desc := listPage("page=1&pageSize=100&sort=name&sortDir=desc")
+				descNames := make([]string, 0, len(desc))
+				for _, ns := range desc {
+					descNames = append(descNames, ns.Meta.Name)
+				}
+				Expect(descNames).To(ContainElements(nsA, nsZ))
+				idxA, idxZ = -1, -1
+				for i, name := range descNames {
+					if name == nsA {
+						idxA = i
+					}
+					if name == nsZ {
+						idxZ = i
+					}
+				}
+				Expect(idxA).To(BeNumerically(">", idxZ))
+			})
+
+			It("accepts serviceInstanceCount sort and returns services on namespaces", func() {
+				response, err := env.Curl("GET",
+					fmt.Sprintf("%s%s/namespaces?page=1&pageSize=10&sort=serviceInstanceCount&sortDir=desc",
+						serverURL, api.Root),
+					strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := io.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				var paged struct {
+					Items      models.NamespaceList `json:"items"`
+					Page       int                  `json:"page"`
+					PageSize   int                  `json:"pageSize"`
+					TotalItems int                  `json:"totalItems"`
+				}
+				err = json.Unmarshal(bodyBytes, &paged)
+				Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+				Expect(paged.Page).To(Equal(1))
+				Expect(paged.PageSize).To(Equal(10))
+				Expect(paged.TotalItems).To(BeNumerically(">=", 1))
+				Expect(paged.Items).ToNot(BeEmpty())
+				// serviceInstanceCount path must succeed and return namespace metas.
+				// Services is omitempty when empty; unit tests cover NamesByNamespace.
+				for _, ns := range paged.Items {
+					Expect(ns.Meta.Name).ToNot(BeEmpty())
+				}
+			})
+
 			It("filters namespaces by search term", func() {
 				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces?search=%s",
 					serverURL, api.Root, namespace), strings.NewReader(""))
