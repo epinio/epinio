@@ -48,7 +48,21 @@ const (
 	// the application was a deploy: the staged image was deployed as a
 	// running workload.
 	AppBuildStatusDeployed = "deployed"
+
+	// AppLifecycleSucceeded / AppLifecycleFailed are result values stored
+	// on App CR status.lastbuild / status.lastdeploy (EPINIO-783).
+	AppLifecycleSucceeded = "succeeded"
+	AppLifecycleFailed    = "failed"
 )
+
+// AppLifecycleStamp is the outcome of one build or deploy attempt, stored on
+// the App CR status (lastbuild / lastdeploy). JSON names match the CRD.
+type AppLifecycleStamp struct {
+	DurationMs int64  `json:"durationms"`
+	FinishedAt string `json:"finishedat"`
+	Result     string `json:"result"`
+	StageID    string `json:"stageid,omitempty"`
+}
 
 type GitProvider string
 

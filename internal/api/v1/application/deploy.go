@@ -14,6 +14,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -281,7 +282,33 @@ func runDeploy(
 
 	rep.Phase(models.OperationDeploying)
 
-	result, err := deployImage(
+	// Stamp status.lastdeploy on every exit from the deploy half (success or
+	// failure), matching EPINIO-783's defer guidance for the old
+	// runAsyncDeployment. Build failures above return before this defer.
+	deployStarted := time.Now()
+	var deployErr error
+	defer func() {
+		stamp := application.NewAppLifecycleStamp(
+			deployStarted,
+			stageID,
+			application.LifecycleResult(deployErr == nil),
+		)
+		if err := application.SetLastDeploy(ctx, cluster, req.App, stamp); err != nil {
+			requestctx.Logger(ctx).Errorw(
+				"stamping lastdeploy on app status",
+				"error",
+				err,
+				"namespace",
+				req.App.Namespace,
+				"app",
+				req.App.Name,
+				"stageID",
+				stageID,
+			)
+		}
+	}()
+
+	deployResult, deployErr := deployImage(
 		ctx,
 		cluster,
 		req.App,
@@ -289,10 +316,10 @@ func runDeploy(
 		stageID,
 		imageURL,
 	)
-	if err != nil {
-		return err
+	if deployErr != nil {
+		return deployErr
 	}
-	rep.Deployed(result.Routes, result.Warnings)
+	rep.Deployed(deployResult.Routes, deployResult.Warnings)
 
 	return nil
 }

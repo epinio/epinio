@@ -337,3 +337,11 @@ var _ = Describe("AppBuildStatus", func() {
 		Expect(models.AppBuildStatusBuild).NotTo(Equal(models.AppBuildStatusDeployed))
 	})
 })
+
+var _ = Describe("AppLifecycleResult", func() {
+	It("defines distinct succeeded and failed values for CR status stamps", func() {
+		Expect(models.AppLifecycleSucceeded).To(Equal("succeeded"))
+		Expect(models.AppLifecycleFailed).To(Equal("failed"))
+		Expect(models.AppLifecycleSucceeded).NotTo(Equal(models.AppLifecycleFailed))
+	})
+})

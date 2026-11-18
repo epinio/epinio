@@ -462,7 +462,13 @@ func watchDeploy(
 		return apiErrorAsError(apiErr)
 	}
 
-	success, err := waitForStagingCompletion(ctx, cluster, jobs)
+	success, err := waitForStagingCompletion(
+		ctx,
+		cluster,
+		appRef,
+		params.Stage.ID,
+		jobs,
+	)
 	if err != nil {
 		return fmt.Errorf("waiting for the build: %w", err)
 	}
@@ -486,13 +492,40 @@ func watchDeploy(
 
 	rep.Phase(models.OperationDeploying)
 
+	// Stamp status.lastdeploy on every exit from the deploy half (success or
+	// failure), same as runDeploy. Build failures above return before this.
+	deployStarted := time.Now()
+	var deployErr error
+	defer func() {
+		stamp := application.NewAppLifecycleStamp(
+			deployStarted,
+			params.Stage.ID,
+			application.LifecycleResult(deployErr == nil),
+		)
+		if err := application.SetLastDeploy(ctx, cluster, appRef, stamp); err != nil {
+			requestctx.Logger(ctx).Errorw(
+				"stamping lastdeploy on app status",
+				"error",
+				err,
+				"namespace",
+				appRef.Namespace,
+				"app",
+				appRef.Name,
+				"stageID",
+				params.Stage.ID,
+			)
+		}
+	}()
+
 	freshApp, err := application.Get(ctx, cluster, appRef)
 	if err != nil {
+		deployErr = err
 		return fmt.Errorf("re-fetching the app for deploy: %w", err)
 	}
 
 	err = deploy.UpdateImageURL(ctx, cluster, freshApp, stageResponse.ImageURL)
 	if err != nil {
+		deployErr = err
 		return fmt.Errorf("updating the image url: %w", err)
 	}
 
@@ -505,6 +538,7 @@ func watchDeploy(
 		registry.CredentialsSecretName,
 	)
 	if err != nil {
+		deployErr = err
 		return fmt.Errorf("getting registry connection details: %w", err)
 	}
 
@@ -512,6 +546,7 @@ func watchDeploy(
 		stageResponse.ImageURL,
 	)
 	if err != nil {
+		deployErr = err
 		return fmt.Errorf("replacing the registry url: %w", err)
 	}
 
@@ -526,6 +561,7 @@ func watchDeploy(
 		processCmd,
 	)
 	if err != nil {
+		deployErr = err
 		return fmt.Errorf("swapping the pod image: %w", err)
 	}
 	log.Infow("step:swapPodImage", "ms", time.Since(t).Milliseconds())
@@ -537,6 +573,7 @@ func watchDeploy(
 		models.AppBuildStatusDeployed,
 	)
 	if err != nil {
+		deployErr = err
 		return fmt.Errorf("updating the build status: %w", err)
 	}
 

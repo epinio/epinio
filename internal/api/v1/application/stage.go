@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -284,7 +285,13 @@ func buildAndWait(
 		return staged, apiErrorAsError(apiErr)
 	}
 
-	success, err := waitForStagingCompletion(ctx, cluster, jobs)
+	success, err := waitForStagingCompletion(
+		ctx,
+		cluster,
+		req.App,
+		staged.Stage.ID,
+		jobs,
+	)
 	if err != nil {
 		return staged, fmt.Errorf("waiting for the build: %w", err)
 	}
@@ -627,14 +634,48 @@ func stageJobs(ctx context.Context, cluster *kubernetes.Cluster, namespace, stag
 
 // waitForStagingCompletion waits until all provided jobs finish and reports success or failure.
 // It returns (true, nil) on success, (false, nil) on job failure, or (false, err) on unexpected errors.
-func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, jobs []batchv1.Job) (bool, error) {
+// On every exit it stamps status.lastbuild on the App CR (EPINIO-783), including failures.
+func waitForStagingCompletion(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+	stageID string,
+	jobs []batchv1.Job,
+) (bool, error) {
+	started := time.Now()
+	success := false
+	var waitErr error
+
+	defer func() {
+		stamp := application.NewAppLifecycleStamp(
+			started,
+			stageID,
+			application.LifecycleResult(success && waitErr == nil),
+		)
+		if err := application.SetLastBuild(ctx, cluster, app, stamp); err != nil {
+			requestctx.Logger(ctx).Errorw(
+				"stamping lastbuild on app status",
+				"error",
+				err,
+				"namespace",
+				app.Namespace,
+				"app",
+				app.Name,
+				"stageID",
+				stageID,
+			)
+		}
+	}()
+
 	for _, job := range jobs {
 		if err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.Name, duration.ToAppBuilt()); err != nil {
+			waitErr = err
 			return false, err
 		}
 
 		failed, err := cluster.IsJobFailed(ctx, job.Name, helmchart.Namespace())
 		if err != nil {
+			waitErr = err
 			return false, err
 		}
 		if failed {
@@ -642,6 +683,7 @@ func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, 
 		}
 	}
 
+	success = true
 	return true, nil
 }
 
