@@ -3101,6 +3101,12 @@
           "type": "string",
           "x-go-name": "ImageURL"
         },
+        "lastBuild": {
+          "$ref": "#/definitions/AppLifecycleStamp"
+        },
+        "lastDeploy": {
+          "$ref": "#/definitions/AppLifecycleStamp"
+        },
         "meta": {
           "$ref": "#/definitions/AppRef"
         },
@@ -3388,6 +3394,30 @@
         "image-tag": {
           "type": "string",
           "x-go-name": "ImageTag"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppLifecycleStamp": {
+      "description": "AppLifecycleStamp is the outcome of one build or deploy attempt. It is stored\non the App CR status (lastbuild / lastdeploy) and returned on the app read\nmodel so stamped and live values share one shape (EPINIO-772 / EPINIO-784).\nJSON names match the CRD.",
+      "type": "object",
+      "properties": {
+        "durationms": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "DurationMs"
+        },
+        "finishedat": {
+          "type": "string",
+          "x-go-name": "FinishedAt"
+        },
+        "result": {
+          "type": "string",
+          "x-go-name": "Result"
+        },
+        "stageid": {
+          "type": "string",
+          "x-go-name": "StageID"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"

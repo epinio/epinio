@@ -20,6 +20,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -56,6 +57,56 @@ func LifecycleStatusMergePatch(field string, stamp models.AppLifecycleStamp) ([]
 			field: stamp,
 		},
 	})
+}
+
+// LastBuild reads status.lastbuild from the App CR. It returns nil when the
+// field is absent or empty so the API can omit the key (EPINIO-784).
+func LastBuild(app *unstructured.Unstructured) (*models.AppLifecycleStamp, error) {
+	return lifecycleStampFromStatus(app, "lastbuild")
+}
+
+// LastDeploy reads status.lastdeploy from the App CR. It returns nil when the
+// field is absent or empty so the API can omit the key (EPINIO-784).
+func LastDeploy(app *unstructured.Unstructured) (*models.AppLifecycleStamp, error) {
+	return lifecycleStampFromStatus(app, "lastdeploy")
+}
+
+func lifecycleStampFromStatus(
+	app *unstructured.Unstructured,
+	field string,
+) (*models.AppLifecycleStamp, error) {
+	raw, found, err := unstructured.NestedMap(
+		app.UnstructuredContent(),
+		"status",
+		field,
+	)
+	if err != nil {
+		return nil, errors.Wrapf(err, "status.%s should be an object", field)
+	}
+	if !found || len(raw) == 0 {
+		return nil, nil
+	}
+
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil, errors.Wrapf(err, "encoding status.%s", field)
+	}
+
+	var stamp models.AppLifecycleStamp
+	if err := json.Unmarshal(encoded, &stamp); err != nil {
+		return nil, errors.Wrapf(err, "decoding status.%s", field)
+	}
+
+	// Treat a zero-value object as absent so the API does not emit a
+	// zero-duration stamp the UI would render as a real measurement.
+	if stamp.Result == "" &&
+		stamp.FinishedAt == "" &&
+		stamp.StageID == "" &&
+		stamp.DurationMs == 0 {
+		return nil, nil
+	}
+
+	return &stamp, nil
 }
 
 // SetLastBuild writes status.lastbuild on the App CR via the status subresource.

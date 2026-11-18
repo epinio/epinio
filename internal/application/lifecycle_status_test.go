@@ -19,6 +19,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var _ = Describe("NewAppLifecycleStamp", func() {
@@ -197,5 +198,116 @@ var _ = Describe("LifecycleStatusMergePatch", func() {
 
 		Expect(buildBody["status"].(map[string]any)).To(HaveLen(1))
 		Expect(deployBody["status"].(map[string]any)).To(HaveLen(1))
+	})
+})
+
+var _ = Describe("LastBuild and LastDeploy readers", func() {
+	It("returns nil when status stamps are absent", func() {
+		cr := &unstructured.Unstructured{Object: map[string]any{
+			"status": map[string]any{},
+		}}
+
+		build, err := application.LastBuild(cr)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(build).To(BeNil())
+
+		deploy, err := application.LastDeploy(cr)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(deploy).To(BeNil())
+	})
+
+	It("returns nil for an empty stamp object so the API omits the key", func() {
+		cr := &unstructured.Unstructured{Object: map[string]any{
+			"status": map[string]any{
+				"lastbuild":  map[string]any{},
+				"lastdeploy": map[string]any{},
+			},
+		}}
+
+		build, err := application.LastBuild(cr)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(build).To(BeNil())
+
+		deploy, err := application.LastDeploy(cr)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(deploy).To(BeNil())
+	})
+
+	It("reads lastbuild and lastdeploy stamps from the App CR status", func() {
+		cr := &unstructured.Unstructured{Object: map[string]any{
+			"status": map[string]any{
+				"lastbuild": map[string]any{
+					"durationms": int64(12345),
+					"finishedat": "2026-11-09T10:15:30Z",
+					"result":     models.AppLifecycleSucceeded,
+					"stageid":    "stage-build-001",
+				},
+				"lastdeploy": map[string]any{
+					"durationms": int64(678),
+					"finishedat": "2026-11-09T10:20:00Z",
+					"result":     models.AppLifecycleFailed,
+					"stageid":    "stage-deploy-002",
+				},
+			},
+		}}
+
+		build, err := application.LastBuild(cr)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(build).ToNot(BeNil())
+		Expect(build.DurationMs).To(Equal(int64(12345)))
+		Expect(build.FinishedAt).To(Equal("2026-11-09T10:15:30Z"))
+		Expect(build.Result).To(Equal(models.AppLifecycleSucceeded))
+		Expect(build.StageID).To(Equal("stage-build-001"))
+
+		deploy, err := application.LastDeploy(cr)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(deploy).ToNot(BeNil())
+		Expect(deploy.DurationMs).To(Equal(int64(678)))
+		Expect(deploy.FinishedAt).To(Equal("2026-11-09T10:20:00Z"))
+		Expect(deploy.Result).To(Equal(models.AppLifecycleFailed))
+		Expect(deploy.StageID).To(Equal("stage-deploy-002"))
+	})
+
+	It("omits lastBuild and lastDeploy from the App JSON when unset", func() {
+		app := models.App{
+			BuildStatus: models.AppBuildStatusCreate,
+		}
+
+		raw, err := json.Marshal(app)
+		Expect(err).ToNot(HaveOccurred())
+
+		var got map[string]any
+		Expect(json.Unmarshal(raw, &got)).To(Succeed())
+		Expect(got).NotTo(HaveKey("lastBuild"))
+		Expect(got).NotTo(HaveKey("lastDeploy"))
+	})
+
+	It("includes lastBuild and lastDeploy in the App JSON when set", func() {
+		app := models.App{
+			LastBuild: &models.AppLifecycleStamp{
+				DurationMs: 100,
+				FinishedAt: "2026-11-09T10:15:30Z",
+				Result:     models.AppLifecycleSucceeded,
+				StageID:    "stage-1",
+			},
+			LastDeploy: &models.AppLifecycleStamp{
+				DurationMs: 50,
+				FinishedAt: "2026-11-09T10:16:00Z",
+				Result:     models.AppLifecycleSucceeded,
+				StageID:    "stage-1",
+			},
+		}
+
+		raw, err := json.Marshal(app)
+		Expect(err).ToNot(HaveOccurred())
+
+		var got map[string]any
+		Expect(json.Unmarshal(raw, &got)).To(Succeed())
+		Expect(got).To(HaveKey("lastBuild"))
+		Expect(got).To(HaveKey("lastDeploy"))
+
+		lastBuild := got["lastBuild"].(map[string]any)
+		Expect(lastBuild["durationms"]).To(BeEquivalentTo(100))
+		Expect(lastBuild).NotTo(HaveKey("durationMs"))
 	})
 })

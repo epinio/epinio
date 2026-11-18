@@ -55,8 +55,10 @@ const (
 	AppLifecycleFailed    = "failed"
 )
 
-// AppLifecycleStamp is the outcome of one build or deploy attempt, stored on
-// the App CR status (lastbuild / lastdeploy). JSON names match the CRD.
+// AppLifecycleStamp is the outcome of one build or deploy attempt. It is stored
+// on the App CR status (lastbuild / lastdeploy) and returned on the app read
+// model so stamped and live values share one shape (EPINIO-772 / EPINIO-784).
+// JSON names match the CRD.
 type AppLifecycleStamp struct {
 	DurationMs int64  `json:"durationms"`
 	FinishedAt string `json:"finishedat"`
@@ -145,6 +147,12 @@ type App struct {
 	// See AppBuildStatusCreate / AppBuildStatusBuild / AppBuildStatusDeployed.
 	BuildStatus   string `json:"buildstatus,omitempty"`
 	FailureReason string `json:"failure_reason,omitempty"`
+	// LastBuild is the stamped outcome of the most recent build, when present
+	// on the App CR status. Omitted when the app has never been built.
+	LastBuild *AppLifecycleStamp `json:"lastBuild,omitempty"`
+	// LastDeploy is the stamped outcome of the most recent deploy, when present
+	// on the App CR status. Omitted when the app has never been deployed.
+	LastDeploy *AppLifecycleStamp `json:"lastDeploy,omitempty"`
 	// Operation is the app's latest lifecycle operation, when this server
 	// still holds a record of it. See AppState.
 	Operation *AppOperation `json:"operation,omitempty"`
