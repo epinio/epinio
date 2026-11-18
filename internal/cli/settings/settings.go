@@ -48,6 +48,11 @@ type Settings struct {
 	Colors    bool         `mapstructure:"colors"`
 	AppChart  string       `mapstructure:"appchart"` // Current default app chart (name)
 
+	// Headers holds optional custom HTTP headers persisted from login (for
+	// example Proxy-Authorization behind an IAP). Cleared unless the user
+	// opts in with --remember-header.
+	Headers http.Header `mapstructure:"headers"`
+
 	Location string // Origin of data, file which was loaded
 
 	v   *viper.Viper
@@ -113,6 +118,10 @@ func LoadFrom(file string) (*Settings, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal settings file")
 	}
+
+	// Viper lowercases map keys on read. Rebuild as a real http.Header so
+	// Header.Get/Set use canonical names (e.g. Proxy-Authorization).
+	cfg.Headers = normalizeHeaders(cfg.Headers)
 
 	cfg.v = v
 
@@ -192,6 +201,7 @@ func (c *Settings) Save() error {
 	c.v.Set("wss", c.WSS)
 	c.v.Set("certs", c.Certs)
 	c.v.Set("colors", c.Colors)
+	c.v.Set("headers", c.Headers)
 
 	c.log.Info("Saving", "to", c.v.ConfigFileUsed())
 
@@ -200,9 +210,18 @@ func (c *Settings) Save() error {
 		return errors.Wrapf(err, "failed to create settings dir '%s'", filepath.Dir(c.v.ConfigFileUsed()))
 	}
 
+	// Keep the settings file private: it can contain passwords, tokens, and
+	// optionally Proxy-Authorization headers when --remember-header is used.
+	c.v.SetConfigPermissions(0600)
+
 	err = c.v.WriteConfig()
 	if err != nil {
 		return errors.Wrapf(err, "failed to write settings file '%s'", c.v.ConfigFileUsed())
+	}
+
+	// Ensure permissions even when WriteConfig truncates an existing file.
+	if err := os.Chmod(c.v.ConfigFileUsed(), 0600); err != nil {
+		return errors.Wrapf(err, "failed to set permissions on settings file '%s'", c.v.ConfigFileUsed())
 	}
 
 	c.log.Info("Saved", "value", c.String())
@@ -219,6 +238,19 @@ func (c *Settings) Save() error {
 
 func location() string {
 	return viper.GetString("settings-file")
+}
+
+func normalizeHeaders(headers http.Header) http.Header {
+	if len(headers) == 0 {
+		return nil
+	}
+	normalized := make(http.Header, len(headers))
+	for key, values := range headers {
+		for _, value := range values {
+			normalized.Add(key, value)
+		}
+	}
+	return normalized
 }
 
 // See also manifest/manifest.go

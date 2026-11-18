@@ -52,6 +52,7 @@ func clearAuthSettings() (*settings.Settings, error) {
 	epinioSettings.Password = ""
 	epinioSettings.Certs = ""
 	epinioSettings.Token = settings.TokenSetting{}
+	epinioSettings.Headers = nil
 
 	return epinioSettings, nil
 }

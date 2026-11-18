@@ -32,7 +32,7 @@ import (
 )
 
 // Login will ask the user for a username and password, and then it will update the settings file accordingly
-func (c *EpinioClient) Login(ctx context.Context, username, password, address string, trustCA bool) error {
+func (c *EpinioClient) Login(ctx context.Context, username, password, address string, trustCA, rememberHeaders bool) error {
 	var err error
 
 	log := c.Log.WithName("Login")
@@ -69,6 +69,7 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 
 	// get the custom headers of the original client
 	customHeaders := c.API.Headers()
+	persistLoginHeaders(c.ui, updatedSettings, customHeaders, rememberHeaders)
 
 	// verify that settings are valid
 	err = verifyCredentials(ctx, updatedSettings, customHeaders)
@@ -334,6 +335,19 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 	epinioSettings.Token = settings.TokenSetting{}
 
 	return epinioSettings, nil
+}
+
+// persistLoginHeaders stores or clears custom headers in settings based on --remember-header.
+func persistLoginHeaders(ui *termui.UI, epinioSettings *settings.Settings, headers http.Header, remember bool) {
+	if remember && len(headers) > 0 {
+		epinioSettings.Headers = headers.Clone()
+		ui.Exclamation().Msg("Persisting custom headers to the settings file. This is a security risk: secrets such as Proxy-Authorization tokens are stored on disk.")
+		return
+	}
+	if len(epinioSettings.Headers) > 0 {
+		ui.Note().Msg("Cleared previously stored custom headers from the settings file.")
+	}
+	epinioSettings.Headers = nil
 }
 
 func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, customHeaders http.Header) error {
