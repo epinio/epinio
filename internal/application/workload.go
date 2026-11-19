@@ -368,11 +368,48 @@ func (a *Workload) generatePodInfo(pods []corev1.Pod) map[string]*models.PodInfo
 			Restarts:      restarts,
 			Ready:         podutils.IsPodReady(&pods[i]),
 			CreatedAt:     pod.CreationTimestamp.Format(time.RFC3339), // ISO 8601
+			StartupMs:     podStartupMs(&pods[i], restarts),
 			FailureReason: podFailureReason(&pods[i]),
 		}
 	}
 
 	return result
+}
+
+// podStartupMs is readyAt − CreatedAt in milliseconds (EPINIO-773).
+// Returns nil when restarts > 0 (Ready may have recycled) or when Ready
+// has not become true yet.
+func podStartupMs(pod *corev1.Pod, restarts int32) *int64 {
+	if restarts > 0 {
+		return nil
+	}
+
+	readyAt, ok := podReadyAt(pod)
+	if !ok {
+		return nil
+	}
+
+	ms := readyAt.Sub(pod.CreationTimestamp.Time).Milliseconds()
+	if ms < 0 {
+		ms = 0
+	}
+	return &ms
+}
+
+func podReadyAt(pod *corev1.Pod) (time.Time, bool) {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type != corev1.PodReady {
+			continue
+		}
+		if condition.Status != corev1.ConditionTrue {
+			return time.Time{}, false
+		}
+		if condition.LastTransitionTime.IsZero() {
+			return time.Time{}, false
+		}
+		return condition.LastTransitionTime.Time, true
+	}
+	return time.Time{}, false
 }
 
 // terminalWaitingReasons are container waiting reasons a pod will not leave on
