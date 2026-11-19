@@ -3101,6 +3101,12 @@
           "type": "string",
           "x-go-name": "ImageURL"
         },
+        "lastBuild": {
+          "$ref": "#/definitions/LifecycleTiming"
+        },
+        "lastDeploy": {
+          "$ref": "#/definitions/LifecycleTiming"
+        },
         "meta": {
           "$ref": "#/definitions/AppRef"
         },
@@ -4806,6 +4812,30 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "LifecycleTiming": {
+      "description": "LifecycleTiming is the normalized timing block for one build or deploy\nattempt (EPINIO-772). JSON names match the App CRD status.lastbuild /\nlastdeploy fields from helm-charts chart/epinio/crds/app-crd.yaml\n(EPINIO-781: durationms, finishedat, result, stageid) so the API DTO\nand CR share one shape. Ticket sketch camelCase / stage_id tags are\nintentionally not used.",
+      "type": "object",
+      "properties": {
+        "durationms": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "DurationMs"
+        },
+        "finishedat": {
+          "type": "string",
+          "x-go-name": "FinishedAt"
+        },
+        "result": {
+          "type": "string",
+          "x-go-name": "Result"
+        },
+        "stageid": {
+          "type": "string",
+          "x-go-name": "StageID"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "MeResponse": {
       "description": "MeResponse contains information about the current authenticated user",
       "type": "object",
@@ -5052,6 +5082,12 @@
           "type": "integer",
           "format": "int32",
           "x-go-name": "Restarts"
+        },
+        "startupMs": {
+          "description": "StartupMs is how long the instance took to become ready, in\nmilliseconds. Derived from pod times (EPINIO-772); not a full\nLifecycleTiming. Omitted when not available.",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "StartupMs"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"

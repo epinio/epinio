@@ -50,6 +50,19 @@ const (
 	AppBuildStatusDeployed = "deployed"
 )
 
+// LifecycleTiming is the normalized timing block for one build or deploy
+// attempt (EPINIO-772). JSON names match the App CRD status.lastbuild /
+// lastdeploy fields from helm-charts chart/epinio/crds/app-crd.yaml
+// (EPINIO-781: durationms, finishedat, result, stageid) so the API DTO
+// and CR share one shape. Ticket sketch camelCase / stage_id tags are
+// intentionally not used.
+type LifecycleTiming struct {
+	DurationMs int64  `json:"durationms"`
+	FinishedAt string `json:"finishedat"`
+	Result     string `json:"result"`
+	StageID    string `json:"stageid,omitempty"`
+}
+
 type GitProvider string
 
 const (
@@ -131,6 +144,12 @@ type App struct {
 	// See AppBuildStatusCreate / AppBuildStatusBuild / AppBuildStatusDeployed.
 	BuildStatus   string `json:"buildstatus,omitempty"`
 	FailureReason string `json:"failure_reason,omitempty"`
+	// LastBuild is the timing of the most recent build, when present.
+	// Omitted when the app has never been built.
+	LastBuild *LifecycleTiming `json:"lastBuild,omitempty"`
+	// LastDeploy is the timing of the most recent deploy, when present.
+	// Omitted when the app has never been deployed.
+	LastDeploy *LifecycleTiming `json:"lastDeploy,omitempty"`
 	// Operation is the app's latest lifecycle operation, when this server
 	// still holds a record of it. See AppState.
 	Operation *AppOperation `json:"operation,omitempty"`
@@ -144,6 +163,10 @@ type PodInfo struct {
 	CreatedAt   string `json:"createdAt,omitempty"`
 	Restarts    int32  `json:"restarts"`
 	Ready       bool   `json:"ready"`
+	// StartupMs is how long the instance took to become ready, in
+	// milliseconds. Derived from pod times (EPINIO-772); not a full
+	// LifecycleTiming. Omitted when not available.
+	StartupMs *int64 `json:"startupMs,omitempty"`
 	// FailureReason is non-empty when the pod will not become ready without
 	// intervention: an image pull failure, a container config error, a crash
 	// loop, or never having been scheduled.
