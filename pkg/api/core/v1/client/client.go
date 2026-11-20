@@ -113,7 +113,7 @@ func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 
 	// Apply headers persisted in the settings file (e.g. Proxy-Authorization).
 	// Global --header flags can still override or extend these afterward.
-	if settings != nil && settings.Headers != nil {
+	if settings.Headers != nil {
 		for key, values := range settings.Headers {
 			for _, value := range values {
 				client.customHeaders.Add(key, value)

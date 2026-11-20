@@ -84,7 +84,7 @@ func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, p
 
 	// get the custom headers of the original client
 	customHeaders := c.API.Headers()
-	persistLoginHeaders(c.ui, updatedSettings, customHeaders, rememberHeaders)
+	headerResult := persistLoginHeaders(updatedSettings, customHeaders, rememberHeaders)
 
 	// verify that settings are valid
 	err = verifyCredentials(ctx, updatedSettings, customHeaders)
@@ -95,7 +95,11 @@ func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, p
 	c.ui.Success().Msg("Login successful")
 
 	err = updatedSettings.Save()
-	return errors.Wrap(err, "error saving new settings")
+	if err != nil {
+		return errors.Wrap(err, "error saving new settings")
+	}
+	reportHeaderPersistResult(c.ui, headerResult)
+	return nil
 }
 
 // generateToken implements the Oauth2 flow to generate an auth token

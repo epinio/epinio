@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -210,8 +211,10 @@ func (c *Settings) Save() error {
 		return errors.Wrapf(err, "failed to create settings dir '%s'", filepath.Dir(c.v.ConfigFileUsed()))
 	}
 
-	// Keep the settings file private: it can contain passwords, tokens, and
-	// optionally Proxy-Authorization headers when --remember-header is used.
+	// On POSIX, keep the settings file owner-readable only: it can contain
+	// passwords, tokens, and optionally Proxy-Authorization headers.
+	// On Windows, os.Chmod cannot set Unix owner-only ACLs; it only toggles
+	// the read-only attribute. Rely on the user's profile directory ACLs there.
 	c.v.SetConfigPermissions(0600)
 
 	err = c.v.WriteConfig()
@@ -219,9 +222,11 @@ func (c *Settings) Save() error {
 		return errors.Wrapf(err, "failed to write settings file '%s'", c.v.ConfigFileUsed())
 	}
 
-	// Ensure permissions even when WriteConfig truncates an existing file.
-	if err := os.Chmod(c.v.ConfigFileUsed(), 0600); err != nil {
-		return errors.Wrapf(err, "failed to set permissions on settings file '%s'", c.v.ConfigFileUsed())
+	if runtime.GOOS != "windows" {
+		// Ensure permissions even when WriteConfig truncates an existing file.
+		if err := os.Chmod(c.v.ConfigFileUsed(), 0600); err != nil {
+			return errors.Wrapf(err, "failed to set permissions on settings file '%s'", c.v.ConfigFileUsed())
+		}
 	}
 
 	c.log.Info("Saved", "value", c.String())

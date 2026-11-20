@@ -20,7 +20,6 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/fatih/color"
-
 	"github.com/pkg/errors"
 )
 
@@ -66,6 +65,12 @@ func (c *EpinioClient) SettingsShow(showPassword, showToken bool) {
 		}
 	}
 
+	headerInfo := color.CyanString("None")
+	if len(c.Settings.Headers) > 0 {
+		// Do not print header values; only indicate that secrets are present.
+		headerInfo = color.BlueString("Present")
+	}
+
 	c.ui.Success().
 		WithTable("Key", "Value").
 		WithTableRow("Colorized Output", color.MagentaString("%t", c.Settings.Colors)).
@@ -74,6 +79,7 @@ func (c *EpinioClient) SettingsShow(showPassword, showToken bool) {
 		WithTableRow("API User Name", color.BlueString(c.Settings.User)).
 		WithTableRow("API Password", color.BlueString(password)).
 		WithTableRow("API Token", color.BlueString(token)).
+		WithTableRow("Custom Headers", headerInfo).
 		WithTableRow("API Url", color.BlueString(c.Settings.API)).
 		WithTableRow("WSS Url", color.BlueString(c.Settings.WSS)).
 		WithTableRow("Certificates", certInfo).

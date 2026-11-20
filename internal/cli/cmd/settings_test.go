@@ -88,7 +88,7 @@ var _ = Describe("Command 'epinio settings'", func() {
 				stdout, _, _ := executeCmd(settingsCmd, args, output, nil)
 
 				lines := strings.Split(stdout, "\n")
-				Expect(lines).To(HaveLen(15), stdout)
+				Expect(lines).To(HaveLen(16), stdout)
 
 				Expect(lines[0]).To(Equal("🚢  Show Settings"))
 				Expect(lines[1]).To(Equal("Settings: /my/local/settings"))
@@ -103,6 +103,7 @@ var _ = Describe("Command 'epinio settings'", func() {
 						WithRow("API User Name", "myuser"),
 						WithRow("API Password", "[*]+"),
 						WithRow("API Token", "[*]+"),
+						WithRow("Custom Headers", "None"),
 						WithRow("API Url", "https://epinio.io"),
 						WithRow("WSS Url", "wss://epinio.io"),
 						WithRow("Certificates", "Present"),
@@ -121,7 +122,7 @@ var _ = Describe("Command 'epinio settings'", func() {
 				stdout, _, _ := executeCmd(settingsCmd, args, output, nil)
 
 				lines := strings.Split(stdout, "\n")
-				Expect(lines).To(HaveLen(15), stdout)
+				Expect(lines).To(HaveLen(16), stdout)
 
 				Expect(lines[0]).To(Equal("🚢  Show Settings"))
 				Expect(lines[2]).To(Equal("✔️  Ok"))
@@ -147,7 +148,7 @@ var _ = Describe("Command 'epinio settings'", func() {
 				stdout, _, _ := executeCmd(settingsCmd, args, output, nil)
 
 				lines := strings.Split(stdout, "\n")
-				Expect(lines).To(HaveLen(15), stdout)
+				Expect(lines).To(HaveLen(16), stdout)
 
 				Expect(lines[0]).To(Equal("🚢  Show Settings"))
 				Expect(lines[2]).To(Equal("✔️  Ok"))
@@ -158,6 +159,27 @@ var _ = Describe("Command 'epinio settings'", func() {
 						WithRow("API Token", "mytoken"),
 					),
 				)
+			})
+		})
+
+		When("custom headers are persisted", func() {
+			It("shows Present without leaking values", func() {
+				epinioClient.Settings = &settings.Settings{
+					Headers: map[string][]string{
+						"Proxy-Authorization": {"Bearer secret-token"},
+					},
+				}
+
+				args := []string{"show"}
+				stdout, _, _ := executeCmd(settingsCmd, args, output, nil)
+
+				Expect(stdout).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Custom Headers", "Present"),
+					),
+				)
+				Expect(stdout).ToNot(ContainSubstring("secret-token"))
 			})
 		})
 	})

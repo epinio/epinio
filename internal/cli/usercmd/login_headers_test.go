@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 
 	"github.com/epinio/epinio/internal/cli/settings"
-	"github.com/epinio/epinio/internal/cli/termui"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
@@ -25,13 +24,11 @@ import (
 
 var _ = Describe("persistLoginHeaders", func() {
 	var (
-		ui              *termui.UI
 		epinioSettings  *settings.Settings
 		incomingHeaders http.Header
 	)
 
 	BeforeEach(func() {
-		ui = termui.NewUI()
 		epinioSettings = &settings.Settings{}
 		incomingHeaders = http.Header{
 			"Proxy-Authorization": []string{"Bearer test-token-123"},
@@ -39,7 +36,8 @@ var _ = Describe("persistLoginHeaders", func() {
 	})
 
 	It("stores headers when remember is true and headers are present", func() {
-		persistLoginHeaders(ui, epinioSettings, incomingHeaders, true)
+		result := persistLoginHeaders(epinioSettings, incomingHeaders, true)
+		Expect(result).To(Equal(headerPersistSaved))
 		Expect(epinioSettings.Headers.Get("Proxy-Authorization")).To(Equal("Bearer test-token-123"))
 	})
 
@@ -47,7 +45,8 @@ var _ = Describe("persistLoginHeaders", func() {
 		epinioSettings.Headers = http.Header{
 			"Proxy-Authorization": []string{"Bearer old-token"},
 		}
-		persistLoginHeaders(ui, epinioSettings, incomingHeaders, false)
+		result := persistLoginHeaders(epinioSettings, incomingHeaders, false)
+		Expect(result).To(Equal(headerPersistCleared))
 		Expect(epinioSettings.Headers).To(BeNil())
 	})
 
@@ -55,7 +54,20 @@ var _ = Describe("persistLoginHeaders", func() {
 		epinioSettings.Headers = http.Header{
 			"Proxy-Authorization": []string{"Bearer old-token"},
 		}
-		persistLoginHeaders(ui, epinioSettings, http.Header{}, true)
+		result := persistLoginHeaders(epinioSettings, http.Header{}, true)
+		Expect(result).To(Equal(headerPersistCleared))
+		Expect(epinioSettings.Headers).To(BeNil())
+	})
+
+	It("reports remember-without-headers when nothing was stored", func() {
+		result := persistLoginHeaders(epinioSettings, http.Header{}, true)
+		Expect(result).To(Equal(headerPersistRememberNoHeaders))
+		Expect(epinioSettings.Headers).To(BeNil())
+	})
+
+	It("reports none when remember is false and nothing was stored", func() {
+		result := persistLoginHeaders(epinioSettings, http.Header{}, false)
+		Expect(result).To(Equal(headerPersistNone))
 		Expect(epinioSettings.Headers).To(BeNil())
 	})
 })

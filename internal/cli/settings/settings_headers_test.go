@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/epinio/epinio/internal/cli/settings"
@@ -55,7 +56,10 @@ var _ = Describe("Settings Headers", func() {
 
 		info, err := os.Stat(tmpFile)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(info.Mode().Perm()).To(Equal(os.FileMode(0600)))
+		// os.Chmod(0600) is effective on POSIX only; Windows cannot express Unix modes.
+		if runtime.GOOS != "windows" {
+			Expect(info.Mode().Perm()).To(Equal(os.FileMode(0600)))
+		}
 
 		loaded, err := settings.LoadFrom(tmpFile)
 		Expect(err).ToNot(HaveOccurred())

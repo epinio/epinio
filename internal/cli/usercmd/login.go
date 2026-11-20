@@ -69,7 +69,7 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 
 	// get the custom headers of the original client
 	customHeaders := c.API.Headers()
-	persistLoginHeaders(c.ui, updatedSettings, customHeaders, rememberHeaders)
+	headerResult := persistLoginHeaders(updatedSettings, customHeaders, rememberHeaders)
 
 	// verify that settings are valid
 	err = verifyCredentials(ctx, updatedSettings, customHeaders)
@@ -83,6 +83,7 @@ func (c *EpinioClient) Login(ctx context.Context, username, password, address st
 	if err != nil {
 		return errors.Wrap(err, "error saving new settings")
 	}
+	reportHeaderPersistResult(c.ui, headerResult)
 
 	// Verify that the targeted namespace (if any) exists in the targeted cluster.
 	// If not report the issue, clear the information, and ask the user to chose a proper namespace.
@@ -337,17 +338,44 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 	return epinioSettings, nil
 }
 
+type headerPersistResult int
+
+const (
+	headerPersistNone headerPersistResult = iota
+	headerPersistSaved
+	headerPersistCleared
+	headerPersistRememberNoHeaders
+)
+
 // persistLoginHeaders stores or clears custom headers in settings based on --remember-header.
-func persistLoginHeaders(ui *termui.UI, epinioSettings *settings.Settings, headers http.Header, remember bool) {
+// UI messages are reported separately after a successful Save via reportHeaderPersistResult.
+func persistLoginHeaders(epinioSettings *settings.Settings, headers http.Header, remember bool) headerPersistResult {
+	hadStored := len(epinioSettings.Headers) > 0
+
 	if remember && len(headers) > 0 {
 		epinioSettings.Headers = headers.Clone()
-		ui.Exclamation().Msg("Persisting custom headers to the settings file. This is a security risk: secrets such as Proxy-Authorization tokens are stored on disk.")
-		return
+		return headerPersistSaved
 	}
-	if len(epinioSettings.Headers) > 0 {
-		ui.Note().Msg("Cleared previously stored custom headers from the settings file.")
-	}
+
 	epinioSettings.Headers = nil
+	if hadStored {
+		return headerPersistCleared
+	}
+	if remember {
+		return headerPersistRememberNoHeaders
+	}
+	return headerPersistNone
+}
+
+func reportHeaderPersistResult(ui *termui.UI, result headerPersistResult) {
+	switch result {
+	case headerPersistSaved:
+		ui.Exclamation().Msg("Persisted custom headers to the settings file. This is a security risk: secrets such as Proxy-Authorization tokens are stored on disk.")
+	case headerPersistCleared:
+		ui.Note().Msg("Cleared previously stored custom headers from the settings file.")
+	case headerPersistRememberNoHeaders:
+		ui.Note().Msg("--remember-header was set but no --header values were provided; nothing was persisted.")
+	}
 }
 
 func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings, customHeaders http.Header) error {
