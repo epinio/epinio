@@ -25,6 +25,10 @@ const (
 	EpinioStageBlobUIDLabel = "epinio.io/blob-uid"
 
 	EpinioCreatedByAnnotation = "epinio.io/created-by"
+	// EpinioStagingFailureReasonAnnotation stores the Kubernetes staging Job
+	// failure reason (and pod fallback detail) captured when staging fails.
+	// It must be written at failure time: finished Jobs are TTL'd away.
+	EpinioStagingFailureReasonAnnotation = "epinio.io/staging-failure-reason"
 
 	ApplicationBuilt     = "built"
 	ApplicationCreated   = "created"
@@ -129,8 +133,16 @@ type App struct {
 	// BuildStatus is "create", "build", or "deployed", reflecting the last
 	// completed lifecycle step: create (empty app), build (stage), or deploy.
 	// See AppBuildStatusCreate / AppBuildStatusBuild / AppBuildStatusDeployed.
-	BuildStatus   string `json:"buildstatus,omitempty"`
+	BuildStatus string `json:"buildstatus,omitempty"`
+	// FailureReason is set for workload/pod deploy problems (ImagePullBackOff,
+	// CrashLoopBackOff, …). Staging build failures use StagingFailureReason.
 	FailureReason string `json:"failure_reason,omitempty"`
+	// StagingFailureReason is the captured Kubernetes staging Job/pod failure
+	// detail (for example BackoffLimitExceeded, or a terminated reason with
+	// exit code). It is a sibling of FailureReason so clients can label it as
+	// a staging failure. Empty when staging has not failed, or after a later
+	// successful stage.
+	StagingFailureReason string `json:"staging_failure_reason,omitempty"`
 	// Operation is the app's latest lifecycle operation, when this server
 	// still holds a record of it. See AppState.
 	Operation *AppOperation `json:"operation,omitempty"`

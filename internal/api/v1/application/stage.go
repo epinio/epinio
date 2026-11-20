@@ -284,7 +284,7 @@ func buildAndWait(
 		return staged, apiErrorAsError(apiErr)
 	}
 
-	success, err := waitForStagingCompletion(ctx, cluster, jobs)
+	success, err := waitForStagingCompletion(ctx, cluster, req.App, jobs)
 	if err != nil {
 		return staged, fmt.Errorf("waiting for the build: %w", err)
 	}
@@ -625,9 +625,17 @@ func stageJobs(ctx context.Context, cluster *kubernetes.Cluster, namespace, stag
 	return jobList.Items, nil
 }
 
-// waitForStagingCompletion waits until all provided jobs finish and reports success or failure.
-// It returns (true, nil) on success, (false, nil) on job failure, or (false, err) on unexpected errors.
-func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, jobs []batchv1.Job) (bool, error) {
+// waitForStagingCompletion waits until all provided jobs finish and reports
+// success or failure. On failure it captures the Job/pod failure reason and
+// persists it on the App CR before the Job TTL can garbage-collect the pods.
+// It returns (true, nil) on success, (false, nil) on job failure, or
+// (false, err) on unexpected errors.
+func waitForStagingCompletion(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+	jobs []batchv1.Job,
+) (bool, error) {
 	for _, job := range jobs {
 		if err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.Name, duration.ToAppBuilt()); err != nil {
 			return false, err
@@ -638,14 +646,153 @@ func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, 
 			return false, err
 		}
 		if failed {
+			reason := captureStagingFailureReason(ctx, cluster, job.Name)
+			if persistErr := application.SetStagingFailureReason(ctx, cluster, app, reason); persistErr != nil {
+				requestctx.Logger(ctx).Errorw(
+					"failed to persist staging failure reason",
+					"error", persistErr,
+					"app", app.Name,
+					"namespace", app.Namespace,
+					"reason", reason,
+				)
+			}
 			return false, nil
 		}
+	}
+
+	if err := application.SetStagingFailureReason(ctx, cluster, app, ""); err != nil {
+		requestctx.Logger(ctx).Errorw(
+			"failed to clear staging failure reason after success",
+			"error", err,
+			"app", app.Name,
+			"namespace", app.Namespace,
+		)
 	}
 
 	return true, nil
 }
 
-// jobDoneState checks current job conditions and reports if all jobs are done and whether they succeeded.
+// captureStagingFailureReason reads the finished staging Job and, when the Job
+// condition message is too generic, falls back to the staging pod's terminated
+// or waiting reason so compile errors and missing buildpacks do not look alike.
+func captureStagingFailureReason(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	jobName string,
+) string {
+	job, err := cluster.GetJob(ctx, helmchart.Namespace(), jobName)
+	if err != nil {
+		return stagingPodFailureReason(ctx, cluster, jobName)
+	}
+	return resolveStagingFailureReason(ctx, cluster, job)
+}
+
+// resolveStagingFailureReason prefers a specific Job condition message, then
+// the staging pod's terminated/waiting detail, then the Job condition reason.
+func resolveStagingFailureReason(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	job *batchv1.Job,
+) string {
+	reason, message := jobFailedCondition(job)
+	if message != "" && !isGenericJobFailureMessage(message) {
+		if reason != "" {
+			return reason + ": " + message
+		}
+		return message
+	}
+
+	if podReason := stagingPodFailureReason(ctx, cluster, job.Name); podReason != "" {
+		return podReason
+	}
+
+	if reason != "" {
+		return reason
+	}
+	if message != "" {
+		return message
+	}
+	return "staging job failed"
+}
+
+// jobFailedCondition returns Reason and Message from the JobFailed condition.
+func jobFailedCondition(job *batchv1.Job) (reason, message string) {
+	if job == nil {
+		return "", ""
+	}
+	for _, condition := range job.Status.Conditions {
+		if condition.Type != batchv1.JobFailed || condition.Status != corev1.ConditionTrue {
+			continue
+		}
+		return condition.Reason, condition.Message
+	}
+	return "", ""
+}
+
+// isGenericJobFailureMessage reports Job messages that do not distinguish one
+// build failure from another (typical BackoffLimitExceeded text).
+func isGenericJobFailureMessage(message string) bool {
+	trimmed := strings.TrimSpace(message)
+	if trimmed == "" {
+		return true
+	}
+	return strings.EqualFold(trimmed, "Job has reached the specified backoff limit")
+}
+
+// stagingPodFailureReason inspects pods owned by the staging Job for a
+// terminated non-zero exit or a terminal waiting reason.
+func stagingPodFailureReason(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	jobName string,
+) string {
+	pods, err := cluster.ListPods(ctx, helmchart.Namespace(), "job-name="+jobName)
+	if err != nil || len(pods.Items) == 0 {
+		return ""
+	}
+
+	// Prefer the newest pod when Retries somehow produced more than one.
+	pod := &pods.Items[0]
+	for i := range pods.Items {
+		if pods.Items[i].CreationTimestamp.After(pod.CreationTimestamp.Time) {
+			pod = &pods.Items[i]
+		}
+	}
+
+	return podStagingFailureDetail(pod)
+}
+
+// podStagingFailureDetail returns a concise reason from container statuses.
+func podStagingFailureDetail(pod *corev1.Pod) string {
+	if pod == nil {
+		return ""
+	}
+
+	statuses := append([]corev1.ContainerStatus{}, pod.Status.InitContainerStatuses...)
+	statuses = append(statuses, pod.Status.ContainerStatuses...)
+
+	for _, status := range statuses {
+		if waiting := status.State.Waiting; waiting != nil && waiting.Reason != "" {
+			if waiting.Message != "" && !isGenericJobFailureMessage(waiting.Message) {
+				return waiting.Reason + ": " + waiting.Message
+			}
+			return waiting.Reason
+		}
+
+		if terminated := status.State.Terminated; terminated != nil && terminated.ExitCode != 0 {
+			reason := terminated.Reason
+			if reason == "" {
+				reason = "Error"
+			}
+			return fmt.Sprintf("%s (exit code %d)", reason, terminated.ExitCode)
+		}
+	}
+
+	return ""
+}
+
+// jobDoneState checks current job conditions and reports if all jobs are done
+// and whether they succeeded.
 func jobDoneState(jobs []batchv1.Job) (done bool, success bool) {
 	if len(jobs) == 0 {
 		return false, false
@@ -1437,8 +1584,15 @@ func updateApp(
 		specPatch["builderimage"] = params.BuilderImage
 	}
 
-	// Merge patch avoids resourceVersion update conflicts for these spec fields.
-	patchBody, err := json.Marshal(map[string]any{"spec": specPatch})
+	// Clear any previous staging failure as a new stage begins.
+	patchBody, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{
+			"annotations": map[string]any{
+				models.EpinioStagingFailureReasonAnnotation: nil,
+			},
+		},
+		"spec": specPatch,
+	})
 	if err != nil {
 		return err
 	}

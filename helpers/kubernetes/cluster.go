@@ -215,15 +215,20 @@ func (c *Cluster) ClientApp() (dynamic.NamespaceableResourceInterface, error) {
 	return cs.Resource(gvr), nil
 }
 
+// GetJob returns the named Job in namespace.
+func (c *Cluster) GetJob(ctx context.Context, namespace, jobName string) (*apibatchv1.Job, error) {
+	client, err := typedbatchv1.NewForConfig(c.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
+}
+
 // IsJobFailed is a condition function that indicates whether the
 // given Job is in Failed state or not.
 func (c *Cluster) IsJobFailed(ctx context.Context, jobName, namespace string) (bool, error) {
-	client, err := typedbatchv1.NewForConfig(c.RestConfig)
-	if err != nil {
-		return false, err
-	}
-
-	job, err := client.Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
+	job, err := c.GetJob(ctx, namespace, jobName)
 	if err != nil {
 		return false, err
 	}
