@@ -10,9 +10,12 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/spf13/viper"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
 )
 
@@ -116,6 +119,101 @@ func TestIsGenericJobFailureMessage(t *testing.T) {
 	}
 	if isGenericJobFailureMessage("buildpack detection failed") {
 		t.Fatal("expected specific message not to be generic")
+	}
+}
+
+func TestResolveStagingFailureReasonKeepsSpecificJobMessage(t *testing.T) {
+	job := &batchv1.Job{
+		Status: batchv1.JobStatus{
+			Conditions: []batchv1.JobCondition{
+				{
+					Type:    batchv1.JobFailed,
+					Status:  corev1.ConditionTrue,
+					Reason:  "DeadlineExceeded",
+					Message: "Job was active longer than specified deadline",
+				},
+			},
+		},
+	}
+
+	// Specific Job messages return before any cluster/pod lookup.
+	got := resolveStagingFailureReason(context.Background(), nil, job)
+	want := "DeadlineExceeded: Job was active longer than specified deadline"
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestResolveStagingFailureReasonFallsBackToPodOnGenericMessage(t *testing.T) {
+	oldNS := viper.GetString("namespace")
+	viper.Set("namespace", "epinio")
+	t.Cleanup(func() { viper.Set("namespace", oldNS) })
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Name: "stage-job"},
+		Status: batchv1.JobStatus{
+			Conditions: []batchv1.JobCondition{
+				{
+					Type:    batchv1.JobFailed,
+					Status:  corev1.ConditionTrue,
+					Reason:  "BackoffLimitExceeded",
+					Message: "Job has reached the specified backoff limit",
+				},
+			},
+		},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "stage-job-pod",
+			Namespace: "epinio",
+			Labels:    map[string]string{"job-name": "stage-job"},
+		},
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name: "build",
+					State: corev1.ContainerState{
+						Terminated: &corev1.ContainerStateTerminated{
+							ExitCode: 21,
+							Reason:   "Error",
+						},
+					},
+				},
+			},
+		},
+	}
+	cluster := &kubernetes.Cluster{Kubectl: fake.NewSimpleClientset(pod)}
+
+	got := resolveStagingFailureReason(context.Background(), cluster, job)
+	want := "Error (exit code 21)"
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestResolveStagingFailureReasonFallsBackToJobReasonWithoutPod(t *testing.T) {
+	oldNS := viper.GetString("namespace")
+	viper.Set("namespace", "epinio")
+	t.Cleanup(func() { viper.Set("namespace", oldNS) })
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Name: "stage-job"},
+		Status: batchv1.JobStatus{
+			Conditions: []batchv1.JobCondition{
+				{
+					Type:    batchv1.JobFailed,
+					Status:  corev1.ConditionTrue,
+					Reason:  "BackoffLimitExceeded",
+					Message: "Job has reached the specified backoff limit",
+				},
+			},
+		},
+	}
+	cluster := &kubernetes.Cluster{Kubectl: fake.NewSimpleClientset()}
+
+	got := resolveStagingFailureReason(context.Background(), cluster, job)
+	if got != "BackoffLimitExceeded" {
+		t.Fatalf("expected BackoffLimitExceeded, got %q", got)
 	}
 }
 
