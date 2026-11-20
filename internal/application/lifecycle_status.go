@@ -62,7 +62,7 @@ func LifecycleTimingFromJobs(
 	for i := range jobs {
 		st := jobs[i].Status.StartTime
 		if st != nil && !st.IsZero() {
-			t := st.Time.UTC()
+			t := st.UTC()
 			if !haveStart || t.Before(started) {
 				started = t
 				haveStart = true
@@ -70,7 +70,7 @@ func LifecycleTimingFromJobs(
 		}
 		ct := jobs[i].Status.CompletionTime
 		if ct != nil && !ct.IsZero() {
-			t := ct.Time.UTC()
+			t := ct.UTC()
 			if !haveFinish || t.After(finished) {
 				finished = t
 				haveFinish = true
