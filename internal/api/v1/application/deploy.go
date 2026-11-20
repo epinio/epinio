@@ -14,6 +14,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -279,9 +280,33 @@ func runDeploy(
 		}
 	}
 
+	// Deploy duration starts at the transition to deploying (EPINIO-773).
+	// AsyncDeployStatus.DeployStartedAt is gone with the operations rework;
+	// stamp LastDeploy from this instant instead.
 	rep.Phase(models.OperationDeploying)
+	deployStarted := time.Now().UTC()
+	var deployErr error
+	defer func() {
+		stamp := application.NewLifecycleTiming(
+			deployStarted,
+			time.Now().UTC(),
+			stageID,
+			application.LifecycleResult(deployErr == nil),
+		)
+		if err := application.SetLastDeploy(ctx, cluster, req.App, stamp); err != nil {
+			requestctx.Logger(ctx).Errorw(
+				"stamping lastdeploy on app status",
+				"error",
+				err,
+				"namespace",
+				req.App.Namespace,
+				"app",
+				req.App.Name,
+			)
+		}
+	}()
 
-	result, err := deployImage(
+	result, deployErr := deployImage(
 		ctx,
 		cluster,
 		req.App,
@@ -289,8 +314,8 @@ func runDeploy(
 		stageID,
 		imageURL,
 	)
-	if err != nil {
-		return err
+	if deployErr != nil {
+		return deployErr
 	}
 	rep.Deployed(result.Routes, result.Warnings)
 

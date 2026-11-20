@@ -340,6 +340,14 @@ var _ = Describe("AppBuildStatus", func() {
 	})
 })
 
+var _ = Describe("AppLifecycleResult", func() {
+	It("defines distinct succeeded and failed values for CR status stamps", func() {
+		Expect(models.AppLifecycleSucceeded).To(Equal("succeeded"))
+		Expect(models.AppLifecycleFailed).To(Equal("failed"))
+		Expect(models.AppLifecycleSucceeded).NotTo(Equal(models.AppLifecycleFailed))
+	})
+})
+
 var _ = Describe("LifecycleTiming JSON", func() {
 	It("marshals with CRD field names", func() {
 		timing := models.LifecycleTiming{

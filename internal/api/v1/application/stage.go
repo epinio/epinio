@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -284,7 +285,13 @@ func buildAndWait(
 		return staged, apiErrorAsError(apiErr)
 	}
 
-	success, err := waitForStagingCompletion(ctx, cluster, jobs)
+	success, err := waitForStagingCompletion(
+		ctx,
+		cluster,
+		req.App,
+		staged.Stage.ID,
+		jobs,
+	)
 	if err != nil {
 		return staged, fmt.Errorf("waiting for the build: %w", err)
 	}
@@ -627,14 +634,61 @@ func stageJobs(ctx context.Context, cluster *kubernetes.Cluster, namespace, stag
 
 // waitForStagingCompletion waits until all provided jobs finish and reports success or failure.
 // It returns (true, nil) on success, (false, nil) on job failure, or (false, err) on unexpected errors.
-func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, jobs []batchv1.Job) (bool, error) {
+// On every exit it stamps status.lastbuild from Job StartTime/CompletionTime (EPINIO-773).
+func waitForStagingCompletion(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+	stageID string,
+	jobs []batchv1.Job,
+) (bool, error) {
+	success := false
+	var waitErr error
+	completed := make([]batchv1.Job, 0, len(jobs))
+	// Fallback when Job StartTime is missing (timeout before any job is
+	// observed complete) so lastbuild does not stamp durationms: 0.
+	stageStarted := time.Now().UTC()
+
+	defer func() {
+		stamp := application.LifecycleTimingFromJobs(
+			completed,
+			stageID,
+			application.LifecycleResult(success && waitErr == nil),
+			stageStarted,
+		)
+		if err := application.SetLastBuild(ctx, cluster, app, stamp); err != nil {
+			requestctx.Logger(ctx).Errorw(
+				"stamping lastbuild on app status",
+				"error",
+				err,
+				"namespace",
+				app.Namespace,
+				"app",
+				app.Name,
+			)
+		}
+	}()
+
 	for _, job := range jobs {
 		if err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.Name, duration.ToAppBuilt()); err != nil {
+			waitErr = err
 			return false, err
 		}
 
+		fresh, err := cluster.Kubectl.BatchV1().Jobs(helmchart.Namespace()).Get(
+			ctx,
+			job.Name,
+			metav1.GetOptions{},
+		)
+		if err != nil {
+			waitErr = err
+			return false, err
+		}
+		completed = append(completed, *fresh)
+
 		failed, err := cluster.IsJobFailed(ctx, job.Name, helmchart.Namespace())
 		if err != nil {
+			waitErr = err
 			return false, err
 		}
 		if failed {
@@ -642,6 +696,7 @@ func waitForStagingCompletion(ctx context.Context, cluster *kubernetes.Cluster, 
 		}
 	}
 
+	success = true
 	return true, nil
 }
 
