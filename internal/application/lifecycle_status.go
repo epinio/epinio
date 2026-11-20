@@ -100,6 +100,17 @@ func LifecycleResult(succeeded bool) string {
 	return models.AppLifecycleFailed
 }
 
+// stampTimeout bounds the status write for one lifecycle stamp.
+const stampTimeout = 30 * time.Second
+
+// StampContext returns the context for writing a lifecycle stamp. It keeps
+// the values of ctx but not its cancellation, so the stamp still lands when
+// the operation was cancelled (client gone, request timeout), which is the
+// failure case the stamp exists to record. The caller must call cancel.
+func StampContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), stampTimeout)
+}
+
 // LifecycleStatusMergePatch builds the merge-patch body for status.lastbuild
 // or status.lastdeploy. Field must be the CRD name ("lastbuild" / "lastdeploy").
 func LifecycleStatusMergePatch(field string, stamp models.LifecycleTiming) ([]byte, error) {

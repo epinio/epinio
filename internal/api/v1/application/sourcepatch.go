@@ -500,7 +500,9 @@ func watchDeploy(
 			params.Stage.ID,
 			application.LifecycleResult(deployErr == nil),
 		)
-		if err := application.SetLastDeploy(ctx, cluster, appRef, stamp); err != nil {
+		stampCtx, cancel := application.StampContext(ctx)
+		defer cancel()
+		if err := application.SetLastDeploy(stampCtx, cluster, appRef, stamp); err != nil {
 			requestctx.Logger(ctx).Errorw(
 				"stamping lastdeploy on app status",
 				"error",

@@ -656,7 +656,9 @@ func waitForStagingCompletion(
 			application.LifecycleResult(success && waitErr == nil),
 			stageStarted,
 		)
-		if err := application.SetLastBuild(ctx, cluster, app, stamp); err != nil {
+		stampCtx, cancel := application.StampContext(ctx)
+		defer cancel()
+		if err := application.SetLastBuild(stampCtx, cluster, app, stamp); err != nil {
 			requestctx.Logger(ctx).Errorw(
 				"stamping lastbuild on app status",
 				"error",
