@@ -3710,6 +3710,11 @@
         "dockerfilePath": {
           "type": "string",
           "x-go-name": "DockerfilePath"
+        },
+        "sourcePath": {
+          "description": "SourcePath is the subdirectory within application sources used as the\nbuildpack app root (monorepo support). Empty means unset in a request\n(keep stored value). Use \".\" (SourcePathRoot) to reset to the sources root.",
+          "type": "string",
+          "x-go-name": "SourcePath"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4470,6 +4475,10 @@
         },
         "origin": {
           "$ref": "#/definitions/ApplicationOrigin"
+        },
+        "sourcepath": {
+          "type": "string",
+          "x-go-name": "SourcePath"
         },
         "stage": {
           "$ref": "#/definitions/StageRef"
@@ -5413,6 +5422,10 @@
         },
         "origin": {
           "$ref": "#/definitions/ApplicationOrigin"
+        },
+        "sourcepath": {
+          "type": "string",
+          "x-go-name": "SourcePath"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
