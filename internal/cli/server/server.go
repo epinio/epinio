@@ -108,6 +108,7 @@ func NewHandler() (*gin.Engine, error) {
 		middleware.GinLogger(),
 		middleware.Recovery,
 		middleware.InitContext(),
+		middleware.Prometheus(),
 	)
 
 	// No authentication, no session. This is epinio's version and auth information.

@@ -25,6 +25,7 @@ import (
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/metrics"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -77,6 +78,15 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		return nil, apierror.NewInternalError("cannot deploy app without imageURL")
 	}
 
+	// Count deploy metrics once we have a deployable image. Earlier validation
+	// (unknown app, stage mismatch, missing image) is not a deployment attempt.
+	var deployStatus string
+	defer func() {
+		if deployStatus != "" {
+			metrics.RecordDeployment(deployStatus)
+		}
+	}()
+
 	// Iterate over the bound configurations to determine their mount path ...
 
 	// (**) See below for explanation
@@ -88,6 +98,7 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	for _, configName := range appObj.Configuration.Configurations {
 		config, err := configurations.Lookup(ctx, cluster, app.Namespace, configName)
 		if err != nil {
+			deployStatus = metrics.StatusFailure
 			return nil, apierror.InternalError(err)
 		}
 
@@ -159,11 +170,13 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 
 	deployParams.ImageURL, err = replaceInternalRegistry(ctx, cluster, imageURL)
 	if err != nil {
+		deployStatus = metrics.StatusFailure
 		return nil, apierror.InternalError(err, "preparing ImageURL registry for use by Kubernetes", imageURL)
 	}
 
 	err = helm.Deploy(deployParams)
 	if err != nil {
+		deployStatus = metrics.StatusFailure
 		return nil, apierror.InternalError(err)
 	}
 
@@ -173,6 +186,7 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 
 		unstageResult, err := application.Unstage(ctx, cluster, app, stageID)
 		if err != nil {
+			deployStatus = metrics.StatusFailure
 			return nil, apierror.InternalError(err)
 		}
 		if unstageResult != nil && unstageResult.HasIncompleteCleanup() {
@@ -183,6 +197,7 @@ func deployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		}
 	}
 
+	deployStatus = metrics.StatusSuccess
 	result.Routes = routes
 	return result, nil
 }
