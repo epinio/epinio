@@ -4171,6 +4171,11 @@
       "description": "ChartSetting matches github.com/epinio/application/api/v1 ChartSetting\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
       "properties": {
+        "description": {
+          "description": "Description is optional help text shown to users configuring this setting",
+          "type": "string",
+          "x-go-name": "Description"
+        },
         "enum": {
           "description": "Enumeration of allowed values, for types string, number, integer",
           "type": "array",
@@ -4178,6 +4183,11 @@
             "type": "string"
           },
           "x-go-name": "Enum"
+        },
+        "example": {
+          "description": "Example is an optional sample value used as placeholder text in the UI",
+          "type": "string",
+          "x-go-name": "Example"
         },
         "maximum": {
           "description": "Maximal allowed value, for number, integer",

@@ -698,6 +698,12 @@ type ChartSetting struct {
 	// Enumeration of allowed values, for types string, number, integer
 	Enum []string `json:"enum,omitempty"`
 
+	// Description is optional help text shown to users configuring this setting
+	Description string `json:"description,omitempty"`
+
+	// Example is an optional sample value used as placeholder text in the UI
+	Example string `json:"example,omitempty"`
+
 	// Presence of an enum for number and integer overrides the min/max
 	// specifications
 }

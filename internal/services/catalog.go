@@ -58,24 +58,22 @@ func (s *ServiceClient) CatalogServiceExists(
 	return true, nil
 }
 
-// convertChartSettingsToCRD lifts the public ChartSetting map into the
-// apiv1.ServiceSetting map shape expected by the CR.
-func convertChartSettingsToCRD(
+// chartSettingsToUnstructuredMap converts API chart settings into an
+// unstructured map, including optional description/example fields.
+func chartSettingsToUnstructuredMap(
 	settings map[string]models.ChartSetting,
-) map[string]apiv1.ServiceSetting {
-	if len(settings) == 0 {
-		return nil
-	}
-	result := map[string]apiv1.ServiceSetting{}
+) (map[string]interface{}, error) {
+	settingsMap := make(map[string]interface{}, len(settings))
 	for key, value := range settings {
-		result[key] = apiv1.ServiceSetting{
-			Type:    value.Type,
-			Minimum: value.Minimum,
-			Maximum: value.Maximum,
-			Enum:    value.Enum,
+		converted, convertError := runtime.
+			DefaultUnstructuredConverter.
+			ToUnstructured(&value)
+		if convertError != nil {
+			return nil, convertError
 		}
+		settingsMap[key] = converted
 	}
-	return result
+	return settingsMap, nil
 }
 
 func (s *ServiceClient) convertUnstructuredListIntoCatalogService(
@@ -95,11 +93,11 @@ func (s *ServiceClient) convertUnstructuredListIntoCatalogService(
 }
 
 func (s *ServiceClient) convertUnstructuredIntoCatalogService(
-	unstructured unstructured.Unstructured,
+	obj unstructured.Unstructured,
 ) (*models.CatalogService, error) {
 	catalogService := apiv1.Service{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(
-		unstructured.Object,
+		obj.Object,
 		&catalogService,
 	)
 
@@ -107,15 +105,28 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(
 		return nil, errors.Wrap(err, "error converting catalog service")
 	}
 
-	// Convert from CRD structure to internal model
+	// Convert from CRD structure to internal model.
+	// Description/example are read from unstructured because the vendored
+	// application CRD Go types do not expose them yet.
 	settings := make(map[string]models.ChartSetting)
 	for key, value := range catalogService.Spec.Settings {
-		settings[key] = models.ChartSetting{
+		setting := models.ChartSetting{
 			Type:    value.Type,
 			Minimum: value.Minimum,
 			Maximum: value.Maximum,
 			Enum:    value.Enum,
 		}
+		if description, found, _ := unstructured.NestedString(
+			obj.Object, "spec", "settings", key, "description",
+		); found {
+			setting.Description = description
+		}
+		if example, found, _ := unstructured.NestedString(
+			obj.Object, "spec", "settings", key, "example",
+		); found {
+			setting.Example = example
+		}
+		settings[key] = setting
 	}
 
 	// if a secret was specified try to load the credentials from it
@@ -145,7 +156,7 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(
 			logger.Warnw(
 				"helm repo auth secret not found, "+
 					"continuing without credentials",
-				"catalogService", unstructured.GetName(),
+				"catalogService", obj.GetName(),
 				"secret", secretName,
 			)
 
@@ -165,8 +176,8 @@ func (s *ServiceClient) convertUnstructuredIntoCatalogService(
 
 	return &models.CatalogService{
 		Meta: models.MetaLite{
-			Name:      unstructured.GetName(),
-			CreatedAt: unstructured.GetCreationTimestamp(),
+			Name:      obj.GetName(),
+			CreatedAt: obj.GetCreationTimestamp(),
 		},
 		SecretTypes:      secretTypes,
 		Description:      catalogService.Spec.Description,

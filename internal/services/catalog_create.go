@@ -59,7 +59,8 @@ func (s *ServiceClient) CreateCatalogService(
 				URL:    req.HelmRepo.URL,
 				Secret: req.HelmRepo.Secret,
 			},
-			Settings: convertChartSettingsToCRD(req.Settings),
+			// Settings are applied below via unstructured map so optional
+			// description/example survive (vendored ServiceSetting omits them).
 		},
 	}
 
@@ -71,6 +72,21 @@ func (s *ServiceClient) CreateCatalogService(
 	}
 
 	unstructuredCR := &unstructured.Unstructured{Object: content}
+
+	if len(req.Settings) > 0 {
+		settingsMap, settingsError := chartSettingsToUnstructuredMap(req.Settings)
+		if settingsError != nil {
+			return nil, errors.Wrap(settingsError, "converting catalog service settings")
+		}
+		if setError := unstructured.SetNestedMap(
+			unstructuredCR.Object,
+			settingsMap,
+			"spec",
+			"settings",
+		); setError != nil {
+			return nil, errors.Wrap(setError, "setting catalog service settings")
+		}
+	}
 
 	annotations := map[string]string{}
 	if len(req.SecretTypes) > 0 {

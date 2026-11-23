@@ -43,12 +43,22 @@ func SettingsToChart(chart *unstructured.Unstructured) (map[string]models.ChartS
 		if err != nil {
 			return nil, errors.New("settings enum should be string slice")
 		}
+		fieldDescription, _, err := unstructured.NestedString(theSettings, key, "description")
+		if err != nil {
+			return nil, errors.New("settings description should be string")
+		}
+		fieldExample, _, err := unstructured.NestedString(theSettings, key, "example")
+		if err != nil {
+			return nil, errors.New("settings example should be string")
+		}
 
 		settings[key] = models.ChartSetting{
-			Type:    fieldType,
-			Minimum: fieldMin,
-			Maximum: fieldMax,
-			Enum:    fieldEnum,
+			Type:        fieldType,
+			Minimum:     fieldMin,
+			Maximum:     fieldMax,
+			Enum:        fieldEnum,
+			Description: fieldDescription,
+			Example:     fieldExample,
 		}
 	}
 

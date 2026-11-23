@@ -78,14 +78,9 @@ func (s *ServiceClient) UpdateCatalogService(
 		}
 	}
 	if req.Settings != nil {
-		settingsMap := map[string]interface{}{}
-		for key, value := range req.Settings {
-			settingsMap[key] = map[string]interface{}{
-				"type":    value.Type,
-				"minimum": value.Minimum,
-				"maximum": value.Maximum,
-				"enum":    value.Enum,
-			}
+		settingsMap, settingsError := chartSettingsToUnstructuredMap(req.Settings)
+		if settingsError != nil {
+			return errors.Wrap(settingsError, "converting catalog service settings")
 		}
 		spec["settings"] = settingsMap
 	}
