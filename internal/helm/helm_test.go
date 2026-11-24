@@ -12,8 +12,12 @@
 package helm
 
 import (
+	"sync"
+
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -301,8 +305,8 @@ var _ = Describe("getValuesYAML ingress-tls", func() {
 	})
 
 	AfterEach(func() {
-		// Restore production-compatible defaults for other specs (not nil).
-		viper.Set("ingress-tls", true)
+		// Setting nil clears the override, so the key reads as unset again.
+		viper.Set("ingress-tls", nil)
 		viper.Set("tls-issuer", "")
 		viper.Set("ingress-class-name", "")
 		viper.Set("gateway-class-name", "")
@@ -314,10 +318,10 @@ var _ = Describe("getValuesYAML ingress-tls", func() {
 		return params.Epinio.Tls
 	}
 
-	It("defaults epinio.tls to true via SetDefault", func() {
-		// Production path calls SetDefault before GetBool so an unset key
-		// does not silently disable app TLS (GetBool's zero value is false).
-		viper.SetDefault("ingress-tls", true)
+	It("defaults epinio.tls to true when ingress-tls is unset", func() {
+		// GetBool's zero value is false, so an unset key must not reach it.
+		viper.Set("ingress-tls", nil)
+		Expect(viper.IsSet("ingress-tls")).To(BeFalse())
 		Expect(ingressTLSEnabled()).To(BeTrue())
 
 		yamlString, err := getValuesYAML(appChart, parameters)
@@ -344,5 +348,20 @@ var _ = Describe("getValuesYAML ingress-tls", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(yamlString).To(ContainSubstring("tls: false"))
 		Expect(parseTLS(yamlString)).To(BeFalse())
+	})
+
+	It("reads ingress-tls without writing to viper", func() {
+		// Deploys run concurrently and viper has no lock, so the read
+		// must not write. `make test` runs with -race to catch it.
+		var wg sync.WaitGroup
+		for i := 0; i < 8; i++ {
+			wg.Add(1)
+			go func() {
+				defer GinkgoRecover()
+				defer wg.Done()
+				Expect(ingressTLSEnabled()).To(BeTrue())
+			}()
+		}
+		wg.Wait()
 	})
 })

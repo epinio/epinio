@@ -1108,10 +1108,13 @@ func ociHostname(url string) string {
 }
 
 // ingressTLSEnabled reports whether app charts should render per-route TLS.
-// Default is true (match chart templates: absent epinio.tls ⇒ TLS on).
+// Unset means true, matching the app charts (absent epinio.tls ⇒ TLS on).
 // Explicit false via flag/env disables Certificate and ingress tls blocks.
+// Read-only on purpose: viper has no lock and deploys run concurrently.
 func ingressTLSEnabled() bool {
-	viper.SetDefault("ingress-tls", true)
+	if !viper.IsSet("ingress-tls") {
+		return true
+	}
 	return viper.GetBool("ingress-tls")
 }
 
@@ -1142,11 +1145,9 @@ func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (s
 			Configurations: configurationNames,
 			ConfigPaths:    parameters.Configurations,
 			StageID:        parameters.StageID,
-			// Default true matches app-chart gating (absent epinio.tls ⇒ TLS on).
-			// SetDefault covers callers that never ran CLI flag/env binding.
-			Tls:       ingressTLSEnabled(),
-			TlsIssuer: viper.GetString("tls-issuer"),
-			Username:  parameters.Username,
+			Tls:            ingressTLSEnabled(),
+			TlsIssuer:      viper.GetString("tls-issuer"),
+			Username:       parameters.Username,
 			// Ingress, Gateway, Start, Routes: see below
 		},
 		// Chart, User: see below
