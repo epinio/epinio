@@ -296,6 +296,10 @@ func buildAndPatch(
 	if pathErr != nil {
 		return models.StageResponse{}, stageParam{}, pathErr
 	}
+	sourcePath, sourceErr := resolveSourcePath(req, app, buildMode)
+	if sourceErr != nil {
+		return models.StageResponse{}, stageParam{}, sourceErr
+	}
 
 	var builderImage string
 	var builderError apierror.APIErrors
@@ -400,6 +404,7 @@ func buildAndPatch(
 		BuilderImage:        builderImage,
 		BuildMode:           buildMode,
 		DockerfilePath:      dockerfilePath,
+		SourcePath:          sourcePath,
 		DockerBuildImage:    config.DockerfileBuildImage,
 		BlobUID:             newBlobUID,
 		DownloadImage:       config.DownloadImage,

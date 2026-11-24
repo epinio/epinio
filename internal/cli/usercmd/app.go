@@ -546,6 +546,9 @@ func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.Application
 		manifest.Staging.Builder != "" {
 		msg = msg.WithStringValue("Builder", manifest.Staging.Builder)
 	}
+	if manifest.Staging.SourcePath != "" {
+		msg = msg.WithStringValue("Source Path", manifest.Staging.SourcePath)
+	}
 	if manifest.Configuration.Instances != nil {
 		msg = msg.WithStringValue("Instances",
 			strconv.Itoa(int(*manifest.Configuration.Instances)))
@@ -557,6 +560,9 @@ func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.Application
 	}
 
 	if err := validateLocalDockerfile(manifest); err != nil {
+		return err
+	}
+	if err := validateLocalSourcePath(manifest); err != nil {
 		return err
 	}
 
@@ -624,6 +630,7 @@ func (c *EpinioClient) AppBuild(ctx context.Context, manifest models.Application
 		BuilderImage:   manifest.Staging.Builder,
 		BuildMode:      manifest.Staging.BuildMode,
 		DockerfilePath: manifest.Staging.DockerfilePath,
+		SourcePath:     manifest.Staging.SourcePath,
 		Origin:         manifest.Origin,
 	}
 
@@ -711,6 +718,7 @@ func (c *EpinioClient) BuildShow(ctx context.Context, appName string) error {
 		WithTableRow("Builder Image", app.Staging.Builder).
 		WithTableRow("Build Mode", app.Staging.BuildMode).
 		WithTableRow("Dockerfile Path", app.Staging.DockerfilePath).
+		WithTableRow("Source Path", app.Staging.SourcePath).
 		WithTableRow("Origin", app.Origin.String()).
 		Msg("Ok")
 
