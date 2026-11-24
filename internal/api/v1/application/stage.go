@@ -58,6 +58,7 @@ type stageParam struct {
 	BuilderImage        string
 	BuildMode           string
 	DockerfilePath      string
+	SourcePath          string
 	DockerBuildImage    string
 	DownloadImage       string
 	UnpackImage         string
@@ -382,11 +383,16 @@ func stageApp(
 	if setupErr != nil {
 		return models.StageResponse{}, setupErr
 	}
+	sourcePath, sourceErr := resolveSourcePath(req, app, buildMode)
+	if sourceErr != nil {
+		return models.StageResponse{}, sourceErr
+	}
 
 	log.Infow("staging app", "scripts", config.Name)
 	log.Infow("staging app", "build mode", buildMode)
 	log.Infow("staging app", "builder", builderImage)
 	log.Infow("staging app", "dockerfile", dockerfilePath)
+	log.Infow("staging app", "source path", sourcePath)
 	log.Infow("staging app", "docker build image", config.DockerfileBuildImage)
 	log.Infow("staging app", "download", config.DownloadImage)
 	log.Infow("staging app", "unpack", config.UnpackImage)
@@ -490,6 +496,7 @@ func stageApp(
 		BuilderImage:        builderImage,
 		BuildMode:           buildMode,
 		DockerfilePath:      dockerfilePath,
+		SourcePath:          sourcePath,
 		DockerBuildImage:    config.DockerfileBuildImage,
 		BlobUID:             blobUID,
 		DownloadImage:       config.DownloadImage,
@@ -1069,6 +1076,9 @@ func assembleStageEnv(app, previous stageParam) []corev1.EnvVar {
 	if models.NormalizeBuildMode(app.BuildMode) == models.BuildModeDockerfile {
 		stageEnv = appendEnvVar(stageEnv, "DOCKERFILE_PATH", app.DockerfilePath)
 	}
+	if models.NormalizeBuildMode(app.BuildMode) == models.BuildModeBuildpack && app.SourcePath != "" {
+		stageEnv = appendEnvVar(stageEnv, "SOURCE_PATH", app.SourcePath)
+	}
 
 	return stageEnv
 }
@@ -1421,6 +1431,7 @@ func updateApp(
 		"blobuid":        params.BlobUID,
 		"buildmode":      params.BuildMode,
 		"dockerfilepath": params.DockerfilePath,
+		"sourcepath":     params.SourcePath,
 	}
 	if models.NormalizeBuildMode(params.BuildMode) == models.BuildModeBuildpack {
 		specPatch["builderimage"] = params.BuilderImage
@@ -1683,6 +1694,14 @@ func validateStageRequestBuildSettings(req models.StageRequest) apierror.APIErro
 			return apierror.NewBadRequestError(err.Error())
 		}
 	}
+	if req.SourcePath != "" {
+		if _, err := models.ValidateSourcePath(req.SourcePath); err != nil {
+			return apierror.NewBadRequestError(err.Error())
+		}
+	}
+	if err := models.ValidateSourcePathForBuildMode(req.BuildMode, req.SourcePath); err != nil {
+		return apierror.NewBadRequestError(err.Error())
+	}
 	return nil
 }
 
@@ -1776,6 +1795,43 @@ func resolveDockerfilePath(req models.StageRequest, app *unstructured.Unstructur
 		return "", apierror.NewBadRequestError(err.Error())
 	}
 	return validated, nil
+}
+
+// resolveSourcePath picks the buildpack source root for staging.
+// A non-empty request value wins (including "." to clear back to the sources
+// root). An empty request keeps the value already stored on the app CR.
+// The returned value is always the staging/CR form: "" for the sources root.
+//
+// A request path is rejected when the resolved build mode is dockerfile.
+// The stored value is not checked, since dockerfile staging ignores it.
+func resolveSourcePath(
+	req models.StageRequest,
+	app *unstructured.Unstructured,
+	buildMode string,
+) (string, apierror.APIErrors) {
+	if req.SourcePath != "" {
+		err := models.ValidateSourcePathForBuildMode(buildMode, req.SourcePath)
+		if err != nil {
+			return "", apierror.NewBadRequestError(err.Error())
+		}
+
+		path, err := models.ValidateSourcePath(req.SourcePath)
+		if err != nil {
+			return "", apierror.NewBadRequestError(err.Error())
+		}
+		return models.NormalizeSourcePathForStaging(path), nil
+	}
+
+	path, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "sourcepath")
+	if err != nil || path == "" {
+		return "", nil
+	}
+
+	validated, err := models.ValidateSourcePath(path)
+	if err != nil {
+		return "", apierror.NewBadRequestError(err.Error())
+	}
+	return models.NormalizeSourcePathForStaging(validated), nil
 }
 
 func loadDockerfileStagingConfig(ctx context.Context,

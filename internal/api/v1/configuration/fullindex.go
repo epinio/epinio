@@ -13,6 +13,7 @@ package configuration
 
 import (
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -57,6 +58,24 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 			}
 		}
 		filteredConfigurations = searched
+	}
+
+	sortParams := response.GetSortParams(c)
+	switch sortParams.Field {
+	case "username":
+		response.SortByStringKey([]*configurations.Configuration(filteredConfigurations), sortParams.Descending, func(cfg *configurations.Configuration) string {
+			return strings.ToLower(cfg.Username)
+		})
+	case "variableCount":
+		response.SortByIntKey([]*configurations.Configuration(filteredConfigurations), sortParams.Descending, func(cfg *configurations.Configuration) int {
+			return cfg.VariableCount
+		})
+	default:
+		response.ApplyMetaSort([]*configurations.Configuration(filteredConfigurations), sortParams, response.MetaKeys[*configurations.Configuration]{
+			Name:      func(cfg *configurations.Configuration) string { return cfg.Name },
+			Namespace: func(cfg *configurations.Configuration) string { return cfg.Namespace() },
+			CreatedAt: func(cfg *configurations.Configuration) time.Time { return cfg.CreatedAt.Time },
+		})
 	}
 
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {

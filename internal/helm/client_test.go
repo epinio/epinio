@@ -16,12 +16,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/internal/helm"
 	hc "github.com/mittwald/go-helm-client"
 	hcmock "github.com/mittwald/go-helm-client/mock"
 	"go.uber.org/mock/gomock"
-	"helm.sh/helm/v3/pkg/release"
+	release "helm.sh/helm/v4/pkg/release/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -60,7 +59,9 @@ var _ = Describe("SynchronizedClient", func() {
 	When("getting a namespace synchronized client", func() {
 
 		It("should return the same client for the same namespace", func() {
-			namespace := catalog.NewNamespaceName()
+			// See "should return a different client for different namespaces" below for
+			// why this is a fixed string, not catalog.NewNamespaceName().
+			namespace := "same-client-same-namespace-test-ns"
 
 			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
@@ -72,8 +73,13 @@ var _ = Describe("SynchronizedClient", func() {
 		})
 
 		It("should return a different client for different namespaces", func() {
-			namespace1 := catalog.NewNamespaceName()
-			namespace2 := catalog.NewNamespaceName()
+			// Deliberately not two catalog.NewNamespaceName() calls: it is
+			// time.Now().Nanosecond() based and the two calls can land on the same
+			// nanosecond (consistently reproducible on Windows, where the clock's
+			// effective resolution is coarser), which collapses this into the
+			// "same namespace" case and fails the test below.
+			namespace1 := "distinct-namespace-one"
+			namespace2 := "distinct-namespace-two"
 
 			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient, nil)
 			Expect(err).To(BeNil())
@@ -98,7 +104,9 @@ var _ = Describe("SynchronizedClient", func() {
 			setupMockRelease(ctx3s, myRelease)
 
 			// create a sync client
-			namespace := catalog.NewNamespaceName()
+			// Fixed string, not catalog.NewNamespaceName(): see "should return a
+			// different client for different namespaces" above.
+			namespace := "wait-same-release-same-namespace-test-ns"
 			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
@@ -149,7 +157,9 @@ var _ = Describe("SynchronizedClient", func() {
 			setupMockRelease(ctx3s, release3s)
 
 			// create a sync client
-			namespace := catalog.NewNamespaceName()
+			// Fixed string, not catalog.NewNamespaceName(): see "should return a
+			// different client for different namespaces" above.
+			namespace := "no-wait-different-releases-same-namespace-test-ns"
 			syncClient, err := helm.GetNamespaceSynchronizedHelmClient(namespace, mockClient, nil)
 			Expect(err).To(BeNil())
 
@@ -201,11 +211,13 @@ var _ = Describe("SynchronizedClient", func() {
 			setupMockRelease(ctx3s, releaseTwo3s)
 
 			// create two sync clients
-			namespace1 := catalog.NewNamespaceName()
+			// Fixed strings, not catalog.NewNamespaceName(): see "should return a
+			// different client for different namespaces" above.
+			namespace1 := "concurrent-different-ns-test-ns-one"
 			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient, nil)
 			Expect(err).To(BeNil())
 
-			namespace2 := catalog.NewNamespaceName()
+			namespace2 := "concurrent-different-ns-test-ns-two"
 			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient, nil)
 			Expect(err).To(BeNil())
 
@@ -262,11 +274,13 @@ var _ = Describe("SynchronizedClient", func() {
 			setupMockRelease(ctx5s, release5s)
 
 			// create two sync clients
-			namespace1 := catalog.NewNamespaceName()
+			// Fixed strings, not catalog.NewNamespaceName(): see "should return a
+			// different client for different namespaces" above.
+			namespace1 := "concurrent-mixed-wait-test-ns-one"
 			syncClient1, err := helm.GetNamespaceSynchronizedHelmClient(namespace1, mockClient, nil)
 			Expect(err).To(BeNil())
 
-			namespace2 := catalog.NewNamespaceName()
+			namespace2 := "concurrent-mixed-wait-test-ns-two"
 			syncClient2, err := helm.GetNamespaceSynchronizedHelmClient(namespace2, mockClient, nil)
 			Expect(err).To(BeNil())
 

@@ -58,6 +58,8 @@ func List(c *gin.Context) apierror.APIErrors {
 		getCatalogServiceParam(c),
 	)
 
+	sortServices(servicesWithApps, response.GetSortParams(c))
+
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
 		paged := response.PaginateSlice(servicesWithApps, page, pageSize)
 		response.OKReturn(c, paged)

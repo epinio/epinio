@@ -44,10 +44,12 @@ func indexWithFilter(c *gin.Context, filter application.ListFilter) apierror.API
 	}
 
 	search := response.GetSearchParam(c)
+	sortParams := response.GetSortParams(c)
 	page, pageSize, paginated := response.GetPaginationParams(c, 1, 25)
 	if paginated || search != "" {
 		apps, total, err := application.ListPaginated(
 			ctx, cluster, namespace, page, pageSize, search, filter,
+			sortParams.Field, sortParams.Descending,
 		)
 		if err != nil {
 			return apierror.InternalError(err)
@@ -61,6 +63,8 @@ func indexWithFilter(c *gin.Context, filter application.ListFilter) apierror.API
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, application.FilterApps(apps, filter))
+	filtered := application.FilterApps(apps, filter)
+	application.SortApps(filtered, sortParams.Field, sortParams.Descending)
+	response.OKReturn(c, filtered)
 	return nil
 }

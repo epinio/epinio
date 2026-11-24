@@ -29,9 +29,10 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/retry"
 
-	"helm.sh/helm/v3/pkg/chartutil"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
-	"helm.sh/helm/v3/pkg/strvals"
+	chartcommon "helm.sh/helm/v4/pkg/chart/common"
+	commonutil "helm.sh/helm/v4/pkg/chart/common/util"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
+	"helm.sh/helm/v4/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -302,6 +303,48 @@ func (s *ServiceClient) CatalogServicesInUse(ctx context.Context) (map[string]bo
 	}
 
 	return result, nil
+}
+
+// ListRefs returns the name and namespace of every Epinio Service instance in
+// the namespace, or in all namespaces when it is blank. Unlike list it reads
+// the labeled instance secrets only: no catalog lookup and no helm status
+// fan-out, so it costs a single API call however many instances exist.
+func ListRefs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+) ([]models.Meta, error) {
+	listOpts := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf(
+			"%s,%s",
+			ServiceNameLabelKey,
+			CatalogServiceLabelKey,
+		),
+	}
+
+	secrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(
+		ctx,
+		listOpts,
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return []models.Meta{}, nil
+		}
+		return nil, errors.Wrap(err, "listing service instance refs")
+	}
+
+	refs := make([]models.Meta, 0, len(secrets.Items))
+	for _, secret := range secrets.Items {
+		// The label carries the user-facing name; the secret's own name is
+		// the generated resource name (see serviceResourceName).
+		refs = append(refs, models.Meta{
+			Name:      secret.GetLabels()[ServiceNameLabelKey],
+			Namespace: secret.Namespace,
+			CreatedAt: secret.GetCreationTimestamp(),
+		})
+	}
+
+	return refs, nil
 }
 
 // ListInNamespace will return all the Epinio Services available in the specified namespace
@@ -643,13 +686,13 @@ func (s *ServiceClient) DeployOrUpdate(
 	}
 
 	// Ingest the service class YAML data into a proper values table
-	classValues, err := chartutil.ReadValues([]byte(catalogService.Values + epinioValues))
+	classValues, err := chartcommon.ReadValues([]byte(catalogService.Values + epinioValues))
 	if err != nil {
 		return errors.Wrap(err, "failed to read service class values")
 	}
 
 	// Create proper values table from the --chart-value option data
-	userValues := chartutil.Values{}
+	userValues := chartcommon.Values{}
 	for key, value := range settings {
 		err := strvals.ParseInto(key+"="+value, userValues)
 		if err != nil {
@@ -668,7 +711,7 @@ func (s *ServiceClient) DeployOrUpdate(
 	// ATTENTION: This priority order is reversed from what is said in the application CRD PR.
 	// FIX:       application CRD PR to match here.
 
-	values, err := chartutil.Values(chartutil.CoalesceTables(classValues, userValues)).YAML()
+	values, err := chartcommon.Values(commonutil.CoalesceTables(classValues, userValues)).YAML()
 	if err != nil {
 		return errors.Wrap(err, "failed to merge class and user values")
 	}
@@ -753,7 +796,7 @@ func setServiceStatusAndCustomValues(service *models.Service,
 
 	if len(settings) > 0 {
 		customized := models.ChartValueSettings{}
-		configValues := chartutil.Values(serviceRelease.Config)
+		configValues := chartcommon.Values(serviceRelease.Config)
 
 		for key := range settings {
 			value, err := getValue(configValues, key, true)
@@ -789,7 +832,7 @@ func setServiceStatusAndCustomValues(service *models.Service,
 	return nil
 }
 
-func getValue(values chartutil.Values, key string, maybetable bool) (string, error) {
+func getValue(values chartcommon.Values, key string, maybetable bool) (string, error) {
 	value, err := values.PathValue(key)
 	if err == nil {
 		data, err := json.Marshal(value)

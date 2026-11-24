@@ -615,6 +615,8 @@ func ListPaginated(
 	page, pageSize int,
 	search string,
 	filter ListFilter,
+	sortField string,
+	sortDesc bool,
 ) (models.AppList, int, error) {
 	appClient, clientError := cluster.ClientApp()
 	if clientError != nil {
@@ -631,14 +633,56 @@ func ListPaginated(
 
 	allCRs := filterAppCRs(appCRList.Items, search, filter)
 
-	totalCount := len(allCRs)
-
 	if page < 1 {
 		page = 1
 	}
 	if pageSize < 1 {
 		pageSize = 25
 	}
+
+	// Status / deploymentStatus need workload+staging data. Enrich all matching
+	// apps, sort the models, then page. Other fields sort CRs first so only the
+	// page pays enrichment cost.
+	if NeedsEnrichedAppSort(sortField) {
+		allNames := make([]string, 0, len(allCRs))
+		for _, cr := range allCRs {
+			allNames = append(allNames, cr.GetName())
+		}
+		appAuxiliary, pageMetrics, configurationTypes, enrichError := loadEnrichmentData(
+			ctx, cluster, namespace, allNames,
+		)
+		if enrichError != nil {
+			return nil, 0, enrichError
+		}
+
+		apps := models.AppList{}
+		for _, appCR := range allCRs {
+			app, aggregateError := aggregate(
+				ctx, cluster, appCR, appAuxiliary, pageMetrics, configurationTypes,
+			)
+			if aggregateError != nil {
+				return nil, 0, aggregateError
+			}
+			if app != nil {
+				apps = append(apps, *app)
+			}
+		}
+		SortApps(apps, sortField, sortDesc)
+		totalCount := len(apps)
+		start := (page - 1) * pageSize
+		if start >= totalCount {
+			return models.AppList{}, totalCount, nil
+		}
+		end := start + pageSize
+		if end > totalCount {
+			end = totalCount
+		}
+		return apps[start:end], totalCount, nil
+	}
+
+	SortAppCRs(allCRs, sortField, sortDesc)
+
+	totalCount := len(allCRs)
 	start := (page - 1) * pageSize
 	if start >= totalCount {
 		return models.AppList{}, totalCount, nil
@@ -701,6 +745,8 @@ func ListPaginatedByNamespace(
 	page, pageSize int,
 	search string,
 	filter ListFilter,
+	sortField string,
+	sortDesc bool,
 ) (map[string]NamespaceAppsResult, error) {
 	if page < 1 {
 		page = 1
@@ -735,31 +781,8 @@ func ListPaginatedByNamespace(
 		nsCRs[namespaceName] = append(nsCRs[namespaceName], cr)
 	}
 
-	// III. Determine page slice per namespace in memory.
-	type nsSlice struct {
-		pageCRs    []unstructured.Unstructured
-		totalCount int
-	}
-	nsSlices := make(map[string]nsSlice, len(nsCRs))
-	for namespaceName, crs := range nsCRs {
-		totalCount := len(crs)
-		start := (page - 1) * pageSize
-		if start >= totalCount {
-			nsSlices[namespaceName] = nsSlice{pageCRs: nil, totalCount: totalCount}
-			continue
-		}
-		end := start + pageSize
-		if end > totalCount {
-			end = totalCount
-		}
-		nsSlices[namespaceName] = nsSlice{
-			pageCRs:    crs[start:end],
-			totalCount: totalCount,
-		}
-	}
-
-	// IV. Bulk-load all enrichment data cross-namespace, one k8s call per
-	// resource type.
+	// III. Bulk-load all enrichment data cross-namespace, one k8s call per
+	// resource type. Done before paging when status sorts need full models.
 	appAuxiliary, pageMetrics, configurationTypes, enrichError := loadEnrichmentData(
 		ctx,
 		cluster,
@@ -770,11 +793,57 @@ func ListPaginatedByNamespace(
 		return nil, enrichError
 	}
 
-	// V. Assemble final result per namespace.
-	result := make(map[string]NamespaceAppsResult, len(nsSlices))
-	for namespaceName, slice := range nsSlices {
+	result := make(map[string]NamespaceAppsResult, len(nsCRs))
+
+	if NeedsEnrichedAppSort(sortField) {
+		for namespaceName, crs := range nsCRs {
+			apps := models.AppList{}
+			for _, appCR := range crs {
+				app, aggregateError := aggregate(
+					ctx, cluster, appCR, appAuxiliary, pageMetrics, configurationTypes,
+				)
+				if aggregateError != nil {
+					return nil, aggregateError
+				}
+				if app != nil {
+					apps = append(apps, *app)
+				}
+			}
+			SortApps(apps, sortField, sortDesc)
+			totalCount := len(apps)
+			start := (page - 1) * pageSize
+			if start >= totalCount {
+				result[namespaceName] = NamespaceAppsResult{Items: nil, TotalItems: totalCount}
+				continue
+			}
+			end := start + pageSize
+			if end > totalCount {
+				end = totalCount
+			}
+			result[namespaceName] = NamespaceAppsResult{
+				Items:      apps[start:end],
+				TotalItems: totalCount,
+			}
+		}
+		return result, nil
+	}
+
+	// IV. Sort CRs, page, then assemble enriched models for the page only.
+	for namespaceName, crs := range nsCRs {
+		SortAppCRs(crs, sortField, sortDesc)
+		totalCount := len(crs)
+		start := (page - 1) * pageSize
+		if start >= totalCount {
+			result[namespaceName] = NamespaceAppsResult{Items: nil, TotalItems: totalCount}
+			continue
+		}
+		end := start + pageSize
+		if end > totalCount {
+			end = totalCount
+		}
+
 		appList := models.AppList{}
-		for _, appCR := range slice.pageCRs {
+		for _, appCR := range crs[start:end] {
 			app, aggregateError := aggregate(
 				ctx,
 				cluster,
@@ -792,7 +861,7 @@ func ListPaginatedByNamespace(
 		}
 		result[namespaceName] = NamespaceAppsResult{
 			Items:      appList,
-			TotalItems: slice.totalCount,
+			TotalItems: totalCount,
 		}
 	}
 
@@ -1455,6 +1524,20 @@ func DockerfilePath(app *unstructured.Unstructured) (string, error) {
 	return path, nil
 }
 
+// SourcePath returns the buildpack source root path stored on the app resource.
+func SourcePath(app *unstructured.Unstructured) (string, error) {
+	path, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"sourcepath",
+	)
+	if err != nil {
+		return "", errors.New("sourcepath should be string")
+	}
+
+	return path, nil
+}
+
 // BuildStatus returns the "create"/"build"/"deployed" status stored on the
 // app resource, reflecting the last completed lifecycle step.
 func BuildStatus(app *unstructured.Unstructured) (string, error) {
@@ -2013,6 +2096,11 @@ func aggregate(
 		return nil, errors.Wrap(err, "finding the dockerfile path")
 	}
 
+	sourcePath, err := SourcePath(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the source path")
+	}
+
 	buildStatus, err := BuildStatus(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding the build status")
@@ -2053,6 +2141,7 @@ func aggregate(
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath
+	app.Staging.SourcePath = sourcePath
 
 	// IV. Assemble the deployment structure for active applications.
 
@@ -2079,57 +2168,184 @@ func aggregate(
 	return app, nil
 }
 
-// fetch is a helper for Lookup. It fetches all information about an application from the cluster.
-func loadEnvironmentData(
+// appResourceFields holds values read from the application CR.
+type appResourceFields struct {
+	desiredRoutes  []string
+	origin         models.ApplicationOrigin
+	chartName      string
+	stageID        string
+	blobUID        string
+	imageURL       string
+	builtImageURL  string
+	buildStatus    string
+	builderURL     string
+	buildMode      string
+	dockerfilePath string
+	sourcePath     string
+	settings       models.ChartValueSettings
+}
+
+// appClusterFields holds values loaded from adjacent cluster objects.
+type appClusterFields struct {
+	environment    models.EnvVariableMap
+	groupedEnv     models.EnvVariableGroupedResponse
+	instances      int32
+	configurations []string
+	boundConfigs   []models.BoundConfiguration
+	services       []string
+}
+
+func markAppFetchError(app *models.App, err error) error {
+	app.StatusMessage = err.Error()
+	app.Status = models.ApplicationError
+	return err
+}
+
+// loadAppResourceFields loads CR-backed fields via a table so fetch stays
+// under funlen without one-off nolint directives as new fields are added.
+func loadAppResourceFields(applicationCR *unstructured.Unstructured) (appResourceFields, error) {
+	var fields appResourceFields
+	loaders := []struct {
+		name string
+		fn   func() error
+	}{
+		{"desired routes", func() error {
+			var err error
+			fields.desiredRoutes, err = DesiredRoutes(applicationCR)
+			return err
+		}},
+		{"origin", func() error {
+			var err error
+			fields.origin, err = Origin(applicationCR)
+			return err
+		}},
+		{"app chart", func() error {
+			var err error
+			fields.chartName, err = AppChart(applicationCR)
+			return err
+		}},
+		{"the stage id", func() error {
+			var err error
+			fields.stageID, err = StageID(applicationCR)
+			return err
+		}},
+		{"the blob uid", func() error {
+			var err error
+			fields.blobUID, err = BlobUID(applicationCR)
+			return err
+		}},
+		{"the image url", func() error {
+			var err error
+			fields.imageURL, err = ImageURL(applicationCR)
+			return err
+		}},
+		{"the built image url", func() error {
+			var err error
+			fields.builtImageURL, err = BuiltImageURL(applicationCR)
+			return err
+		}},
+		{"the build status", func() error {
+			var err error
+			fields.buildStatus, err = BuildStatus(applicationCR)
+			return err
+		}},
+		{"the builder url", func() error {
+			var err error
+			fields.builderURL, err = BuilderURL(applicationCR)
+			return err
+		}},
+		{"the build mode", func() error {
+			var err error
+			fields.buildMode, err = BuildMode(applicationCR)
+			return err
+		}},
+		{"the dockerfile path", func() error {
+			var err error
+			fields.dockerfilePath, err = DockerfilePath(applicationCR)
+			return err
+		}},
+		{"the source path", func() error {
+			var err error
+			fields.sourcePath, err = SourcePath(applicationCR)
+			return err
+		}},
+		{"settings", func() error {
+			var err error
+			fields.settings, err = Settings(applicationCR)
+			return err
+		}},
+	}
+
+	for _, loader := range loaders {
+		if err := loader.fn(); err != nil {
+			return fields, errors.Wrap(err, "finding "+loader.name)
+		}
+	}
+	return fields, nil
+}
+
+func loadAppClusterFields(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	app *models.App,
-) (models.EnvVariableMap, models.EnvVariableGroupedResponse, error) {
+) (appClusterFields, error) {
+	var fields appClusterFields
+
 	environment, err := Environment(ctx, cluster, app.Meta)
 	if err != nil {
-		return nil, models.EnvVariableGroupedResponse{}, errors.Wrap(err, "finding env")
+		return fields, errors.Wrap(err, "finding env")
 	}
-
 	groupedEnv, err := GroupedEnvironment(ctx, cluster, app.Meta)
 	if err != nil {
-		return nil, models.EnvVariableGroupedResponse{}, errors.Wrap(err, "finding grouped env")
+		return fields, errors.Wrap(err, "finding grouped env")
+	}
+	instances, err := Scaling(ctx, cluster, app.Meta)
+	if err != nil {
+		return fields, errors.Wrap(err, "finding scaling")
+	}
+	// BoundConfigurationsFor wraps its own errors.
+	configurations, boundConfigs, err := BoundConfigurationsFor(
+		ctx,
+		cluster,
+		app.Meta,
+	)
+	if err != nil {
+		return fields, err
+	}
+	services, err := BoundServiceNames(ctx, cluster, app.Meta)
+	if err != nil {
+		return fields, errors.Wrap(err, "finding services")
 	}
 
-	return environment, groupedEnv, nil
+	fields.environment = environment
+	fields.groupedEnv = groupedEnv
+	fields.instances = instances
+	fields.configurations = configurations
+	fields.boundConfigs = boundConfigs
+	fields.services = services
+	return fields, nil
 }
 
-func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, string, string, string, error) {
-	builderURL, err := BuilderURL(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the builder url")
-	}
-
-	buildMode, err := BuildMode(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the build mode")
-	}
-
-	dockerfilePath, err := DockerfilePath(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the dockerfile path")
-	}
-
-	buildStatus, err := BuildStatus(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the build status")
-	}
-
-	imageURL, err := ImageURL(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the image url")
-	}
-
-	builtImageURL, err := BuiltImageURL(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the built image url")
-	}
-
-	return builderURL, buildMode, dockerfilePath, buildStatus, imageURL, builtImageURL, nil
+func applyFetchedAppFields(app *models.App, resource appResourceFields, clusterData appClusterFields) {
+	app.Configuration.Instances = &clusterData.instances
+	app.Configuration.Configurations = clusterData.configurations
+	app.Configuration.BoundConfigurations = clusterData.boundConfigs
+	app.Configuration.Environment = clusterData.environment
+	app.Configuration.EnvironmentGrouped = &clusterData.groupedEnv
+	app.Configuration.Services = clusterData.services
+	app.Configuration.Routes = resource.desiredRoutes
+	app.Configuration.AppChart = resource.chartName
+	app.Configuration.Settings = resource.settings
+	app.Origin = resource.origin
+	app.StageID = resource.stageID
+	app.BlobUID = resource.blobUID
+	app.ImageURL = resource.imageURL
+	app.BuiltImageURL = resource.builtImageURL
+	app.BuildStatus = resource.buildStatus
+	app.Staging.Builder = resource.builderURL
+	app.Staging.BuildMode = resource.buildMode
+	app.Staging.DockerfilePath = resource.dockerfilePath
+	app.Staging.SourcePath = resource.sourcePath
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
@@ -2147,136 +2363,32 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		if apierrors.IsNotFound(err) {
 			return apierror.AppIsNotKnown("application resource is missing")
 		}
-
-		err = apierror.InternalError(err, "failed to get the application resource")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, apierror.InternalError(err, "failed to get the application resource"))
 	}
 
-	desiredRoutes, err := DesiredRoutes(applicationCR)
+	resourceFields, err := loadAppResourceFields(applicationCR)
 	if err != nil {
-		err = errors.Wrap(err, "finding desired routes")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, err)
 	}
 
-	origin, err := Origin(applicationCR)
+	clusterFields, err := loadAppClusterFields(ctx, cluster, app)
 	if err != nil {
-		err = errors.Wrap(err, "finding origin")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	environment, groupedEnv, err := loadEnvironmentData(ctx, cluster, app)
-	if err != nil {
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	instances, err := Scaling(ctx, cluster, app.Meta)
-	if err != nil {
-		err = errors.Wrap(err, "finding scaling")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	configurations, boundConfigurations, err := BoundConfigurationsFor(ctx, cluster, app.Meta)
-	if err != nil {
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	services, err := BoundServiceNames(ctx, cluster, app.Meta)
-	if err != nil {
-		err = errors.Wrap(err, "finding services")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	chartName, err := AppChart(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding app chart")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	stageID, err := StageID(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding the stage id")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	blobUID, err := BlobUID(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding the blob uid")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	builderURL, buildMode, dockerfilePath, buildStatus, imageURL, builtImageURL, err := loadStagingFields(applicationCR)
-	if err != nil {
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	settings, err := Settings(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding settings")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, err)
 	}
 
 	app.Meta.CreatedAt = applicationCR.GetCreationTimestamp()
-
-	app.Configuration.Instances = &instances
-	app.Configuration.Configurations = configurations
-	app.Configuration.BoundConfigurations = boundConfigurations
-	app.Configuration.Environment = environment
-	app.Configuration.EnvironmentGrouped = &groupedEnv
-	app.Configuration.Services = services
-	app.Configuration.Routes = desiredRoutes
-	app.Configuration.AppChart = chartName
-	app.Configuration.Settings = settings
-	app.Origin = origin
-	app.StageID = stageID
-	app.BlobUID = blobUID
-	app.ImageURL = imageURL
-	app.BuiltImageURL = builtImageURL
-	app.BuildStatus = buildStatus
-	app.Staging.Builder = builderURL
-	app.Staging.BuildMode = buildMode
-	app.Staging.DockerfilePath = dockerfilePath
+	applyFetchedAppFields(app, resourceFields, clusterFields)
 
 	// Check if app is active, and if yes, fill the associated parts.  May have to
 	// straighten the workload structure a bit further.
-
-	app.Workload, err = NewWorkload(cluster, app.Meta, instances).Get(ctx)
+	app.Workload, err = NewWorkload(cluster, app.Meta, clusterFields.instances).Get(ctx)
 	if err != nil {
-		err = errors.Wrap(err, "workload loading")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, errors.Wrap(err, "workload loading"))
 	}
 
 	staging, err := stagingStatus(ctx, cluster, app.Meta.Namespace, []string{app.Meta.Name})
 	if err != nil {
-		err = errors.Wrap(err, "staging app")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, errors.Wrap(err, "staging app"))
 	}
 
 	stagingJob := staging[EncodeConfigurationKey(app.Meta.Name, app.Meta.Namespace)]

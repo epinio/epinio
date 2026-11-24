@@ -14,9 +14,7 @@ package helm
 import (
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/spf13/viper"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	"gopkg.in/yaml.v2"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

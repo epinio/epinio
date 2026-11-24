@@ -54,6 +54,8 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 		getCatalogServiceParam(c),
 	)
 
+	sortServices(filteredServices, response.GetSortParams(c))
+
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
 		total := len(filteredServices)
 		start := (page - 1) * pageSize

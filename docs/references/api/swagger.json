@@ -221,6 +221,20 @@
           },
           {
             "type": "string",
+            "x-go-name": "Sort",
+            "description": "Sort field: name, createdAt, or namespace. Applied before pagination.",
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "SortDir",
+            "description": "Sort direction: asc (default) or desc",
+            "name": "sortDir",
+            "in": "query"
+          },
+          {
+            "type": "string",
             "x-go-name": "Page",
             "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
             "name": "page",
@@ -1087,6 +1101,20 @@
             "x-go-name": "Search",
             "description": "Case-insensitive substring match on the application name",
             "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Sort",
+            "description": "Sort field: name, createdAt, or namespace. Applied before pagination.",
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "SortDir",
+            "description": "Sort direction: asc (default) or desc",
+            "name": "sortDir",
             "in": "query"
           },
           {
@@ -3704,6 +3732,11 @@
         "dockerfilePath": {
           "type": "string",
           "x-go-name": "DockerfilePath"
+        },
+        "sourcePath": {
+          "description": "SourcePath is the subdirectory within application sources used as the\nbuildpack app root (monorepo support). Empty means unset in a request\n(keep stored value). Use \".\" (SourcePathRoot) to reset to the sources root.",
+          "type": "string",
+          "x-go-name": "SourcePath"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -4465,6 +4498,10 @@
         "origin": {
           "$ref": "#/definitions/ApplicationOrigin"
         },
+        "sourcepath": {
+          "type": "string",
+          "x-go-name": "SourcePath"
+        },
         "stage": {
           "$ref": "#/definitions/StageRef"
         }
@@ -4867,7 +4904,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "Namespace": {
-      "description": "Namespace has all the namespace properties, i.e. name, app names, and configuration names\nIt is used in the CLI and API responses.",
+      "description": "Namespace has all the namespace properties, i.e. name, app names, configuration\nnames, and service instance names. It is used in the CLI and API responses.",
       "type": "object",
       "properties": {
         "apps": {
@@ -4886,6 +4923,13 @@
         },
         "meta": {
           "$ref": "#/definitions/MetaLite"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Services"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -5407,6 +5451,10 @@
         },
         "origin": {
           "$ref": "#/definitions/ApplicationOrigin"
+        },
+        "sourcepath": {
+          "type": "string",
+          "x-go-name": "SourcePath"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
