@@ -147,27 +147,6 @@ func (c *SynchronizedClient) UpgradeChart(ctx context.Context, spec *hc.ChartSpe
 	return c.helmClient.UpgradeChart(ctx, spec, opts)
 }
 
-// Status implements the 'helm status' command
-func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
-	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
-	if !ok {
-		return nil, fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
-	}
-
-	statusAction := action.NewStatus(concreteHelmClient.ActionConfig)
-	result, err := statusAction.Run(name)
-	if err != nil {
-		return nil, err
-	}
-
-	rel, ok := result.(*helmrelease.Release)
-	if !ok {
-		return nil, fmt.Errorf("unexpected status result type %T", result)
-	}
-
-	return rel, nil
-}
-
 // RegistryLogin logs into an OCI registry.
 //
 // TLS is applied on our registry transport (insecure detach and optional CA

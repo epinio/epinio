@@ -91,29 +91,6 @@ var _ = Describe("SynchronizedClient", func() {
 		})
 	})
 
-	When("getting the status of a release", func() {
-		It("rejects a client that isn't the concrete *hc.HelmClient", func() {
-			// Status reaches into go-helm-client internals (action.NewStatus needs the
-			// concrete *hc.HelmClient for its ActionConfig), which a mock Client can
-			// never satisfy. This guards that the resulting error is reported cleanly
-			// instead of panicking on a failed type assertion.
-			//
-			// Deliberately not catalog.NewNamespaceName(): it is time.Now().Nanosecond()
-			// based and can collide within a single test run (see the known-flaky "should
-			// return a different client for different namespaces" spec above). A
-			// collision here would silently hand this spec another spec's cached
-			// SynchronizedClient/mock from the shared syncNamespaceClientMap instead of
-			// this one's, which previously caused the concurrency specs below to hang
-			// (an unexpected mock call aborts its goroutine without reaching wg.Done()).
-			syncClient, err := helm.GetNamespaceSynchronizedHelmClient("status-type-guard-test-namespace", mockClient, nil)
-			Expect(err).To(BeNil())
-
-			_, err = syncClient.Status("my-release")
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("is not of the right type"))
-		})
-	})
-
 	When("installing or upgrading chart", func() {
 
 		It("should wait for the same release in the same namespace", func() {

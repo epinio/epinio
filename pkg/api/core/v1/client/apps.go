@@ -29,11 +29,11 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/tools/remotecommand"
 	wsstream "k8s.io/client-go/transport/websocket"
+	"k8s.io/streaming/pkg/httpstream"
 
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
@@ -934,7 +934,15 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 
 	// Create WebSocket dialer instead of SPDY dialer
 	dialer := NewWebSocketDialer(restConfig, "GET", portForwardURL)
-	fw, err := portforward.NewOnAddresses(dialer, opts.Address, opts.Ports, opts.StopChannel, opts.ReadyChannel, opts.Out, opts.ErrOut)
+	fw, err := portforward.NewOnAddressesForStreaming(
+		dialer,
+		opts.Address,
+		opts.Ports,
+		opts.StopChannel,
+		opts.ReadyChannel,
+		opts.Out,
+		opts.ErrOut,
+	)
 	if err != nil {
 		return err
 	}
