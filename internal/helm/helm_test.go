@@ -12,7 +12,12 @@
 package helm
 
 import (
+	"sync"
+
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -276,5 +281,87 @@ var _ = Describe("releaseChartConfig()", func() {
 			"tuning": "speed",
 			"port":   "8080",
 		}))
+	})
+})
+
+var _ = Describe("getValuesYAML ingress-tls", func() {
+	var (
+		appChart   *models.AppChartFull
+		parameters ChartParameters
+	)
+
+	BeforeEach(func() {
+		appChart = &models.AppChartFull{}
+		parameters = ChartParameters{
+			AppRef:      models.NewAppRef("demo", "workspace"),
+			ImageURL:    "registry.example/apps/demo:1",
+			Username:    "admin",
+			Instances:   1,
+			StageID:     "stage-1",
+			Environment: models.EnvVariableMap{},
+			Domains:     domain.DomainMap{},
+			Routes:      []string{"demo.example.com"},
+		}
+	})
+
+	AfterEach(func() {
+		// Setting nil clears the override, so the key reads as unset again.
+		viper.Set("ingress-tls", nil)
+		viper.Set("tls-issuer", "")
+		viper.Set("ingress-class-name", "")
+		viper.Set("gateway-class-name", "")
+	})
+
+	parseTLS := func(yamlString string) bool {
+		var params ChartParam
+		Expect(yaml.Unmarshal([]byte(yamlString), &params)).To(Succeed())
+		return params.Epinio.Tls
+	}
+
+	It("defaults epinio.tls to true when ingress-tls is unset", func() {
+		// GetBool's zero value is false, so an unset key must not reach it.
+		viper.Set("ingress-tls", nil)
+		Expect(viper.IsSet("ingress-tls")).To(BeFalse())
+		Expect(ingressTLSEnabled()).To(BeTrue())
+
+		yamlString, err := getValuesYAML(appChart, parameters)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(yamlString).To(ContainSubstring("tls: true"))
+		Expect(parseTLS(yamlString)).To(BeTrue())
+	})
+
+	It("sets epinio.tls true when ingress-tls is true", func() {
+		viper.Set("ingress-tls", true)
+		viper.Set("tls-issuer", "epinio-ca")
+
+		yamlString, err := getValuesYAML(appChart, parameters)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(yamlString).To(ContainSubstring("tls: true"))
+		Expect(parseTLS(yamlString)).To(BeTrue())
+	})
+
+	It("sets epinio.tls false when ingress-tls is false", func() {
+		viper.Set("ingress-tls", false)
+		viper.Set("tls-issuer", "epinio-ca")
+
+		yamlString, err := getValuesYAML(appChart, parameters)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(yamlString).To(ContainSubstring("tls: false"))
+		Expect(parseTLS(yamlString)).To(BeFalse())
+	})
+
+	It("reads ingress-tls without writing to viper", func() {
+		// Deploys run concurrently and viper has no lock, so the read
+		// must not write. `make test` runs with -race to catch it.
+		var wg sync.WaitGroup
+		for i := 0; i < 8; i++ {
+			wg.Add(1)
+			go func() {
+				defer GinkgoRecover()
+				defer wg.Done()
+				Expect(ingressTLSEnabled()).To(BeTrue())
+			}()
+		}
+		wg.Wait()
 	})
 })

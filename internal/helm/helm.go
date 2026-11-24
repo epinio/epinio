@@ -365,6 +365,7 @@ type EpinioParam struct {
 	Routes         []RouteParam         `yaml:"routes"`
 	StageID        string               `yaml:"stageID"`
 	Start          string               `yaml:"start,omitempty"`
+	Tls            bool                 `yaml:"tls"`
 	TlsIssuer      string               `yaml:"tlsIssuer"`
 	Username       string               `yaml:"username"`
 }
@@ -1106,6 +1107,17 @@ func ociHostname(url string) string {
 	return strings.SplitN(hostname, "/", 2)[0]
 }
 
+// ingressTLSEnabled reports whether app charts should render per-route TLS.
+// Unset means true, matching the app charts (absent epinio.tls ⇒ TLS on).
+// Explicit false via flag/env disables Certificate and ingress tls blocks.
+// Read-only on purpose: viper has no lock and deploys run concurrently.
+func ingressTLSEnabled() bool {
+	if !viper.IsSet("ingress-tls") {
+		return true
+	}
+	return viper.GetBool("ingress-tls")
+}
+
 func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (string, error) {
 	logger := helpers.Logger.With("component", "helm-values")
 	logger.Infow("deploy app, get values.yaml")
@@ -1133,6 +1145,7 @@ func getValuesYAML(appChart *models.AppChartFull, parameters ChartParameters) (s
 			Configurations: configurationNames,
 			ConfigPaths:    parameters.Configurations,
 			StageID:        parameters.StageID,
+			Tls:            ingressTLSEnabled(),
 			TlsIssuer:      viper.GetString("tls-issuer"),
 			Username:       parameters.Username,
 			// Ingress, Gateway, Start, Routes: see below
