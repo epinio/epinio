@@ -12,6 +12,8 @@
 package models_test
 
 import (
+	"encoding/json"
+
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
@@ -335,5 +337,166 @@ var _ = Describe("AppBuildStatus", func() {
 		Expect(models.AppBuildStatusDeployed).To(Equal("deployed"))
 		Expect(models.AppBuildStatusCreate).NotTo(Equal(models.AppBuildStatusBuild))
 		Expect(models.AppBuildStatusBuild).NotTo(Equal(models.AppBuildStatusDeployed))
+	})
+})
+
+var _ = Describe("LifecycleTiming JSON", func() {
+	It("marshals with CRD field names", func() {
+		timing := models.LifecycleTiming{
+			DurationMs: 12345,
+			FinishedAt: "2026-11-09T10:15:30Z",
+			Result:     "succeeded",
+			StageID:    "stage-build-001",
+		}
+
+		raw, err := json.Marshal(timing)
+		Expect(err).ToNot(HaveOccurred())
+
+		var got map[string]any
+		Expect(json.Unmarshal(raw, &got)).To(Succeed())
+		Expect(got).To(HaveKey("durationms"))
+		Expect(got).To(HaveKey("finishedat"))
+		Expect(got).To(HaveKey("result"))
+		Expect(got).To(HaveKey("stageid"))
+		Expect(got).NotTo(HaveKey("durationMs"))
+		Expect(got).NotTo(HaveKey("finishedAt"))
+		Expect(got).NotTo(HaveKey("stage_id"))
+		Expect(got).NotTo(HaveKey("stageID"))
+		Expect(got["durationms"]).To(BeEquivalentTo(12345))
+		Expect(got["finishedat"]).To(Equal("2026-11-09T10:15:30Z"))
+		Expect(got["result"]).To(Equal("succeeded"))
+		Expect(got["stageid"]).To(Equal("stage-build-001"))
+	})
+
+	It("omits an empty stageid", func() {
+		timing := models.LifecycleTiming{
+			DurationMs: 10,
+			FinishedAt: "2026-11-09T10:15:30Z",
+			Result:     "failed",
+		}
+
+		raw, err := json.Marshal(timing)
+		Expect(err).ToNot(HaveOccurred())
+
+		var got map[string]any
+		Expect(json.Unmarshal(raw, &got)).To(Succeed())
+		Expect(got).NotTo(HaveKey("stageid"))
+		Expect(got["result"]).To(Equal("failed"))
+	})
+
+	It("round-trips through JSON without losing fields", func() {
+		in := models.LifecycleTiming{
+			DurationMs: 678,
+			FinishedAt: "2026-11-09T10:20:00Z",
+			Result:     "failed",
+			StageID:    "stage-deploy-002",
+		}
+
+		raw, err := json.Marshal(in)
+		Expect(err).ToNot(HaveOccurred())
+
+		var out models.LifecycleTiming
+		Expect(json.Unmarshal(raw, &out)).To(Succeed())
+		Expect(out).To(Equal(in))
+	})
+})
+
+var _ = Describe("App lifecycle timing fields", func() {
+	It("omits lastBuild and lastDeploy from the App JSON when unset", func() {
+		app := models.App{
+			BuildStatus: models.AppBuildStatusCreate,
+		}
+
+		raw, err := json.Marshal(app)
+		Expect(err).ToNot(HaveOccurred())
+
+		var got map[string]any
+		Expect(json.Unmarshal(raw, &got)).To(Succeed())
+		Expect(got).NotTo(HaveKey("lastBuild"))
+		Expect(got).NotTo(HaveKey("lastDeploy"))
+	})
+
+	It("includes lastBuild and lastDeploy in the App JSON when set", func() {
+		app := models.App{
+			LastBuild: &models.LifecycleTiming{
+				DurationMs: 100,
+				FinishedAt: "2026-11-09T10:15:30Z",
+				Result:     "succeeded",
+				StageID:    "stage-1",
+			},
+			LastDeploy: &models.LifecycleTiming{
+				DurationMs: 50,
+				FinishedAt: "2026-11-09T10:16:00Z",
+				Result:     "succeeded",
+				StageID:    "stage-1",
+			},
+		}
+
+		raw, err := json.Marshal(app)
+		Expect(err).ToNot(HaveOccurred())
+
+		var got map[string]any
+		Expect(json.Unmarshal(raw, &got)).To(Succeed())
+		Expect(got).To(HaveKey("lastBuild"))
+		Expect(got).To(HaveKey("lastDeploy"))
+
+		lastBuild := got["lastBuild"].(map[string]any)
+		Expect(lastBuild["durationms"]).To(BeEquivalentTo(100))
+		Expect(lastBuild).NotTo(HaveKey("durationMs"))
+
+		lastDeploy := got["lastDeploy"].(map[string]any)
+		Expect(lastDeploy["durationms"]).To(BeEquivalentTo(50))
+		Expect(lastDeploy["stageid"]).To(Equal("stage-1"))
+	})
+})
+
+var _ = Describe("PodInfo StartupMs JSON", func() {
+	It("omits startupMs when unset", func() {
+		pod := models.PodInfo{
+			Name:     "app-0",
+			Ready:    true,
+			Restarts: 0,
+		}
+
+		raw, err := json.Marshal(pod)
+		Expect(err).ToNot(HaveOccurred())
+
+		var got map[string]any
+		Expect(json.Unmarshal(raw, &got)).To(Succeed())
+		Expect(got).NotTo(HaveKey("startupMs"))
+	})
+
+	It("includes startupMs when set", func() {
+		startupMs := int64(1500)
+		pod := models.PodInfo{
+			Name:      "app-0",
+			Ready:     true,
+			Restarts:  0,
+			StartupMs: &startupMs,
+		}
+
+		raw, err := json.Marshal(pod)
+		Expect(err).ToNot(HaveOccurred())
+
+		var got map[string]any
+		Expect(json.Unmarshal(raw, &got)).To(Succeed())
+		Expect(got).To(HaveKey("startupMs"))
+		Expect(got["startupMs"]).To(BeEquivalentTo(1500))
+	})
+
+	It("round-trips a zero startupMs when explicitly set", func() {
+		startupMs := int64(0)
+		pod := models.PodInfo{
+			Name:      "app-0",
+			StartupMs: &startupMs,
+		}
+
+		raw, err := json.Marshal(pod)
+		Expect(err).ToNot(HaveOccurred())
+
+		var out models.PodInfo
+		Expect(json.Unmarshal(raw, &out)).To(Succeed())
+		Expect(out.StartupMs).ToNot(BeNil())
+		Expect(*out.StartupMs).To(Equal(int64(0)))
 	})
 })
