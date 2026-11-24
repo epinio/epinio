@@ -16,6 +16,7 @@ package models
 type Namespace struct {
 	Meta           MetaLite `json:"meta,omitempty"`
 	Apps           []string `json:"apps,omitempty"`
+	Services       []string `json:"services,omitempty"`
 	Configurations []string `json:"configurations,omitempty"`
 }
 

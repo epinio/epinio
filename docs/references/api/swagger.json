@@ -4895,6 +4895,13 @@
         },
         "meta": {
           "$ref": "#/definitions/MetaLite"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Services"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"

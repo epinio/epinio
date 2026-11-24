@@ -304,6 +304,48 @@ func (s *ServiceClient) CatalogServicesInUse(ctx context.Context) (map[string]bo
 	return result, nil
 }
 
+// ListRefs returns the name and namespace of every Epinio Service instance in
+// the namespace, or in all namespaces when it is blank. Unlike list it reads
+// the labeled instance secrets only: no catalog lookup and no helm status
+// fan-out, so it costs a single API call however many instances exist.
+func ListRefs(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+) ([]models.Meta, error) {
+	listOpts := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf(
+			"%s,%s",
+			ServiceNameLabelKey,
+			CatalogServiceLabelKey,
+		),
+	}
+
+	secrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(
+		ctx,
+		listOpts,
+	)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return []models.Meta{}, nil
+		}
+		return nil, errors.Wrap(err, "listing service instance refs")
+	}
+
+	refs := make([]models.Meta, 0, len(secrets.Items))
+	for _, secret := range secrets.Items {
+		// The label carries the user-facing name; the secret's own name is
+		// the generated resource name (see serviceResourceName).
+		refs = append(refs, models.Meta{
+			Name:      secret.GetLabels()[ServiceNameLabelKey],
+			Namespace: secret.Namespace,
+			CreatedAt: secret.GetCreationTimestamp(),
+		})
+	}
+
+	return refs, nil
+}
+
 // ListInNamespace will return all the Epinio Services available in the specified namespace
 func (s *ServiceClient) ListInNamespace(ctx context.Context, namespace string) (models.ServiceList, error) {
 	return s.list(ctx, namespace, nil)
