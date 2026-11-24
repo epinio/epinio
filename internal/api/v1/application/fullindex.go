@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,7 +18,6 @@ import (
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -59,8 +58,8 @@ func fullIndexWithFilter(c *gin.Context, filter application.ListFilter) apierror
 
 	page, pageSize, paginated := response.GetPaginationParams(c, 1, 25)
 
-	// Status / deploymentStatus live on enriched App models, not CRs.
-	// Enrich all matches, sort, then page — otherwise sort=status is a no-op.
+	// Status, deploymentStatus and username live on enriched App models, not
+	// CRs. Enrich all matches, sort, then page, or the sort would be a no-op.
 	if application.NeedsEnrichedAppSort(sortParams.Field) {
 		apps, err := application.AppsFromCRs(ctx, cluster, matched)
 		if err != nil {
@@ -68,8 +67,7 @@ func fullIndexWithFilter(c *gin.Context, filter application.ListFilter) apierror
 		}
 		application.SortApps(apps, sortParams.Field, sortParams.Descending)
 		if paginated {
-			paged, total := pageApps(apps, page, pageSize)
-			response.OKReturn(c, response.BuildPaginatedResponse(paged, page, pageSize, total))
+			response.OKReturn(c, response.PaginateSlice(apps, page, pageSize))
 			return nil
 		}
 		response.OKReturn(c, apps)
@@ -95,26 +93,6 @@ func fullIndexWithFilter(c *gin.Context, filter application.ListFilter) apierror
 
 	response.OKReturn(c, apps)
 	return nil
-}
-
-// pageApps returns the requested page of an already-sorted AppList and the total count.
-func pageApps(apps models.AppList, page, pageSize int) (models.AppList, int) {
-	total := len(apps)
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 {
-		pageSize = 25
-	}
-	start := (page - 1) * pageSize
-	if start >= total {
-		return models.AppList{}, total
-	}
-	end := start + pageSize
-	if end > total {
-		end = total
-	}
-	return apps[start:end], total
 }
 
 // appCRNamespace adapts an App CR to auth.NamespacedResource so the shared auth

@@ -16,10 +16,10 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v4/pkg/action"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
+	"helm.sh/helm/v4/pkg/chart/v2/loader"
+	chartutil "helm.sh/helm/v4/pkg/chart/v2/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -177,7 +177,7 @@ var _ = Describe("Charts in a registry", func() {
 			client = helmClient()
 			repo = "oci://" + reg.Host() + "/charts"
 
-			Expect(client.RegistryLogin(reg.Host(), username, password, action.WithInsecure(true))).To(Succeed())
+			Expect(client.RegistryLogin(reg.Host(), username, password, true, "")).To(Succeed())
 		})
 
 		loadedVersion := func(archive string) string {

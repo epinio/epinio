@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -35,10 +35,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/chart/common"
+	commonutil "helm.sh/helm/v4/pkg/chart/common/util"
+	"helm.sh/helm/v4/pkg/chart/v2/loader"
+	chartutil "helm.sh/helm/v4/pkg/chart/v2/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -238,17 +239,16 @@ func ExportToRegistry(c *gin.Context) apierror.APIErrors {
 
 	log.Infow("OCI export login", "host", destinationHost)
 
-	rOpts := []action.RegistryLoginOpt{}
 	if certFile != "" {
 		log.Infow("OCI export login", "+certs", certFile)
-		rOpts = append(rOpts, action.WithCAFile(certFile))
 	}
 
 	err = client.RegistryLogin(
 		destinationHost,
 		destination.Username,
 		destination.Password,
-		rOpts...,
+		false,
+		certFile,
 	)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -329,7 +329,7 @@ func rewriteChart(
 	appChart.Metadata.Name = name
 	appChart.Metadata.Version = version
 
-	merged := chartutil.CoalesceTables(params, appChart.Values)
+	merged := commonutil.CoalesceTables(params, appChart.Values)
 
 	// ATTENTION: While we can directly edit the meta data and see it in the saved tarball the
 	// handling of the values is more complex. The `appChart.Values` is a read-only convenience
@@ -352,7 +352,7 @@ func rewriteChart(
 	}
 	if !ok {
 		// Values file missing, create it.
-		appChart.Raw = append(appChart.Raw, &chart.File{
+		appChart.Raw = append(appChart.Raw, &common.File{
 			Name: chartutil.ValuesfileName,
 			Data: yaml,
 		})

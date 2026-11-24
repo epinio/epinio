@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,10 +13,10 @@ package configurationbinding
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	apiapp "github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/configurations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,7 +27,6 @@ func Delete(c *gin.Context) apierror.APIErrors {
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	configurationName := c.Param("configuration")
-	username := requestctx.User(ctx).Username
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -49,11 +48,22 @@ func Delete(c *gin.Context) apierror.APIErrors {
 			config.Origin)
 	}
 
-	apiErr := DeleteBinding(ctx, cluster, namespace, appName, username, []string{configurationName})
+	app, apiErr := DeleteBinding(
+		ctx,
+		cluster,
+		namespace,
+		appName,
+		[]string{configurationName},
+	)
 	if apiErr != nil {
 		return apiErr
 	}
 
-	response.OK(c)
+	apiapp.RespondRedeploys(c, apiapp.RedeployIfRunning(
+		ctx,
+		cluster,
+		[]models.App{*app},
+		false,
+	))
 	return nil
 }

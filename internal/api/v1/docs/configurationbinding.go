@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -17,10 +17,11 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Configuration Bindings
 
-// swagger:route POST   /namespaces/{Namespace}/applications/{App}/configurationbindings svc-binding ConfigurationBindingCreate
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/configurationbindings ConfigurationBindings ConfigurationBindingCreate
 // Create configuration binding between `App` in `Namespace`, and the posted configurations, also in `Namespace`.
 // responses:
 //   200: ConfigurationBindResponse
+//   202: ConfigurationBindResponse
 
 // swagger:parameters ConfigurationBindingCreate
 type ConfigurationBindingCreateParams struct {
@@ -38,10 +39,11 @@ type ConfigurationBindResponse struct {
 	Body models.BindResponse
 }
 
-// swagger:route DELETE /namespaces/{Namespace}/applications/{App}/configurationbindings/{Configuration} svc-binding ConfigurationBindingDelete
+// swagger:route DELETE /namespaces/{Namespace}/applications/{App}/configurationbindings/{Configuration} ConfigurationBindings ConfigurationBindingDelete
 // Remove configuration binding between `App` and `Configuration` in `Namespace`.
 // responses:
-//   200: ConfigurationUnbindReponse
+//   200: ConfigurationUnbindResponse
+//   202: OperationsResponse
 
 // swagger:parameters ConfigurationBindingDelete
 type ConfigurationBindingDeleteParams struct {
@@ -53,8 +55,8 @@ type ConfigurationBindingDeleteParams struct {
 	Configuration string
 }
 
-// swagger:response ConfigurationUnbindReponse
-type ConfigurationUnbindReponse struct {
+// swagger:response ConfigurationUnbindResponse
+type ConfigurationUnbindResponse struct {
 	// in:body
 	Body models.Response
 }

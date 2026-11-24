@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -194,6 +194,35 @@ func SetBuildStatus(ctx context.Context, cluster *kubernetes.Cluster, app models
 
 	patch, err := json.Marshal(map[string]any{
 		"spec": map[string]any{"buildstatus": status},
+	})
+	if err != nil {
+		return errors.Wrap(err, "error building body patch")
+	}
+
+	_, err = client.Namespace(app.Namespace).Patch(ctx,
+		app.Name,
+		types.MergePatchType,
+		patch,
+		metav1.PatchOptions{})
+
+	return err
+}
+
+// SetBuiltImageURL stores the image produced by a successful build in the
+// referenced application resource.
+func SetBuiltImageURL(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	app models.AppRef,
+	imageURL string,
+) error {
+	client, err := cluster.ClientApp()
+	if err != nil {
+		return err
+	}
+
+	patch, err := json.Marshal(map[string]any{
+		"spec": map[string]any{"builtimageurl": imageURL},
 	})
 	if err != nil {
 		return errors.Wrap(err, "error building body patch")

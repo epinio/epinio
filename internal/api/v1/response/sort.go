@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -65,7 +65,7 @@ func SortByIntKey[T any](items []T, descending bool, key func(T) int) {
 // MetaKeys holds accessors for the common name / namespace / createdAt sort fields.
 type MetaKeys[T any] struct {
 	Name      func(T) string
-	Namespace func(T) string // optional
+	Namespace func(T) string    // optional
 	CreatedAt func(T) time.Time // optional
 }
 
@@ -87,12 +87,25 @@ func ApplyMetaSort[T any](items []T, params SortParams, keys MetaKeys[T]) {
 		if keys.Namespace == nil {
 			return
 		}
-		SortByStringKey(items, params.Descending, func(item T) string {
-			ns := strings.ToLower(keys.Namespace(item))
-			if keys.Name != nil {
-				return ns + "/" + strings.ToLower(keys.Name(item))
+		// Namespace first, then name, matching the app list sort. Joining
+		// the two into one key would order "dev-2" ahead of "dev".
+		lowerName := func(item T) string {
+			if keys.Name == nil {
+				return ""
 			}
-			return ns
+			return strings.ToLower(keys.Name(item))
+		}
+		sort.SliceStable(items, func(i, j int) bool {
+			a, b := items[i], items[j]
+			if params.Descending {
+				a, b = b, a
+			}
+			an := strings.ToLower(keys.Namespace(a))
+			bn := strings.ToLower(keys.Namespace(b))
+			if an != bn {
+				return an < bn
+			}
+			return lowerName(a) < lowerName(b)
 		})
 	case "createdAt":
 		if keys.CreatedAt == nil {

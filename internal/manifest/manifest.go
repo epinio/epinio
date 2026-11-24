@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -121,6 +121,24 @@ func UpdateBuilder(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 			return manifest, errors.Wrap(err, "invalid --dockerfile-path")
 		}
 		manifest.Staging.DockerfilePath = validated
+	}
+
+	if cmd.Flags().Changed("source-path") {
+		sourcePath, err := cmd.Flags().GetString("source-path")
+		if err != nil {
+			return manifest, errors.Wrap(err, "could not read option --source-path")
+		}
+		validated, err := models.ValidateSourcePath(sourcePath)
+		if err != nil {
+			return manifest, errors.Wrap(err, "invalid --source-path")
+		}
+		// Keep "." so the server can distinguish an explicit reset to the
+		// sources root from an omitted flag (leave the stored value alone).
+		manifest.Staging.SourcePath = validated
+	}
+
+	if err := models.ValidateSourcePathForBuildMode(manifest.Staging.BuildMode, manifest.Staging.SourcePath); err != nil {
+		return manifest, errors.Wrap(err, "invalid --source-path")
 	}
 
 	return manifest, nil
@@ -437,6 +455,18 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 			return empty, errors.Wrap(err, "invalid staging.dockerfilePath")
 		}
 		manifest.Staging.DockerfilePath = validated
+	}
+
+	if manifest.Staging.SourcePath != "" {
+		validated, err := models.ValidateSourcePath(manifest.Staging.SourcePath)
+		if err != nil {
+			return empty, errors.Wrap(err, "invalid staging.sourcePath")
+		}
+		manifest.Staging.SourcePath = validated
+	}
+
+	if err := models.ValidateSourcePathForBuildMode(manifest.Staging.BuildMode, manifest.Staging.SourcePath); err != nil {
+		return empty, errors.Wrap(err, "invalid staging.sourcePath")
 	}
 
 	// Verify that origin information is one-of only.

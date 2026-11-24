@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"testing"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -72,4 +73,85 @@ func TestAppInstancesChanged(t *testing.T) {
 			t.Fatalf("expected change when requested instances differ from current")
 		}
 	})
+}
+
+func TestChooseRedeploy(t *testing.T) {
+	one, two := int32(1), int32(2)
+	no := false
+	running := &models.App{
+		Workload:      &models.AppDeployment{},
+		Status:        models.ApplicationRunning,
+		Configuration: models.ApplicationConfiguration{Instances: &one},
+	}
+	stopped := &models.App{
+		Workload:      &models.AppDeployment{},
+		Status:        models.ApplicationError,
+		Configuration: models.ApplicationConfiguration{Instances: &one},
+	}
+	undeployed := &models.App{}
+
+	cases := []struct {
+		name     string
+		app      *models.App
+		req      models.ApplicationUpdateRequest
+		chart    bool
+		redeploy bool
+	}{
+		{
+			name:     "no-restart skips even a chart change",
+			app:      running,
+			req:      models.ApplicationUpdateRequest{Restart: &no},
+			chart:    true,
+			redeploy: false,
+		},
+		{
+			name:     "instances changed deploys",
+			app:      running,
+			req:      models.ApplicationUpdateRequest{Instances: &two},
+			redeploy: true,
+		},
+		{
+			name:     "chart change on a deployed app deploys",
+			app:      stopped,
+			chart:    true,
+			redeploy: true,
+		},
+		{
+			name:     "running app restarts",
+			app:      running,
+			redeploy: true,
+		},
+		{
+			name:     "deployed but not running is skipped",
+			app:      stopped,
+			redeploy: false,
+		},
+		{
+			name:     "undeployed with instances deploys",
+			app:      undeployed,
+			req:      models.ApplicationUpdateRequest{Instances: &one},
+			redeploy: true,
+		},
+		{
+			name:     "undeployed with no instances is done",
+			app:      undeployed,
+			redeploy: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := chooseRedeploy(
+				context.Background(),
+				nil,
+				tc.app,
+				tc.req,
+				tc.chart,
+				"user",
+			)
+			if (got != nil) != tc.redeploy {
+				t.Fatalf("redeploy = %v, want %v", got != nil, tc.redeploy)
+			}
+		})
+	}
 }

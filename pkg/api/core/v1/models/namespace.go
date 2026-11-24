@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,8 +16,8 @@ package models
 type Namespace struct {
 	Meta           MetaLite `json:"meta,omitempty"`
 	Apps           []string `json:"apps,omitempty"`
-	Configurations []string `json:"configurations,omitempty"`
 	Services       []string `json:"services,omitempty"`
+	Configurations []string `json:"configurations,omitempty"`
 }
 
 // NamespaceList is a collection of namespaces

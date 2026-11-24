@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -149,6 +149,11 @@ Subcommands manage existing builds:
 	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
 	cmd.Flags().String("build-mode", "", "Staging build mode: buildpack (default) or dockerfile")
 	cmd.Flags().String("dockerfile-path", "", "Path to Dockerfile within the application sources (default: Dockerfile)")
+	cmd.Flags().String(
+		"source-path",
+		"",
+		"Subdirectory within application sources used as the buildpack app root (monorepos; buildpack staging only, incompatible with --build-mode dockerfile)",
+	)
 
 	gitConfigOption(cmd, client)
 	routeOption(cmd)
@@ -625,6 +630,7 @@ func NewAppPushCmd(client ApplicationsService) *cobra.Command {
 	cmd.Flags().String("builder-image", "", "Paketo builder image to use for staging")
 	cmd.Flags().String("build-mode", "", "Staging build mode: buildpack (default) or dockerfile")
 	cmd.Flags().String("dockerfile-path", "", "Path to Dockerfile within the application sources (default: Dockerfile)")
+	cmd.Flags().String("source-path", "", "Subdirectory within application sources used as the buildpack app root (monorepos; buildpack staging only, incompatible with --build-mode dockerfile)")
 
 	gitConfigOption(cmd, client)
 	routeOption(cmd)

@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -114,6 +114,30 @@ func TestApplyMetaSort(t *testing.T) {
 	cloned = append([]sortItem(nil), items...)
 	response.ApplyMetaSort(cloned, response.SortParams{}, keys)
 	assertSortNames(t, cloned, "zebra", "apple", "mango")
+}
+
+func TestApplyMetaSortNamespaceBeforeName(t *testing.T) {
+	// "dev" must sort ahead of "dev-2"; a joined "ns/name" key reverses
+	// them because '-' sorts before '/'.
+	items := []sortItem{
+		{name: "x", namespace: "dev-2"},
+		{name: "y", namespace: "dev"},
+		{name: "a", namespace: "dev"},
+	}
+	keys := response.MetaKeys[sortItem]{
+		Name:      func(i sortItem) string { return i.name },
+		Namespace: func(i sortItem) string { return i.namespace },
+	}
+
+	response.ApplyMetaSort(items, response.SortParams{Field: "namespace"}, keys)
+	assertSortNames(t, items, "a", "y", "x")
+
+	response.ApplyMetaSort(
+		items,
+		response.SortParams{Field: "namespace", Descending: true},
+		keys,
+	)
+	assertSortNames(t, items, "x", "y", "a")
 }
 
 func assertSortNames(t *testing.T, items []sortItem, want ...string) {

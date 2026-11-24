@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -22,11 +22,16 @@ import (
 	"io"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// relativeAppPathPattern allows only simple relative path characters so values
+// stay safe for staging scripts (no spaces, globs, shell metacharacters, etc.).
+var relativeAppPathPattern = regexp.MustCompile(`^[a-zA-Z0-9._/-]+$`)
 
 // Note: Meta is an extension of `ConfigurationRef` later in the file. Users of
 // `ConfigurationRef` should be incrementally switched over to `Meta`.
@@ -110,6 +115,7 @@ type ConfigurationDeleteRequest struct {
 // ConfigurationDeleteResponse represents the server's response to a successful configuration deletion
 type ConfigurationDeleteResponse struct {
 	BoundApps []string `json:"boundapps"`
+	OperationsResponse
 }
 
 // BindRequest represents and contains the data needed to bind configurations to an application.
@@ -121,6 +127,7 @@ type BindRequest struct {
 // an application.
 type BindResponse struct {
 	WasBound []string `json:"wasbound"`
+	OperationsResponse
 }
 
 // ApplicationManifest represents and contains the data of an application's manifest file,
@@ -167,6 +174,39 @@ func NormalizeBuildMode(mode string) string {
 	return normalized
 }
 
+// validateRelativeAppPath returns a cleaned relative path under application
+// sources. Absolute paths, ".." segments, and unexpected characters are
+// rejected so the value cannot escape /workspace/source/app or break staging
+// scripts. kind is used only in error messages (e.g. "dockerfile path").
+func validateRelativeAppPath(raw, kind string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+
+	// Staging runs on Linux; keep the check host-agnostic for CLI callers.
+	if path.IsAbs(trimmed) || filepath.IsAbs(trimmed) ||
+		(len(trimmed) >= 2 && trimmed[1] == ':') ||
+		strings.HasPrefix(trimmed, `\\`) {
+		return "", fmt.Errorf("invalid %s %q: absolute paths are not allowed", kind, raw)
+	}
+
+	normalized := filepath.ToSlash(trimmed)
+	for _, part := range strings.Split(normalized, "/") {
+		if part == ".." {
+			return "", fmt.Errorf("invalid %s %q: paths must not contain '..'", kind, raw)
+		}
+	}
+
+	cleaned := path.Clean(normalized)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || path.IsAbs(cleaned) {
+		return "", fmt.Errorf("invalid %s %q: path must stay within application sources", kind, raw)
+	}
+
+	if !relativeAppPathPattern.MatchString(cleaned) {
+		return "", fmt.Errorf("invalid %s %q: only letters, digits, '.', '_', '-', and '/' are allowed", kind, raw)
+	}
+
+	return cleaned, nil
+}
+
 // ValidateDockerfilePath returns a safe Dockerfile path relative to app sources.
 // Empty defaults to "Dockerfile". Absolute paths, ".." segments, and unexpected
 // characters are rejected so the value cannot escape /workspace/source/app or
@@ -176,36 +216,57 @@ func ValidateDockerfilePath(dockerfilePath string) (string, error) {
 	if trimmed == "" {
 		return "Dockerfile", nil
 	}
+	return validateRelativeAppPath(dockerfilePath, "dockerfile path")
+}
 
-	// Staging runs on Linux; keep the check host-agnostic for CLI callers.
-	if path.IsAbs(trimmed) || filepath.IsAbs(trimmed) ||
-		(len(trimmed) >= 2 && trimmed[1] == ':') ||
-		strings.HasPrefix(trimmed, `\\`) {
-		return "", fmt.Errorf("invalid dockerfile path %q: absolute paths are not allowed", dockerfilePath)
+// SourcePathRoot is the sentinel value meaning "use the sources archive/repo
+// root" for buildpack staging. It is kept distinct from "" so clients can
+// explicitly clear a previously stored subdirectory (empty in a request means
+// "leave the stored value unchanged").
+const SourcePathRoot = "."
+
+// ValidateSourcePath returns a safe application source root relative to the
+// uploaded/cloned sources (for buildpack staging). Absolute paths, ".."
+// segments, and unexpected characters are rejected so the value cannot escape
+// /workspace/source/app.
+//
+// Empty input stays empty (caller did not provide a path). "." / "./" normalize
+// to SourcePathRoot so an explicit reset to the sources root can be sent.
+func ValidateSourcePath(sourcePath string) (string, error) {
+	trimmed := strings.TrimSpace(sourcePath)
+	if trimmed == "" {
+		return "", nil
 	}
 
-	normalized := filepath.ToSlash(trimmed)
-	for _, part := range strings.Split(normalized, "/") {
-		if part == ".." {
-			return "", fmt.Errorf("invalid dockerfile path %q: paths must not contain '..'", dockerfilePath)
-		}
+	cleaned, err := validateRelativeAppPath(sourcePath, "source path")
+	if err != nil {
+		return "", err
 	}
-
-	cleaned := path.Clean(normalized)
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || path.IsAbs(cleaned) {
-		return "", fmt.Errorf("invalid dockerfile path %q: path must stay within application sources", dockerfilePath)
+	if cleaned == "." {
+		return SourcePathRoot, nil
 	}
-
-	// Keep paths simple for shell/Kaniko usage (no spaces, globs, etc.).
-	for _, r := range cleaned {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
-			r == '.' || r == '_' || r == '-' || r == '/' {
-			continue
-		}
-		return "", fmt.Errorf("invalid dockerfile path %q: only letters, digits, '.', '_', '-', and '/' are allowed", dockerfilePath)
-	}
-
 	return cleaned, nil
+}
+
+// ValidateSourcePathForBuildMode rejects a source path when staging uses
+// dockerfile mode. Source path only affects buildpack staging (SOURCE_PATH).
+func ValidateSourcePathForBuildMode(buildMode, sourcePath string) error {
+	if sourcePath == "" {
+		return nil
+	}
+	if NormalizeBuildMode(buildMode) != BuildModeDockerfile {
+		return nil
+	}
+	return fmt.Errorf("source path is only supported with buildpack staging, not with build mode %q", BuildModeDockerfile)
+}
+
+// NormalizeSourcePathForStaging maps a validated source path to the value
+// stored on the app CR and used as SOURCE_PATH. SourcePathRoot becomes "".
+func NormalizeSourcePathForStaging(sourcePath string) string {
+	if sourcePath == "" || sourcePath == SourcePathRoot {
+		return ""
+	}
+	return sourcePath
 }
 
 // ApplicationStage is the part of the manifest holding information
@@ -214,6 +275,10 @@ type ApplicationStage struct {
 	Builder        string `yaml:"builder,omitempty" json:"builder,omitempty"`
 	BuildMode      string `yaml:"buildMode,omitempty" json:"buildMode,omitempty"`
 	DockerfilePath string `yaml:"dockerfilePath,omitempty" json:"dockerfilePath,omitempty"`
+	// SourcePath is the subdirectory within application sources used as the
+	// buildpack app root (monorepo support). Empty means unset in a request
+	// (keep stored value). Use "." (SourcePathRoot) to reset to the sources root.
+	SourcePath string `yaml:"sourcePath,omitempty" json:"sourcePath,omitempty"`
 }
 
 // ApplicationConfiguration is the part of the manifest describing the configuration of the application
@@ -346,11 +411,12 @@ type UploadResponse struct {
 
 // StageRequest represents and contains the data needed to stage an application
 type StageRequest struct {
-	App            AppRef             `json:"app,omitempty"`
-	BlobUID        string             `json:"blobuid,omitempty"`
-	BuilderImage   string             `json:"builderimage,omitempty"`
-	BuildMode      string             `json:"buildmode,omitempty"`
-	DockerfilePath string             `json:"dockerfilepath,omitempty"`
+	App            AppRef `json:"app,omitempty"`
+	BlobUID        string `json:"blobuid,omitempty"`
+	BuilderImage   string `json:"builderimage,omitempty"`
+	BuildMode      string `json:"buildmode,omitempty"`
+	DockerfilePath string `json:"dockerfilepath,omitempty"`
+	SourcePath     string `json:"sourcepath,omitempty"`
 	// Origin is optional. When set (e.g. by `epinio app build`), the server
 	// persists it so a later deploy-only step still knows where the sources came from.
 	Origin ApplicationOrigin `json:"origin,omitempty"`
@@ -362,34 +428,44 @@ type StageResponse struct {
 	ImageURL string   `json:"image,omitempty"`
 }
 
-// StageCompleteEvent is sent over the staging completion websocket endpoint
-// to signal the status of a staging job.
-type StageCompleteEvent struct {
-	StageID   string `json:"stage_id"`
-	Namespace string `json:"namespace"`
-	Status    string `json:"status"`
-	Message   string `json:"message,omitempty"`
-	Completed bool   `json:"completed"`
-}
-
-// StageComplete statuses used in websocket payloads.
-const (
-	StageStatusWaiting   = "waiting"
-	StageStatusSucceeded = "succeeded"
-	StageStatusFailed    = "failed"
-	StageStatusError     = "error"
-)
-
 // DeployRequest represents and contains the data needed to deploy an application
 // Note that the overall application configuration (instances, configurations, EVs) is
 // already known server side, through AppCreate/AppUpdate requests.
 // This request not only comes with the image to deploy, but also the
 // information where the sources of that image came from.
+//
+// POST .../deploy is asynchronous and answers 202 with an AppOperation.
+// It deploys ImageURL when set (Stage names the build that produced it).
+// Otherwise it builds first: from BlobUID, from the stored blob, or by
+// cloning a git Origin, then deploys the result.
 type DeployRequest struct {
-	App      AppRef            `json:"app,omitempty"`
-	Stage    StageRef          `json:"stage,omitempty"`
-	ImageURL string            `json:"image,omitempty"`
-	Origin   ApplicationOrigin `json:"origin,omitempty"`
+	App            AppRef            `json:"app,omitempty"`
+	Stage          StageRef          `json:"stage,omitempty"`
+	ImageURL       string            `json:"image,omitempty"`
+	Origin         ApplicationOrigin `json:"origin,omitempty"`
+	BlobUID        string            `json:"blobuid,omitempty"`
+	BuilderImage   string            `json:"builderimage,omitempty"`
+	BuildMode      string            `json:"buildmode,omitempty"`
+	DockerfilePath string            `json:"dockerfilepath,omitempty"`
+	SourcePath     string            `json:"sourcepath,omitempty"`
+}
+
+// Builds reports whether the deploy has to build an image first.
+func (r DeployRequest) Builds() bool {
+	return r.ImageURL == ""
+}
+
+// StageRequest returns the build half of the request.
+func (r DeployRequest) StageRequest() StageRequest {
+	return StageRequest{
+		App:            r.App,
+		BlobUID:        r.BlobUID,
+		BuilderImage:   r.BuilderImage,
+		BuildMode:      r.BuildMode,
+		DockerfilePath: r.DockerfilePath,
+		SourcePath:     r.SourcePath,
+		Origin:         r.Origin,
+	}
 }
 
 // DeployResponse represents the server's response to a successful app deployment
@@ -398,34 +474,84 @@ type DeployResponse struct {
 	Warnings []string `json:"warnings,omitempty"`
 }
 
-// AsyncDeployRequest represents and contains the data needed to stage/build and deploy an application asynchronously.
-//
-// For "source-based" deploys, the client should provide `BlobUID` (from /store or /import-git) and optionally
-// `BuilderImage` to run staging. For "image-based" deploys, the client can provide `ImageURL` directly.
-// Both may be omitted to retry a failed build: staging then resolves the stored blobuid from the app CR,
-// or re-clones from git origin when the blob is missing.
-type AsyncDeployRequest struct {
-	App            AppRef            `json:"app,omitempty"`
-	BlobUID        string            `json:"blobuid,omitempty"`
-	BuilderImage   string            `json:"builderimage,omitempty"`
-	BuildMode      string            `json:"buildmode,omitempty"`
-	DockerfilePath string            `json:"dockerfilepath,omitempty"`
-	ImageURL       string            `json:"image,omitempty"`
-	Origin         ApplicationOrigin `json:"origin,omitempty"`
+// OperationKind names the lifecycle action an AppOperation runs.
+type OperationKind string
+
+const (
+	OperationBuild   OperationKind = "build"
+	OperationDeploy  OperationKind = "deploy"
+	OperationRestart OperationKind = "restart"
+	OperationUpdate  OperationKind = "update"
+	OperationSource  OperationKind = "source"
+)
+
+// OperationPhase is the progress of an AppOperation. The values match the
+// status of the removed /deployments endpoint, so the UI keeps its labels.
+type OperationPhase string
+
+const (
+	OperationPending   OperationPhase = "pending"
+	OperationStaging   OperationPhase = "staging"
+	OperationDeploying OperationPhase = "deploying"
+	OperationSucceeded OperationPhase = "succeeded"
+	OperationFailed    OperationPhase = "failed"
+)
+
+// AppOperation is one asynchronous lifecycle action on an application.
+// Every lifecycle write (stage, deploy, restart, update, source patch)
+// returns one with 202, and GET .../state reports the latest.
+type AppOperation struct {
+	ID         string         `json:"id"`
+	App        AppRef         `json:"app"`
+	Kind       OperationKind  `json:"kind"`
+	Phase      OperationPhase `json:"phase"`
+	StageID    string         `json:"stage_id,omitempty"`
+	ImageURL   string         `json:"image,omitempty"`
+	Error      string         `json:"error,omitempty"`
+	Routes     []string       `json:"routes,omitempty"`
+	Warnings   []string       `json:"warnings,omitempty"`
+	StartedAt  string         `json:"startedAt,omitempty"`
+	FinishedAt string         `json:"finishedAt,omitempty"`
 }
 
-// AsyncDeployStatus represents the status of an asynchronous deploy operation.
-type AsyncDeployStatus struct {
-	ID         string   `json:"id"`
-	App        AppRef   `json:"app"`
-	Status     string   `json:"status"` // pending, staging, deploying, succeeded, failed
-	StageID    string   `json:"stage_id,omitempty"`
-	ImageURL   string   `json:"image,omitempty"`
-	Error      string   `json:"error,omitempty"`
-	Routes     []string `json:"routes,omitempty"`
-	Warnings   []string `json:"warnings,omitempty"`
-	StartedAt  string   `json:"startedAt,omitempty"`
-	FinishedAt string   `json:"finishedAt,omitempty"`
+// Done reports whether the operation reached a terminal phase.
+func (o AppOperation) Done() bool {
+	return o.Phase == OperationSucceeded || o.Phase == OperationFailed
+}
+
+// SkippedApp names an application a request could not start an operation
+// for, and why (usually: another operation is already running).
+type SkippedApp struct {
+	App    AppRef `json:"app"`
+	Reason string `json:"reason"`
+}
+
+// OperationsResponse reports the operations a request started, one per
+// application it redeployed, and the applications it skipped.
+type OperationsResponse struct {
+	Operations []AppOperation `json:"operations,omitempty"`
+	Skipped    []SkippedApp   `json:"skipped,omitempty"`
+}
+
+// Started reports whether the request started any operation.
+func (r OperationsResponse) Started() bool {
+	return len(r.Operations) > 0
+}
+
+// AppState is the response of GET .../applications/:app/state: the
+// application's lifecycle state in one call. Status is the one field to
+// read: while an operation is staging or deploying it reports that phase,
+// otherwise it is the status derived from the App CR and the workload.
+// Operation is nil when this server holds no record of a recent operation
+// (after a restart, after the record expired, or on another replica).
+type AppState struct {
+	App           AppRef                   `json:"app"`
+	Status        ApplicationStatus        `json:"status"`
+	StatusMessage string                   `json:"statusmessage,omitempty"`
+	StagingStatus ApplicationStagingStatus `json:"stagingstatus,omitempty"`
+	BuildStatus   string                   `json:"buildstatus,omitempty"`
+	StageID       string                   `json:"stage_id,omitempty"`
+	Operation     *AppOperation            `json:"operation,omitempty"`
 }
 
 // ApplicationDeleteRequest represents and contains the data needed to delete an application

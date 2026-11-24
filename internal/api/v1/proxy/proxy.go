@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -137,12 +137,11 @@ func RunProxy(ctx context.Context, rw http.ResponseWriter, req *http.Request, de
 	httpClient := clientSetHTTP1.CoreV1().RESTClient().(*rest.RESTClient).Client
 
 	p := httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			req.URL = destination
-			req.Host = destination.Host
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.SetURL(destination)
 			// let kube authentication work
-			delete(req.Header, "Cookie")
-			delete(req.Header, "Authorization")
+			delete(pr.Out.Header, "Cookie")
+			delete(pr.Out.Header, "Authorization")
 		},
 		Transport:     httpClient.Transport,
 		FlushInterval: time.Millisecond * 100,

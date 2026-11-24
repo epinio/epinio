@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -45,14 +45,17 @@ func DescribeAppRestart() {
 	When("app restart successfully", func() {
 
 		BeforeEach(func() {
-			statusCode = 200
-			responseBody = `{ "status": "ok" }`
+			statusCode = 202
+			responseBody = `{"id": "op1", "kind": "restart",` +
+				` "phase": "pending"}`
 		})
 
-		It("returns no error", func() {
-			res, err := epinioClient.AppRestart("namespace-foo", "appname")
+		It("returns the operation", func() {
+			op, err := epinioClient.AppRestart("namespace-foo", "appname")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(res).To(Equal(models.ResponseOK))
+			Expect(op.ID).To(Equal("op1"))
+			Expect(op.Kind).To(Equal(models.OperationRestart))
+			Expect(op.Phase).To(Equal(models.OperationPending))
 		})
 	})
 

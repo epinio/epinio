@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -65,48 +65,79 @@ func Index(c *gin.Context) apierror.APIErrors {
 		namespaceList = filtered
 	}
 
-	sortParams := response.GetSortParams(c)
+	// One cross-namespace list per resource kind, whether or not the
+	// response is paginated; the lookups below read page namespaces only.
+	appNamesMap, err := getAppNamesByNamespaceMap(ctx, cluster)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
 
-	// Count sorts need full maps before pagination.
-	var appNamesMap map[string][]string
-	var configNamesMap map[string][]string
-	var serviceNamesMap map[string][]string
-	needCounts := sortParams.Field == "appCount" ||
-		sortParams.Field == "configCount" ||
-		sortParams.Field == "serviceInstanceCount"
-	if needCounts {
-		var countErr error
-		appNamesMap, countErr = getAppNamesByNamespaceMap(ctx, cluster)
-		if countErr != nil {
-			return apierror.InternalError(countErr)
-		}
-		configNamesMap, countErr = getConfigurationNamesByNamespaceMap(ctx, cluster)
-		if countErr != nil {
-			return apierror.InternalError(countErr)
-		}
-		serviceNamesMap, countErr = getServiceNamesByNamespaceMap(ctx, cluster)
-		if countErr != nil {
-			return apierror.InternalError(countErr)
-		}
-		switch sortParams.Field {
-		case "appCount":
-			response.SortByIntKey(namespaceList, sortParams.Descending, func(ns namespaces.Namespace) int {
+	serviceNamesMap, err := getServiceNamesByNamespaceMap(ctx, cluster)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	configNamesMap, err := getConfigurationNamesByNamespaceMap(ctx, cluster)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	// Sort before paginating so a page is a slice of the sorted list.
+	sortParams := response.GetSortParams(c)
+	switch sortParams.Field {
+	case "appCount":
+		response.SortByIntKey(
+			namespaceList,
+			sortParams.Descending,
+			func(ns namespaces.Namespace) int {
 				return len(appNamesMap[ns.Name])
-			})
-		case "configCount":
-			response.SortByIntKey(namespaceList, sortParams.Descending, func(ns namespaces.Namespace) int {
+			},
+		)
+	case "configCount":
+		response.SortByIntKey(
+			namespaceList,
+			sortParams.Descending,
+			func(ns namespaces.Namespace) int {
 				return len(configNamesMap[ns.Name])
-			})
-		case "serviceInstanceCount":
-			response.SortByIntKey(namespaceList, sortParams.Descending, func(ns namespaces.Namespace) int {
+			},
+		)
+	case "serviceInstanceCount":
+		response.SortByIntKey(
+			namespaceList,
+			sortParams.Descending,
+			func(ns namespaces.Namespace) int {
 				return len(serviceNamesMap[ns.Name])
+			},
+		)
+	default:
+		response.ApplyMetaSort(
+			namespaceList,
+			sortParams,
+			response.MetaKeys[namespaces.Namespace]{
+				Name: func(ns namespaces.Namespace) string {
+					return ns.Name
+				},
+				CreatedAt: func(ns namespaces.Namespace) time.Time {
+					return ns.CreatedAt.Time
+				},
+			},
+		)
+	}
+
+	toModels := func(list []namespaces.Namespace) models.NamespaceList {
+		nsList := make(models.NamespaceList, 0, len(list))
+		for _, namespace := range list {
+			nsList = append(nsList, models.Namespace{
+				Meta: models.MetaLite{
+					Name:      namespace.Name,
+					CreatedAt: namespace.CreatedAt,
+				},
+				Apps:           appNamesMap[namespace.Name],
+				Services:       serviceNamesMap[namespace.Name],
+				Configurations: configNamesMap[namespace.Name],
 			})
 		}
-	} else {
-		response.ApplyMetaSort(namespaceList, sortParams, response.MetaKeys[namespaces.Namespace]{
-			Name:      func(ns namespaces.Namespace) string { return ns.Name },
-			CreatedAt: func(ns namespaces.Namespace) time.Time { return ns.CreatedAt.Time },
-		})
+		return nsList
 	}
 
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
@@ -119,66 +150,9 @@ func Index(c *gin.Context) apierror.APIErrors {
 		if end > total {
 			end = total
 		}
-		pageNsList := namespaceList[start:end]
-
-		if !needCounts {
-			pageNsSet := make(map[string]bool, len(pageNsList))
-			for _, ns := range pageNsList {
-				pageNsSet[ns.Name] = true
-			}
-
-			allAppRefs, err := application.ListAppRefs(ctx, cluster, "")
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-			appNamesMap = map[string][]string{}
-			for _, ref := range allAppRefs {
-				if pageNsSet[ref.Namespace] {
-					appNamesMap[ref.Namespace] = append(
-						appNamesMap[ref.Namespace],
-						ref.Name,
-					)
-				}
-			}
-
-			allConfigs, err := configurations.List(ctx, cluster, "")
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-			configNamesMap = map[string][]string{}
-			for _, cfg := range allConfigs {
-				if pageNsSet[cfg.Namespace()] {
-					configNamesMap[cfg.Namespace()] = append(
-						configNamesMap[cfg.Namespace()],
-						cfg.Name,
-					)
-				}
-			}
-
-			allServices, err := getServiceNamesByNamespaceMap(ctx, cluster)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-			serviceNamesMap = map[string][]string{}
-			for ns, names := range allServices {
-				if pageNsSet[ns] {
-					serviceNamesMap[ns] = names
-				}
-			}
-		}
-
-		nsModels := make(models.NamespaceList, 0, len(pageNsList))
-		for _, ns := range pageNsList {
-			nsModels = append(nsModels, models.Namespace{
-				Meta:           models.MetaLite{Name: ns.Name, CreatedAt: ns.CreatedAt},
-				Apps:           appNamesMap[ns.Name],
-				Configurations: configNamesMap[ns.Name],
-				Services:       serviceNamesMap[ns.Name],
-			})
-		}
 
 		response.OKReturn(c, response.BuildPaginatedResponse(
-			nsModels,
+			toModels(namespaceList[start:end]),
 			page,
 			pageSize,
 			total,
@@ -186,36 +160,7 @@ func Index(c *gin.Context) apierror.APIErrors {
 		return nil
 	}
 
-	if !needCounts {
-		var listErr error
-		appNamesMap, listErr = getAppNamesByNamespaceMap(ctx, cluster)
-		if listErr != nil {
-			return apierror.InternalError(listErr)
-		}
-		configNamesMap, listErr = getConfigurationNamesByNamespaceMap(ctx, cluster)
-		if listErr != nil {
-			return apierror.InternalError(listErr)
-		}
-		serviceNamesMap, listErr = getServiceNamesByNamespaceMap(ctx, cluster)
-		if listErr != nil {
-			return apierror.InternalError(listErr)
-		}
-	}
-
-	nsList := make(models.NamespaceList, 0, len(namespaceList))
-	for _, namespace := range namespaceList {
-		nsList = append(nsList, models.Namespace{
-			Meta: models.MetaLite{
-				Name:      namespace.Name,
-				CreatedAt: namespace.CreatedAt,
-			},
-			Apps:           appNamesMap[namespace.Name],
-			Configurations: configNamesMap[namespace.Name],
-			Services:       serviceNamesMap[namespace.Name],
-		})
-	}
-
-	response.OKReturn(c, nsList)
+	response.OKReturn(c, toModels(namespaceList))
 	return nil
 }
 
@@ -244,6 +189,28 @@ func getAppNamesByNamespaceMap(
 	return allAppNamesMap, nil
 }
 
+func getServiceNamesByNamespaceMap(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+) (map[string][]string, error) {
+	// Retrieve service refs for all namespaces, and map their name by namespace
+	serviceNamesMap := make(map[string][]string)
+
+	allServiceRefs, err := services.ListRefs(ctx, cluster, "")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ref := range allServiceRefs {
+		serviceNamesMap[ref.Namespace] = append(
+			serviceNamesMap[ref.Namespace],
+			ref.Name,
+		)
+	}
+
+	return serviceNamesMap, nil
+}
+
 func getConfigurationNamesByNamespaceMap(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
@@ -267,15 +234,4 @@ func getConfigurationNamesByNamespaceMap(
 	}
 
 	return configurationNamesMap, nil
-}
-
-func getServiceNamesByNamespaceMap(
-	ctx context.Context,
-	cluster *kubernetes.Cluster,
-) (map[string][]string, error) {
-	serviceClient, err := services.NewKubernetesServiceClient(cluster)
-	if err != nil {
-		return nil, err
-	}
-	return serviceClient.NamesByNamespace(ctx)
 }

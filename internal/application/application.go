@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -900,6 +900,10 @@ func Delete(
 ) (*DeleteResult, error) {
 	result := &DeleteResult{}
 
+	// Stop any running operation first, so its runner does not stage or
+	// deploy into the resources being removed (or a recreated app).
+	Operations.Delete(appRef)
+
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return nil, err
@@ -972,6 +976,15 @@ func Delete(
 			appRef.Namespace, appRef.Name, len(unstageResult.FailedBlobCleanups))
 		result.Warnings = append(result.Warnings, warning)
 		log.Info("warning: "+warning, "failedBlobs", unstageResult.FailedBlobCleanups)
+	}
+
+	// delete the persisted staging logs of the app
+	err = DeleteStagingLogs(ctx, cluster, appRef.Namespace, appRef.Name)
+	if err != nil {
+		warning := fmt.Sprintf("persisted staging logs of app %s/%s could not be deleted: %v",
+			appRef.Namespace, appRef.Name, err)
+		result.Warnings = append(result.Warnings, warning)
+		log.Info("warning: " + warning)
 	}
 
 	// delete staging PVC (the one that holds the "source" and "cache" workspaces)
@@ -1309,7 +1322,7 @@ func BlobUID(app *unstructured.Unstructured) (string, error) {
 // Job is gone, use StageID and ImageURL to distinguish staging vs deploy failure.
 //
 // Exception: BuildStatus == "build" means the last completed action was an
-// intentional build-only (no deploy). That must stay "created"/built, not
+// intentional build-only (no deploy). That reports "built", not "created",
 // "deploying" or "deployment failed".
 func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 	if app.StagingStatus == models.ApplicationStagingActive {
@@ -1328,10 +1341,7 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 		case models.ApplicationStagingDone:
 			// Build-only: staged image stored, deploy not requested.
 			if app.BuildStatus == models.AppBuildStatusBuild {
-				app.Status = models.ApplicationCreated
-				if app.StatusMessage == "" {
-					app.StatusMessage = "built"
-				}
+				app.Status = models.ApplicationBuilt
 				return
 			}
 			// Staging succeeded; workload not visible yet while instances are
@@ -1356,10 +1366,7 @@ func assignApplicationStatus(app *models.App, stagingCompletedAt *time.Time) {
 			// unless this was an intentional build-only that never asked to deploy.
 			if app.StageID != "" && wantsInstances(app) {
 				if app.BuildStatus == models.AppBuildStatusBuild {
-					app.Status = models.ApplicationCreated
-					if app.StatusMessage == "" {
-						app.StatusMessage = "built"
-					}
+					app.Status = models.ApplicationBuilt
 					return
 				}
 				app.Status = models.ApplicationError
@@ -1512,6 +1519,20 @@ func DockerfilePath(app *unstructured.Unstructured) (string, error) {
 	)
 	if err != nil {
 		return "", errors.New("dockerfilepath should be string")
+	}
+
+	return path, nil
+}
+
+// SourcePath returns the buildpack source root path stored on the app resource.
+func SourcePath(app *unstructured.Unstructured) (string, error) {
+	path, _, err := unstructured.NestedString(
+		app.UnstructuredContent(),
+		"spec",
+		"sourcepath",
+	)
+	if err != nil {
+		return "", errors.New("sourcepath should be string")
 	}
 
 	return path, nil
@@ -2075,6 +2096,11 @@ func aggregate(
 		return nil, errors.Wrap(err, "finding the dockerfile path")
 	}
 
+	sourcePath, err := SourcePath(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the source path")
+	}
+
 	buildStatus, err := BuildStatus(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding the build status")
@@ -2115,6 +2141,7 @@ func aggregate(
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath
+	app.Staging.SourcePath = sourcePath
 
 	// IV. Assemble the deployment structure for active applications.
 
@@ -2141,57 +2168,184 @@ func aggregate(
 	return app, nil
 }
 
-// fetch is a helper for Lookup. It fetches all information about an application from the cluster.
-func loadEnvironmentData(
+// appResourceFields holds values read from the application CR.
+type appResourceFields struct {
+	desiredRoutes  []string
+	origin         models.ApplicationOrigin
+	chartName      string
+	stageID        string
+	blobUID        string
+	imageURL       string
+	builtImageURL  string
+	buildStatus    string
+	builderURL     string
+	buildMode      string
+	dockerfilePath string
+	sourcePath     string
+	settings       models.ChartValueSettings
+}
+
+// appClusterFields holds values loaded from adjacent cluster objects.
+type appClusterFields struct {
+	environment    models.EnvVariableMap
+	groupedEnv     models.EnvVariableGroupedResponse
+	instances      int32
+	configurations []string
+	boundConfigs   []models.BoundConfiguration
+	services       []string
+}
+
+func markAppFetchError(app *models.App, err error) error {
+	app.StatusMessage = err.Error()
+	app.Status = models.ApplicationError
+	return err
+}
+
+// loadAppResourceFields loads CR-backed fields via a table so fetch stays
+// under funlen without one-off nolint directives as new fields are added.
+func loadAppResourceFields(applicationCR *unstructured.Unstructured) (appResourceFields, error) {
+	var fields appResourceFields
+	loaders := []struct {
+		name string
+		fn   func() error
+	}{
+		{"desired routes", func() error {
+			var err error
+			fields.desiredRoutes, err = DesiredRoutes(applicationCR)
+			return err
+		}},
+		{"origin", func() error {
+			var err error
+			fields.origin, err = Origin(applicationCR)
+			return err
+		}},
+		{"app chart", func() error {
+			var err error
+			fields.chartName, err = AppChart(applicationCR)
+			return err
+		}},
+		{"the stage id", func() error {
+			var err error
+			fields.stageID, err = StageID(applicationCR)
+			return err
+		}},
+		{"the blob uid", func() error {
+			var err error
+			fields.blobUID, err = BlobUID(applicationCR)
+			return err
+		}},
+		{"the image url", func() error {
+			var err error
+			fields.imageURL, err = ImageURL(applicationCR)
+			return err
+		}},
+		{"the built image url", func() error {
+			var err error
+			fields.builtImageURL, err = BuiltImageURL(applicationCR)
+			return err
+		}},
+		{"the build status", func() error {
+			var err error
+			fields.buildStatus, err = BuildStatus(applicationCR)
+			return err
+		}},
+		{"the builder url", func() error {
+			var err error
+			fields.builderURL, err = BuilderURL(applicationCR)
+			return err
+		}},
+		{"the build mode", func() error {
+			var err error
+			fields.buildMode, err = BuildMode(applicationCR)
+			return err
+		}},
+		{"the dockerfile path", func() error {
+			var err error
+			fields.dockerfilePath, err = DockerfilePath(applicationCR)
+			return err
+		}},
+		{"the source path", func() error {
+			var err error
+			fields.sourcePath, err = SourcePath(applicationCR)
+			return err
+		}},
+		{"settings", func() error {
+			var err error
+			fields.settings, err = Settings(applicationCR)
+			return err
+		}},
+	}
+
+	for _, loader := range loaders {
+		if err := loader.fn(); err != nil {
+			return fields, errors.Wrap(err, "finding "+loader.name)
+		}
+	}
+	return fields, nil
+}
+
+func loadAppClusterFields(
 	ctx context.Context,
 	cluster *kubernetes.Cluster,
 	app *models.App,
-) (models.EnvVariableMap, models.EnvVariableGroupedResponse, error) {
+) (appClusterFields, error) {
+	var fields appClusterFields
+
 	environment, err := Environment(ctx, cluster, app.Meta)
 	if err != nil {
-		return nil, models.EnvVariableGroupedResponse{}, errors.Wrap(err, "finding env")
+		return fields, errors.Wrap(err, "finding env")
 	}
-
 	groupedEnv, err := GroupedEnvironment(ctx, cluster, app.Meta)
 	if err != nil {
-		return nil, models.EnvVariableGroupedResponse{}, errors.Wrap(err, "finding grouped env")
+		return fields, errors.Wrap(err, "finding grouped env")
+	}
+	instances, err := Scaling(ctx, cluster, app.Meta)
+	if err != nil {
+		return fields, errors.Wrap(err, "finding scaling")
+	}
+	// BoundConfigurationsFor wraps its own errors.
+	configurations, boundConfigs, err := BoundConfigurationsFor(
+		ctx,
+		cluster,
+		app.Meta,
+	)
+	if err != nil {
+		return fields, err
+	}
+	services, err := BoundServiceNames(ctx, cluster, app.Meta)
+	if err != nil {
+		return fields, errors.Wrap(err, "finding services")
 	}
 
-	return environment, groupedEnv, nil
+	fields.environment = environment
+	fields.groupedEnv = groupedEnv
+	fields.instances = instances
+	fields.configurations = configurations
+	fields.boundConfigs = boundConfigs
+	fields.services = services
+	return fields, nil
 }
 
-func loadStagingFields(applicationCR *unstructured.Unstructured) (string, string, string, string, string, string, error) {
-	builderURL, err := BuilderURL(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the builder url")
-	}
-
-	buildMode, err := BuildMode(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the build mode")
-	}
-
-	dockerfilePath, err := DockerfilePath(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the dockerfile path")
-	}
-
-	buildStatus, err := BuildStatus(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the build status")
-	}
-
-	imageURL, err := ImageURL(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the image url")
-	}
-
-	builtImageURL, err := BuiltImageURL(applicationCR)
-	if err != nil {
-		return "", "", "", "", "", "", errors.Wrap(err, "finding the built image url")
-	}
-
-	return builderURL, buildMode, dockerfilePath, buildStatus, imageURL, builtImageURL, nil
+func applyFetchedAppFields(app *models.App, resource appResourceFields, clusterData appClusterFields) {
+	app.Configuration.Instances = &clusterData.instances
+	app.Configuration.Configurations = clusterData.configurations
+	app.Configuration.BoundConfigurations = clusterData.boundConfigs
+	app.Configuration.Environment = clusterData.environment
+	app.Configuration.EnvironmentGrouped = &clusterData.groupedEnv
+	app.Configuration.Services = clusterData.services
+	app.Configuration.Routes = resource.desiredRoutes
+	app.Configuration.AppChart = resource.chartName
+	app.Configuration.Settings = resource.settings
+	app.Origin = resource.origin
+	app.StageID = resource.stageID
+	app.BlobUID = resource.blobUID
+	app.ImageURL = resource.imageURL
+	app.BuiltImageURL = resource.builtImageURL
+	app.BuildStatus = resource.buildStatus
+	app.Staging.Builder = resource.builderURL
+	app.Staging.BuildMode = resource.buildMode
+	app.Staging.DockerfilePath = resource.dockerfilePath
+	app.Staging.SourcePath = resource.sourcePath
 }
 
 // fetch is a helper for Lookup. It fetches all information about an application from the cluster.
@@ -2209,136 +2363,32 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		if apierrors.IsNotFound(err) {
 			return apierror.AppIsNotKnown("application resource is missing")
 		}
-
-		err = apierror.InternalError(err, "failed to get the application resource")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, apierror.InternalError(err, "failed to get the application resource"))
 	}
 
-	desiredRoutes, err := DesiredRoutes(applicationCR)
+	resourceFields, err := loadAppResourceFields(applicationCR)
 	if err != nil {
-		err = errors.Wrap(err, "finding desired routes")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, err)
 	}
 
-	origin, err := Origin(applicationCR)
+	clusterFields, err := loadAppClusterFields(ctx, cluster, app)
 	if err != nil {
-		err = errors.Wrap(err, "finding origin")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	environment, groupedEnv, err := loadEnvironmentData(ctx, cluster, app)
-	if err != nil {
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	instances, err := Scaling(ctx, cluster, app.Meta)
-	if err != nil {
-		err = errors.Wrap(err, "finding scaling")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	configurations, boundConfigurations, err := BoundConfigurationsFor(ctx, cluster, app.Meta)
-	if err != nil {
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	services, err := BoundServiceNames(ctx, cluster, app.Meta)
-	if err != nil {
-		err = errors.Wrap(err, "finding services")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	chartName, err := AppChart(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding app chart")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	stageID, err := StageID(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding the stage id")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	blobUID, err := BlobUID(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding the blob uid")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	builderURL, buildMode, dockerfilePath, buildStatus, imageURL, builtImageURL, err := loadStagingFields(applicationCR)
-	if err != nil {
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
-	}
-
-	settings, err := Settings(applicationCR)
-	if err != nil {
-		err = errors.Wrap(err, "finding settings")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, err)
 	}
 
 	app.Meta.CreatedAt = applicationCR.GetCreationTimestamp()
-
-	app.Configuration.Instances = &instances
-	app.Configuration.Configurations = configurations
-	app.Configuration.BoundConfigurations = boundConfigurations
-	app.Configuration.Environment = environment
-	app.Configuration.EnvironmentGrouped = &groupedEnv
-	app.Configuration.Services = services
-	app.Configuration.Routes = desiredRoutes
-	app.Configuration.AppChart = chartName
-	app.Configuration.Settings = settings
-	app.Origin = origin
-	app.StageID = stageID
-	app.BlobUID = blobUID
-	app.ImageURL = imageURL
-	app.BuiltImageURL = builtImageURL
-	app.BuildStatus = buildStatus
-	app.Staging.Builder = builderURL
-	app.Staging.BuildMode = buildMode
-	app.Staging.DockerfilePath = dockerfilePath
+	applyFetchedAppFields(app, resourceFields, clusterFields)
 
 	// Check if app is active, and if yes, fill the associated parts.  May have to
 	// straighten the workload structure a bit further.
-
-	app.Workload, err = NewWorkload(cluster, app.Meta, instances).Get(ctx)
+	app.Workload, err = NewWorkload(cluster, app.Meta, clusterFields.instances).Get(ctx)
 	if err != nil {
-		err = errors.Wrap(err, "workload loading")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, errors.Wrap(err, "workload loading"))
 	}
 
 	staging, err := stagingStatus(ctx, cluster, app.Meta.Namespace, []string{app.Meta.Name})
 	if err != nil {
-		err = errors.Wrap(err, "staging app")
-		app.StatusMessage = err.Error()
-		app.Status = models.ApplicationError
-		return err
+		return markAppFetchError(app, errors.Wrap(err, "staging app"))
 	}
 
 	stagingJob := staging[EncodeConfigurationKey(app.Meta.Name, app.Meta.Namespace)]

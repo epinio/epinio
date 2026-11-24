@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -97,10 +97,19 @@ func namespaceConfigurations(ctx context.Context, cluster *kubernetes.Cluster, n
 	return configurationNames, nil
 }
 
-func namespaceServices(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
-	serviceClient, err := services.NewKubernetesServiceClient(cluster)
+func namespaceServices(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+) ([]string, error) {
+	refs, err := services.ListRefs(ctx, cluster, namespace)
 	if err != nil {
 		return nil, err
 	}
-	return serviceClient.NamesInNamespace(ctx, namespace)
+	serviceNames := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		serviceNames = append(serviceNames, ref.Name)
+	}
+
+	return serviceNames, nil
 }

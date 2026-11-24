@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,7 +13,7 @@ package helm
 
 import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

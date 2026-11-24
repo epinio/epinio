@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,6 +18,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -40,12 +41,14 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/registry"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/repo"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/chart/v2/loader"
+	"helm.sh/helm/v4/pkg/kube"
+	"helm.sh/helm/v4/pkg/registry"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	"helm.sh/helm/v4/pkg/release/common"
+	repo "helm.sh/helm/v4/pkg/repo/v1"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
@@ -118,7 +121,7 @@ func Remove(
 		return err
 	}
 
-	return client.UninstallReleaseByName(names.ReleaseName(app.Name))
+	return uninstallRelease(client, names.ReleaseName(app.Name), kube.HookOnlyStrategy)
 }
 
 func RemoveService(
@@ -130,7 +133,7 @@ func RemoveService(
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	err = client.UninstallReleaseByName(names.ServiceReleaseName(app.Name))
+	err = uninstallRelease(client, names.ServiceReleaseName(app.Name), kube.HookOnlyStrategy)
 	return errors.Wrap(err, "deleting release")
 }
 
@@ -166,15 +169,8 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	// No ReuseValues: the values passed in are the complete set, built from
 	// the catalog values and the settings stored in the service secret.
 	// Reusing the old release's values would bring back removed settings.
-	chartSpec := hc.ChartSpec{
-		ReleaseName: releaseName,
-		ChartName:   helmChart,
-		Version:     catalogService.ChartVersion,
-		Namespace:   parameters.Namespace,
-		Wait:        parameters.Wait,
-		ValuesYaml:  string(parameters.Values),
-		Timeout:     duration.ToDeployment(),
-	}
+	chartSpec := serviceChartSpec(releaseName, helmChart, catalogService.ChartVersion,
+		parameters.Namespace, string(parameters.Values), parameters.Wait)
 
 	if !parameters.Wait {
 		// Note: We are backgrounding the action. The incoming context cannot be used, as it
@@ -240,6 +236,34 @@ func DeployService(ctx context.Context, parameters ServiceParameters) error {
 	return nil
 }
 
+// serverSideApplyOff is the explicit, string-typed "off" value for ChartSpec.ServerSideApply.
+// go-helm-client reads this field completely differently for install vs upgrade: for install it
+// goes through ChartSpec.ServerSideApplyEnabled(), which treats anything but the literal "true" as
+// off, so an unset field is merely a no-op there. For upgrade, go-helm-client passes the raw string
+// straight through to Helm v4's strict parser, which only accepts "auto", "true", or "false" and
+// errors on anything else, including "" - "invalid/unknown release server-side apply method: ".
+// Since an upgrade is exactly what happens on every app push or service update once a release
+// already exists, leaving this field unset breaks every one of those. Both ChartSpec builders set
+// it explicitly to keep install and upgrade consistent (client-side apply, matching Helm v3, which
+// never had server-side apply at all).
+const serverSideApplyOff = "false"
+
+// serviceChartSpec builds the ChartSpec for a service (de)ploy. See serverSideApplyOff and
+// appChartSpec for why DryRunStrategy and ServerSideApply must always be set explicitly.
+func serviceChartSpec(releaseName, helmChart, chartVersion, namespace, valuesYAML string, wait bool) hc.ChartSpec {
+	return hc.ChartSpec{
+		ReleaseName:     releaseName,
+		ChartName:       helmChart,
+		Version:         chartVersion,
+		Namespace:       namespace,
+		DryRunStrategy:  action.DryRunNone,
+		WaitStrategy:    waitStrategyFor(wait),
+		ValuesYaml:      valuesYAML,
+		Timeout:         duration.ToDeployment(),
+		ServerSideApply: serverSideApplyOff,
+	}
+}
+
 // initHelmOCIRegistryOrRepository will perform the initial setup for the helm Client and the specified Service,
 // and return the final helm chart name. If the service is from an OCI registry it will perform a login, if needed,
 // and return a 'oci://repoURL/chart' value. Else if a standard repoURL is provided it will add the repo, caching the index,
@@ -272,7 +296,7 @@ func initHelmOCIRegistryOrRepository(client *SynchronizedClient, service models.
 		// if auth credentials are available try to login
 		if username != "" && password != "" {
 			registryHostname := strings.TrimPrefix(repoURL, "oci://")
-			err := client.RegistryLogin(registryHostname, username, password)
+			err := client.RegistryLogin(registryHostname, username, password, false, "")
 			if err != nil {
 				return "", errors.Wrap(err, "logging into the helm registry")
 			}
@@ -405,21 +429,39 @@ func Deploy(parameters ChartParameters) error {
 	reuseValues := shouldReuseHelmValues(
 		parameters.Context, parameters.Cluster, client, releaseName, appChart, helmChart, helmVersion)
 
-	chartSpec := hc.ChartSpec{
-		ReleaseName: releaseName,
-		ChartName:   helmChart,
-		Version:     helmVersion,
-		Namespace:   parameters.Namespace,
-		Wait:        true,
-		Atomic:      true, // implies `Wait true`
-		ValuesYaml:  params,
-		Timeout:     duration.ToDeployment(),
-		ReuseValues: reuseValues,
-	}
+	chartSpec := appChartSpec(releaseName, helmChart, helmVersion, parameters.Namespace, params, reuseValues)
 
-	_, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil)
+	// Honor the caller's context so canceling an operation (app delete,
+	// timeout) stops the install. Every app deploy runs inside an
+	// operation, never directly on a request context.
+	_, err = client.InstallOrUpgradeChart(
+		parameters.Context,
+		&chartSpec,
+		nil,
+	)
 
 	return err
+}
+
+// appChartSpec builds the ChartSpec for an application (de)ploy. It always installs/upgrades
+// atomically: wait for every resource (WaitStrategy: watcher) and roll back on failure. This
+// replaces Helm v3's `Atomic: true` (which implied `Wait: true`); Helm v4 splits that into two
+// separate fields that must both be set to get the same atomic behavior. See serviceChartSpec
+// for why DryRunStrategy must always be set explicitly too.
+func appChartSpec(releaseName, helmChart, helmVersion, namespace, valuesYAML string, reuseValues bool) hc.ChartSpec {
+	return hc.ChartSpec{
+		ReleaseName:       releaseName,
+		ChartName:         helmChart,
+		Version:           helmVersion,
+		Namespace:         namespace,
+		DryRunStrategy:    action.DryRunNone,
+		WaitStrategy:      kube.StatusWatcherStrategy,
+		RollbackOnFailure: true, // implies `WaitStrategy: watcher`
+		ValuesYaml:        valuesYAML,
+		Timeout:           duration.ToDeployment(),
+		ReuseValues:       reuseValues,
+		ServerSideApply:   serverSideApplyOff,
+	}
 }
 
 // shouldReuseHelmValues is false when an existing release was installed from a different
@@ -579,8 +621,10 @@ const (
 	StatusNotReady ReleaseStatus = "not-ready"
 )
 
-// Release returns the named Helm release, including the associated resources. This is the internal
-// equivalent of the `helm status` command.
+// Release returns the named Helm release as stored, without querying the live state of its
+// resources. See Status below for why: under Helm v4, action.Status (the `helm status` backend)
+// unconditionally fetches the live state of every resource in the release manifest, no matter the
+// options passed to it. GetRelease (the `helm get` backend) does not, and is what this needs.
 func Release(ctx context.Context, cluster *kubernetes.Cluster,
 	namespace, releaseName string) (*helmrelease.Release, error) {
 
@@ -589,7 +633,7 @@ func Release(ctx context.Context, cluster *kubernetes.Cluster,
 		return nil, err
 	}
 
-	release, err := helmClient.Status(releaseName)
+	release, err := helmClient.GetRelease(releaseName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting release status %s - %s", namespace, releaseName)
 	}
@@ -605,12 +649,12 @@ func Release(ctx context.Context, cluster *kubernetes.Cluster,
 func Status(_ context.Context, _ *kubernetes.Cluster,
 	release *helmrelease.Release) (ReleaseStatus, error) {
 	switch release.Info.Status {
-	case helmrelease.StatusDeployed:
+	case common.StatusDeployed:
 		return StatusReady, nil
 	case
-		helmrelease.StatusPendingInstall,
-		helmrelease.StatusPendingUpgrade,
-		helmrelease.StatusPendingRollback:
+		common.StatusPendingInstall,
+		common.StatusPendingUpgrade,
+		common.StatusPendingRollback:
 		return StatusNotReady, nil
 	default:
 		return StatusUnknown, nil
@@ -623,8 +667,16 @@ var syncNamespaceClientMap sync.Map
 type SynchronizedClient struct {
 	namespace string
 	// mutexMap is holding the mutexes for the same releases
-	mutexMap   sync.Map
-	helmClient hc.Client
+	mutexMap sync.Map
+	// registryTransport is the http.Transport of ActionConfig.RegistryClient.
+	// RegistryLogin detaches TLS on this pointer once when insecure login is needed.
+	registryTransport *http.Transport
+	// registryTLSMu guards the one-time insecure TLS detach (not registry I/O).
+	registryTLSMu sync.Mutex
+	// insecureTLSReady is true after TLSClientConfig was replaced with an
+	// InsecureSkipVerify config so LoginOptInsecure is never needed.
+	insecureTLSReady bool
+	helmClient       hc.Client
 }
 
 func GetHelmClient(
@@ -637,8 +689,14 @@ func GetHelmClient(
 			Namespace:        namespace,         // Match chart spec
 			RepositoryCache:  "/tmp/.helmcache", // Hopefully reduces chart downloads.
 			RepositoryConfig: "/tmp/.helmrepo",  // s.a.
-			Linting:          true,
-			Debug:            true,
+			// Helm v4 stores repo charts in ContentCache as ".chart" archive files.
+			// go-helm-client still passes that path to action.Lint, which only unpacks
+			// ".tgz"/".tar.gz" and otherwise expects a chart directory - so lint fails
+			// with "Chart.yaml: not a directory" before install can run. Install itself
+			// loads ".chart" via loader.Load fine; disable lint until go-helm-client
+			// (or Helm lint) understands the v4 content-cache layout.
+			Linting: false,
+			Debug:   true,
 			DebugLog: func(format string, v ...interface{}) {
 				helpers.Logger.Infow("helm", "report", fmt.Sprintf(format, v...))
 			},
@@ -648,17 +706,19 @@ func GetHelmClient(
 	if err != nil {
 		return nil, err
 	}
+	var registryTransport *http.Transport
 	if concrete, ok := helmClient.(*hc.HelmClient); ok {
-		trustRegistryCAs(context.Background(), restConfig, concrete)
+		registryTransport = setupRegistryClient(context.Background(), restConfig, concrete)
 	}
 
-	return GetNamespaceSynchronizedHelmClient(namespace, helmClient)
+	return GetNamespaceSynchronizedHelmClient(namespace, helmClient, registryTransport)
 }
 
-func GetNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client) (*SynchronizedClient, error) {
+func GetNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client, registryTransport *http.Transport) (*SynchronizedClient, error) {
 	synchronizedHelmClient := &SynchronizedClient{
-		namespace:  namespace,
-		helmClient: helmClient,
+		namespace:         namespace,
+		helmClient:        helmClient,
+		registryTransport: registryTransport,
 	}
 
 	// we are loading the SynchronizedClient for this namespace, if any
@@ -671,6 +731,28 @@ func GetNamespaceSynchronizedHelmClient(namespace string, helmClient hc.Client) 
 	return synchronizedHelmClient, nil
 }
 
+// waitStrategyFor maps Epinio's boolean "wait for deployment" setting to a Helm v4 WaitStrategy.
+// This is the same default mapping Helm's own --wait CLI flag uses: unset/false means don't wait
+// for all resources (hookOnly), true means wait (watcher). Helm v4 rejects an unset WaitStrategy
+// outright, unlike v3 where omitting Wait simply meant "don't wait".
+func waitStrategyFor(wait bool) kube.WaitStrategy {
+	if wait {
+		return kube.StatusWatcherStrategy
+	}
+	return kube.HookOnlyStrategy
+}
+
+// uninstallRelease uninstalls the named release with the given WaitStrategy. Helm v4's
+// UninstallReleaseByName (unlike UninstallRelease) never sets a WaitStrategy on the underlying
+// action, so it always fails with "wait strategy not set" - route every uninstall through this
+// instead.
+func uninstallRelease(c hc.Client, name string, strategy kube.WaitStrategy) error {
+	return c.UninstallRelease(&hc.ChartSpec{
+		ReleaseName:  name,
+		WaitStrategy: strategy,
+	})
+}
+
 // cleanupReleaseIfNeeded will delete the helm release if it exists and is not
 // in "deployed" state. The reason is that helm will refuse to upgrade a release
 // that is in pending-install state. This would be the case, when the app container
@@ -680,21 +762,18 @@ func cleanupReleaseIfNeeded(c hc.Client, name string) error {
 	logger := helpers.Logger.With("component", "helm-cleanup")
 	r, err := c.GetRelease(name)
 	if err != nil {
-		if err == helmdriver.ErrReleaseNotFound {
+		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
 			return nil
 		}
 		return errors.Wrap(err, "getting the helm release")
 	}
 
-	if r.Info.Status == helmrelease.StatusDeployed {
+	if r.Info.Status == common.StatusDeployed {
 		return nil
 	}
 
 	logger.Infow("Will remove existing release with status", "status", string(r.Info.Status))
-	err = c.UninstallRelease(&hc.ChartSpec{
-		ReleaseName: name,
-		Wait:        true,
-	})
+	err = uninstallRelease(c, name, kube.StatusWatcherStrategy)
 
 	if err != nil {
 		logger.Errorw("uninstalling the release", "error", err, "status", r.Info.Status)
@@ -703,7 +782,7 @@ func cleanupReleaseIfNeeded(c hc.Client, name string) error {
 		// Check again if the release exists.
 		r, errGet := c.GetRelease(name)
 		if errGet != nil {
-			if errGet == helmdriver.ErrReleaseNotFound {
+			if errors.Is(errGet, helmdriver.ErrReleaseNotFound) {
 				return nil
 			}
 			return errors.Wrap(errGet, "getting the helm release after uninstall")
@@ -943,15 +1022,15 @@ func loginToOCIRegistryIfInternal(ctx context.Context, cluster *kubernetes.Clust
 		return nil
 	}
 
-	// Note that helm applies the insecure setting to the registry client itself, i.e. it stays in
-	// effect for all later registry operations on this (per namespace, shared) client. That is
-	// acceptable as the client is only used for Epinio's own charts and registry. Keep it so, do
-	// not route unrelated registries through the same client.
+	// Insecure detaches TLS once on the shared registry transport (see RegistryLogin).
+	// That stays in effect for later ops on this per-namespace client — acceptable
+	// because it is only used for Epinio's own charts/registry.
 	return client.RegistryLogin(
 		creds.Hostname,
 		creds.Username,
 		creds.Password,
-		action.WithInsecure(creds.Insecure),
+		creds.Insecure,
+		"",
 	)
 }
 

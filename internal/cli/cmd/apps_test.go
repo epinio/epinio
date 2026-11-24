@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -96,6 +96,41 @@ var _ = Describe("Command 'epinio app'", func() {
 				appCmd := cmd.NewAppCreateCmd(mockAppService)
 				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
 				Expect(runErr).ToNot(HaveOccurred())
+			})
+		})
+	})
+
+	Context("app build", func() {
+		When("called with --source-path", func() {
+			It("passes the source path to the build", func() {
+				args = []string{
+					"--name", "myapp",
+					"--source-path", "./apps/web/",
+				}
+
+				appCmd := cmd.NewAppBuildCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).ToNot(HaveOccurred())
+				Expect(mockAppService.AppBuildCallCount()).To(Equal(1))
+
+				_, m := mockAppService.AppBuildArgsForCall(0)
+				Expect(m.Staging.SourcePath).To(Equal("apps/web"))
+			})
+		})
+
+		When("called with --source-path and dockerfile build mode", func() {
+			It("fails before building", func() {
+				args = []string{
+					"--name", "myapp",
+					"--build-mode", models.BuildModeDockerfile,
+					"--source-path", "apps/web",
+				}
+
+				appCmd := cmd.NewAppBuildCmd(mockAppService)
+				_, _, runErr := executeCmd(appCmd, args, output, outputErr)
+				Expect(runErr).To(HaveOccurred())
+				Expect(runErr.Error()).To(ContainSubstring("buildpack staging"))
+				Expect(mockAppService.AppBuildCallCount()).To(Equal(0))
 			})
 		})
 	})

@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -194,7 +194,7 @@ var _ = Describe("Namespaces API Application Endpoints", LNamespace, func() {
 				Expect(paged.TotalItems).To(BeNumerically(">=", 1))
 				Expect(paged.Items).ToNot(BeEmpty())
 				// serviceInstanceCount path must succeed and return namespace metas.
-				// Services is omitempty when empty; unit tests cover NamesByNamespace.
+				// Services is omitempty when empty, so an empty namespace omits it.
 				for _, ns := range paged.Items {
 					Expect(ns.Meta.Name).ToNot(BeEmpty())
 				}

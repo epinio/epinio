@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -88,8 +89,33 @@ func TestNeedsEnrichedAppSort(t *testing.T) {
 	if !application.NeedsEnrichedAppSort("deploymentStatus") {
 		t.Fatal("deploymentStatus should need enrichment")
 	}
+	if !application.NeedsEnrichedAppSort("username") {
+		t.Fatal("username should need enrichment (deploying user)")
+	}
 	if application.NeedsEnrichedAppSort("buildStatus") {
 		t.Fatal("buildStatus should not need enrichment")
+	}
+}
+
+func TestSortAppsUsernameUsesWorkload(t *testing.T) {
+	// username is the deploying user shown in the table, so an app without
+	// a workload sorts as an empty username, ahead of any deployed app.
+	apps := models.AppList{
+		{Meta: models.AppRef{Meta: models.Meta{Name: "c"}},
+			Workload: &models.AppDeployment{Username: "zed"}},
+		{Meta: models.AppRef{Meta: models.Meta{Name: "b"}}},
+		{Meta: models.AppRef{Meta: models.Meta{Name: "a"}},
+			Workload: &models.AppDeployment{Username: "amy"}},
+	}
+
+	application.SortApps(apps, "username", false)
+
+	got := []string{apps[0].Meta.Name, apps[1].Meta.Name, apps[2].Meta.Name}
+	want := []string{"b", "a", "c"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
 	}
 }
 

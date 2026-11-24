@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -12,9 +12,6 @@
 package service
 
 import (
-	"strings"
-	"time"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -57,23 +54,7 @@ func FullIndex(c *gin.Context) apierror.APIErrors {
 		getCatalogServiceParam(c),
 	)
 
-	sortParams := response.GetSortParams(c)
-	switch sortParams.Field {
-	case "status":
-		response.SortByStringKey([]models.Service(filteredServices), sortParams.Descending, func(svc models.Service) string {
-			return strings.ToLower(string(svc.Status))
-		})
-	case "catalogServiceVersion":
-		response.SortByStringKey([]models.Service(filteredServices), sortParams.Descending, func(svc models.Service) string {
-			return strings.ToLower(svc.CatalogServiceVersion)
-		})
-	default:
-		response.ApplyMetaSort([]models.Service(filteredServices), sortParams, response.MetaKeys[models.Service]{
-			Name:      func(svc models.Service) string { return svc.Meta.Name },
-			Namespace: func(svc models.Service) string { return svc.Meta.Namespace },
-			CreatedAt: func(svc models.Service) time.Time { return svc.Meta.CreatedAt.Time },
-		})
-	}
+	sortServices(filteredServices, response.GetSortParams(c))
 
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
 		total := len(filteredServices)

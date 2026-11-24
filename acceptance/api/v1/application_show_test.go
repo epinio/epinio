@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -200,7 +200,11 @@ var _ = Describe("AppShow Endpoint", LApplication, func() {
 		bindEndpoint := makeEndpoint(v1.Routes.Path("ServiceBind", namespace, serviceName))
 		bindBody := toJSON(models.ServiceBindRequest{AppName: app})
 		bindBodyBytes, bindStatus := curl(http.MethodPost, bindEndpoint, bindBody)
-		ExpectResponseToBeOK(bindBodyBytes, bindStatus)
+		// 202 when the bind redeployed a running app, else 200.
+		Expect(bindStatus).To(
+			BeElementOf(http.StatusOK, http.StatusAccepted),
+			string(bindBodyBytes),
+		)
 
 		// Fetch grouped environment from the dedicated environment endpoint
 		envEndpoint := makeEndpoint(v1.Routes.Path("EnvList", namespace, app) + "?grouped=true")

@@ -55,9 +55,7 @@
     - Apps
     - AppsUndeployed
     - AppShow
-    - StagingComplete
-    - AppDeployment
-    - AppRunning
+    - AppState
     - AppValidateCV
     # app autocomplete
     - AppMatch
@@ -105,7 +103,6 @@
     - app_logs
   routes:
     - AppCreate
-    - AppImportGit
     - AppUpload
 
 # App Delete
@@ -195,9 +192,6 @@
     - app_logs
   routes:
     - AppDeploy
-    - AppDeployments
-
-# App Export
 - id: app_export
   name: App Export
   dependsOn:
@@ -213,9 +207,6 @@
   wsRoutes:
     - AppLogs
     - StagingLogs
-    - StagingCompleteWs
-
-# App Exec
 - id: app_exec
   name: App Exec
   wsRoutes:

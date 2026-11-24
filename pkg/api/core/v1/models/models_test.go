@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -254,6 +254,77 @@ var _ = Describe("ValidateDockerfilePath", func() {
 
 		_, err = models.ValidateDockerfilePath("foo*.Dockerfile")
 		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("ValidateSourcePath", func() {
+	It("keeps empty distinct from an explicit sources-root reset", func() {
+		path, err := models.ValidateSourcePath("")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(path).To(Equal(""))
+
+		path, err = models.ValidateSourcePath(".")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(path).To(Equal(models.SourcePathRoot))
+
+		path, err = models.ValidateSourcePath("./")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(path).To(Equal(models.SourcePathRoot))
+	})
+
+	It("accepts relative subdirectory paths", func() {
+		path, err := models.ValidateSourcePath("apps/web-app")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(path).To(Equal("apps/web-app"))
+
+		path, err = models.ValidateSourcePath("./apps/web-app/")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(path).To(Equal("apps/web-app"))
+	})
+
+	It("rejects absolute paths and parent directory traversal", func() {
+		_, err := models.ValidateSourcePath("/etc/passwd")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("absolute"))
+
+		_, err = models.ValidateSourcePath("../apps")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(".."))
+
+		_, err = models.ValidateSourcePath("foo/../../bar")
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("rejects unexpected characters", func() {
+		_, err := models.ValidateSourcePath("my app")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("only letters"))
+
+		_, err = models.ValidateSourcePath("apps/*")
+		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("NormalizeSourcePathForStaging", func() {
+	It("maps root sentinel and empty to the staging empty value", func() {
+		Expect(models.NormalizeSourcePathForStaging("")).To(Equal(""))
+		Expect(models.NormalizeSourcePathForStaging(models.SourcePathRoot)).To(Equal(""))
+		Expect(models.NormalizeSourcePathForStaging("apps/web")).To(Equal("apps/web"))
+	})
+})
+
+var _ = Describe("ValidateSourcePathForBuildMode", func() {
+	It("allows source path with buildpack or empty build mode", func() {
+		Expect(models.ValidateSourcePathForBuildMode("", "apps/web")).To(Succeed())
+		Expect(models.ValidateSourcePathForBuildMode(models.BuildModeBuildpack, "apps/web")).To(Succeed())
+		Expect(models.ValidateSourcePathForBuildMode(models.BuildModeDockerfile, "")).To(Succeed())
+	})
+
+	It("rejects source path with dockerfile build mode", func() {
+		err := models.ValidateSourcePathForBuildMode(models.BuildModeDockerfile, "apps/web")
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("buildpack staging"))
+		Expect(err.Error()).To(ContainSubstring(models.BuildModeDockerfile))
 	})
 })
 

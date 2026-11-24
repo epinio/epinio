@@ -1,4 +1,4 @@
-// Copyright © 2021 - 2023 SUSE LLC
+// Copyright © 2021 - 2026 KRUMWARE LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -21,9 +21,10 @@ import (
 
 // NeedsEnrichedAppSort reports whether sorting by field requires fully
 // enriched App models (workload/staging status) rather than App CRs alone.
+// username is the deploying user from the workload, not the App CR creator.
 func NeedsEnrichedAppSort(field string) bool {
 	switch field {
-	case "status", "deploymentStatus":
+	case "status", "deploymentStatus", "username":
 		return true
 	default:
 		return false
@@ -31,7 +32,7 @@ func NeedsEnrichedAppSort(field string) bool {
 }
 
 // SortAppCRs sorts App CRs in place by the given field before pagination.
-// Supported: name, createdAt, namespace, buildStatus, builtImageUrl, username.
+// Supported: name, createdAt, namespace, buildStatus, builtImageUrl.
 // Unknown fields and enrichment-only fields are a no-op.
 func SortAppCRs(crs []unstructured.Unstructured, field string, descending bool) {
 	if field == "" || len(crs) < 2 {
@@ -110,14 +111,6 @@ func appCRLess(field string) func(a, b unstructured.Unstructured) bool {
 				a.GetName(), b.GetName(),
 			)
 		}
-	case "username":
-		return func(a, b unstructured.Unstructured) bool {
-			return compareWithName(
-				appCRAnnotation(a, models.EpinioCreatedByAnnotation),
-				appCRAnnotation(b, models.EpinioCreatedByAnnotation),
-				a.GetName(), b.GetName(),
-			)
-		}
 	default:
 		return nil
 	}
@@ -181,14 +174,6 @@ func compareWithName(aVal, bVal, aName, bName string) bool {
 func appCRNestedString(cr unstructured.Unstructured, fields ...string) string {
 	value, _, _ := unstructured.NestedString(cr.UnstructuredContent(), fields...)
 	return value
-}
-
-func appCRAnnotation(cr unstructured.Unstructured, key string) string {
-	annotations := cr.GetAnnotations()
-	if annotations == nil {
-		return ""
-	}
-	return annotations[key]
 }
 
 func appUsername(app models.App) string {
