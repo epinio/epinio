@@ -13,13 +13,13 @@ import (
 	"sync"
 
 	hc "github.com/mittwald/go-helm-client"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/getter"
-	"helm.sh/helm/v3/pkg/registry"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/repo"
+	"helm.sh/helm/v4/pkg/action"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
+	"helm.sh/helm/v4/pkg/cli"
+	"helm.sh/helm/v4/pkg/getter"
+	"helm.sh/helm/v4/pkg/registry"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	repo "helm.sh/helm/v4/pkg/repo/v1"
 	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry/remote/retry"
 )
@@ -100,7 +100,7 @@ func (c *SynchronizedClient) ListReleasesByStateMask(actions action.ListStates) 
 }
 
 // SetDebugLog implements helmclient.Client
-func (c *SynchronizedClient) SetDebugLog(debugLog action.DebugLog) {
+func (c *SynchronizedClient) SetDebugLog(debugLog hc.DebugLog) {
 	c.helmClient.SetDebugLog(debugLog)
 }
 
@@ -145,17 +145,6 @@ func (c *SynchronizedClient) UpgradeChart(ctx context.Context, spec *hc.ChartSpe
 	}
 
 	return c.helmClient.UpgradeChart(ctx, spec, opts)
-}
-
-// Status implements the 'helm status' command
-func (c *SynchronizedClient) Status(name string) (*helmrelease.Release, error) {
-	concreteHelmClient, ok := c.helmClient.(*hc.HelmClient)
-	if !ok {
-		return nil, fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
-	}
-
-	statusAction := action.NewStatus(concreteHelmClient.ActionConfig)
-	return statusAction.Run(name)
 }
 
 // RegistryLogin logs into an OCI registry.
@@ -277,7 +266,7 @@ func (c *SynchronizedClient) Pull(chartRef, version, destDir string) (string, er
 		return "", fmt.Errorf("helm client is not of the right type. Expected *hc.HelmClient but got %T", c.helmClient)
 	}
 
-	pull := action.NewPullWithOpts(action.WithConfig(concreteHelmClient.ActionConfig))
+	pull := action.NewPull(action.WithConfig(concreteHelmClient.ActionConfig))
 	pull.Settings = concreteHelmClient.Settings
 	pull.DestDir = destDir
 	pull.Version = version
@@ -362,10 +351,19 @@ func (c *SynchronizedClient) Push(
 		)
 	}
 
-	ac := *concreteHelmClient.ActionConfig
-	ac.RegistryClient = nil
+	// action.Configuration holds an internal mutex, so it cannot be copied by value (as
+	// done pre-Helm-v4). Build a fresh one with the same fields instead, deliberately
+	// leaving RegistryClient unset, which is the reason for not sharing the original.
+	original := concreteHelmClient.ActionConfig
+	ac := action.NewConfiguration(action.ConfigurationSetLogger(original.Logger().Handler()))
+	ac.RESTClientGetter = original.RESTClientGetter
+	ac.Releases = original.Releases
+	ac.KubeClient = original.KubeClient
+	ac.Capabilities = original.Capabilities
+	ac.CustomTemplateFuncs = original.CustomTemplateFuncs
+	ac.HookOutputFunc = original.HookOutputFunc
 
-	opts = append(opts, action.WithPushConfig(&ac))
+	opts = append(opts, action.WithPushConfig(ac))
 
 	registryPushAction := action.NewPushWithOpts(opts...)
 	return registryPushAction.Run(chartref, remote)
