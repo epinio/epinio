@@ -48,6 +48,11 @@ const (
 	// the application was a deploy: the staged image was deployed as a
 	// running workload.
 	AppBuildStatusDeployed = "deployed"
+
+	// AppLifecycleSucceeded / AppLifecycleFailed are result values stored on
+	// App CR status.lastbuild / status.lastdeploy and on LifecycleTiming.
+	AppLifecycleSucceeded = "succeeded"
+	AppLifecycleFailed    = "failed"
 )
 
 // LifecycleTiming is the normalized timing block for one build or deploy

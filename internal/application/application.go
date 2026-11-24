@@ -2106,6 +2106,16 @@ func aggregate(
 		return nil, errors.Wrap(err, "finding the build status")
 	}
 
+	lastBuild, err := LastBuild(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the last build stamp")
+	}
+
+	lastDeploy, err := LastDeploy(&appCR)
+	if err != nil {
+		return nil, errors.Wrap(err, "finding the last deploy stamp")
+	}
+
 	settings, err := Settings(&appCR)
 	if err != nil {
 		return nil, errors.Wrap(err, "finding settings")
@@ -2138,6 +2148,8 @@ func aggregate(
 	app.ImageURL = imageURL
 	app.BuiltImageURL = builtImageURL
 	app.BuildStatus = buildStatus
+	app.LastBuild = lastBuild
+	app.LastDeploy = lastDeploy
 	app.Staging.Builder = builderURL
 	app.Staging.BuildMode = buildMode
 	app.Staging.DockerfilePath = dockerfilePath
@@ -2178,6 +2190,8 @@ type appResourceFields struct {
 	imageURL       string
 	builtImageURL  string
 	buildStatus    string
+	lastBuild      *models.LifecycleTiming
+	lastDeploy     *models.LifecycleTiming
 	builderURL     string
 	buildMode      string
 	dockerfilePath string
@@ -2247,6 +2261,16 @@ func loadAppResourceFields(applicationCR *unstructured.Unstructured) (appResourc
 		{"the build status", func() error {
 			var err error
 			fields.buildStatus, err = BuildStatus(applicationCR)
+			return err
+		}},
+		{"the last build stamp", func() error {
+			var err error
+			fields.lastBuild, err = LastBuild(applicationCR)
+			return err
+		}},
+		{"the last deploy stamp", func() error {
+			var err error
+			fields.lastDeploy, err = LastDeploy(applicationCR)
 			return err
 		}},
 		{"the builder url", func() error {
@@ -2342,6 +2366,8 @@ func applyFetchedAppFields(app *models.App, resource appResourceFields, clusterD
 	app.ImageURL = resource.imageURL
 	app.BuiltImageURL = resource.builtImageURL
 	app.BuildStatus = resource.buildStatus
+	app.LastBuild = resource.lastBuild
+	app.LastDeploy = resource.lastDeploy
 	app.Staging.Builder = resource.builderURL
 	app.Staging.BuildMode = resource.buildMode
 	app.Staging.DockerfilePath = resource.dockerfilePath
