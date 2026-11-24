@@ -29,7 +29,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/util/retry"
 
-	chartutil "helm.sh/helm/v4/pkg/chart/common"
+	chartcommon "helm.sh/helm/v4/pkg/chart/common"
 	commonutil "helm.sh/helm/v4/pkg/chart/common/util"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	"helm.sh/helm/v4/pkg/strvals"
@@ -686,13 +686,13 @@ func (s *ServiceClient) DeployOrUpdate(
 	}
 
 	// Ingest the service class YAML data into a proper values table
-	classValues, err := chartutil.ReadValues([]byte(catalogService.Values + epinioValues))
+	classValues, err := chartcommon.ReadValues([]byte(catalogService.Values + epinioValues))
 	if err != nil {
 		return errors.Wrap(err, "failed to read service class values")
 	}
 
 	// Create proper values table from the --chart-value option data
-	userValues := chartutil.Values{}
+	userValues := chartcommon.Values{}
 	for key, value := range settings {
 		err := strvals.ParseInto(key+"="+value, userValues)
 		if err != nil {
@@ -711,7 +711,7 @@ func (s *ServiceClient) DeployOrUpdate(
 	// ATTENTION: This priority order is reversed from what is said in the application CRD PR.
 	// FIX:       application CRD PR to match here.
 
-	values, err := chartutil.Values(commonutil.CoalesceTables(classValues, userValues)).YAML()
+	values, err := chartcommon.Values(commonutil.CoalesceTables(classValues, userValues)).YAML()
 	if err != nil {
 		return errors.Wrap(err, "failed to merge class and user values")
 	}
@@ -796,7 +796,7 @@ func setServiceStatusAndCustomValues(service *models.Service,
 
 	if len(settings) > 0 {
 		customized := models.ChartValueSettings{}
-		configValues := chartutil.Values(serviceRelease.Config)
+		configValues := chartcommon.Values(serviceRelease.Config)
 
 		for key := range settings {
 			value, err := getValue(configValues, key, true)
@@ -832,7 +832,7 @@ func setServiceStatusAndCustomValues(service *models.Service,
 	return nil
 }
 
-func getValue(values chartutil.Values, key string, maybetable bool) (string, error) {
+func getValue(values chartcommon.Values, key string, maybetable bool) (string, error) {
 	value, err := values.PathValue(key)
 	if err == nil {
 		data, err := json.Marshal(value)
