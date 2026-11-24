@@ -13,7 +13,9 @@ package service
 
 import (
 	"strings"
+	"time"
 
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
@@ -63,4 +65,40 @@ func filterServices(
 	}
 
 	return filtered
+}
+
+// sortServices orders a service list in place by the requested sort field.
+// Fields without a dedicated case fall back to the shared meta sort.
+func sortServices(list models.ServiceList, params response.SortParams) {
+	items := []models.Service(list)
+	switch params.Field {
+	case "status":
+		response.SortByStringKey(
+			items,
+			params.Descending,
+			func(svc models.Service) string {
+				return strings.ToLower(string(svc.Status))
+			},
+		)
+	case "catalogServiceVersion":
+		response.SortByStringKey(
+			items,
+			params.Descending,
+			func(svc models.Service) string {
+				return strings.ToLower(svc.CatalogServiceVersion)
+			},
+		)
+	default:
+		response.ApplyMetaSort(items, params, response.MetaKeys[models.Service]{
+			Name: func(svc models.Service) string {
+				return svc.Meta.Name
+			},
+			Namespace: func(svc models.Service) string {
+				return svc.Meta.Namespace
+			},
+			CreatedAt: func(svc models.Service) time.Time {
+				return svc.Meta.CreatedAt.Time
+			},
+		})
+	}
 }

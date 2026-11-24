@@ -13,6 +13,7 @@ package appchart
 
 import (
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -74,6 +75,23 @@ func Index(c *gin.Context) apierror.APIErrors {
 		}
 
 		allApps = filtered
+	}
+
+	sortParams := response.GetSortParams(c)
+	switch sortParams.Field {
+	case "description":
+		response.SortByStringKey([]models.AppChartFull(allApps), sortParams.Descending, func(chart models.AppChartFull) string {
+			return strings.ToLower(chart.Description)
+		})
+	case "helmChart":
+		response.SortByStringKey([]models.AppChartFull(allApps), sortParams.Descending, func(chart models.AppChartFull) string {
+			return strings.ToLower(chart.HelmChart)
+		})
+	default:
+		response.ApplyMetaSort([]models.AppChartFull(allApps), sortParams, response.MetaKeys[models.AppChartFull]{
+			Name:      func(chart models.AppChartFull) string { return chart.Meta.Name },
+			CreatedAt: func(chart models.AppChartFull) time.Time { return chart.Meta.CreatedAt.Time },
+		})
 	}
 
 	// Apply optional pagination when page parameters are provided.

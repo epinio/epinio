@@ -615,6 +615,8 @@ func ListPaginated(
 	page, pageSize int,
 	search string,
 	filter ListFilter,
+	sortField string,
+	sortDesc bool,
 ) (models.AppList, int, error) {
 	appClient, clientError := cluster.ClientApp()
 	if clientError != nil {
@@ -631,14 +633,56 @@ func ListPaginated(
 
 	allCRs := filterAppCRs(appCRList.Items, search, filter)
 
-	totalCount := len(allCRs)
-
 	if page < 1 {
 		page = 1
 	}
 	if pageSize < 1 {
 		pageSize = 25
 	}
+
+	// Status / deploymentStatus need workload+staging data. Enrich all matching
+	// apps, sort the models, then page. Other fields sort CRs first so only the
+	// page pays enrichment cost.
+	if NeedsEnrichedAppSort(sortField) {
+		allNames := make([]string, 0, len(allCRs))
+		for _, cr := range allCRs {
+			allNames = append(allNames, cr.GetName())
+		}
+		appAuxiliary, pageMetrics, configurationTypes, enrichError := loadEnrichmentData(
+			ctx, cluster, namespace, allNames,
+		)
+		if enrichError != nil {
+			return nil, 0, enrichError
+		}
+
+		apps := models.AppList{}
+		for _, appCR := range allCRs {
+			app, aggregateError := aggregate(
+				ctx, cluster, appCR, appAuxiliary, pageMetrics, configurationTypes,
+			)
+			if aggregateError != nil {
+				return nil, 0, aggregateError
+			}
+			if app != nil {
+				apps = append(apps, *app)
+			}
+		}
+		SortApps(apps, sortField, sortDesc)
+		totalCount := len(apps)
+		start := (page - 1) * pageSize
+		if start >= totalCount {
+			return models.AppList{}, totalCount, nil
+		}
+		end := start + pageSize
+		if end > totalCount {
+			end = totalCount
+		}
+		return apps[start:end], totalCount, nil
+	}
+
+	SortAppCRs(allCRs, sortField, sortDesc)
+
+	totalCount := len(allCRs)
 	start := (page - 1) * pageSize
 	if start >= totalCount {
 		return models.AppList{}, totalCount, nil
@@ -701,6 +745,8 @@ func ListPaginatedByNamespace(
 	page, pageSize int,
 	search string,
 	filter ListFilter,
+	sortField string,
+	sortDesc bool,
 ) (map[string]NamespaceAppsResult, error) {
 	if page < 1 {
 		page = 1
@@ -735,31 +781,8 @@ func ListPaginatedByNamespace(
 		nsCRs[namespaceName] = append(nsCRs[namespaceName], cr)
 	}
 
-	// III. Determine page slice per namespace in memory.
-	type nsSlice struct {
-		pageCRs    []unstructured.Unstructured
-		totalCount int
-	}
-	nsSlices := make(map[string]nsSlice, len(nsCRs))
-	for namespaceName, crs := range nsCRs {
-		totalCount := len(crs)
-		start := (page - 1) * pageSize
-		if start >= totalCount {
-			nsSlices[namespaceName] = nsSlice{pageCRs: nil, totalCount: totalCount}
-			continue
-		}
-		end := start + pageSize
-		if end > totalCount {
-			end = totalCount
-		}
-		nsSlices[namespaceName] = nsSlice{
-			pageCRs:    crs[start:end],
-			totalCount: totalCount,
-		}
-	}
-
-	// IV. Bulk-load all enrichment data cross-namespace, one k8s call per
-	// resource type.
+	// III. Bulk-load all enrichment data cross-namespace, one k8s call per
+	// resource type. Done before paging when status sorts need full models.
 	appAuxiliary, pageMetrics, configurationTypes, enrichError := loadEnrichmentData(
 		ctx,
 		cluster,
@@ -770,11 +793,57 @@ func ListPaginatedByNamespace(
 		return nil, enrichError
 	}
 
-	// V. Assemble final result per namespace.
-	result := make(map[string]NamespaceAppsResult, len(nsSlices))
-	for namespaceName, slice := range nsSlices {
+	result := make(map[string]NamespaceAppsResult, len(nsCRs))
+
+	if NeedsEnrichedAppSort(sortField) {
+		for namespaceName, crs := range nsCRs {
+			apps := models.AppList{}
+			for _, appCR := range crs {
+				app, aggregateError := aggregate(
+					ctx, cluster, appCR, appAuxiliary, pageMetrics, configurationTypes,
+				)
+				if aggregateError != nil {
+					return nil, aggregateError
+				}
+				if app != nil {
+					apps = append(apps, *app)
+				}
+			}
+			SortApps(apps, sortField, sortDesc)
+			totalCount := len(apps)
+			start := (page - 1) * pageSize
+			if start >= totalCount {
+				result[namespaceName] = NamespaceAppsResult{Items: nil, TotalItems: totalCount}
+				continue
+			}
+			end := start + pageSize
+			if end > totalCount {
+				end = totalCount
+			}
+			result[namespaceName] = NamespaceAppsResult{
+				Items:      apps[start:end],
+				TotalItems: totalCount,
+			}
+		}
+		return result, nil
+	}
+
+	// IV. Sort CRs, page, then assemble enriched models for the page only.
+	for namespaceName, crs := range nsCRs {
+		SortAppCRs(crs, sortField, sortDesc)
+		totalCount := len(crs)
+		start := (page - 1) * pageSize
+		if start >= totalCount {
+			result[namespaceName] = NamespaceAppsResult{Items: nil, TotalItems: totalCount}
+			continue
+		}
+		end := start + pageSize
+		if end > totalCount {
+			end = totalCount
+		}
+
 		appList := models.AppList{}
-		for _, appCR := range slice.pageCRs {
+		for _, appCR := range crs[start:end] {
 			app, aggregateError := aggregate(
 				ctx,
 				cluster,
@@ -792,7 +861,7 @@ func ListPaginatedByNamespace(
 		}
 		result[namespaceName] = NamespaceAppsResult{
 			Items:      appList,
-			TotalItems: slice.totalCount,
+			TotalItems: totalCount,
 		}
 	}
 

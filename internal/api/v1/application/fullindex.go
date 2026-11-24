@@ -52,10 +52,30 @@ func fullIndexWithFilter(c *gin.Context, filter application.ListFilter) apierror
 	}
 
 	search := response.GetSearchParam(c)
+	sortParams := response.GetSortParams(c)
 	matched := application.FilterAppCRs(allCRs, search, filter)
 	matched = filterAppCRsByAccess(user, matched, response.GetNamespacesParam(c))
 
 	page, pageSize, paginated := response.GetPaginationParams(c, 1, 25)
+
+	// Status, deploymentStatus and username live on enriched App models, not
+	// CRs. Enrich all matches, sort, then page, or the sort would be a no-op.
+	if application.NeedsEnrichedAppSort(sortParams.Field) {
+		apps, err := application.AppsFromCRs(ctx, cluster, matched)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		application.SortApps(apps, sortParams.Field, sortParams.Descending)
+		if paginated {
+			response.OKReturn(c, response.PaginateSlice(apps, page, pageSize))
+			return nil
+		}
+		response.OKReturn(c, apps)
+		return nil
+	}
+
+	application.SortAppCRs(matched, sortParams.Field, sortParams.Descending)
+
 	if paginated {
 		pageCRs, total := application.PageAppCRs(matched, page, pageSize)
 		apps, err := application.AppsFromCRs(ctx, cluster, pageCRs)

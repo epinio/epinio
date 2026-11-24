@@ -13,6 +13,7 @@ package gitconfig
 
 import (
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -91,6 +92,23 @@ func Index(c *gin.Context) apierror.APIErrors {
 		}
 
 		gitconfigs = filtered
+	}
+
+	sortParams := response.GetSortParams(c)
+	switch sortParams.Field {
+	case "provider":
+		response.SortByStringKey([]models.Gitconfig(gitconfigs), sortParams.Descending, func(gc models.Gitconfig) string {
+			return strings.ToLower(string(gc.Provider))
+		})
+	case "url":
+		response.SortByStringKey([]models.Gitconfig(gitconfigs), sortParams.Descending, func(gc models.Gitconfig) string {
+			return strings.ToLower(gc.URL)
+		})
+	default:
+		response.ApplyMetaSort([]models.Gitconfig(gitconfigs), sortParams, response.MetaKeys[models.Gitconfig]{
+			Name:      func(gc models.Gitconfig) string { return gc.Meta.Name },
+			CreatedAt: func(gc models.Gitconfig) time.Time { return gc.Meta.CreatedAt.Time },
+		})
 	}
 
 	// Apply optional pagination when page parameters are provided.

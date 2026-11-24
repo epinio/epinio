@@ -14,6 +14,7 @@ package namespace
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -79,6 +80,48 @@ func Index(c *gin.Context) apierror.APIErrors {
 	configNamesMap, err := getConfigurationNamesByNamespaceMap(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
+	}
+
+	// Sort before paginating so a page is a slice of the sorted list.
+	sortParams := response.GetSortParams(c)
+	switch sortParams.Field {
+	case "appCount":
+		response.SortByIntKey(
+			namespaceList,
+			sortParams.Descending,
+			func(ns namespaces.Namespace) int {
+				return len(appNamesMap[ns.Name])
+			},
+		)
+	case "configCount":
+		response.SortByIntKey(
+			namespaceList,
+			sortParams.Descending,
+			func(ns namespaces.Namespace) int {
+				return len(configNamesMap[ns.Name])
+			},
+		)
+	case "serviceInstanceCount":
+		response.SortByIntKey(
+			namespaceList,
+			sortParams.Descending,
+			func(ns namespaces.Namespace) int {
+				return len(serviceNamesMap[ns.Name])
+			},
+		)
+	default:
+		response.ApplyMetaSort(
+			namespaceList,
+			sortParams,
+			response.MetaKeys[namespaces.Namespace]{
+				Name: func(ns namespaces.Namespace) string {
+					return ns.Name
+				},
+				CreatedAt: func(ns namespaces.Namespace) time.Time {
+					return ns.CreatedAt.Time
+				},
+			},
+		)
 	}
 
 	toModels := func(list []namespaces.Namespace) models.NamespaceList {

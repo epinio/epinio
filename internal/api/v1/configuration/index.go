@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -80,6 +81,24 @@ func Index(c *gin.Context) apierror.APIErrors {
 			}
 		}
 		responseData = filtered
+	}
+
+	sortParams := response.GetSortParams(c)
+	switch sortParams.Field {
+	case "username":
+		response.SortByStringKey([]models.ConfigurationResponse(responseData), sortParams.Descending, func(cfg models.ConfigurationResponse) string {
+			return strings.ToLower(cfg.Configuration.Username)
+		})
+	case "variableCount":
+		response.SortByIntKey([]models.ConfigurationResponse(responseData), sortParams.Descending, func(cfg models.ConfigurationResponse) int {
+			return len(cfg.Configuration.Details)
+		})
+	default:
+		response.ApplyMetaSort([]models.ConfigurationResponse(responseData), sortParams, response.MetaKeys[models.ConfigurationResponse]{
+			Name:      func(cfg models.ConfigurationResponse) string { return cfg.Meta.Name },
+			Namespace: func(cfg models.ConfigurationResponse) string { return cfg.Meta.Namespace },
+			CreatedAt: func(cfg models.ConfigurationResponse) time.Time { return cfg.Meta.CreatedAt.Time },
+		})
 	}
 
 	if page, pageSize, ok := response.GetPaginationParams(c, 1, 25); ok {
