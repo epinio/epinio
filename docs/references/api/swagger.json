@@ -221,6 +221,20 @@
           },
           {
             "type": "string",
+            "x-go-name": "Sort",
+            "description": "Sort field: name, createdAt, or namespace. Applied before pagination.",
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "SortDir",
+            "description": "Sort direction: asc (default) or desc",
+            "name": "sortDir",
+            "in": "query"
+          },
+          {
+            "type": "string",
             "x-go-name": "Page",
             "description": "Page number, 1-based. Pagination is off unless page or pageSize is set.",
             "name": "page",
@@ -1087,6 +1101,20 @@
             "x-go-name": "Search",
             "description": "Case-insensitive substring match on the application name",
             "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "Sort",
+            "description": "Sort field: name, createdAt, or namespace. Applied before pagination.",
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "x-go-name": "SortDir",
+            "description": "Sort direction: asc (default) or desc",
+            "name": "sortDir",
             "in": "query"
           },
           {
@@ -4876,7 +4904,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "Namespace": {
-      "description": "Namespace has all the namespace properties, i.e. name, app names, and configuration names\nIt is used in the CLI and API responses.",
+      "description": "Namespace has all the namespace properties, i.e. name, app names, configuration\nnames, and service instance names. It is used in the CLI and API responses.",
       "type": "object",
       "properties": {
         "apps": {
