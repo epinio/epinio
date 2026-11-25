@@ -155,10 +155,10 @@ var _ = Describe("AppStage from a git origin", LApplication, func() {
 		)
 	})
 
-	It("resolves a tag to its commit", func() {
+	It("resolves a tag to its commit and keeps the tag as the origin name", func() {
 		git := clonedOrigin(exampleGoURL, "v0.0.2").Origin.Git
-		// Tag checkout is detached HEAD; go-git may report "HEAD" or "main"
-		Expect(git.Branch).To(BeElementOf("main", "HEAD"))
+		// Prefer the requested tag name over whichever ref happens to contain the commit first (usually HEAD).
+		Expect(git.Branch).To(Equal("v0.0.2"))
 		Expect(git.Revision).To(
 			Equal("e84b2a73b2c1bb88d9cdc99ffca1a3d05b3d261b"),
 		)
@@ -168,8 +168,7 @@ var _ = Describe("AppStage from a git origin", LApplication, func() {
 		revision := "15e2b2690ac9b372963544384b9aa43955a2e611"
 
 		git := clonedOrigin(exampleGoURL, revision).Origin.Git
-		// Commit checkout may be detached HEAD; go-git may report "HEAD",
-		// the branch name, or a tag
+		// Raw commit SHAs are not tag names; resolution still walks refs that contain the commit.
 		Expect(git.Branch).To(BeElementOf("test", "HEAD", "v0.0.1"))
 		Expect(git.Revision).To(Equal(revision))
 	})
