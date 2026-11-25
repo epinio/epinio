@@ -155,6 +155,82 @@ var _ = Describe("Catalog Service CRUD", func() {
 
 			Expect(createError).To(HaveOccurred())
 		})
+
+		It("persists settings description and example on create", func() {
+			fakeRI.CreateReturns(&unstructured.Unstructured{}, nil)
+
+			req := models.CatalogServiceCreateRequest{
+				Name:      "mongodb-test",
+				HelmChart: "mongodb",
+				HelmRepo: models.HelmRepoRequest{
+					Name: "bitnami",
+					URL:  "https://charts.bitnami.com/bitnami",
+				},
+				Settings: map[string]models.ChartSetting{
+					"demoPort": {
+						Type:        "integer",
+						Minimum:     "1",
+						Description: "Demo help text",
+						Example:     "9090",
+					},
+				},
+			}
+
+			_, createError := client.CreateCatalogService(ctx, req)
+			Expect(createError).ToNot(HaveOccurred())
+
+			_, sent, _, _ := fakeRI.CreateArgsForCall(0)
+			setting, _, settingError := unstructured.NestedMap(
+				sent.Object,
+				"spec",
+				"settings",
+				"demoPort",
+			)
+			Expect(settingError).ToNot(HaveOccurred())
+			Expect(setting["type"]).To(Equal("integer"))
+			Expect(setting["minimum"]).To(Equal("1"))
+			Expect(setting["description"]).To(Equal("Demo help text"))
+			Expect(setting["example"]).To(Equal("9090"))
+		})
+	})
+
+	Describe("convertUnstructuredIntoCatalogService", func() {
+		It("reads settings description and example from unstructured", func() {
+			item := unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"name":              "mongodb-dev",
+						"creationTimestamp": nil,
+					},
+					"spec": map[string]interface{}{
+						"name":             "mongodb-dev",
+						"shortDescription": "short",
+						"description":      "long",
+						"chart":            "mongodb",
+						"helmRepo": map[string]interface{}{
+							"name": "bitnami",
+							"url":  "https://charts.bitnami.com/bitnami",
+						},
+						"settings": map[string]interface{}{
+							"demoPort": map[string]interface{}{
+								"type":        "integer",
+								"description": "Demo help text",
+								"example":     "9090",
+							},
+						},
+					},
+				},
+			}
+
+			catalogService, convertError := client.
+				convertUnstructuredIntoCatalogService(item)
+			Expect(convertError).ToNot(HaveOccurred())
+			Expect(catalogService.Settings).To(HaveKey("demoPort"))
+			Expect(catalogService.Settings["demoPort"].Description).To(Equal(
+				"Demo help text",
+			))
+			Expect(catalogService.Settings["demoPort"].Example).To(Equal("9090"))
+		})
 	})
 
 	Describe("UpdateCatalogService", func() {
@@ -215,6 +291,53 @@ var _ = Describe("Catalog Service CRUD", func() {
 			Expect(
 				sent.GetAnnotations(),
 			).ToNot(HaveKey(CatalogServiceSecretTypesAnnotation))
+		})
+
+		It("replaces settings including description and example", func() {
+			existing := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"name": "redis-dev",
+					},
+					"spec": map[string]interface{}{
+						"settings": map[string]interface{}{
+							"old": map[string]interface{}{
+								"type": "string",
+							},
+						},
+					},
+				},
+			}
+			fakeRI.GetReturns(existing, nil)
+			fakeRI.UpdateReturns(&unstructured.Unstructured{}, nil)
+
+			req := models.CatalogServiceUpdateRequest{
+				Settings: map[string]models.ChartSetting{
+					"demoPort": {
+						Type:        "integer",
+						Description: "Updated help",
+						Example:     "9090",
+					},
+				},
+			}
+
+			updateError := client.UpdateCatalogService(ctx, "redis-dev", req)
+			Expect(updateError).ToNot(HaveOccurred())
+
+			_, sent, _, _ := fakeRI.UpdateArgsForCall(0)
+			settings, _, settingsError := unstructured.NestedMap(
+				sent.Object,
+				"spec",
+				"settings",
+			)
+			Expect(settingsError).ToNot(HaveOccurred())
+			Expect(settings).To(HaveKey("demoPort"))
+			Expect(settings).ToNot(HaveKey("old"))
+
+			demoPort, ok := settings["demoPort"].(map[string]interface{})
+			Expect(ok).To(BeTrue())
+			Expect(demoPort["description"]).To(Equal("Updated help"))
+			Expect(demoPort["example"]).To(Equal("9090"))
 		})
 
 		It("returns the underlying error when the Get fails", func() {
