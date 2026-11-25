@@ -3122,6 +3122,7 @@
           "$ref": "#/definitions/AppDeployment"
         },
         "failure_reason": {
+          "description": "FailureReason is set for workload/pod deploy problems (ImagePullBackOff,\nCrashLoopBackOff, …). Staging build failures use StagingFailureReason.",
           "type": "string",
           "x-go-name": "FailureReason"
         },
@@ -3144,6 +3145,11 @@
         },
         "staging": {
           "$ref": "#/definitions/ApplicationStage"
+        },
+        "staging_failure_reason": {
+          "description": "StagingFailureReason is the captured Kubernetes staging Job/pod failure\ndetail (for example BackoffLimitExceeded, or a terminated reason with\nexit code). It is a sibling of FailureReason so clients can label it as\na staging failure. Empty when staging has not failed, or after a later\nsuccessful stage.",
+          "type": "string",
+          "x-go-name": "StagingFailureReason"
         },
         "stagingstatus": {
           "$ref": "#/definitions/ApplicationStagingStatus"

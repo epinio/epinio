@@ -183,7 +183,14 @@ func clearBuildFields(ctx context.Context, cluster *kubernetes.Cluster, appRef m
 		"buildmode":      "",
 		"dockerfilepath": "",
 	}
-	patchBody, err := json.Marshal(map[string]any{"spec": specPatch})
+	patchBody, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{
+			"annotations": map[string]any{
+				models.EpinioStagingFailureReasonAnnotation: nil,
+			},
+		},
+		"spec": specPatch,
+	})
 	if err != nil {
 		return err
 	}

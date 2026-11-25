@@ -37,6 +37,16 @@ var _ = Describe("assignApplicationStatus", func() {
 		Expect(app.StatusMessage).To(Equal("staging failed"))
 	})
 
+	It("includes the captured staging failure reason in the status message", func() {
+		app := &models.App{
+			StagingStatus:        models.ApplicationStagingFailed,
+			StagingFailureReason: "Error (exit code 1)",
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.StatusMessage).To(Equal("staging failed: Error (exit code 1)"))
+	})
+
 	It("marks staging done without workload as deploying, not error", func() {
 		app := &models.App{
 			StagingStatus: models.ApplicationStagingDone,
@@ -82,6 +92,17 @@ var _ = Describe("assignApplicationStatus", func() {
 		assignApplicationStatus(app, nil)
 		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
 		Expect(app.StatusMessage).To(Equal("staging failed"))
+	})
+
+	It("keeps the captured reason when a staging job is gone", func() {
+		app := &models.App{
+			StageID:              "abc123",
+			StagingFailureReason: "BackoffLimitExceeded",
+			Configuration:        models.ApplicationConfiguration{Instances: &one},
+		}
+		assignApplicationStatus(app, nil)
+		Expect(app.Status).To(Equal(models.ApplicationStatus(models.ApplicationError)))
+		Expect(app.StatusMessage).To(Equal("staging failed: BackoffLimitExceeded"))
 	})
 
 	It("marks staging done without workload as deploying when instances nil", func() {
