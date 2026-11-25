@@ -22,6 +22,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
+	apiauth "github.com/epinio/epinio/internal/api/v1/auth"
 	"github.com/epinio/epinio/internal/api/v1/middleware"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
@@ -115,6 +116,13 @@ func NewHandler() (*gin.Engine, error) {
 		middleware.EpinioVersion,
 		apiv1.ErrorHandler(apiv1.Info),
 	)
+
+	// Browser auth endpoints (EPINIO-837) — outside the authenticated group.
+	// Not listed in Routes/actions.yaml; RoleAuthorization does not apply.
+	router.POST("/api/v1/auth/login", apiauth.Login)
+	router.POST("/api/v1/auth/logout", apiauth.Logout)
+	router.GET("/api/v1/auth/oidc/start", apiauth.OIDCStart)
+	router.GET("/api/v1/auth/oidc/callback", apiauth.OIDCCallback)
 
 	// authenticated /me endpoint returns the current user (no other checks/middlewares needed)
 	router.GET("/api/v1/me",

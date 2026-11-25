@@ -54,6 +54,16 @@ func TokenAuth(ctx *gin.Context) {
 		return
 	}
 
+	// Websocket authtokens from Create() have empty Kind. Reject session / OIDC-flow JWTs
+	// so a long-lived EPINIO_SESSION cookie cannot be reused as ?authtoken=.
+	if claims.Kind != "" || claims.Username == "" {
+		apiErr := apierrors.NewAPIError("invalid authtoken", http.StatusUnauthorized)
+		logger.Debugw(apiErr.Title, "kind", claims.Kind)
+		response.Error(ctx, apiErr)
+		ctx.Abort()
+		return
+	}
+
 	authService, err := auth.NewAuthServiceFromContext(ctx)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err))

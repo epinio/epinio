@@ -12,6 +12,7 @@
 package authtoken_test
 
 import (
+	"os"
 	"time"
 
 	"github.com/epinio/epinio/helpers/authtoken"
@@ -60,5 +61,71 @@ var _ = Describe("Token", func() {
 	It("does not create a token beyond the maximum allowed expiry time", func() {
 		token := authtoken.Create("armin", authtoken.MaxExpiry+time.Second)
 		Expect(token).To(BeEmpty())
+	})
+
+	It("creates and validates a browser session token with CSRF", func() {
+		token := authtoken.CreateSession("armin", "csrf-token", authtoken.GetSessionExpiry())
+		Expect(token).ToNot(BeEmpty())
+
+		claims, err := authtoken.ValidateSession(token)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(claims.Username).To(Equal("armin"))
+		Expect(claims.CSRF).To(Equal("csrf-token"))
+		Expect(claims.Kind).To(Equal(authtoken.KindSession))
+	})
+
+	It("rejects a websocket token as a session", func() {
+		token := authtoken.Create("armin", authtoken.GetDefaultExpiry())
+		Expect(token).ToNot(BeEmpty())
+
+		_, err := authtoken.ValidateSession(token)
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("creates and validates an OIDC flow token", func() {
+		token := authtoken.CreateOIDCFlow("verifier", "state-xyz", authtoken.MaxOIDCFlowExpiry)
+		Expect(token).ToNot(BeEmpty())
+
+		claims, err := authtoken.ValidateOIDCFlow(token)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(claims.CodeVerifier).To(Equal("verifier"))
+		Expect(claims.State).To(Equal("state-xyz"))
+	})
+
+	It("rejects CreateSession with empty user or csrf", func() {
+		Expect(authtoken.CreateSession("", "csrf", authtoken.GetSessionExpiry())).To(BeEmpty())
+		Expect(authtoken.CreateSession("armin", "", authtoken.GetSessionExpiry())).To(BeEmpty())
+	})
+
+	It("rejects CreateSession beyond MaxSessionExpiry", func() {
+		Expect(authtoken.CreateSession("armin", "csrf", authtoken.MaxSessionExpiry+time.Hour)).To(BeEmpty())
+	})
+
+	It("rejects CreateOIDCFlow with empty fields or too-long expiry", func() {
+		Expect(authtoken.CreateOIDCFlow("", "state", authtoken.MaxOIDCFlowExpiry)).To(BeEmpty())
+		Expect(authtoken.CreateOIDCFlow("verifier", "", authtoken.MaxOIDCFlowExpiry)).To(BeEmpty())
+		Expect(authtoken.CreateOIDCFlow("verifier", "state", authtoken.MaxOIDCFlowExpiry+time.Minute)).To(BeEmpty())
+	})
+
+	It("rejects a session token as an OIDC flow token", func() {
+		token := authtoken.CreateSession("armin", "csrf", authtoken.GetSessionExpiry())
+		Expect(token).ToNot(BeEmpty())
+
+		_, err := authtoken.ValidateOIDCFlow(token)
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("honours SESSION_COOKIE_EXPIRY env within the max cap", func() {
+		Expect(os.Setenv(authtoken.SessionExpiryEnv, "1h")).To(Succeed())
+		DeferCleanup(func() { _ = os.Unsetenv(authtoken.SessionExpiryEnv) })
+
+		Expect(authtoken.GetSessionExpiry()).To(Equal(time.Hour))
+	})
+
+	It("caps SESSION_COOKIE_EXPIRY at MaxSessionExpiry", func() {
+		Expect(os.Setenv(authtoken.SessionExpiryEnv, "72h")).To(Succeed())
+		DeferCleanup(func() { _ = os.Unsetenv(authtoken.SessionExpiryEnv) })
+
+		Expect(authtoken.GetSessionExpiry()).To(Equal(authtoken.MaxSessionExpiry))
 	})
 })

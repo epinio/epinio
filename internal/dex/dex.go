@@ -65,11 +65,17 @@ func NewOIDCProviderWithConfig(ctx context.Context, config Config) (*OIDCProvide
 		return nil, errors.Wrap(err, "creating the provider")
 	}
 
+	redirectURL := OutOfBrowserURN
+	if config.RedirectURL != "" {
+		redirectURL = config.RedirectURL
+	}
+
 	config.Oauth2 = &oauth2.Config{
-		Endpoint:    provider.Endpoint(),
-		ClientID:    config.ClientID,
-		RedirectURL: OutOfBrowserURN,
-		Scopes:      DefaultScopes,
+		Endpoint:     provider.Endpoint(),
+		ClientID:     config.ClientID,
+		ClientSecret: config.ClientSecret,
+		RedirectURL:  redirectURL,
+		Scopes:       DefaultScopes,
 	}
 
 	return &OIDCProvider{
@@ -82,6 +88,13 @@ func NewOIDCProviderWithConfig(ctx context.Context, config Config) (*OIDCProvide
 // The code_verifier is needed to implement the PKCE auth flow, since this is going to be used by our CLI
 // Ref: https://www.oauth.com/oauth2-servers/pkce/
 func (pc *OIDCProvider) AuthCodeURLWithPKCE() (string, string) {
+	authCodeURL, codeVerifier, _ := pc.AuthCodeURLWithPKCEAndState()
+	return authCodeURL, codeVerifier
+}
+
+// AuthCodeURLWithPKCEAndState is like AuthCodeURLWithPKCE but also returns the
+// OAuth state so the browser callback can verify it (EPINIO-837).
+func (pc *OIDCProvider) AuthCodeURLWithPKCEAndState() (string, string, string) {
 	state := uniuri.NewLen(32)
 	codeVerifier := NewCodeVerifier()
 
@@ -92,7 +105,7 @@ func (pc *OIDCProvider) AuthCodeURLWithPKCE() (string, string) {
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 	)
 
-	return authCodeURL, codeVerifier.Value
+	return authCodeURL, codeVerifier.Value, state
 }
 
 // AddScopes will add scopes to the OIDCProvider.Config.Scopes, extending the DefaultScopes

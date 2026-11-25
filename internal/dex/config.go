@@ -22,6 +22,8 @@ import (
 type Config struct {
 	Issuer          string
 	ClientID        string
+	ClientSecret    string
+	RedirectURL     string
 	Endpoint        *url.URL
 	ProvidersGroups []ProviderGroups
 
@@ -83,6 +85,13 @@ func NewConfigFromSecretData(clientID string, secretData map[string][]byte) (Con
 		}
 
 		config.ProvidersGroups = providersGroups
+	}
+
+	// Confidential UI client secret is only for the epinio-ui client.
+	if clientID == "epinio-ui" {
+		if secret, found := secretData["uiClientSecret"]; found {
+			config.ClientSecret = string(secret)
+		}
 	}
 
 	return config, nil
