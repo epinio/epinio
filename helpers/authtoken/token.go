@@ -106,6 +106,7 @@ type EpinioClaims struct {
 	// OIDC PKCE flow fields (KindOIDCFlow only)
 	CodeVerifier string `json:"code_verifier,omitempty"`
 	State        string `json:"state,omitempty"`
+	Nonce        string `json:"nonce,omitempty"`
 }
 
 func init() {
@@ -196,9 +197,9 @@ func CreateSession(user, csrf string, s time.Duration) string {
 	return sign(claims)
 }
 
-// CreateOIDCFlow creates a short-lived JWT storing PKCE verifier + OAuth state.
-func CreateOIDCFlow(codeVerifier, state string, s time.Duration) string {
-	if s <= 0 || s > MaxOIDCFlowExpiry || codeVerifier == "" || state == "" {
+// CreateOIDCFlow creates a short-lived JWT storing PKCE verifier + OAuth state + nonce.
+func CreateOIDCFlow(codeVerifier, state, nonce string, s time.Duration) string {
+	if s <= 0 || s > MaxOIDCFlowExpiry || codeVerifier == "" || state == "" || nonce == "" {
 		return ""
 	}
 	claims := EpinioClaims{
@@ -209,6 +210,7 @@ func CreateOIDCFlow(codeVerifier, state string, s time.Duration) string {
 		Kind:         KindOIDCFlow,
 		CodeVerifier: codeVerifier,
 		State:        state,
+		Nonce:        nonce,
 	}
 	return sign(claims)
 }
@@ -260,7 +262,7 @@ func ValidateOIDCFlow(t string) (*EpinioClaims, error) {
 	if err != nil {
 		return nil, err
 	}
-	if claims.Kind != KindOIDCFlow || claims.CodeVerifier == "" || claims.State == "" {
+	if claims.Kind != KindOIDCFlow || claims.CodeVerifier == "" || claims.State == "" || claims.Nonce == "" {
 		return nil, fmt.Errorf("not an oidc flow token")
 	}
 	return claims, nil

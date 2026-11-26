@@ -88,24 +88,26 @@ func NewOIDCProviderWithConfig(ctx context.Context, config Config) (*OIDCProvide
 // The code_verifier is needed to implement the PKCE auth flow, since this is going to be used by our CLI
 // Ref: https://www.oauth.com/oauth2-servers/pkce/
 func (pc *OIDCProvider) AuthCodeURLWithPKCE() (string, string) {
-	authCodeURL, codeVerifier, _ := pc.AuthCodeURLWithPKCEAndState()
+	authCodeURL, codeVerifier, _, _ := pc.AuthCodeURLWithPKCEAndState()
 	return authCodeURL, codeVerifier
 }
 
 // AuthCodeURLWithPKCEAndState is like AuthCodeURLWithPKCE but also returns the
-// OAuth state so the browser callback can verify it (EPINIO-837).
-func (pc *OIDCProvider) AuthCodeURLWithPKCEAndState() (string, string, string) {
-	state := uniuri.NewLen(32)
-	codeVerifier := NewCodeVerifier()
+// OAuth state and nonce so the browser callback can verify them (EPINIO-837).
+func (pc *OIDCProvider) AuthCodeURLWithPKCEAndState() (authCodeURL, codeVerifier, state, nonce string) {
+	state = uniuri.NewLen(32)
+	nonce = uniuri.NewLen(32)
+	verifier := NewCodeVerifier()
 
-	authCodeURL := pc.Config.Oauth2.AuthCodeURL(
+	authCodeURL = pc.Config.Oauth2.AuthCodeURL(
 		state,
-		oauth2.SetAuthURLParam("code_verifier", codeVerifier.Value),
-		oauth2.SetAuthURLParam("code_challenge", codeVerifier.ChallengeS256()),
+		oauth2.SetAuthURLParam("code_verifier", verifier.Value),
+		oauth2.SetAuthURLParam("code_challenge", verifier.ChallengeS256()),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		oidc.Nonce(nonce),
 	)
 
-	return authCodeURL, codeVerifier.Value, state
+	return authCodeURL, verifier.Value, state, nonce
 }
 
 // AddScopes will add scopes to the OIDCProvider.Config.Scopes, extending the DefaultScopes

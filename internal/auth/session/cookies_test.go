@@ -52,7 +52,7 @@ var _ = Describe("Session cookies", func() {
 		Expect(sessionCookie).ToNot(BeNil())
 		Expect(sessionCookie.HttpOnly).To(BeTrue())
 		Expect(sessionCookie.Secure).To(BeTrue())
-		Expect(sessionCookie.SameSite).To(Equal(http.SameSiteNoneMode))
+		Expect(sessionCookie.SameSite).To(Equal(http.SameSiteLaxMode))
 
 		Expect(csrfCookie).ToNot(BeNil())
 		Expect(csrfCookie.HttpOnly).To(BeFalse())
@@ -139,23 +139,24 @@ var _ = Describe("Session cookies", func() {
 
 	It("stores and reads OIDC flow cookie", func() {
 		c, w := newTestContext(http.MethodGet, "/api/v1/auth/oidc/start")
-		Expect(session.SetOIDCFlowCookie(c, "verifier-1", "state-1")).To(Succeed())
+		Expect(session.SetOIDCFlowCookie(c, "verifier-1", "state-1", "nonce-1")).To(Succeed())
 
 		c2, _ := newTestContext(http.MethodGet, "/api/v1/auth/oidc/callback")
 		for _, cookie := range w.Result().Cookies() {
 			c2.Request.AddCookie(cookie)
 		}
 
-		verifier, state, err := session.ReadOIDCFlow(c2)
+		verifier, state, nonce, err := session.ReadOIDCFlow(c2)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(verifier).To(Equal("verifier-1"))
 		Expect(state).To(Equal("state-1"))
+		Expect(nonce).To(Equal("nonce-1"))
 	})
 
 	It("clears session, CSRF, and OIDC cookies", func() {
 		c, w := newTestContext(http.MethodPost, "/api/v1/auth/logout")
 		Expect(session.SetSessionCookies(c, "admin")).To(Succeed())
-		Expect(session.SetOIDCFlowCookie(c, "v", "s")).To(Succeed())
+		Expect(session.SetOIDCFlowCookie(c, "v", "s", "n")).To(Succeed())
 
 		session.ClearCookies(c)
 

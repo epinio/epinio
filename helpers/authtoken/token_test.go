@@ -83,13 +83,14 @@ var _ = Describe("Token", func() {
 	})
 
 	It("creates and validates an OIDC flow token", func() {
-		token := authtoken.CreateOIDCFlow("verifier", "state-xyz", authtoken.MaxOIDCFlowExpiry)
+		token := authtoken.CreateOIDCFlow("verifier", "state-xyz", "nonce-xyz", authtoken.MaxOIDCFlowExpiry)
 		Expect(token).ToNot(BeEmpty())
 
 		claims, err := authtoken.ValidateOIDCFlow(token)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(claims.CodeVerifier).To(Equal("verifier"))
 		Expect(claims.State).To(Equal("state-xyz"))
+		Expect(claims.Nonce).To(Equal("nonce-xyz"))
 	})
 
 	It("rejects CreateSession with empty user or csrf", func() {
@@ -102,9 +103,10 @@ var _ = Describe("Token", func() {
 	})
 
 	It("rejects CreateOIDCFlow with empty fields or too-long expiry", func() {
-		Expect(authtoken.CreateOIDCFlow("", "state", authtoken.MaxOIDCFlowExpiry)).To(BeEmpty())
-		Expect(authtoken.CreateOIDCFlow("verifier", "", authtoken.MaxOIDCFlowExpiry)).To(BeEmpty())
-		Expect(authtoken.CreateOIDCFlow("verifier", "state", authtoken.MaxOIDCFlowExpiry+time.Minute)).To(BeEmpty())
+		Expect(authtoken.CreateOIDCFlow("", "state", "nonce", authtoken.MaxOIDCFlowExpiry)).To(BeEmpty())
+		Expect(authtoken.CreateOIDCFlow("verifier", "", "nonce", authtoken.MaxOIDCFlowExpiry)).To(BeEmpty())
+		Expect(authtoken.CreateOIDCFlow("verifier", "state", "", authtoken.MaxOIDCFlowExpiry)).To(BeEmpty())
+		Expect(authtoken.CreateOIDCFlow("verifier", "state", "nonce", authtoken.MaxOIDCFlowExpiry+time.Minute)).To(BeEmpty())
 	})
 
 	It("rejects a session token as an OIDC flow token", func() {

@@ -15,8 +15,10 @@ package session
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -64,9 +66,9 @@ func ClearCookies(c *gin.Context) {
 	clearCookie(c, OIDCFlowCookie)
 }
 
-// SetOIDCFlowCookie stores PKCE verifier + state for the OIDC callback.
-func SetOIDCFlowCookie(c *gin.Context, codeVerifier, state string) error {
-	token := authtoken.CreateOIDCFlow(codeVerifier, state, authtoken.MaxOIDCFlowExpiry)
+// SetOIDCFlowCookie stores PKCE verifier + state + nonce for the OIDC callback.
+func SetOIDCFlowCookie(c *gin.Context, codeVerifier, state, nonce string) error {
+	token := authtoken.CreateOIDCFlow(codeVerifier, state, nonce, authtoken.MaxOIDCFlowExpiry)
 	if token == "" {
 		return errFailedSession
 	}
@@ -79,17 +81,17 @@ func ClearOIDCFlowCookie(c *gin.Context) {
 	clearCookie(c, OIDCFlowCookie)
 }
 
-// ReadOIDCFlow returns verifier and state from the OIDC flow cookie.
-func ReadOIDCFlow(c *gin.Context) (codeVerifier, state string, err error) {
+// ReadOIDCFlow returns verifier, state, and nonce from the OIDC flow cookie.
+func ReadOIDCFlow(c *gin.Context) (codeVerifier, state, nonce string, err error) {
 	raw, err := c.Cookie(OIDCFlowCookie)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	claims, err := authtoken.ValidateOIDCFlow(raw)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return claims.CodeVerifier, claims.State, nil
+	return claims.CodeVerifier, claims.State, claims.Nonce, nil
 }
 
 // AuthenticateCookie validates the session cookie. For non-safe methods it also
@@ -124,7 +126,10 @@ func csrfMatches(expected, header string) bool {
 	}
 	// UI historically appends a trailing "=" when forwarding the cookie value.
 	header = strings.TrimSuffix(header, "=")
-	return header == expected || header+"=" == expected
+	if subtle.ConstantTimeCompare([]byte(header), []byte(expected)) == 1 {
+		return true
+	}
+	return subtle.ConstantTimeCompare([]byte(header+"="), []byte(expected)) == 1
 }
 
 func isSafeMethod(method string) bool {
@@ -136,8 +141,18 @@ func isSafeMethod(method string) bool {
 	}
 }
 
+func sessionSameSite() http.SameSite {
+	// Default Lax for same-origin deployments. Set EPINIO_SESSION_SAMESITE=none
+	// when Rancher-extension (cross-origin) credentialed cookie auth is required.
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("EPINIO_SESSION_SAMESITE"))) {
+	case "none":
+		return http.SameSiteNoneMode
+	default:
+		return http.SameSiteLaxMode
+	}
+}
+
 func setCookie(c *gin.Context, name, value string, maxAge int, httpOnly bool) {
-	// SameSite=None so Rancher-extension (cross-origin) credentialed fetches can store cookies.
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -145,7 +160,7 @@ func setCookie(c *gin.Context, name, value string, maxAge int, httpOnly bool) {
 		MaxAge:   maxAge,
 		HttpOnly: httpOnly,
 		Secure:   true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: sessionSameSite(),
 	})
 }
 
@@ -158,7 +173,7 @@ func clearCookie(c *gin.Context, name string) {
 		Expires:  time.Unix(0, 0),
 		HttpOnly: true,
 		Secure:   true,
-		SameSite: http.SameSiteNoneMode,
+		SameSite: sessionSameSite(),
 	})
 }
 

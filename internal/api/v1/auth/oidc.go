@@ -45,8 +45,8 @@ func OIDCStart(c *gin.Context) {
 		return
 	}
 
-	authCodeURL, codeVerifier, state := oidcProvider.AuthCodeURLWithPKCEAndState()
-	if err := session.SetOIDCFlowCookie(c, codeVerifier, state); err != nil {
+	authCodeURL, codeVerifier, state, nonce := oidcProvider.AuthCodeURLWithPKCEAndState()
+	if err := session.SetOIDCFlowCookie(c, codeVerifier, state, nonce); err != nil {
 		response.Error(c, apierrors.InternalError(err, "setting oidc flow cookie"))
 		return
 	}
@@ -70,7 +70,7 @@ func OIDCCallback(c *gin.Context) {
 		return
 	}
 
-	codeVerifier, expectedState, err := session.ReadOIDCFlow(c)
+	codeVerifier, expectedState, expectedNonce, err := session.ReadOIDCFlow(c)
 	session.ClearOIDCFlowCookie(c)
 	if err != nil {
 		response.Error(c, apierrors.NewAPIError("invalid or expired oidc flow", http.StatusUnauthorized))
@@ -108,6 +108,8 @@ func OIDCCallback(c *gin.Context) {
 
 	var claims struct {
 		Email           string   `json:"email"`
+		EmailVerified   bool     `json:"email_verified"`
+		Nonce           string   `json:"nonce"`
 		Groups          []string `json:"groups"`
 		FederatedClaims struct {
 			ConnectorID string `json:"connector_id"`
@@ -119,6 +121,14 @@ func OIDCCallback(c *gin.Context) {
 	}
 	if claims.Email == "" {
 		response.Error(c, apierrors.NewAPIError("email claim missing", http.StatusUnauthorized))
+		return
+	}
+	if !claims.EmailVerified {
+		response.Error(c, apierrors.NewAPIError("email not verified", http.StatusUnauthorized))
+		return
+	}
+	if claims.Nonce == "" || claims.Nonce != expectedNonce {
+		response.Error(c, apierrors.NewAPIError("nonce mismatch", http.StatusUnauthorized))
 		return
 	}
 

@@ -139,7 +139,7 @@ var _ = Describe("Auth handlers", func() {
 			reqSetup, err := http.NewRequest(http.MethodGet, "/", nil)
 			Expect(err).ToNot(HaveOccurred())
 			cSetup.Request = reqSetup
-			Expect(session.SetOIDCFlowCookie(cSetup, "verifier", "expected-state")).To(Succeed())
+			Expect(session.SetOIDCFlowCookie(cSetup, "verifier", "expected-state", "nonce")).To(Succeed())
 
 			w := httptest.NewRecorder()
 			_, engine := gin.CreateTestContext(w)
